@@ -125,6 +125,7 @@ ignore = [
 "tests/adapters/mysql_fixture.py" = ["S608"]
 # The same for the rows the editing tests make and change behind the adapter.
 "tests/adapters/test_mysql_update.py" = ["S608"]
+"tests/adapters/test_mysql_structure.py" = ["S608"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

@@ -227,6 +227,17 @@ def identifier(*parts: str) -> str:
 VALUE_ERRORS = frozenset({1264, 1265, 1292, 1366, 1367, 1406, 1411, 1416, 3037, 3140, 4025})
 
 
+class _QuietCursor(aiomysql.Cursor):  # type: ignore[misc]  # aiomysql is untyped
+    """A cursor that leaves the server's warnings where they are.
+
+    aiomysql reads SHOW WARNINGS after any statement that left one, which
+    resets @@warning_count before anybody can ask for it.
+    """
+
+    async def _show_warnings(self, conn: Any) -> None:
+        return None
+
+
 class Writing:
     """Statements inside one transaction that changes rows (D234).
 
@@ -265,6 +276,14 @@ class Writing:
                 return None
             raise
         return None if row is None else row[0]
+
+    async def warnings(self, sql: str, params: tuple[object, ...] = ()) -> int:
+        """Run a statement and answer how many warnings the server left."""
+        async with self._connection.cursor(_QuietCursor) as cursor:
+            await cursor.execute(sql, params)
+            await cursor.execute("SELECT @@warning_count", ())
+            row = await cursor.fetchone()
+        return int(row[0]) if row else 0
 
     async def holds(self, sql: str, params: tuple[object, ...]) -> bool:
         """Whether a statement is accepted; a value it cannot hold is a no.
@@ -374,6 +393,23 @@ class MysqlSession:
         A value or a constraint the server refuses is the caller's to hear,
         as a ValueError; anything else is the source failing.
         """
+        async with self._strict(refusals=refusals, transaction=True) as work:
+            yield work
+
+    @asynccontextmanager
+    async def altering(
+        self, *, refusals: Mapping[int, str] | None = None
+    ) -> AsyncIterator[Writing]:
+        """Strict statements with no transaction: a structure change commits
+        by itself (D233), and strict mode is what stops `MODIFY` from storing
+        the nearest value a new type can hold in place of one it cannot."""
+        async with self._strict(refusals=refusals, transaction=False) as work:
+            yield work
+
+    @asynccontextmanager
+    async def _strict(
+        self, *, refusals: Mapping[int, str] | None, transaction: bool
+    ) -> AsyncIterator[Writing]:
         try:
             async with self.acquire() as connection:
                 async with connection.cursor() as cursor:
@@ -384,13 +420,16 @@ class MysqlSession:
                         (),
                     )
                 try:
-                    await connection.begin()
+                    if transaction:
+                        await connection.begin()
                     try:
                         yield Writing(connection)
                     except BaseException:
-                        await connection.rollback()
+                        if transaction:
+                            await connection.rollback()
                         raise
-                    await connection.commit()
+                    if transaction:
+                        await connection.commit()
                 finally:
                     async with connection.cursor() as cursor:
                         await cursor.execute("SET SESSION sql_mode = %s", (mode,))

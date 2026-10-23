@@ -1,13 +1,13 @@
 # MySQL and MariaDB
 
 What a MySQL source is, how it reads its catalog, how its values and pages
-cross to the grid, how its rows are changed, and how its SQL console differs
-from PostgreSQL's. The contract every source type follows is in
+cross to the grid, how its rows and structure are changed, and how its SQL
+console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
 before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231, D232, D233, D234.
+Decisions here: D228, D229, D230, D231, D232, D233, D234, D235.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -196,3 +196,43 @@ handle names the relation it comes from, because a constraint's name is unique
 only within its database.
 
 Spec: [Editing MySQL rows](../../decisions/2026-10-18-mysql-rows-design.md)
+
+## D235. A column is changed in the definition the server printed
+
+Columns, indexes and constraints are changed through the same requests as
+PostgreSQL's (D27–D40), in MySQL's own statements.
+
+A type or a nullability change is `MODIFY COLUMN`, which takes the whole
+definition and keeps nothing it is not given. Rebuilt from the catalog, a
+definition loses whatever the rebuild forgot — a default, a comment,
+AUTO_INCREMENT, ON UPDATE, a character set. So the definition is the line
+`SHOW CREATE TABLE` prints for the column, and the type or the `NULL` marker
+in it is replaced, found by the dialect's tokens so a word inside a quoted
+default or comment is not touched. The character set stays when text becomes
+text and goes when text becomes something else. `DEFAULT NULL` goes when the
+column is to require a value.
+
+Every structure statement runs with STRICT_ALL_TABLES added and the session's
+mode put back, the rule D234 has for rows: in the server's default mode a
+`MODIFY` to a narrower type stores the nearest value it can hold. MySQL has no
+TRY_CAST, so how many values a new type refuses is counted only once the
+change has been refused: the column is copied with `INSERT IGNORE` into a
+temporary column of the new type, and the warnings are the count.
+
+A default is a literal bound by the driver, as D30 has it. The type vocabulary
+is MySQL's own: text, long text, integer, big integer, decimal(20,6), double,
+boolean as tinyint(1), date, datetime, timestamp, JSON and a UUID as
+char(36). The index methods are B-tree, full text and spatial; HASH is not
+offered, since InnoDB accepts it and builds a B-tree.
+
+The server names what it makes — `ADD INDEX (…)` and `ADD UNIQUE (…)` by the
+first column, a foreign key `<table>_ibfk_<n>` — and the new name is read back
+from the table. A unique key and a unique index are one object in MySQL, so a
+unique constraint is dropped as its index and the index is dropped through the
+constraint. A check is dropped with `DROP CHECK` on MySQL and `DROP
+CONSTRAINT` on MariaDB. `SET DEFAULT` on a foreign key is refused, because
+InnoDB accepts it and does not carry it out. Rows in the way of NOT NULL, a
+unique key or a foreign key are counted first and bounded at a thousand, as
+PostgreSQL's are.
+
+Spec: [Changing MySQL structure](../../decisions/2026-10-23-mysql-structure-design.md)

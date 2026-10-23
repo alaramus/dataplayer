@@ -73,7 +73,8 @@ with every value as exact text (D230, D231). An SQL console read by sqlglot's
 MySQL dialect, where a structure change runs alone and is never rehearsed,
 because MySQL commits it at once (D232, D233). Rows are edited, inserted and
 deleted in the grid against a digest of what was shown, and keys are followed
-both ways (D234). The structure is not changed from the grid yet.
+both ways (D234). Columns, indexes and constraints are changed in the
+definition the server printed (D235); tables are not designed here yet.
 
 ## Where the code is
 
@@ -127,6 +128,8 @@ backend/app/adapters/
 │                       (classing SQL), query.py (runs, transactions, KILL
 │                       QUERY), explain.py, metadata.py, rows.py (handles,
 │                       values written back), update.py, references.py,
+│                       definitions.py + columns.py + keys.py (structure),
+│                       vocabulary.py (types, index kinds),
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

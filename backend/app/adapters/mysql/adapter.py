@@ -3,14 +3,39 @@ from typing import Any
 
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
+from app.adapters.column_changes import (
+    AddColumnRequest,
+    ColumnChangeResult,
+    ColumnDefaultRequest,
+    ColumnNullabilityRequest,
+    ColumnNullabilityResult,
+    ColumnTypeChangeResult,
+    ColumnTypeRequest,
+    DropColumnRequest,
+    RenameColumnRequest,
+)
+from app.adapters.constraints import (
+    ConstraintDropped,
+    CreateConstraintRequest,
+    CreateConstraintResult,
+    DropConstraintRequest,
+)
 from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.indexes import (
+    CreateIndexRequest,
+    CreateIndexResult,
+    DropIndexRequest,
+    IndexDropped,
+)
 from app.adapters.mysql.catalog import MysqlCatalog
+from app.adapters.mysql.columns import MysqlColumns
 from app.adapters.mysql.content import MysqlContent
 from app.adapters.mysql.explain import MysqlExplain
 from app.adapters.mysql.features import MysqlFeatures
 from app.adapters.mysql.fetch import MysqlFetch
+from app.adapters.mysql.keys import MysqlKeys
 from app.adapters.mysql.metadata import MysqlGeneration, MysqlMetadata
 from app.adapters.mysql.options import MysqlOptions
 from app.adapters.mysql.query import MysqlExecution, MysqlQuery, MysqlTransaction
@@ -94,6 +119,8 @@ class MysqlAdapter:
         self._summaries = MysqlSummaries(self._session, self._relation)
         self._query = MysqlQuery(self._session)
         self._update = MysqlUpdate(self._session, self._relation)
+        self._columns = MysqlColumns(self._session, self._relation)
+        self._keys = MysqlKeys(self._session, self._relation)
         self._references = MysqlReferences(self._session, self._catalog, self._relation)
         self._explain = MysqlExplain(self._session)
         self._metadata = MysqlMetadata(self._session)
@@ -177,6 +204,38 @@ class MysqlAdapter:
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         return await self._update.delete_rows(request)
+
+    async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
+        return await self._columns.add_column(request)
+
+    async def drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
+        return await self._columns.drop_column(request)
+
+    async def rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
+        return await self._columns.rename_column(request)
+
+    async def change_column_default(self, request: ColumnDefaultRequest) -> ColumnChangeResult:
+        return await self._columns.change_column_default(request)
+
+    async def change_column_nullability(
+        self, request: ColumnNullabilityRequest
+    ) -> ColumnNullabilityResult:
+        return await self._columns.change_column_nullability(request)
+
+    async def change_column_type(self, request: ColumnTypeRequest) -> ColumnTypeChangeResult:
+        return await self._columns.change_column_type(request)
+
+    async def create_index(self, request: CreateIndexRequest) -> CreateIndexResult:
+        return await self._keys.create_index(request)
+
+    async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
+        return await self._keys.drop_index(request)
+
+    async def create_constraint(self, request: CreateConstraintRequest) -> CreateConstraintResult:
+        return await self._keys.create_constraint(request)
+
+    async def drop_constraint(self, request: DropConstraintRequest) -> ConstraintDropped:
+        return await self._keys.drop_constraint(request)
 
     async def follow_reference(self, request: FollowReferenceRequest) -> ReferenceTarget:
         return await self._references.follow_reference(request)

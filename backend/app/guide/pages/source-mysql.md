@@ -17,6 +17,7 @@ How connections work in general is on the [Connections](connections.md) page.
 ## What you can change
 
 - Table data: edit cells, paste blocks, insert and delete rows
+- Columns, indexes, unique keys and foreign keys
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -95,6 +96,28 @@ is: double-click a cell, paste a block, **Insert row**, tick rows and
   **What points at this row** opens the rows that point here, in this database
   or another one on the server.
 
+## Changing the structure
+
+**Structure** of a table changes it as it changes a PostgreSQL table: add,
+rename and drop a column, set or remove its default, require a value or stop
+requiring one, change its type, add and drop indexes, unique keys and foreign
+keys.
+
+- Everything else about a column — its default, comment, character set,
+  AUTO_INCREMENT — is kept when its type or nullability changes.
+- A change the rows already contradict is not made, and the count is shown:
+  rows with no value, values that repeat, rows that point at nothing, values
+  the new type cannot hold. MySQL can only count the last after it has tried
+  the change and been refused; nothing is changed either way.
+- The types offered are MySQL's: text, long text, integer, big integer,
+  decimal, floating point, boolean as 0 or 1, date, date and time, timestamp,
+  JSON, and a UUID as text.
+- Indexes are B-tree, full text (text columns only) or spatial (one geometry
+  column that requires a value). MySQL names a new index or key itself.
+- A unique key and its index are one thing in MySQL; drop it as the key.
+- `SET DEFAULT` is not offered for a foreign key: InnoDB does not carry it
+  out.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -120,8 +143,8 @@ differences:
 
 ## What MySQL does not have here yet
 
-- Columns, indexes and keys cannot be changed, and tables cannot be created,
-  renamed or dropped.
+- Tables cannot be designed, created from rows, renamed or dropped from the
+  catalog; the console can do it.
 - Only the page on screen can be downloaded, not every matching row.
 - Reports about the server, metrics, backups and copying tables between
   connections are not available.

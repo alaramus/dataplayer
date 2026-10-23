@@ -1,8 +1,10 @@
 """A MySQL relation described in the adapter-neutral model."""
 
 from app.adapters.mysql import ids
+from app.adapters.mysql.catalog import is_system_database
 from app.adapters.mysql.inspection import RelationFacts, read_relation
 from app.adapters.mysql.session import MysqlSession, quoted_name
+from app.adapters.mysql.vocabulary import MYSQL_COLUMN_TYPE_OPTIONS, MYSQL_INDEX_METHODS
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import (
     CandidateKey,
@@ -15,6 +17,7 @@ from app.adapters.relation import (
     RelationModel,
     UniqueConstraint,
 )
+from app.adapters.words import worded_titles
 from app.core.translation import say
 
 
@@ -87,8 +90,22 @@ def _indexes(facts: RelationFacts) -> list[Index]:
     return indexes
 
 
+# Tables whose structure a person may change, by what TABLE_TYPE says.
+_CHANGEABLE_TYPES = ("BASE TABLE", "SYSTEM VERSIONED")
+
+
+def structure_reason(facts: RelationFacts) -> str | None:
+    """Why this relation's structure cannot be changed, or nothing."""
+    if is_system_database(facts.schema):
+        return say('"{schema}" belongs to the server', schema=facts.schema)
+    if facts.table_type not in _CHANGEABLE_TYPES:
+        return say("Only a table's structure can be changed")
+    return None
+
+
 def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
-    unchangeable = say("Changing the structure of a MySQL relation is not supported yet")
+    refused = structure_reason(facts)
+    changeable = refused is None
     return RelationModel(
         node_id=node_id,
         schema_name=facts.schema,
@@ -116,9 +133,17 @@ def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
         ],
         constraints=_constraints(facts),
         indexes=_indexes(facts),
-        column_changes_reason=unchangeable,
-        index_changes_reason=unchangeable,
-        constraint_changes_reason=unchangeable,
+        column_changes_supported=changeable,
+        column_changes_reason=refused,
+        column_operations=(
+            ["add", "drop", "rename", "default", "nullability", "type"] if changeable else []
+        ),
+        column_type_options=worded_titles(MYSQL_COLUMN_TYPE_OPTIONS) if changeable else [],
+        index_changes_supported=changeable,
+        index_changes_reason=refused,
+        index_methods=worded_titles(MYSQL_INDEX_METHODS) if changeable else [],
+        constraint_changes_supported=changeable,
+        constraint_changes_reason=refused,
         candidate_keys=[
             CandidateKey(name=key.name, columns=key.columns)
             for key in facts.keys
@@ -137,6 +162,10 @@ class MysqlRelation:
         if facts is None:
             raise NodeNotFound(node_id)
         return facts
+
+    @staticmethod
+    def structure_reason(facts: RelationFacts) -> str | None:
+        return structure_reason(facts)
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return model_of(node_id, await self.facts(node_id))

@@ -28,6 +28,7 @@ from app.adapters.protocol import (
     SupportsNodeSummary,
     SupportsReferences,
     SupportsRelationModel,
+    SupportsTableDesign,
     SupportsUpdate,
 )
 from app.adapters.query import SupportsQuery
@@ -94,8 +95,9 @@ def test_it_claims_only_what_it_does() -> None:
     assert isinstance(adapter, SupportsQuery)
     assert isinstance(adapter, SupportsUpdate)
     assert isinstance(adapter, SupportsReferences)
-    # Not yet: the structure is read and not changed.
-    assert not isinstance(adapter, SupportsAddColumn)
+    assert isinstance(adapter, SupportsAddColumn)
+    # Not yet: tables are not designed or made from rows here.
+    assert not isinstance(adapter, SupportsTableDesign)
 
 
 def test_a_server_is_read_as_its_flavour_and_number() -> None:
@@ -321,8 +323,7 @@ async def test_the_relation_model_reads_keys_checks_and_indexes(target: Target) 
     assert indexes["items_label"].unique
     assert "`label`(4)" in indexes["items_prefix"].definition
     assert {key.name for key in model.candidate_keys} == {"PRIMARY", "items_label"}
-    assert not model.column_changes_supported
-    assert model.column_changes_reason
+    assert model.column_changes_supported and model.column_changes_reason is None
 
 
 async def test_a_view_is_described_as_a_view(target: Target) -> None:
