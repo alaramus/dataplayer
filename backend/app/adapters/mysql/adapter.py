@@ -225,6 +225,9 @@ class MysqlAdapter:
     def validate_restore_inventory(self, lines: Sequence[str]) -> None:
         self._backup.validate_restore_inventory(lines)
 
+    def restore_archive_reason(self, head: bytes) -> str | None:
+        return self._backup.restore_archive_reason(head)
+
     @classmethod
     def cache_ttl(cls, area: CacheArea) -> float:
         """The windows PostgreSQL keeps, for the same kinds of answer."""

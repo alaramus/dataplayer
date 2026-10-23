@@ -95,14 +95,17 @@ Known deviations:
 - **An image is pinned by tag, not by digest.** `postgres:18` is a moving target
   within its major version. A digest would be exact; keeping digests current is
   its own maintenance, and the tag is what the project's own `compose.yml` uses.
-- **There are four templates.** PostgreSQL and Redis, which is what proves the
+- **There are six templates.** PostgreSQL and Redis, which is what proves the
   registry is not one image with steps around it (D85), an SSH server
-  ([D153](sources/ssh.md)), and TimescaleDB — the extension's own image, because
+  ([D153](sources/ssh.md)), TimescaleDB — the extension's own image, because
   its files and its preloaded library are not something a connection can install,
   and an ordinary PostgreSQL connector all the same
-  ([D119](sources/timescale.md#d119-timescale-is-composed-into-postgresql-without-another-source-identity)).
+  ([D119](sources/timescale.md#d119-timescale-is-composed-into-postgresql-without-another-source-identity))
+  — and MySQL and MariaDB, one source type for both, signed into as root
+  ([D244](sources/mysql.md)).
 - **What a person may name is a short list.** The role, the database, the password
-  and the port on this machine, and only where the template opens them (D88);
+  and the port on this machine, and only where the template opens them (D88:
+  a MySQL server's root is not a name to choose);
   everything about what runs stays the template's.
 
 Spec: [Approved service templates](../decisions/2026-09-02-service-templates-design.md)

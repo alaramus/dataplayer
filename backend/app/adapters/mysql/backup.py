@@ -133,6 +133,14 @@ class MysqlBackup:
                 else say("A MySQL backup is restored into MySQL")
             )
 
+    def restore_archive_reason(self, head: bytes) -> str | None:
+        """A dump says what made it in its first lines; which family is
+        checked against the server once the inventory is read."""
+        lines = head.decode("utf-8", errors="replace").splitlines()[:_INSPECTED_LINES]
+        if any(_HEADING.match(line) for line in lines):
+            return None
+        return say("This file is not a MySQL or MariaDB backup")
+
     async def _profile(self) -> ServerProfile:
         offer = await self.backup_availability()
         if not offer.available:

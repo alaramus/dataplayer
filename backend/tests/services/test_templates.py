@@ -185,3 +185,20 @@ def test_only_the_ssh_server_is_signed_into_with_a_key() -> None:
     assert slots_of(ssh.keyed) == {"user", "key_id", "public_key"}
     assert ssh.keyed.environment["PASSWORD_ACCESS"] == Fixed("false")
     assert ssh.keyed.connector_options["auth_method"] == Fixed("key")
+
+
+@pytest.mark.parametrize(("key", "image", "variable"), [
+    ("mysql", "mysql:8.4", "MYSQL_ROOT_PASSWORD"),
+    ("mariadb", "mariadb:11.4", "MARIADB_ROOT_PASSWORD"),
+])
+def test_a_mysql_server_is_signed_into_as_its_root(key: str, image: str, variable: str) -> None:
+    """Root, as PostgreSQL's superuser: the server is its owner's whole (D244)."""
+    template = template_for(key)
+
+    assert template.image == image
+    assert template.adapter_type == "mysql"
+    assert template.credentials["user"] == Fixed("root")
+    assert template.environment[variable] == "password"
+    assert generated_slots(template) == ("password",)
+    assert "user" not in template.choosable
+    assert not may_run_unprotected(template)

@@ -7,7 +7,7 @@ console differs from PostgreSQL's. The contract every source type follows is in
 [relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
 before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238, D239, D240, D241, D242, D243.
+Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238, D239, D240, D241, D242, D243, D244.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -406,7 +406,9 @@ client is told not to check the certificate.
   statement. **A restore** is the client reading it into the connection's
   database; each table, view and routine in it is dropped and made again.
 - **Before a restore** the first lines of the file are read: it must be a dump
-  by the same family of server, or nothing runs.
+  by the same family of server, or nothing runs. Whether a file is a backup at
+  all is each source's to say from its first bytes (`restore_archive_reason`),
+  since a MySQL dump is text and carries no signature like PostgreSQL's.
 
 Spec: [MySQL backups and metrics](../../decisions/2026-10-23-mysql-backups-metrics-design.md)
 
@@ -458,3 +460,22 @@ that exists is a conflict, and a grant the server refuses drops the account
 it was meant for.
 
 Spec: [MySQL review fixes](../../decisions/2026-10-23-mysql-review-fixes-design.md)
+
+## D244. A MySQL or MariaDB server is started here signed into as root
+
+**Start MySQL here** and **Start MariaDB here** are service templates (D80):
+`mysql:8.4` and `mariadb:11.4`, the releases the source type is tested
+against, with their data in `/var/lib/mysql`. The connection a ready service
+becomes signs in as the server's root, with a password made up here or
+chosen, and opens on the one database the image makes, `dataplayer` unless
+another is named.
+
+Root rather than an ordinary account the image could make: PostgreSQL's
+template signs in as the superuser its image makes, and a server started for
+somebody is theirs whole — New user (D243) and backups (D240) need what only
+root holds. The images refuse an ordinary user called root, and make a root
+reachable from any host, which on this machine's service network is what the
+connection needs. No template runs without a password, as PostgreSQL's does
+not.
+
+Spec: [MySQL services](../../decisions/2026-10-23-mysql-services-design.md)

@@ -269,6 +269,83 @@ TIMESCALE = ServiceTemplate(
 )
 
 
+MYSQL = ServiceTemplate(
+    key="mysql",
+    title=N_("MySQL"),
+    description=N_(
+        "A MySQL server of its own, started on this machine with a password "
+        "nobody has to choose."
+    ),
+    # The long-term-support release the source type is tested against.
+    image="mysql:8.4",
+    container_port=3306,
+    data_path="/var/lib/mysql",
+    credentials={
+        # The server's own root, as PostgreSQL's template signs in as the
+        # superuser its image makes: a server started for somebody is theirs
+        # whole, accounts and backups included (D243, D240). The image refuses
+        # an ordinary user called root, so the name is not theirs to choose.
+        USER: Fixed("root"),
+        DATABASE: Fixed("dataplayer"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({DATABASE, PASSWORD}),
+    environment={
+        "MYSQL_ROOT_PASSWORD": PASSWORD,
+        "MYSQL_DATABASE": DATABASE,
+    },
+    command=(),
+    adapter_type="mysql",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "database": DATABASE,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    # It initialises a data directory and restarts once before it listens.
+    startup_timeout_seconds=180,
+)
+
+
+MARIADB = ServiceTemplate(
+    key="mariadb",
+    title=N_("MariaDB"),
+    description=N_(
+        "A MariaDB server of its own, started on this machine with a password "
+        "nobody has to choose."
+    ),
+    # The long-term-support release the source type is tested against.
+    image="mariadb:11.4",
+    container_port=3306,
+    data_path="/var/lib/mysql",
+    credentials={
+        # As for MySQL, and for the same reason.
+        USER: Fixed("root"),
+        DATABASE: Fixed("dataplayer"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({DATABASE, PASSWORD}),
+    environment={
+        "MARIADB_ROOT_PASSWORD": PASSWORD,
+        "MARIADB_DATABASE": DATABASE,
+    },
+    command=(),
+    # One source type for both servers, which reads which it is (D228).
+    adapter_type="mysql",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "database": DATABASE,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=180,
+)
+
+
 # Everything this server may be asked to start. A tuple rather than a registry
 # with a `register` decorator: an adapter type is registered by the module that
 # implements a driver, and there is nothing to implement here. A template is
@@ -387,7 +464,7 @@ SSH = ServiceTemplate(
 )
 
 
-SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (POSTGRES, TIMESCALE, REDIS, SSH)
+SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (POSTGRES, TIMESCALE, MYSQL, MARIADB, REDIS, SSH)
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}
 

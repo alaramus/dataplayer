@@ -3,6 +3,7 @@
 import logging
 import tempfile
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 from app.adapters.explorer.storage import is_plain_name
@@ -13,11 +14,17 @@ from app.jobs.runner import JobFailed
 from app.users import storage
 
 MAX_RESTORE_BYTES = 2 * 1024 * 1024 * 1024
+# How much of a backup its source is shown to say whether it is one: enough for
+# a signature, and for the first lines a text dump opens with.
+ARCHIVE_HEAD_BYTES = 1024
 RESTORE_PREFIX = ".dataplayer-restore-"
 logger = logging.getLogger(__name__)
 
 
-def snapshot(owner_id: uuid.UUID, filename: str) -> Path:
+def snapshot(
+    owner_id: uuid.UUID, filename: str, reason_of: Callable[[bytes], str | None]
+) -> Path:
+    """A private copy of a backup, once its source has said it may be one."""
     if not is_plain_name(filename):
         raise JobFailed(say("The backup name is not a plain file name"))
     try:
@@ -26,8 +33,9 @@ def snapshot(owner_id: uuid.UUID, filename: str) -> Path:
         if not source.is_file() or source.stat().st_size > MAX_RESTORE_BYTES:
             raise JobFailed(say("The backup is missing or exceeds the 2 GiB restore limit"))
         with source.open("rb") as incoming:
-            if incoming.read(5) != b"PGDMP":
-                raise JobFailed(say("Restore requires a PostgreSQL custom archive"))
+            reason = reason_of(incoming.read(ARCHIVE_HEAD_BYTES))
+            if reason is not None:
+                raise JobFailed(reason)
             incoming.seek(0)
             # A sibling of personal homes, inaccessible through their file sources.
             with tempfile.NamedTemporaryFile(

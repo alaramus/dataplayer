@@ -252,6 +252,9 @@ class PostgresAdapter:
     def validate_restore_inventory(self, lines: Sequence[str]) -> None:
         self._backup.validate_restore_inventory(lines)
 
+    def restore_archive_reason(self, head: bytes) -> str | None:
+        return self._backup.restore_archive_reason(head)
+
     async def install_sample_data(self) -> str:
         """Put this project's own demonstration schema into an empty server."""
         return await self._samples.install_sample_data()
