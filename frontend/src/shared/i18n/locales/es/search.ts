@@ -1,4 +1,4 @@
-/** Buscar en todo: el campo, los resultados, los proveedores (features/search, shared/search). */
+/** Buscar globalmente: el campo, los resultados y los proveedores (features/search, shared/search). */
 import type { Messages } from "../en"
 
 export const search: Messages["search"] = {
