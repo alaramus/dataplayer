@@ -319,6 +319,7 @@ files. IDs are stable because specs and commits refer to them.
 | D242 | [sources/mysql](docs/architecture/sources/mysql.md) |
 | D243 | [sources/mysql](docs/architecture/sources/mysql.md) |
 | D244 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D245 | [sources/mysql](docs/architecture/sources/mysql.md) |
 
 ## Working rules
 

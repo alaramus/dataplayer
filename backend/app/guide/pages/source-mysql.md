@@ -257,6 +257,15 @@ connections, statements, rows, buffer pool reads, network traffic, slow
 queries and aborted connections, and the size of the connection's database.
 The counters are the whole server's: MySQL does not keep them per database.
 
+## A server of your own
+
+**New connection** offers **Start MySQL here** and **Start MariaDB here**: a
+server started on this machine, saved as a connection signed into as its
+root. With sample data, it opens on `demo_lab` — organizations, people,
+projects, a few hundred tasks and measurements — with something on it for
+every screen: generated columns, JSON, a partitioned table, full-text and
+spatial keys, a view, a trigger, and a table with no key.
+
 ## What MySQL does not have here yet
 
 - A database cannot be renamed; MySQL has no way to do it.

@@ -7,7 +7,7 @@ console differs from PostgreSQL's. The contract every source type follows is in
 [relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
 before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238, D239, D240, D241, D242, D243, D244.
+Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238, D239, D240, D241, D242, D243, D244, D245.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -479,3 +479,22 @@ connection needs. No template runs without a password, as PostgreSQL's does
 not.
 
 Spec: [MySQL services](../../decisions/2026-10-23-mysql-services-design.md)
+
+## D245. A server started here may open on a lab of sample data
+
+A MySQL or MariaDB server started with sample data is filled with the lab
+PostgreSQL's samples describe — organizations, people, teams, projects, a few
+hundred tasks, measurements and an audit trail — in a database of its own,
+`demo_lab`, which the script drops first. It is told in what both servers
+have, so every screen has something of its own to show: ENUM and SET, JSON,
+virtual and stored generated columns, checks, a table partitioned by year,
+full-text, prefix and spatial keys, binary values, BIT, TIME and
+fractional timestamps, foreign keys with cascades, a view, a function, a
+trigger, and a table with no key (D242).
+
+The script ships beside the driver and is split where a line ends in a
+semicolon, which it is written so that only a statement's end does; each
+statement is sent without parameters, on a connection of its own that is
+closed afterwards, since the script chooses its database with USE.
+
+Spec: [MySQL sample data](../../decisions/2026-10-23-mysql-samples-design.md)

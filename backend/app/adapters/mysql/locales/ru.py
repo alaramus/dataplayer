@@ -440,4 +440,6 @@ MESSAGES: dict[str, str] = {
     'User {name} created': 'Пользователь {name} создан',
     'User {name} created, and may read {database}': 'Пользователь {name} создан и может читать {database}',
     'Where the account may connect from; % is anywhere': 'Откуда учётная запись может подключаться; % — откуда угодно',
+    # Sample data.
+    '{schema}: {tables} tables': '{schema}: таблиц — {tables}',
 }

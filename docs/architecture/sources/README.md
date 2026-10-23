@@ -143,7 +143,8 @@ backend/app/adapters/
 │                       (the designer), relation_changes.py, actions.py,
 │                       reports.py + row_commands.py (System), search.py,
 │                       export.py, table_copy.py, backup.py, metrics.py,
-│                       users.py (New user),
+│                       users.py (New user), samples.py + sample_data/
+│                       (the lab a started server opens on),
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

@@ -227,11 +227,12 @@ def identifier(*parts: str) -> str:
 VALUE_ERRORS = frozenset({1264, 1265, 1292, 1366, 1367, 1406, 1411, 1416, 3037, 3140, 4025})
 
 
-class _QuietCursor(aiomysql.Cursor):  # type: ignore[misc]  # aiomysql is untyped
+class QuietCursor(aiomysql.Cursor):  # type: ignore[misc]  # aiomysql is untyped
     """A cursor that leaves the server's warnings where they are.
 
     aiomysql reads SHOW WARNINGS after any statement that left one, which
-    resets @@warning_count before anybody can ask for it.
+    resets @@warning_count before anybody can ask for it, and turns each into
+    a Python warning in the server's log.
     """
 
     async def _show_warnings(self, conn: Any) -> None:
@@ -279,7 +280,7 @@ class Writing:
 
     async def warnings(self, sql: str, params: tuple[object, ...] = ()) -> int:
         """Run a statement and answer how many warnings the server left."""
-        async with self._connection.cursor(_QuietCursor) as cursor:
+        async with self._connection.cursor(QuietCursor) as cursor:
             await cursor.execute(sql, params)
             await cursor.execute("SELECT @@warning_count", ())
             row = await cursor.fetchone()

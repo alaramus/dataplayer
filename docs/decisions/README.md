@@ -18,6 +18,7 @@ nothing in this repository depends on either.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-10-23 | [MySQL sample data](2026-10-23-mysql-samples-design.md) | D245: a MySQL or MariaDB server started here may open on the lab PostgreSQL's samples describe, in a demo_lab database, told in what both servers have. On the branch `mysql-adapter` |
 | 2026-10-23 | [MySQL services](2026-10-23-mysql-services-design.md) | D244: Start MySQL here and Start MariaDB here, mysql:8.4 and mariadb:11.4, signed into as root with a made-up or chosen password, on one database the image makes. On the branch `mysql-adapter` |
 | 2026-10-23 | [MySQL review fixes](2026-10-23-mysql-review-fixes-design.md) | D242, D243: a row of a table with no key named by its values and changed with LIMIT 1; New user on the Users report. Also a MySQL database named as a database on every screen, the designer's first column given a published type when its options come from the cache, and no hypertable row for a source without hypertables. On the branch `mysql-adapter` |
 | 2026-10-23 | [MySQL backups and metrics](2026-10-23-mysql-backups-metrics-design.md) | D240, D241: the connection's database dumped by mysqldump or mariadb-dump of the server's own release and read back by its client, a restore refused for a dump by the other family; the server's counters from SHOW GLOBAL STATUS in a MySQL server layout. On the branch `mysql-adapter` |

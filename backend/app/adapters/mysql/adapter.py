@@ -53,6 +53,7 @@ from app.adapters.mysql.references import MysqlReferences
 from app.adapters.mysql.relation import MysqlRelation
 from app.adapters.mysql.relation_changes import MysqlRelationChanges
 from app.adapters.mysql.row_commands import MysqlRowCommands
+from app.adapters.mysql.samples import MysqlSamples
 from app.adapters.mysql.search import MysqlSearch
 from app.adapters.mysql.session import (
     MysqlSession,
@@ -171,6 +172,7 @@ class MysqlAdapter:
         self._table_copy = MysqlTableCopy(self._session, self._relations)
         self._backup = MysqlBackup(self._session, options)
         self._metrics = MysqlMetrics(self._session)
+        self._samples = MysqlSamples(self._session)
         self._actions = MysqlActions(self._session, self._catalog)
         self._references = MysqlReferences(self._session, self._catalog, self._relation)
         self._explain = MysqlExplain(self._session)
@@ -200,6 +202,10 @@ class MysqlAdapter:
     ) -> None:
         """Tables made, rows in one transaction, then links; undone on failure (D239)."""
         await self._table_copy.carry_table_copy(request, rows_of, arrived)
+
+    async def install_sample_data(self) -> str:
+        """The lab, in a database of its own, for a server started here (D245)."""
+        return await self._samples.install_sample_data()
 
     async def metric_samples(self) -> list[MetricSample]:
         """The server's counters and the database's size, per poll (D241)."""
