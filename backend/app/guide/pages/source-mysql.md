@@ -25,6 +25,8 @@ How connections work in general is on the [Connections](connections.md) page.
 - Data and structure, through SQL in the console
 - What another connection is running: its statement can be stopped, or the
   connection closed
+- Databases: create and drop them
+- Tables and views: rename, move a table to another database, drop
 
 ## Connecting
 
@@ -193,9 +195,27 @@ A report shows only what the connection's user may see: a user without the
 `PROCESS` privilege sees only its own connections, and **Users** is refused to
 one that cannot read the `mysql` database.
 
+## Catalog actions
+
+- **New database**, at the top of the catalog.
+- **Drop database** asks first. A database that holds anything is dropped only
+  with **Also drop everything in it** ticked, and what it holds is counted
+  before you confirm.
+- **Rename** a table or a view. Foreign keys pointing at a table follow it.
+- **Move to database** moves a table. A view, and a table with triggers, stay
+  in their database.
+- **Drop** one relation or several together. A table that a table outside the
+  selection refers to is not dropped, and the tables that refer to it are
+  named. On MySQL the views that read a dropped table are named too.
+- **Load from CSV** makes a table of a file, every column as `TEXT`.
+- **Model as code** writes a database or a selection out for an ORM or a
+  diagram.
+
+Changes to the structure are not rehearsed first, as on PostgreSQL: MySQL
+commits them at once.
+
 ## What MySQL does not have here yet
 
-- Tables cannot be renamed or dropped from the catalog; the console can do
-  it.
+- A database cannot be renamed; MySQL has no way to do it.
 - Metrics, backups and copying tables between connections are not
   available.

@@ -78,7 +78,9 @@ definition the server printed (D235). A designed table is planned as one
 `CREATE TABLE`, and a table made from rows is dropped if its rows are refused
 (D236). Eight reports about the server sit in a System section, and the
 processes can be cancelled or terminated; the catalog is searched by name and
-by column, and every matching row is exported (D237).
+by column, and every matching row is exported (D237). Databases are created
+and dropped, relations renamed, moved and dropped, and a CSV file loaded,
+with previews read from `information_schema` (D238).
 
 ## Where the code is
 

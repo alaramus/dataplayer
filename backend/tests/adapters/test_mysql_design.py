@@ -93,8 +93,10 @@ async def test_a_database_offers_the_designer_and_the_server_s_own_do_not(target
     assert "set_default" not in {choice.code for choice in offered.reference_actions}
     assert "utf8mb4_bin" in offered.collations
     assert not refused.supported and refused.reason
-    assert [action.name for action in await adapter.available(NODE)] == ["create_table"]
-    assert await adapter.available(ids.database_id("mysql")) == []
+    assert "create_table" in [action.name for action in await adapter.available(NODE)]
+    assert [action.name for action in await adapter.available(ids.database_id("mysql"))] == [
+        "describe_model"
+    ]
 
 
 async def test_a_design_becomes_one_statement_and_then_one_table(target: Target) -> None:

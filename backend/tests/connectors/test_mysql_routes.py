@@ -163,3 +163,30 @@ async def test_the_catalog_is_searched_and_a_process_is_named_by_its_number(
     )
     assert refused.status_code == 422, refused.text
     assert refused.json()["detail"]["message"] == "A connection is named by its number"
+
+
+async def test_a_database_is_made_and_dropped_through_the_actions(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], target: Target
+) -> None:
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers, target)
+    made = f"dp_route_{uuid.uuid4().hex[:8]}"
+
+    offered = await client.post(f"{BASE}/{connector}/actions", headers=headers, json={})
+    assert offered.status_code == 200, offered.text
+    assert "create_database" in {action["name"] for action in offered.json()}
+
+    created = await client.post(
+        f"{BASE}/{connector}/actions/create_database",
+        headers=headers,
+        json={"params": {"name": made}},
+    )
+    assert created.status_code == 200, created.text
+    dropped = await client.post(
+        f"{BASE}/{connector}/actions/drop_database",
+        headers=headers,
+        json={"node_id": ids.database_id(made), "params": {}},
+    )
+    assert dropped.status_code == 200, dropped.text
+    databases = await client.get(f"{BASE}/{connector}/catalog", headers=headers)
+    assert made not in {node["name"] for node in databases.json()}

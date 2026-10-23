@@ -1,16 +1,12 @@
 """Catalog actions owned by PostgreSQL."""
 
 from collections.abc import AsyncIterator, Mapping, Sequence
-from functools import partial
-from pathlib import PurePosixPath
 from typing import Any, ClassVar, Protocol
 
-from anyio import to_thread
 from psycopg import sql
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.adapters.actions import (
-    CHUNK_BYTES,
     Action,
     ActionDownload,
     ActionDownloadMetadata,
@@ -35,7 +31,8 @@ from app.adapters.catalog import (
     TableNode,
     ViewNode,
 )
-from app.adapters.delimited import DelimitedTable, read_table
+from app.adapters.csv_load import LoadCsvParams as SharedLoadCsvParams
+from app.adapters.csv_load import chosen_rows, read_upload, table_name
 from app.adapters.hypertable_design import HypertableDesignState
 from app.adapters.model_code import (
     DIALECT_SUFFIX,
@@ -383,19 +380,6 @@ class MoveRelation(JsonAction[MoveRelationParams]):
         )
 
 
-# How many rows one loaded file may bring. More than this is a durable job
-# with progress and cancellation, which is Phase 4. Refused rather than
-# truncated: the reader handed over a whole file and would have no way of
-# knowing that only its beginning arrived.
-CSV_ROW_CEILING = 5000
-
-# How much of the file is read before it is refused. The rows are parsed from
-# what arrived rather than from a temporary file, so this is what bounds the
-# memory of one request; the row ceiling alone would not, since one row can be
-# as long as the whole file.
-CSV_MAX_BYTES = 16 * 1024 * 1024
-
-
 class CreateTableParams(BaseModel):
     # A screen of its own rather than a form: what a table is cannot be asked
     # for with a list of fields, and the editor that asks for it is registered
@@ -456,53 +440,11 @@ class CreateTable(JsonAction[CreateTableParams]):
         )
 
 
-def _stem(filename: str) -> str:
-    """The file's own name without its extension, and without any directory.
-
-    Only ever the default of a form field, never a path: a browser that sends
-    a full name should still suggest the last part of it.
-    """
-    tail = filename.replace("\\", "/").rsplit("/", 1)[-1]
-    return PurePosixPath(tail).stem
-
-
-class LoadCsvColumn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    source: str = Field(min_length=1)
-    target: str = Field(min_length=1)
-
-
-class LoadCsvParams(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid", json_schema_extra={"x-ui-workflow": "file-to-relation"}
-    )
-
-    name: str = Field(
-        default="",
-        title=N_("Table name"),
-        description=N_("Leave empty to name the table after the file"),
-        json_schema_extra={"x-ui-purpose": "filename-stem"},
-    )
-    schema_name: str = Field(default="", title=N_("Schema"))
-    create_schema: bool = False
-    columns: list[LoadCsvColumn] | None = Field(default=None, max_length=100)
-
+class LoadCsvParams(SharedLoadCsvParams):
     @field_validator("name")
     @classmethod
     def named_or_empty(cls, value: str) -> str:
         return value if value == "" else _relation_name(value)
-
-    @model_validator(mode="after")
-    def distinct_columns(self) -> LoadCsvParams:
-        columns = self.columns or []
-        sources = [column.source for column in columns]
-        targets = [column.target for column in columns]
-        if len(sources) != len(set(sources)):
-            raise ValueError(say("A source column may be selected only once"))
-        if len(targets) != len(set(targets)):
-            raise ValueError(say("A target column may be named only once"))
-        return self
 
 
 class LoadCsv(FileAction[LoadCsvParams]):
@@ -547,46 +489,11 @@ class LoadCsv(FileAction[LoadCsvParams]):
                     "not_applicable", say('Schema "{name}" does not exist', name=schema)
                 )
 
-        name = params.name or _stem(payload.filename or "")
-        if name.strip() == "":
-            raise ActionRefused(
-                "not_applicable", say("The file has no name to use; type one")
-            )
-        _relation_name(name)
-
+        name = table_name(params, payload, _relation_name)
         siblings = await self._catalog.list_children(schema)
         if name in {sibling.name for sibling in siblings}:
             raise ActionRefused("conflict", say("{name} is already there", name=name))
-
-        table = await self._read(payload)
-        if not table.columns:
-            raise ActionRefused(
-                "not_applicable", say("That file has no first line to name columns")
-            )
-        if table.more:
-            raise ActionRefused(
-                "too_large",
-                say(
-                    "A file loaded this way may hold at most {count} rows",
-                    count=CSV_ROW_CEILING,
-                ),
-            )
-
-        selected = (
-            [LoadCsvColumn(source=column, target=column) for column in table.columns]
-            if params.columns is None
-            else params.columns
-        )
-        positions = {column: index for index, column in enumerate(table.columns)}
-        for column in selected:
-            if column.source not in positions:
-                raise ActionRefused(
-                    "not_applicable",
-                    say('The file has no column "{column}"', column=column.source),
-                )
-            _relation_name(column.target)
-        if not selected:
-            raise ActionRefused("not_applicable", say("Choose at least one column"))
+        targets, rows = chosen_rows(await read_upload(payload), params, _relation_name)
 
         result = await self._relations.create_relation(
             CreateRelationRequest(
@@ -596,14 +503,8 @@ class LoadCsv(FileAction[LoadCsvParams]):
                 # types and one read off its rows would depend on how many of
                 # them were looked at. A column takes another type afterwards
                 # through the change that counts the rows in its way (D38).
-                columns=[
-                    NewColumn(name=column.target, type_code="text")
-                    for column in selected
-                ],
-                rows=[
-                    [row[positions[column.source]] for column in selected]
-                    for row in table.rows
-                ],
+                columns=[NewColumn(name=target, type_code="text") for target in targets],
+                rows=rows,
             )
         )
         if not isinstance(result, RelationCreated):
@@ -638,33 +539,6 @@ class LoadCsv(FileAction[LoadCsvParams]):
         await self._session.schema_change(
             sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)).as_string(),
             refusals={"42501": say("This connection may not create schemas")},
-        )
-
-    async def _read(self, payload: FilePayload) -> DelimitedTable:
-        """The upload, as columns and rows.
-
-        Held whole rather than staged on disk: it has to be parsed anyway, and
-        the two ceilings say what "whole" may mean. Parsing is blocking work,
-        so it goes to a worker thread.
-        """
-        chunks: list[bytes] = []
-        size = 0
-        while chunk := await payload.read(CHUNK_BYTES):
-            size += len(chunk)
-            if size > CSV_MAX_BYTES:
-                raise ActionRefused(
-                    "too_large",
-                    say(
-                        "A file loaded this way must be under {size} MB",
-                        size=CSV_MAX_BYTES // (1024 * 1024),
-                    ),
-                )
-            chunks.append(chunk)
-        # errors="replace" for the reason the file source reads that way: one
-        # byte that is not text is not a reason to refuse the whole file.
-        text = b"".join(chunks).decode("utf-8", errors="replace")
-        return await to_thread.run_sync(
-            partial(read_table, text, payload.filename or "", CSV_ROW_CEILING)
         )
 
 

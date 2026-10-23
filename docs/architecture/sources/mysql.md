@@ -7,7 +7,7 @@ console differs from PostgreSQL's. The contract every source type follows is in
 [relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
 before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237.
+Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -309,3 +309,38 @@ export (D45) reads with an unbuffered cursor and closes a connection whose
 reader stopped early rather than returning it to the pool mid-result.
 
 Spec: [MySQL reports, search and export](../../decisions/2026-10-23-mysql-reports-design.md)
+
+## D238. Catalog actions are read first, since nothing can be rehearsed
+
+A MySQL catalog offers PostgreSQL's actions where MySQL has them: a new
+database at the top, dropping a database, renaming a table or a view, moving a
+table to another database, dropping relations, loading a CSV file, a designed
+table (D236) and the model as code. MySQL commits every structure statement by
+itself (D233), so where PostgreSQL rehearses a drop and rolls it back, a
+MySQL preview reads `information_schema` for what the change would meet.
+
+- A drop is blocked while a table outside what is being dropped refers into it
+  by a foreign key, and the preview names each key. MySQL would refuse the
+  drop; MariaDB drops the tables before the one it refuses, so the check comes
+  first on both.
+- What is dropped together is one statement per kind, views first, run with
+  foreign key checks off for that statement alone: the keys left are only
+  between the tables being dropped, and MariaDB refuses a parent named before
+  its child.
+- A database with anything in it is dropped only with **Also drop everything
+  in it** ticked, and its preview counts its tables, views, routines,
+  triggers and events. A drop of relations names the triggers that go with
+  them and, on MySQL, the views that read them; MariaDB keeps no list of what
+  a view reads.
+- A view cannot leave its database and a table with triggers cannot either;
+  both are refused before the server says so. MySQL has no CASCADE.
+- A loaded file's columns are all TEXT: VARCHAR(255) would refuse the first
+  long cell. The form, its ceilings and the choice of columns are shared with
+  PostgreSQL's in `adapters/csv_load.py`.
+
+Known deviations:
+
+- A database cannot be renamed. MySQL has no statement for it, and moving
+  every table leaves the views, routines, triggers and events behind.
+
+Spec: [MySQL catalog actions](../../decisions/2026-10-23-mysql-actions-design.md)
