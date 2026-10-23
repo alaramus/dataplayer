@@ -1,4 +1,5 @@
 from app.ai.locales.de import MESSAGES as DE
+from app.ai.locales.es import MESSAGES as ES
 from app.ai.locales.fr import MESSAGES as FR
 from app.ai.locales.hi import MESSAGES as HI
 from app.ai.locales.ru import MESSAGES as RU
@@ -10,3 +11,4 @@ register("fr", FR)
 register("de", DE)
 register("zh", ZH)
 register("hi", HI)
+register("es", ES)

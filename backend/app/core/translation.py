@@ -18,7 +18,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 # The languages the interface speaks (D224). Here rather than with the
 # account's preference because the server needs it on every request, and
 # `users` may import `core` but not the other way round.
-Language = Literal["en", "ru", "de", "fr", "zh", "hi"]
+Language = Literal["en", "ru", "de", "fr", "zh", "hi", "es"]
 LANGUAGES: tuple[Language, ...] = get_args(Language)
 
 current_language: ContextVar[Language] = ContextVar("current_language", default="en")

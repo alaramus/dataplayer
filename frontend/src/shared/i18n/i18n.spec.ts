@@ -37,6 +37,7 @@ describe("which language the interface opens in", () => {
     expect(browserLanguage(["ja", "fr"])).toBe("fr")
     expect(browserLanguage(["ja", "zh"])).toBe("zh")
     expect(browserLanguage(["ja", "hi"])).toBe("hi")
+    expect(browserLanguage(["ja", "es"])).toBe("es")
     expect(browserLanguage(["ja", "ko"])).toBe("en")
     expect(browserLanguage([])).toBe("en")
   })

@@ -1,6 +1,7 @@
 # Imported for the side effect: drivers register themselves on import.
 from app.adapters import file, postgres, redis, ssh  # noqa: F401
 from app.adapters.locales.de import MESSAGES as DE
+from app.adapters.locales.es import MESSAGES as ES
 from app.adapters.locales.fr import MESSAGES as FR
 from app.adapters.locales.hi import MESSAGES as HI
 from app.adapters.locales.ru import MESSAGES as RU
@@ -12,3 +13,4 @@ register("fr", FR)
 register("de", DE)
 register("zh", ZH)
 register("hi", HI)
+register("es", ES)

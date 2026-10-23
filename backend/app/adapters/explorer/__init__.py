@@ -1,6 +1,7 @@
 """The file explorer: a tree of files, wherever it is kept (D150)."""
 
 from app.adapters.explorer.locales.de import MESSAGES as DE
+from app.adapters.explorer.locales.es import MESSAGES as ES
 from app.adapters.explorer.locales.fr import MESSAGES as FR
 from app.adapters.explorer.locales.hi import MESSAGES as HI
 from app.adapters.explorer.locales.ru import MESSAGES as RU
@@ -12,3 +13,4 @@ register("fr", FR)
 register("de", DE)
 register("zh", ZH)
 register("hi", HI)
+register("es", ES)
