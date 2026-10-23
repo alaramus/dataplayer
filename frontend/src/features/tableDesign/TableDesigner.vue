@@ -61,6 +61,8 @@ const props = defineProps<{
    * what a schema is.
    */
   destinations?: { value: string; label: string }[]
+  /** Whether the source calls its schemas databases, as MySQL does (D229). */
+  databases?: boolean
   running: boolean
   error: string
 }>()
@@ -126,11 +128,13 @@ registerDesign(designId, {
   typeChoices,
   types,
   functions: computed(() => options.data.value?.functions ?? []),
+  databases: computed(() => props.databases === true),
 })
 
 // The first column takes a type this server actually publishes. Seeded rather
 // than hard-coded: which types exist is the source's answer, and the draft is
-// built before that answer arrives.
+// built before that answer arrives — or after it, from the cache, when the
+// window is opened again, which is why the watch runs at once.
 watch(types, (published) => {
   const [first] = published
   if (first === undefined) return
@@ -139,7 +143,7 @@ watch(types, (published) => {
       column.typeCode = first.code
     }
   }
-})
+}, { immediate: true })
 
 const problems = computed(() => plan.value?.problems ?? [])
 const statements = computed(() => plan.value?.statements ?? [])
@@ -446,7 +450,7 @@ function moveColumn(by: number): void {
           <AppSelect
             v-model="destination"
             :options="places"
-            :label="t('table_design.designer.schema')"
+            :label="props.databases ? t('table_design.designer.database') : t('table_design.designer.schema')"
             data-testid="table-schema"
           />
           <AppInput

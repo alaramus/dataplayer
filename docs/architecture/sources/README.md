@@ -83,7 +83,8 @@ and dropped, relations renamed, moved and dropped, and a CSV file loaded,
 with previews read from `information_schema` (D238). Tables are copied with
 their structure between MySQL and MariaDB connections (D239), a database is
 backed up by its own family's dump program (D240), and the server's counters
-feed dashboards (D241).
+feed dashboards (D241). A row of a table with no key is named by its values
+(D242), and an account is made from the Users report (D243).
 
 ## Where the code is
 
@@ -142,6 +143,7 @@ backend/app/adapters/
 │                       (the designer), relation_changes.py, actions.py,
 │                       reports.py + row_commands.py (System), search.py,
 │                       export.py, table_copy.py, backup.py, metrics.py,
+│                       users.py (New user),
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

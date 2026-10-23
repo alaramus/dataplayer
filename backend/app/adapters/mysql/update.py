@@ -3,7 +3,8 @@
 Every change is one strict transaction. A row is locked with `FOR UPDATE`,
 digested the way its page showed it, and changed only if the digest is the
 one its handle carries. MySQL has no `RETURNING` for an UPDATE, so the row is
-read again by its key afterwards, in the same transaction.
+read again by its key afterwards, in the same transaction. A row of a table
+with no key is found by its values and changed with LIMIT 1 (D242).
 
 Which values a column cannot hold is asked of the server before anything is
 written, by putting each into a temporary table of the same column types: a
@@ -16,6 +17,7 @@ from app.adapters.mysql.fetch import cells_of, select_of, shape_of
 from app.adapters.mysql.inspection import RelationFacts
 from app.adapters.mysql.relation import MysqlRelation
 from app.adapters.mysql.rows import (
+    RowHandle,
     RowShape,
     decode_handle,
     handle_of,
@@ -61,6 +63,8 @@ _PROBE_BATCH = 500
 # Made in the database of the table being changed: a connection may have no
 # default database, and a temporary table is visible only to it anyway.
 _PROBE = "dp_value_probe"
+# Rows read to tell a row named whole from the ones it is alike to.
+_ALIKE_CEILING = 1000
 
 
 async def unreadable(
@@ -158,16 +162,50 @@ class MysqlUpdate:
             raise ValueError(say('Column "{column}" cannot be inserted', column=name))
         return column
 
-    async def _locked(
-        self, work: Writing, facts: RelationFacts, shape: RowShape, keys: list[str]
-    ) -> list[str | None] | None:
-        """The row with these key values, locked, as its page shows it."""
+    async def _candidates(
+        self, work: Writing, facts: RelationFacts, shape: RowShape, keys: list[str | None]
+    ) -> list[list[str | None]]:
+        """The rows these values find, locked, as their page shows them."""
         params: list[object] = []
-        statement = SQL("SELECT {} FROM {} WHERE {} FOR UPDATE").format(
+        statement = SQL("SELECT {} FROM {} WHERE {}").format(
             select_of(shape), Identifier(facts.schema, facts.name), key_match(shape, keys, params)
         )
+        if shape.whole_row:
+            statement += SQL(f" LIMIT {_ALIKE_CEILING + 1}")
+        statement += SQL(" FOR UPDATE")
         rows = await work.rows(statement.text(), tuple(params))
-        return cells_of(rows[0], shape) if len(rows) == 1 else None
+        return [cells_of(row, shape) for row in rows]
+
+    async def _locked(
+        self,
+        work: Writing,
+        facts: RelationFacts,
+        shape: RowShape,
+        keys: list[str | None],
+        version: str | None = None,
+    ) -> list[str | None] | None:
+        """The row these values name, locked, as its page shows it.
+
+        A key finds one row or none. Values find every row alike in the
+        columns that compare exactly; the digest then says which is this one,
+        and rows alike but not the same are refused rather than guessed at.
+        """
+        found = await self._candidates(work, facts, shape, keys)
+        if not shape.whole_row:
+            return found[0] if len(found) == 1 else None
+        digests = {version_of(cells) for cells in found}
+        if len(found) > _ALIKE_CEILING or len(digests) > 1:
+            if version is None or version in digests:
+                raise ValueError(
+                    say(
+                        "Another row differs from this one only in a column that cannot be "
+                        "compared exactly, so this one cannot be told apart; give the table a key"
+                    )
+                )
+            return None
+        if not found or (version is not None and version not in digests):
+            return None
+        return found[0]
 
     async def _changed(
         self,
@@ -177,8 +215,8 @@ class MysqlUpdate:
         handle_value: str,
         cells: list[tuple[FetchColumn, str | None]],
     ) -> UpdatedRow:
-        handle = decode_handle(handle_value, shape.key)
-        current = await self._locked(work, facts, shape, handle.keys)
+        handle = decode_handle(handle_value, shape)
+        current = await self._locked(work, facts, shape, handle.keys, handle.version)
         if current is None or version_of(current) != handle.version:
             raise RowConflict
         params: list[object] = []
@@ -192,14 +230,26 @@ class MysqlUpdate:
             SQL(", ").join(assignments),
             key_match(shape, handle.keys, params),
         )
+        if shape.whole_row:
+            # Rows alike in every value are one row to anybody looking.
+            statement += SQL(" LIMIT 1")
         await work.execute(statement.text(), tuple(params))
         # Read back by the key the row has now, which is the one it was given
         # if a key column was among the cells changed.
         given = {column.name: value for column, value in cells}
-        keys = [given.get(name, old) for name, old in zip(shape.key, handle.keys, strict=True)]
-        if any(value is None for value in keys):
-            raise RowConflict
-        after = await self._locked(work, facts, shape, [value for value in keys if value is not None])
+        keys = [given.get(name, old) for name, old in zip(shape.naming, handle.keys, strict=True)]
+        if shape.whole_row:
+            try:
+                after = await self._locked(work, facts, shape, keys)
+            except ValueError:
+                after = None
+            # Alike to another row once changed: what was written is what can
+            # be said about it, and its next change is checked against that.
+            after = after or keys
+        else:
+            if any(value is None for value in keys):
+                raise RowConflict
+            after = await self._locked(work, facts, shape, keys)
         if after is None:
             raise RowConflict
         renewed = handle_of(shape, after)
@@ -212,7 +262,7 @@ class MysqlUpdate:
         if not shape.update_supported:
             raise ValueError(shape.update_reason or say("This relation cannot be edited"))
         column = self._column(shape, request.column, editing=True)
-        decode_handle(request.row_handle, shape.key)
+        decode_handle(request.row_handle, shape)
         async with self._session.writing(refusals=REFUSALS) as work:
             if request.value is not None and await unreadable(
                 work, facts.schema, [(request.value, column)]
@@ -231,7 +281,7 @@ class MysqlUpdate:
         checked: list[tuple[str, FetchColumn]] = []
         places: list[tuple[int, str]] = []
         for index, row in enumerate(request.rows):
-            decode_handle(row.row_handle, shape.key)
+            decode_handle(row.row_handle, shape)
             cells = [(self._column(shape, cell.column, editing=True), cell.value) for cell in row.cells]
             edits.append(cells)
             for column, value in cells:
@@ -297,13 +347,13 @@ class MysqlUpdate:
         shape: RowShape,
         given: list[tuple[FetchColumn, str | None]],
         made: int,
-    ) -> list[str] | None:
+    ) -> list[str | None] | None:
         """The key of a row just inserted, from what was given or what was made."""
         if not shape.key:
             return None
         values = {column.name: value for column, value in given}
         generated = {column.name for column in facts.columns if column.auto_increment}
-        keys: list[str] = []
+        keys: list[str | None] = []
         for name in shape.key:
             value = values.get(name)
             if value is None and name in generated and made:
@@ -355,9 +405,11 @@ class MysqlUpdate:
         facts, shape = await self._shape(request.node_id)
         if not shape.update_supported:
             raise ValueError(shape.update_reason or say("This relation cannot delete rows"))
-        handles = [decode_handle(value, shape.key) for value in request.row_handles]
-        if len({tuple(handle.keys) for handle in handles}) != len(handles):
+        if len(set(request.row_handles)) != len(request.row_handles):
             raise ValueError(say("A row may be deleted only once"))
+        handles = [decode_handle(value, shape) for value in request.row_handles]
+        if shape.whole_row:
+            return await self._delete_alike(facts, shape, handles)
         async with self._session.writing(refusals=REFUSALS) as work:
             for handle in handles:
                 current = await self._locked(work, facts, shape, handle.keys)
@@ -373,5 +425,33 @@ class MysqlUpdate:
             deleted, _ = await work.execute(statement.text(), tuple(params))
             if deleted != len(handles):
                 raise RowConflict
+        return DeleteRowsResult(deleted=deleted)
+
+    async def _delete_alike(
+        self, facts: RelationFacts, shape: RowShape, handles: list[RowHandle]
+    ) -> DeleteRowsResult:
+        """Rows named whole, as many of each as were picked (D242).
+
+        Two rows the same in every value have handles of their own, and
+        picking both deletes two of them, whichever two the server finds.
+        """
+        picked: dict[tuple[str, tuple[str | None, ...]], int] = {}
+        for handle in handles:
+            group = (handle.version, tuple(handle.keys))
+            picked[group] = picked.get(group, 0) + 1
+        deleted = 0
+        async with self._session.writing(refusals=REFUSALS) as work:
+            for (version, keys), count in picked.items():
+                current = await self._locked(work, facts, shape, list(keys), version)
+                if current is None:
+                    raise RowConflict
+                params: list[object] = []
+                statement = SQL("DELETE FROM {} WHERE {}").format(
+                    Identifier(facts.schema, facts.name), key_match(shape, list(keys), params)
+                ) + SQL(f" LIMIT {count}")
+                gone, _ = await work.execute(statement.text(), tuple(params))
+                if gone != count:
+                    raise RowConflict
+                deleted += gone
         return DeleteRowsResult(deleted=deleted)
 

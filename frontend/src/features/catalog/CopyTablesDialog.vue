@@ -16,6 +16,7 @@ import {
 } from "@/features/catalog/tablesCopy"
 import type { CopyChoices, LinksChoice, RowsChoice } from "@/features/catalog/tablesCopy"
 import CodeFence from "@/features/content/markdown/CodeFence.vue"
+import { callsDatabases } from "@/features/catalog/nodes"
 import { placesIn } from "@/features/grid/relationPlaces"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
@@ -57,12 +58,25 @@ const emit = defineEmits<{
 }>()
 
 const loadChildren = useCatalogLoader()
+/** Whether the destination calls its schemas databases, as MySQL does (D229). */
+const databases = ref(false)
+const WORDS = {
+  schemas_failed: ["catalog.copy_tables.schemas_failed", "catalog.copy_tables.databases_failed"],
+  no_schema: ["catalog.copy_tables.no_schema", "catalog.copy_tables.no_database"],
+  into_schema: ["catalog.copy_tables.into_schema", "catalog.copy_tables.into_database"],
+  schema_label: ["catalog.copy_tables.schema_label", "catalog.copy_tables.database_label"],
+} as const
+function word(key: keyof typeof WORDS): string {
+  return t(WORDS[key][databases.value ? 1 : 0])
+}
 /** The schemas of the destination, through the catalog's own cache. */
 const places = useQuery({
   queryKey: computed(() => ["copy-tables-places", props.intent.destinationConnectorId]),
-  queryFn: async () =>
-    placesIn((await loadChildren(props.intent.destinationConnectorId, null)).nodes, "")
-      .filter((place) => place.kind === "schema"),
+  queryFn: async () => {
+    const { nodes } = await loadChildren(props.intent.destinationConnectorId, null)
+    databases.value = callsDatabases(nodes)
+    return placesIn(nodes, "").filter((place) => place.kind === "schema")
+  },
 })
 const place = ref<string | null>(null)
 const placeLabel = computed(
@@ -135,8 +149,8 @@ const preview = useQuery({
 const plan = computed(() => preview.data.value ?? null)
 const failure = computed(() => {
   if (props.error) return props.error
-  if (places.isError.value) return messageOf(places.error.value, t("catalog.copy_tables.schemas_failed"))
-  if (places.data.value?.length === 0) return t("catalog.copy_tables.no_schema")
+  if (places.isError.value) return messageOf(places.error.value, word("schemas_failed"))
+  if (places.data.value?.length === 0) return word("no_schema")
   return preview.isError.value ? messageOf(preview.error.value, t("catalog.copy_tables.plan_failed")) : ""
 })
 
@@ -247,7 +261,7 @@ function copy() {
         v-if="plan === null && failure && (places.data.value?.length ?? 0) > 0"
         :model-value="place"
         :options="places.data.value ?? []"
-        :label="t('catalog.copy_tables.into_schema')"
+        :label="word('into_schema')"
         data-testid="copy-tables-place"
         @update:model-value="choosePlace"
       />
@@ -299,7 +313,7 @@ function copy() {
                 v-if="index === 0"
                 :model-value="place"
                 :options="places.data.value ?? []"
-                :aria-label="t('catalog.copy_tables.schema_label')"
+                :aria-label="word('schema_label')"
                 :loading="places.isFetching.value"
                 compact
                 data-testid="copy-tables-place"

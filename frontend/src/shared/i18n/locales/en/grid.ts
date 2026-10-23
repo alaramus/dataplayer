@@ -296,6 +296,7 @@ export const grid = {
     connection: "Connection",
     place: {
       schema: "Schema",
+      database: "Database",
       folder: "Folder",
     },
     name: {

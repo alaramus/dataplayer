@@ -100,8 +100,11 @@ is: double-click a cell, paste a block, **Insert row**, tick rows and
 **Delete selected rows**.
 
 - A row is found again by its primary key, or by a unique key over columns
-  that cannot be empty. A table with neither accepts new rows and cannot be
-  edited or have rows deleted from the grid; the grid says why.
+  that cannot be empty. A row of a table with neither is found by all its
+  values, and one row is changed at a time: rows the same in every value are
+  interchangeable. Two rows that differ only in a floating-point, JSON or
+  geometry column cannot be told apart, and a change to one is refused with
+  that reason.
 - If somebody changed a row after you read it, in any column, your change is
   refused rather than written over theirs. Reload and try again.
 - A value the column cannot hold is refused before anything is written, and
@@ -188,7 +191,10 @@ statement** shows the SQL a report runs.
 - **Variables**: every global setting of the server.
 - **Status**: the counters the server keeps since it started. It re-reads
   itself every ten seconds.
-- **Users**: the accounts that may connect, and from which hosts.
+- **Users**: the accounts that may connect, and from which hosts. **New user**
+  above the rows makes one: a name, the host it may connect from (`%` for
+  anywhere) and a password. It is granted nothing, or, if ticked, reading of
+  the connection's database. Only the connection's owner has it.
 - **Routines** and **Triggers** outside the server's own databases, and the
   **Events** its scheduler runs.
 - **Engines**: the storage engines the server offers, and which is the default.

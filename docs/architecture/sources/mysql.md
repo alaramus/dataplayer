@@ -7,7 +7,7 @@ console differs from PostgreSQL's. The contract every source type follows is in
 [relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
 before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238, D239, D240, D241.
+Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238, D239, D240, D241, D242, D243.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -43,7 +43,10 @@ name tables in several, so a database is a `schema` node — a namespace on one
 connection — and not a `database` node, which is a key space sharing nothing
 but the port (D91). The connection's database is optional and says where the
 catalog opens: it is listed first. `mysql`, `information_schema`,
-`performance_schema` and `sys` are marked as the server's.
+`performance_schema` and `sys` are marked as the server's. The node says that
+its source calls it a database (`term`), and every screen that picks one —
+the catalog's selector, the table designer, copying tables, loading a file,
+saving rows as a table — says "database" where it would say "schema".
 
 A node id is the database, or the database and a relation. MySQL accepts a dot
 in a database's name, so the database part escapes its dots and backslashes and
@@ -163,8 +166,8 @@ three things MySQL lacks.
 
 - **No row address.** A row is named by the key its pages follow (D231): the
   primary key, or a unique key over columns that cannot be null. A table with
-  neither takes inserted rows and no edits or deletes, and says why; there is
-  no `ctid` to fall back on as D42 does.
+  neither is named by its whole row (D242); there is no `ctid` to fall back
+  on as D42 does.
 - **No row version.** The version in a handle is a digest of the row's values
   as its page showed them. A change locks the row with `FOR UPDATE`, digests
   it the same way, and goes ahead only when the two agree, so a change by
@@ -172,7 +175,7 @@ three things MySQL lacks.
 - **No `RETURNING` on an UPDATE.** The row is read again by its key in the
   same transaction — by its new key when a key column was among the cells
   changed — and an inserted row by what was given or by `LAST_INSERT_ID()`.
-  A row of a keyless table comes back as what was given.
+  A row inserted into a keyless table comes back as what was given.
 
 Every change is one transaction with `STRICT_ALL_TABLES` added for its
 duration and the session's own mode put back after: without it MySQL stores
@@ -269,7 +272,8 @@ request made is dropped again.
 
 Known deviations:
 
-- The designer still draws the deferrable and INCLUDE choices for MySQL, and
+- The designer leaves out the hypertable, which its options say MySQL has not
+  got at all, but still draws the deferrable and INCLUDE choices, and
   the plan refuses them, rather than the options saying they are not there.
 
 Spec: [Designing MySQL tables](../../decisions/2026-10-23-mysql-design-design.md)
@@ -420,3 +424,37 @@ the connection names, or of every database not the server's own.
   handlers' counters.
 
 Spec: [MySQL backups and metrics](../../decisions/2026-10-23-mysql-backups-metrics-design.md)
+
+## D242. A row of a table with no key is named by its values
+
+A table with no primary key and no unique key over columns that cannot be
+null is edited all the same. A row's handle carries every value its page
+showed, and a change finds the row again by them under `FOR UPDATE`, checks
+its digest (D234) and changes it with `LIMIT 1`. Rows that are the same in
+every value are the same row to anybody looking, so whichever one the server
+finds is the one meant.
+
+- **Found by the columns that compare exactly.** Text, an enum and a set are
+  compared as their bytes, since a collation that ignores case would find `A`
+  for `a`. A floating-point number, JSON and a shape are left out, since none
+  equals the text it was shown as. The digest then tells apart the rows they
+  leave alike, and rows alike in every other column but not the same are
+  refused with the reason, rather than guessed between.
+- **Rows the same in every value** get handles of their own, so a page and a
+  selection tell them apart; picking two of three deletes two.
+- **A row whose values exceed 64 KB** gets no handle and cannot be edited.
+
+Spec: [MySQL review fixes](../../decisions/2026-10-23-mysql-review-fixes-design.md)
+
+## D243. A MySQL account is made from the Users report
+
+**New user**, above the Users report, makes an account that can sign in: a
+name, the host it may connect from (`%` for anywhere) and a password, all
+bound as parameters. It grants nothing, or, if asked, SELECT on the database
+the connection names. Global privileges, roles and GRANT OPTION are not
+offered. Like PostgreSQL's New role (D79) it needs `own`: an account is the
+server's, and can sign in through every other connection to it. An account
+that exists is a conflict, and a grant the server refuses drops the account
+it was meant for.
+
+Spec: [MySQL review fixes](../../decisions/2026-10-23-mysql-review-fixes-design.md)

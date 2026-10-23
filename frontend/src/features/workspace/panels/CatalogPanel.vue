@@ -465,6 +465,7 @@ const groupings = computed(() =>
     id: group.id,
     label: group.label,
     system: group.system,
+    ...(group.term === undefined ? {} : { term: group.term }),
   }))
 )
 

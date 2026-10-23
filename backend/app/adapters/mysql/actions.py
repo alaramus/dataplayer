@@ -27,7 +27,7 @@ from app.adapters.actions import (
     JsonAction,
     NodeReplacement,
 )
-from app.adapters.catalog import NodeKind, SchemaNode, TableNode, ViewNode
+from app.adapters.catalog import NodeKind, ReportNode, SchemaNode, TableNode, ViewNode
 from app.adapters.csv_load import LoadCsvParams as SharedLoadCsvParams
 from app.adapters.csv_load import chosen_rows, read_upload, table_name
 from app.adapters.model_code import DIALECT_SUFFIX, DIALECT_TITLE, CodeDialect, render
@@ -38,6 +38,7 @@ from app.adapters.mysql.relation import MysqlRelation
 from app.adapters.mysql.relation_changes import MysqlRelationChanges
 from app.adapters.mysql.session import MysqlSession
 from app.adapters.mysql.sql import SQL, Composable, Identifier
+from app.adapters.mysql.users import USERS_REPORT_ID, CreateUser
 from app.adapters.relation import RelationModel
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -788,7 +789,12 @@ MYSQL_ACTION_TYPES: tuple[MysqlActionType, ...] = (
     DropRelation,
     DropDatabase,
     DescribeModel,
+    CreateUser,
 )
+
+# Which report admits which commands: a report is a kind, and only the Users
+# report adds an account (D243).
+REPORT_COMMANDS: dict[str, tuple[str, ...]] = {USERS_REPORT_ID: (CreateUser.name,)}
 
 
 class MysqlActions:
@@ -812,4 +818,6 @@ class MysqlActions:
             if node.is_system:
                 return [self._actions.get(DescribeModel.name)]
             return self._actions.for_kind(node.kind)
+        if isinstance(node, ReportNode):
+            return [self._actions.get(name) for name in REPORT_COMMANDS.get(node_id, ())]
         return []

@@ -55,6 +55,7 @@ from app.adapters.table_design import (
     DesignTypeParameter,
     ExpressionDefault,
     FunctionOption,
+    HypertableOffer,
     IdentityGeneration,
     IndexColumnKey,
     LiteralDefault,
@@ -382,6 +383,7 @@ class MysqlTableDesign:
             reference_actions=worded_titles(REFERENCE_ACTION_CHOICES),
             match_modes=worded_titles(MATCH_CHOICES),
             persistence_options=worded_titles(PERSISTENCE_CHOICES),
+            hypertable=HypertableOffer(offered=False),
             limits=DesignLimits(name_bytes=NAME_LIMIT),
         )
 

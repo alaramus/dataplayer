@@ -99,6 +99,7 @@ def database_node(name: str, tables: list[str]) -> SchemaNode:
     return SchemaNode(
         id=ids.database_id(name),
         name=name,
+        term="database",
         has_children=True,
         is_system=system,
         representations=[],

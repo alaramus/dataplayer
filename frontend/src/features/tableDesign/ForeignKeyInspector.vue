@@ -123,7 +123,7 @@ function chooseKey(value: string): void {
       <AppSelect
         :model-value="schemaId"
         :options="schemaChoices"
-        :label="t('table_design.foreign.schema')"
+        :label="design.databases.value ? t('table_design.foreign.database') : t('table_design.foreign.schema')"
         :loading="schemas.isLoading.value"
         data-testid="foreign-schema"
         @update:model-value="chooseSchema(String($event))"

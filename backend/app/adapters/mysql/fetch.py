@@ -26,7 +26,7 @@ from app.adapters.mysql.catalog import is_system_database
 from app.adapters.mysql.inspection import RelationFacts
 from app.adapters.mysql.relation import MysqlRelation
 from app.adapters.mysql.reports import SystemReport, in_section, report_for
-from app.adapters.mysql.rows import RowShape, handle_of
+from app.adapters.mysql.rows import RowShape, handles_of
 from app.adapters.mysql.session import MysqlSession
 from app.adapters.mysql.sql import SQL, Composable, Composed, Identifier
 from app.adapters.mysql.types import read_cell, wire_type
@@ -139,14 +139,7 @@ def shape_of(facts: RelationFacts) -> RowShape:
         insert_refused = say("Only tables accept inserted rows")
     else:
         insert_refused = None
-        refused = (
-            None
-            if key
-            else say(
-                "This table has no primary key and no unique key over columns that "
-                "cannot be empty, so no row of it can be named"
-            )
-        )
+        refused = None
     columns: list[FetchColumn] = []
     for column in facts.columns:
         sortable, operators = column_capabilities(column.type)
@@ -166,7 +159,15 @@ def shape_of(facts: RelationFacts) -> RowShape:
                 has_default=has_default,
             )
         )
-    return RowShape(columns=columns, key=key, update_reason=refused, insert_reason=insert_refused)
+    # A table with no key is named by its whole row (D242).
+    whole_row = refused is None and not key
+    return RowShape(
+        columns=columns,
+        key=key,
+        update_reason=refused,
+        insert_reason=insert_refused,
+        whole_row=whole_row,
+    )
 
 
 def select_of(shape: RowShape) -> Composable:
@@ -290,7 +291,7 @@ class MysqlFetch:
             columns=shape.columns,
             rows=cells,
             has_more=len(rows) > request.limit,
-            row_handles=[handle_of(shape, row) for row in cells],
+            row_handles=handles_of(shape, cells),
             references=[]
             if facts is None
             else [

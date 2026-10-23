@@ -248,6 +248,8 @@ async def test_databases_are_listed_with_the_server_s_own_marked(target: Target)
     assert nodes[0].name == DATABASE
     assert nodes[0].id == ids.database_id(DATABASE)
     assert by_name["mysql"].kind == "schema"
+    # A schema to everything else, a database to whoever reads it (D229).
+    assert by_name[DATABASE].term == "database"  # type: ignore[union-attr]  # a schema node, asserted above
     assert by_name["mysql"].is_system  # type: ignore[union-attr]  # a schema node, asserted above
     assert not by_name[OTHER].is_system  # type: ignore[union-attr]  # the same
 

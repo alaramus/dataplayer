@@ -124,12 +124,99 @@ async def test_a_table_with_a_key_offers_every_change(target: Target) -> None:
     assert [reference.name for reference in page.references] == ["things_parent"]
 
 
-async def test_a_table_with_no_key_takes_rows_and_no_edits(target: Target) -> None:
+async def test_a_table_with_no_key_is_edited_by_its_whole_row(target: Target) -> None:
     page = await target.adapter().fetch(FetchRequest(node_id=HEAP))
 
     assert page.insert_supported
-    assert not page.update_supported and page.update_reason
-    assert not page.delete_supported
+    assert page.update_supported and page.delete_supported
+
+
+# --- A table with no key (D242) ------------------------------------------
+
+
+async def _loose(target: Target, *rows: str, columns: str = "a INT, b VARCHAR(10)") -> str:
+    """A table of its own with no key, holding these rows."""
+    name = f"loose_{uuid.uuid4().hex[:8]}"
+    await run(
+        target,
+        f"CREATE TABLE {DATABASE}.{name} ({columns})",
+        *(f"INSERT INTO {DATABASE}.{name} VALUES {row}" for row in rows),
+    )
+    return ids.relation_id(DATABASE, name)
+
+
+async def _page(adapter: MysqlAdapter, node_id: str) -> FetchResult:
+    return await adapter.fetch(FetchRequest(node_id=node_id, limit=50))
+
+
+async def test_a_cell_of_a_row_with_no_key_changes_and_no_other(target: Target) -> None:
+    adapter = target.adapter()
+    node_id = await _loose(target, "(1, 'x')", "(2, NULL)", "(3, 'A')", "(3, 'a')")
+    page = await _page(adapter, node_id)
+    row = page.rows.index(["3", "a"])
+    handle = page.row_handles[row]
+    assert handle is not None
+
+    result = await adapter.update_cell(
+        UpdateCellRequest(node_id=node_id, row_handle=handle, column="b", value="changed")
+    )
+    nulls = page.rows.index(["2", None])
+    await adapter.update_cell(
+        UpdateCellRequest(node_id=node_id, row_handle=page.row_handles[nulls] or "", column="b", value="set")
+    )
+
+    assert result.values == ["3", "changed"]
+    after = sorted((await _page(adapter, node_id)).rows, key=str)
+    assert after == sorted([["1", "x"], ["2", "set"], ["3", "A"], ["3", "changed"]], key=str)
+
+
+async def test_rows_the_same_in_every_value_are_changed_and_deleted_one_by_one(
+    target: Target,
+) -> None:
+    adapter = target.adapter()
+    node_id = await _loose(target, "(1, 'x')", "(1, 'x')", "(1, 'x')")
+    page = await _page(adapter, node_id)
+    handles = [handle for handle in page.row_handles if handle is not None]
+
+    assert len(set(handles)) == 3
+    await adapter.update_cell(
+        UpdateCellRequest(node_id=node_id, row_handle=handles[0], column="b", value="y")
+    )
+    deleted = await adapter.delete_rows(
+        DeleteRowsRequest(node_id=node_id, row_handles=handles[1:])
+    )
+
+    assert deleted.deleted == 2
+    assert (await _page(adapter, node_id)).rows == [["1", "y"]]
+
+
+async def test_a_row_changed_by_somebody_else_is_not_written_over(target: Target) -> None:
+    adapter = target.adapter()
+    node_id = await _loose(target, "(1, 'x')")
+    handle = (await _page(adapter, node_id)).row_handles[0]
+    assert handle is not None
+    _, name = ids.parse(node_id)
+    await run(target, f"UPDATE {DATABASE}.{name} SET b = 'theirs'")
+
+    with pytest.raises(RowConflict):
+        await adapter.update_cell(
+            UpdateCellRequest(node_id=node_id, row_handle=handle, column="b", value="mine")
+        )
+
+
+async def test_rows_alike_but_for_a_float_are_not_guessed_between(target: Target) -> None:
+    adapter = target.adapter()
+    node_id = await _loose(
+        target, "(1, 0.5)", "(1, 0.25)", columns="a INT, f DOUBLE"
+    )
+    page = await _page(adapter, node_id)
+    handle = page.row_handles[0]
+    assert handle is not None
+
+    with pytest.raises(ValueError, match="cannot be told apart"):
+        await adapter.update_cell(
+            UpdateCellRequest(node_id=node_id, row_handle=handle, column="a", value="2")
+        )
 
 
 async def test_the_server_s_own_tables_are_not_changed(target: Target) -> None:
