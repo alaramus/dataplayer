@@ -6,7 +6,7 @@ cross to the grid and are changed there, how its structure is changed and a tabl
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `sqlite` adapter.
 
-Decisions here: D247, D248, D249, D250, D251, D252, D253, D254, D255, D256, D257, D258.
+Decisions here: D247, D248, D249, D250, D251, D252, D253, D254, D255, D256, D257, D258, D259, D260, D261.
 
 ## D247. A SQLite source is one file of its owner's storage, opened defensively
 
@@ -259,3 +259,44 @@ Known deviations:
   reader of it.
 
 Spec: [SQLite reports, search, export and catalog actions](../../decisions/2026-10-24-sqlite-actions-design.md)
+
+## D259. A table is copied in its own words, in one transaction
+
+A copied table is described from its own text (D255): each column's definition
+as written without its inline foreign key, its table constraints with their
+names, its indexes' keys and WHERE, and its options. Every part must stand
+alone before it is composed; a column that does not refuses the table, anything
+else is left out with a warning. Triggers are left behind; views, virtual
+tables and SQLite's own tables are refused.
+
+SQLite adds no foreign key to a table that exists, so links are written into
+each CREATE TABLE and deferred to the commit. Tables, rows and indexes are one
+transaction: a row pointing at nothing fails the commit, and a failure or a
+stop leaves nothing. An index's name is the schema's, so the copy's is renamed
+after the new table and kept free. Rows travel as JSON lines of values tagged
+by class; text in no encoding arrives as text. The database is the file's path,
+and inside one file the rows are copied by INSERT … SELECT, since a reader would
+keep the copy's own commit waiting.
+
+Spec: [Copying SQLite tables, backing a file up, and the lab](../../decisions/2026-10-24-sqlite-copy-design.md)
+
+## D260. A file is backed up by SQLite's online backup, in a Python image
+
+The backup program is a script for Python's `sqlite3` in `python:3.14-slim`:
+the online backup copies the file page by page as one state of it, whatever
+writes to it meanwhile. The file's path here is its path in the tool's
+container (D87). A backup is offered when the connection check passes; a
+restore must begin with SQLite's header and pass `quick_check` before it is
+written. A restore writes a file of the storage, so its program says so and
+only it gets the storage writable.
+
+Spec: [Copying SQLite tables, backing a file up, and the lab](../../decisions/2026-10-24-sqlite-copy-design.md)
+
+## D261. The lab is a file
+
+A SQLite source starts no server, so it has no sample-data capability (D80).
+Its sample is `lab.db`, the lab of the other samples told in SQLite's terms,
+written into the development superuser's storage by `app.seed_storage`
+and opened by the `sqlite-lab` connection `bun run seed:connectors` adds.
+
+Spec: [Copying SQLite tables, backing a file up, and the lab](../../decisions/2026-10-24-sqlite-copy-design.md)

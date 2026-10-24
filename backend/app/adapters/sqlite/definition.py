@@ -458,3 +458,69 @@ def index_predicate(text: str | None) -> str | None:
         elif depth == 0 and token.is_word("WHERE"):
             return text[token.end :].strip().rstrip(";").strip() or None
     return None
+
+
+def fragment(text: str, start: int, end: int, leaving: list[Span] | None = None) -> str:
+    """A stretch of the text as its tokens, comments and the spans `leaving` left out.
+
+    Joined by a space where the text had anything between two tokens, so the
+    layout is close to what was written and a comment is gone: a `--` kept
+    in a part composed into a longer statement would swallow what follows.
+    """
+    pieces: list[str] = []
+    previous: int | None = None
+    for token in tokenize(text[start:end]):
+        at, until = token.start + start, token.end + start
+        if any(left <= at < right for left, right in leaving or []):
+            continue
+        if previous is not None and at > previous:
+            pieces.append(" ")
+        pieces.append(text[at:until])
+        previous = until
+    return "".join(pieces)
+
+
+def stands_alone(text: str) -> bool:
+    """Whether a part of a statement is that and nothing more (D259).
+
+    One token stream with no semicolon, no comment, every quote closed and
+    every parenthesis matched: what composing it into a larger statement
+    relies on.
+    """
+    tokens = tokenize(text)
+    if not tokens:
+        return False
+    depth = 0
+    previous = 0
+    for token in tokens:
+        if text[previous : token.start].strip():
+            # Something between two tokens that is not space is a comment.
+            return False
+        previous = token.end
+        if token.kind == "punct" and token.value == ";":
+            return False
+        if token.kind in ("name", "string") and (
+            token.end - token.start < 2 or text[token.end - 1] not in "\"'`]"
+        ):
+            return False
+        if token.kind == "punct" and token.value == "(":
+            depth += 1
+        elif token.kind == "punct" and token.value == ")":
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0 and not text[previous:].strip()
+
+
+def options_of(text: str | None) -> str | None:
+    """What follows a CREATE TABLE's closing parenthesis: WITHOUT ROWID, STRICT."""
+    if not text:
+        return None
+    tokens = tokenize(text)
+    opening = next((index for index, token in enumerate(tokens) if token.value == "("), None)
+    if opening is None:
+        return None
+    closing = _group(tokens, opening)
+    if closing >= len(tokens):
+        return None
+    return fragment(text, tokens[closing].start, len(text)) or None

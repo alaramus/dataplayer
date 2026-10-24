@@ -82,4 +82,12 @@ MESSAGES: dict[str, str] = {
     'The rules text can be compared by': '比较文本所依据的规则',
     "What runs when a table's rows change": '表的行发生变化时运行的内容',
     'What this file and SQLite say about themselves': '此文件和 SQLite 对自身的说明',
+    # Copying tables and backing the file up.
+    'A row breaks a check of the table': '某行违反了表的检查',
+    "A row holds a value its column's type does not take": '某行包含其列的类型不接受的值',
+    'The copy failed': '复制失败',
+    'Checking the links': '正在检查链接',
+    '{label}: its options could not be read, and are not copied': '{label}：无法读取其选项，不予复制',
+    'This backup is damaged and cannot be restored': '此备份已损坏，无法恢复',
+    'This file is not a SQLite backup': '此文件不是 SQLite 备份',
 }

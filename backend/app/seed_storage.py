@@ -14,6 +14,7 @@ import sys
 import uuid
 
 from app.adapters.explorer.samples import write_samples
+from app.adapters.sqlite.samples import SAMPLE_FILE, write_sample_database
 from app.core.config import settings
 from app.core.db import async_session_maker, loop_factory
 from app.users import crud, storage
@@ -68,6 +69,7 @@ async def main(email: str) -> None:
 
     home = storage.home_dir(user.id)
     write_samples(home)
+    write_sample_database(home / SAMPLE_FILE)
     logger.info("Sample files written to %s", home)
 
 

@@ -1,6 +1,6 @@
 /**
  * Fill the connections panel with demo data: the same PostgreSQL under
- * several names and two file storages.
+ * several names, two file storages, Redis and a SQLite file.
  *
  * Usage, from the repository root:
  *
@@ -131,6 +131,8 @@ async function main() {
     { name: "files-personal", adapter_type: "file", options: {} },
     { name: "files-shared", adapter_type: "file", options: {} },
     { name: "redis-cache", adapter_type: "redis", options: redisCacheOptions() },
+    // The lab file prestart writes into the superuser's storage (D261).
+    { name: "sqlite-lab", adapter_type: "sqlite", options: { path: "lab.db" } },
   ];
 
   let created = 0;

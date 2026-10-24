@@ -82,4 +82,12 @@ MESSAGES: dict[str, str] = {
     'The rules text can be compared by': 'Правила, по которым сравнивается текст',
     "What runs when a table's rows change": 'Что выполняется при изменении строк таблицы',
     'What this file and SQLite say about themselves': 'Что этот файл и SQLite сообщают о себе',
+    # Copying tables and backing the file up.
+    'A row breaks a check of the table': 'Строка нарушает проверку таблицы',
+    "A row holds a value its column's type does not take": 'В строке значение, которое тип её столбца не принимает',
+    'The copy failed': 'Копирование не удалось',
+    'Checking the links': 'Проверка связей',
+    '{label}: its options could not be read, and are not copied': '{label}: не удалось прочитать параметры таблицы, они не копируются',
+    'This backup is damaged and cannot be restored': 'Эта резервная копия повреждена и не может быть восстановлена',
+    'This file is not a SQLite backup': 'Этот файл не является резервной копией SQLite',
 }

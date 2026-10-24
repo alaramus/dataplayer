@@ -82,4 +82,12 @@ MESSAGES: dict[str, str] = {
     'The rules text can be compared by': 'Las reglas con que se compara el texto',
     "What runs when a table's rows change": 'Lo que se ejecuta cuando cambian las filas de una tabla',
     'What this file and SQLite say about themselves': 'Lo que este archivo y SQLite dicen de sí mismos',
+    # Copying tables and backing the file up.
+    'A row breaks a check of the table': 'Una fila incumple una comprobación de la tabla',
+    "A row holds a value its column's type does not take": 'Una fila contiene un valor que el tipo de su columna no admite',
+    'The copy failed': 'La copia falló',
+    'Checking the links': 'Comprobando los enlaces',
+    '{label}: its options could not be read, and are not copied': '{label}: no se pudieron leer sus opciones y no se copian',
+    'This backup is damaged and cannot be restored': 'Esta copia de seguridad está dañada y no se puede restaurar',
+    'This file is not a SQLite backup': 'Este archivo no es una copia de seguridad de SQLite',
 }

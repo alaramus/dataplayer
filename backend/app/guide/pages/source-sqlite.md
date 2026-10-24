@@ -22,6 +22,8 @@ How connections work in general is on the [Connections](connections.md) page.
 - Columns, indexes, unique keys and foreign keys
 - New tables, designed object by object or made from rows
 - Tables and views: rename, drop
+- Tables copied with their structure, into another SQLite file or this one
+- The whole file, backed up and restored
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -181,6 +183,35 @@ the SQL a report runs.
 - **Load from CSV** makes a table of a file in `main`, every column as `TEXT`.
 - **Model as code** writes `main` or a selection out for an ORM or a diagram.
 
+## Copying tables
+
+**Copy** tables in the catalog and **Paste** them into `main` of another
+SQLite connection, or of this one. They arrive with their columns as the file
+writes them, their keys, checks, indexes and options such as `STRICT`; the
+window asks the same things as on PostgreSQL, shows every statement and runs
+nothing before **Copy**.
+
+- Triggers stay behind, named in the window. Views and virtual tables are not
+  copied this way.
+- An index is named after the new table, since two indexes of one file cannot
+  share a name.
+- The copy is one transaction: the tables, their rows and their indexes arrive
+  together or not at all. A row whose foreign key points at nothing in the copy
+  fails it at the end, and nothing is left behind.
+
+Rows pasted into another kind of connection go the way rows of any table do.
+
+## Backups
+
+**Backups**, in the catalog's actions menu, works as on PostgreSQL, for the
+file the connection opens.
+
+- The backup is a copy of the file made by SQLite itself, so it is whole even
+  while somebody writes to the file.
+- **Restore** replaces everything in the file with the backup. A file that is
+  not a SQLite database, or that SQLite finds damaged, is refused before
+  anything is written.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -208,6 +239,5 @@ first and undone before the console asks you about it.
 
 ## What SQLite does not have here yet
 
-- Backups and copying tables. They come later.
 - A file on an SSH server, or inside another connection, cannot be opened as a
   database.

@@ -82,4 +82,12 @@ MESSAGES: dict[str, str] = {
     'The rules text can be compared by': 'वे नियम जिनसे टेक्स्ट की तुलना होती है',
     "What runs when a table's rows change": 'टेबल की पंक्तियाँ बदलने पर क्या चलता है',
     'What this file and SQLite say about themselves': 'यह फ़ाइल और SQLite अपने बारे में क्या बताते हैं',
+    # Copying tables and backing the file up.
+    'A row breaks a check of the table': 'एक पंक्ति टेबल की एक जाँच का उल्लंघन करती है',
+    "A row holds a value its column's type does not take": 'एक पंक्ति में ऐसा मान है जिसे उसके कॉलम का प्रकार स्वीकार नहीं करता',
+    'The copy failed': 'कॉपी विफल रही',
+    'Checking the links': 'लिंक जाँचे जा रहे हैं',
+    '{label}: its options could not be read, and are not copied': '{label}: इसके विकल्प पढ़े नहीं जा सके, और कॉपी नहीं किए जाएँगे',
+    'This backup is damaged and cannot be restored': 'यह बैकअप क्षतिग्रस्त है और पुनर्स्थापित नहीं किया जा सकता',
+    'This file is not a SQLite backup': 'यह फ़ाइल SQLite का बैकअप नहीं है',
 }

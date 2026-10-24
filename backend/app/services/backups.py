@@ -146,7 +146,8 @@ class _BackupJob:
                     volume=settings.SERVICE_STORAGE_VOLUME,
                     path=STORAGE_MOUNT,
                     # A restore reads the dump and writes to the database; it
-                    # has no business writing to somebody's storage.
+                    # writes the storage only where the database is a file in
+                    # it (D260).
                     read_only=not writes,
                 ),
             ),
@@ -270,7 +271,8 @@ class RestoreConnector(_BackupJob):
             raise JobFailed(say("The connection changed while the restore tool was being prepared"))
         await progress.reached("writing the database back")
         result = await self._run(
-            program, owner_id=connector.owner_id, what="restore", writes=False
+            program, owner_id=connector.owner_id, what="restore",
+            writes=program.writes_storage,
         )
         if not result.ok:
             raise JobFailed(_why(result, say("The backup could not be written back")))

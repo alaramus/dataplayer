@@ -53,7 +53,7 @@ from app.core.translation import N_, say
 
 # SQLITE_CONSTRAINT_DATATYPE, a STRICT column's refusal, which the sqlite3
 # module does not name.
-_CONSTRAINT_DATATYPE = sqlite3.SQLITE_CONSTRAINT | (12 << 8)
+CONSTRAINT_DATATYPE = sqlite3.SQLITE_CONSTRAINT | (12 << 8)
 
 # What SQLite says about a change it will not make, by extended result code.
 _REFUSALS: dict[int, str] = {
@@ -65,7 +65,7 @@ _REFUSALS: dict[int, str] = {
         "Another row already has that value where values must be unique"
     ),
     sqlite3.SQLITE_CONSTRAINT_CHECK: N_("The value breaks a check of the table"),
-    _CONSTRAINT_DATATYPE: N_("The value is not of the type its column holds"),
+    CONSTRAINT_DATATYPE: N_("The value is not of the type its column holds"),
 }
 # A broken foreign key reads differently by what broke it.
 WRITING = {

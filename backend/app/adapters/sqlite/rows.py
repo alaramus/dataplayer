@@ -21,6 +21,7 @@ from typing import Any
 
 from app.adapters.fetch import FetchColumn
 from app.adapters.relation import ColumnType
+from app.adapters.sqlite.session import Undecodable
 from app.adapters.sqlite.sql import SQL, Composable, Identifier
 from app.core.translation import say
 
@@ -63,7 +64,7 @@ def version_of(cells: list[str | None]) -> str:
     return hashlib.sha256(encoded).hexdigest()[:32]
 
 
-def _tagged(value: Stored) -> list[Any]:
+def tagged(value: Stored) -> list[Any]:
     if value is None:
         return ["n"]
     if isinstance(value, bool):
@@ -73,12 +74,15 @@ def _tagged(value: Stored) -> list[Any]:
         return ["i", str(value)]
     if isinstance(value, float):
         return ["r", repr(value)]
+    if isinstance(value, Undecodable):
+        # Text another program stored in no encoding: its bytes, kept as text.
+        return ["u", bytes(value).hex()]
     if isinstance(value, bytes):
         return ["b", bytes(value).hex()]
     return ["t", value]
 
 
-def _untagged(item: Any) -> Stored:
+def untagged(item: Any) -> Stored:
     if not isinstance(item, list) or not item or not isinstance(item[0], str):
         raise ValueError
     kind = item[0]
@@ -92,6 +96,8 @@ def _untagged(item: Any) -> Stored:
         return float(item[1])
     if kind == "b":
         return bytes.fromhex(item[1])
+    if kind == "u":
+        return Undecodable(bytes.fromhex(item[1]))
     if kind == "t":
         return item[1]
     raise ValueError
@@ -104,7 +110,7 @@ class RowHandle:
 
 
 def encode_handle(keys: list[Stored], cells: list[str | None]) -> str:
-    named = {"keys": [_tagged(value) for value in keys], "version": version_of(cells)}
+    named = {"keys": [tagged(value) for value in keys], "version": version_of(cells)}
     raw = json.dumps(named, separators=(",", ":"), ensure_ascii=False)
     return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
 
@@ -113,7 +119,7 @@ def decode_handle(value: str, shape: RowShape) -> RowHandle:
     try:
         padded = value + "=" * (-len(value) % 4)
         decoded: Any = json.loads(base64.urlsafe_b64decode(padded).decode())
-        keys = [_untagged(item) for item in decoded["keys"]]
+        keys = [untagged(item) for item in decoded["keys"]]
         version = decoded["version"]
         if not isinstance(version, str):
             raise ValueError

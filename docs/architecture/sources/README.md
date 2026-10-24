@@ -18,7 +18,7 @@ file holds which decision.
 | [actions.md](actions.md) | add an action or change what a form applies to |
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
-| [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, or how its values and pages are read |
+| [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, or where SSH keys and passphrases are kept |
 
 ## Six source types
@@ -181,7 +181,8 @@ backend/app/adapters/
 │                       columns.py + keys.py (structure), vocabulary.py,
 │                       design.py (the designer), relation_changes.py,
 │                       actions.py, reports.py (System), search.py,
-│                       export.py,
+│                       export.py, table_copy.py, backup.py, samples.py +
+│                       sample_data/ (the lab, a file),
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

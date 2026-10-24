@@ -1,4 +1,5 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
+from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +32,11 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
-from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.protocol import (
+    BackupAvailability,
+    BackupProgram,
+    ConnectionCheckResult,
+)
 from app.adapters.query import (
     ExplainRequest,
     ExplainResult,
@@ -67,6 +72,7 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.sqlite.actions import SQLITE_ACTION_TYPES, SqliteActions
+from app.adapters.sqlite.backup import SqliteBackup
 from app.adapters.sqlite.catalog import SqliteCatalog
 from app.adapters.sqlite.columns import SqliteColumns
 from app.adapters.sqlite.content import SqliteContent
@@ -86,8 +92,17 @@ from app.adapters.sqlite.search import SqliteSearch
 from app.adapters.sqlite.session import SqliteSession
 from app.adapters.sqlite.statements import format_text
 from app.adapters.sqlite.summary import SqliteSummaries
+from app.adapters.sqlite.table_copy import DIALECT, SqliteTableCopy
 from app.adapters.sqlite.update import SqliteUpdate
 from app.adapters.summary import NodeSummary
+from app.adapters.table_copy import (
+    Arrived,
+    CopiedTable,
+    RowsOf,
+    TableCopyPlan,
+    TableCopyRequest,
+    TableRows,
+)
 from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -134,6 +149,51 @@ class SqliteAdapter:
         self._search = SqliteSearch(self._session)
         self._export = SqliteExport(self._session, self._fetch)
         self._references = SqliteReferences(self._session, self._catalog, self._relation)
+        self._table_copy = SqliteTableCopy(self._session, self._relations)
+        self._backup = SqliteBackup(self._session)
+
+    async def backup_availability(self) -> BackupAvailability:
+        return await self._backup.backup_availability()
+
+    async def backup_program(self, *, into: str) -> BackupProgram:
+        """The file, by SQLite's online backup (D260)."""
+        return await self._backup.backup_program(into=into)
+
+    async def restore_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_program(from_file=from_file)
+
+    async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_inventory_program(from_file=from_file)
+
+    def validate_restore_inventory(self, lines: Sequence[str]) -> None:
+        self._backup.validate_restore_inventory(lines)
+
+    def restore_archive_reason(self, head: bytes) -> str | None:
+        return self._backup.restore_archive_reason(head)
+
+    table_copy_dialect = DIALECT
+
+    @property
+    def table_copy_database(self) -> str:
+        return self._table_copy.table_copy_database
+
+    async def describe_for_copy(self, node_ids: list[str]) -> list[CopiedTable]:
+        return await self._table_copy.describe_for_copy(node_ids)
+
+    async def free_table_names(self, place_node_id: str, wanted: list[str]) -> list[str]:
+        return await self._table_copy.free_table_names(place_node_id, wanted)
+
+    async def plan_table_copy(self, request: TableCopyRequest) -> TableCopyPlan:
+        return await self._table_copy.plan_table_copy(request)
+
+    def reading_tables(self) -> AbstractAsyncContextManager[TableRows]:
+        return self._table_copy.reading_tables()
+
+    async def carry_table_copy(
+        self, request: TableCopyRequest, rows_of: RowsOf, arrived: Arrived
+    ) -> None:
+        """Tables, rows and indexes in one transaction (D259)."""
+        await self._table_copy.carry_table_copy(request, rows_of, arrived)
 
     @classmethod
     def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:

@@ -11,7 +11,8 @@ import logging
 import sqlite3
 import threading
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import AsyncIterator, Callable, Mapping
+from contextlib import asynccontextmanager
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -102,7 +103,7 @@ def _harden(connection: sqlite3.Connection, *, writes: bool) -> None:
 _UNSAFE = {ord(character): None for character in ("\r", "\n", "\t", "\x00")}
 
 
-def _sentence(text: str) -> str:
+def sentence(text: str) -> str:
     """SQLite's own refusal, on one line and of a bounded length."""
     return text.translate(_UNSAFE).strip()[:500] or say("The source rejected the change")
 
@@ -139,6 +140,11 @@ def classify(
             return "config", say("The database file cannot be written")
     ref = record_failure(logger, f"SQLite: {fallback_message}", exc)
     return "unknown", with_ref(say(fallback_message), ref)
+
+
+def _rolled_back(connection: sqlite3.Connection) -> None:
+    if connection.in_transaction:
+        connection.execute("ROLLBACK")
 
 
 class Reading:
@@ -250,6 +256,18 @@ class SqliteSession:
 
     def file_name(self) -> str:
         return self._options.parts[-1]
+
+    def path(self) -> str:
+        """Where the file is on this server's disk, judged as every open is."""
+        return str(self._file())
+
+    def place(self) -> str:
+        """The file's path, to tell whether two connections open one file;
+        the path as given when it is refused."""
+        try:
+            return self.path()
+        except AdapterError:
+            return self._options.path
 
     def _file(self) -> Path:
         """Where the file is, judged by the file source's own rule (D8).
@@ -428,9 +446,34 @@ class SqliteSession:
                 sqlite3.SQLITE_ERROR,
                 sqlite3.SQLITE_CONSTRAINT,
             ):
-                raise ValueError(_sentence(str(exc))) from None
+                raise ValueError(sentence(str(exc))) from None
             error_kind, message = classify(exc, fallback_message=N_("The structure could not be changed"))
             raise AdapterError(error_kind, message) from None
+        finally:
+            await handle.close()
+
+    @asynccontextmanager
+    async def transaction(self, *, writes: bool) -> AsyncIterator[Handle]:
+        """A transaction held across several calls, for work that awaits
+        between its statements, such as rows arriving from another source.
+
+        A write takes the file's lock with its first statement and checks
+        foreign keys at the commit, so rows may arrive in any table order.
+        Committed when the block ends cleanly, rolled back otherwise; a read
+        sees one state of the file throughout.
+        """
+        handle = await self.handle(writes=writes, fallback_message=N_("Query failed"))
+        try:
+            await handle.call(lambda connection: connection.execute("BEGIN IMMEDIATE" if writes else "BEGIN"))
+            if writes:
+                await handle.call(lambda connection: connection.execute("PRAGMA defer_foreign_keys = ON"))
+            try:
+                yield handle
+            except BaseException:
+                handle.resume()
+                await handle.call(_rolled_back)
+                raise
+            await handle.call(lambda connection: connection.execute("COMMIT" if writes else "ROLLBACK"))
         finally:
             await handle.close()
 

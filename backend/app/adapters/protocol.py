@@ -167,6 +167,9 @@ class BackupProgram:
     image: str
     argv: tuple[str, ...]
     environment: Mapping[str, str]
+    # A restore writes the source, not the storage, unless the source is a
+    # file in that storage (D260).
+    writes_storage: bool = False
 
 
 class BackupAvailability(BaseModel):
