@@ -8,17 +8,14 @@ Wie Verbindungen im Allgemeinen funktionieren, steht auf der Seite
 
 ## Was Sie sehen können
 
-- Datenbanken, Tabellen und Ansichten sowie ihre auf dem Server sortierten und
-  gefilterten Zeilen
-- Die Spalten, Schlüssel, Prüfungen und Indizes einer Tabelle und die Tabellen,
-  auf die sie verweist
+- Datenbanken, Tabellen und Ansichten, ihre Zeilen sortiert und gefiltert
+- Spalten, Schlüssel, Prüfungen und Indizes einer Tabelle, und ihre Zieltabellen
 - Wohin der Fremdschlüssel einer Zeile führt und was auf sie zeigt
 - Die DDL einer Relation, wie der Server sie schreibt
 - Wie groß eine Tabelle ist und wann sie erstellt und zuletzt beschrieben wurde
 - Die Ergebnisse Ihres SQL und den Plan des Servers für eine Abfrage
 - Jede passende Zeile, heruntergeladen als Datei
-- Was der Server tut: Prozesse, Variablen, Status, Benutzer, Routinen, Trigger,
-  Ereignisse und Engines
+- Prozesse, Variablen, Status, Benutzer, Routinen, Trigger, Ereignisse, Engines
 
 ## Was Sie ändern können
 
@@ -26,15 +23,11 @@ Wie Verbindungen im Allgemeinen funktionieren, steht auf der Seite
 - Spalten, Indizes, eindeutige Schlüssel und Fremdschlüssel
 - Neue Tabellen, Objekt für Objekt entworfen oder aus Zeilen gemacht
 - Daten und Struktur über SQL in der Konsole
-- Was eine andere Verbindung ausführt: ihre Anweisung kann angehalten oder die
-  Verbindung geschlossen werden
+- Was andere Verbindungen ausführen: Anweisung anhalten, Verbindung schließen
 - Datenbanken: erstellen und löschen
-- Tabellen und Ansichten: umbenennen, eine Tabelle in eine andere Datenbank
-  verschieben, löschen
-- Tabellen, mit ihrer Struktur in eine andere MySQL- oder MariaDB-Verbindung
-  kopiert
-- Sicherungen der Datenbank der Verbindung und das Zurücklegen der Datenbank aus
-  einer Sicherung
+- Tabellen und Ansichten: umbenennen, in andere Datenbank verschieben, löschen
+- Tabellen mit Struktur, in eine andere MySQL- oder MariaDB-Verbindung kopiert
+- Sicherungen der Datenbank der Verbindung, und ihre Wiederherstellung
 
 ## Verbinden
 

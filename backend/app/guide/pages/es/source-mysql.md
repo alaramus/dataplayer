@@ -7,17 +7,14 @@ en general se explica en la página [Conexiones](connections.md).
 
 ## Qué puedes ver
 
-- Bases de datos, tablas y vistas, y sus filas ordenadas y filtradas en el
-  servidor
-- Las columnas, claves, comprobaciones e índices de una tabla, y las tablas a
-  las que hace referencia
+- Bases de datos, tablas y vistas, y sus filas ordenadas y filtradas
+- Las columnas, claves, comprobaciones e índices de una tabla, y sus destinos
 - Adónde lleva la clave externa de una fila, y qué apunta a ella
 - El DDL de una relación, tal como lo escribe el servidor
 - Cuánto ocupa una tabla, y cuándo se creó y se escribió en ella por última vez
 - Los resultados del SQL que escribes, y el plan del servidor para una consulta
 - Todas las filas coincidentes, descargadas como archivo
-- Lo que hace el servidor: procesos, variables, estado, usuarios, rutinas,
-  disparadores, eventos y motores
+- Procesos, variables, estado, usuarios, rutinas, disparadores del servidor
 
 ## Qué puedes cambiar
 
@@ -26,13 +23,11 @@ en general se explica en la página [Conexiones](connections.md).
 - Columnas, índices, claves únicas y claves externas
 - Tablas nuevas, diseñadas objeto por objeto o hechas a partir de filas
 - Datos y estructura, con SQL en la consola
-- Lo que ejecuta otra conexión: su sentencia se puede detener, o cerrar la
-  conexión
+- Lo que ejecuta otra conexión: detener su sentencia o cerrar la conexión
 - Bases de datos: crearlas y eliminarlas
 - Tablas y vistas: renombrar, mover una tabla a otra base de datos, eliminar
 - Tablas copiadas con su estructura a otra conexión MySQL o MariaDB
-- Copias de seguridad de la base de datos de la conexión, y la base restaurada
-  desde una de ellas
+- Copias de seguridad de la base de la conexión, y su restauración
 
 ## Conectarse
 

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.adapters import registry
+from app.core.translation import LANGUAGES, Language, in_language
 from app.guide import reader
 
 LINK = re.compile(r"\]\(([^)]+)\)")
@@ -18,12 +19,24 @@ def test_every_source_type_has_a_page_with_what_you_can_see() -> None:
         assert reader.bullets(found.markdown, reader.CAN_SEE), adapter_type.name
 
 
-def test_a_short_list_stays_short() -> None:
-    """Read in a narrow panel beside the grid of types, one line per item."""
-    for one in reader.pages().values():
-        for heading in (reader.CAN_SEE, reader.CAN_CHANGE):
-            for item in reader.bullets(one.markdown, heading):
-                assert len(item) <= 80, (one.key, item)
+@pytest.mark.parametrize("language", LANGUAGES)
+def test_a_short_list_stays_short(language: Language) -> None:
+    """Read in a narrow panel beside the grid of types, one line per item.
+
+    In every language, and measured whole: an item wrapped onto a second line
+    of its page is one item, and was once measured by its first line only.
+    """
+
+    def long_items() -> list[tuple[str, str]]:
+        return [
+            (one.key, item)
+            for one in reader.pages_in(language).values()
+            for heading in (reader.CAN_SEE, reader.CAN_CHANGE)
+            for item in reader.bullets(one.markdown, heading)
+            if len(item) > 80
+        ]
+
+    assert in_language(language, long_items) == []
 
 
 def test_a_link_between_pages_names_a_page() -> None:
@@ -38,8 +51,24 @@ def test_a_link_between_pages_names_a_page() -> None:
 def test_the_bullets_of_one_heading_stop_at_the_next() -> None:
     markdown = "# T\n\n## What you can see\n\n- one\n- two\n  more\n\n## Other\n\n- not\n"
 
-    assert reader.bullets(markdown, reader.CAN_SEE) == ["one", "two"]
+    assert reader.bullets(markdown, reader.CAN_SEE) == ["one", "two more"]
     assert reader.bullets(markdown, reader.CAN_CHANGE) == []
+
+
+def test_a_bullet_wrapped_onto_more_lines_is_one_item() -> None:
+    """The page wraps a long item; the catalog's panel showed only its first line."""
+    markdown = (
+        "# T\n\n## What you can see\n\n"
+        "- What the server does: processes, variables, status, users,\n"
+        "  routines, triggers, events and engines\n"
+        "- Every matching row\n\n"
+        "Text after the list.\n"
+    )
+
+    assert reader.bullets(markdown, reader.CAN_SEE) == [
+        "What the server does: processes, variables, status, users, routines, triggers, events and engines",
+        "Every matching row",
+    ]
 
 
 def test_a_page_is_titled_by_its_first_heading(tmp_path: Path) -> None:

@@ -9,8 +9,7 @@ funcionamiento general de las conexiones está en la página
 ## Qué puedes ver
 
 - Todas las bases de datos del servidor, y sus claves como un árbol
-- Lo que contiene una clave, como filas: campos, elementos de lista, miembros,
-  puntuaciones, entradas
+- Lo que contiene una clave, como filas: campos, elementos, miembros, entradas
 - El tipo de una clave, su tamaño y el tiempo que le queda de vida
 - Una carpeta de haches como una sola tabla
 - Métricas del servidor en cuadros de mando

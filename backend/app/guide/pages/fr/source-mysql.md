@@ -8,35 +8,27 @@ fonctionnement des connexions en général est décrit sur la page
 
 ## Ce que vous pouvez voir
 
-- Les bases de données, tables et vues, et leurs lignes triées et filtrées sur
-  le serveur
-- Les colonnes, clés, vérifications et index d'une table, et les tables
-  auxquelles elle fait référence
+- Les bases de données, tables et vues, et leurs lignes triées et filtrées
+- Les colonnes, clés, vérifications et index d'une table, et ses tables cibles
 - Où mène la clé étrangère d'une ligne, et ce qui pointe vers elle
 - Le DDL d'une relation, tel que le serveur l'écrit
-- La taille d'une table, quand elle a été créée et quand on y a écrit pour la
-  dernière fois
+- La taille d'une table, sa création et sa dernière écriture
 - Les résultats du SQL que vous écrivez, et le plan du serveur pour une requête
 - Toutes les lignes correspondantes, téléchargées dans un fichier
-- Ce que fait le serveur : processus, variables, état, utilisateurs, routines,
-  déclencheurs, événements et moteurs
+- Processus, variables, état, utilisateurs, routines, déclencheurs du serveur
 
 ## Ce que vous pouvez modifier
 
-- Les données d'une table : modifier des cellules, coller des blocs, insérer et
-  supprimer des lignes
+- Les données : modifier des cellules, coller des blocs, ajouter des lignes
 - Les colonnes, index, clés uniques et clés étrangères
 - De nouvelles tables, conçues objet par objet ou faites à partir de lignes
 - Les données et la structure, par du SQL dans la console
-- Ce qu'une autre connexion exécute : son instruction peut être arrêtée, ou la
-  connexion fermée
+- Ce qu'exécutent d'autres connexions : arrêter l'instruction ou fermer
 - Les bases de données : les créer et les supprimer
-- Les tables et les vues : renommer, déplacer une table vers une autre base de
-  données, supprimer
+- Les tables et les vues : renommer, déplacer vers une autre base, supprimer
 - Des tables copiées avec leur structure vers une autre connexion MySQL ou
   MariaDB
-- Des sauvegardes de la base de données de la connexion, et la base remise en
-  place à partir de l'une d'elles
+- Des sauvegardes de la base de la connexion, et sa restauration
 
 ## Se connecter
 

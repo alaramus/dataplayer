@@ -9,17 +9,12 @@ Wie Verbindungen im Allgemeinen funktionieren, steht auf der Seite
 
 ## Was Sie sehen können
 
-- Tabellen, Ansichten und virtuelle Tabellen und ihre Zeilen, sortiert und
-  gefiltert
-- Die Spalten, Schlüssel, Prüfungen und Indizes einer Tabelle und die Tabellen,
-  auf die sie verweist
-- Die DDL einer Relation, wie die Datei sie aufbewahrt, mit ihren Indizes und
-  Triggern
-- Die Ergebnisse des SQL, das Sie schreiben, und den Plan von SQLite für eine
-  Abfrage
+- Tabellen, Ansichten und virtuelle Tabellen, ihre Zeilen sortiert und gefiltert
+- Spalten, Schlüssel, Prüfungen und Indizes einer Tabelle, und ihre Zieltabellen
+- Die DDL einer Relation, wie die Datei sie aufbewahrt, mit Indizes und Triggern
+- Die Ergebnisse Ihres SQL und den Plan von SQLite für eine Abfrage
 - Alle passenden Zeilen, als Datei heruntergeladen
-- Was die Datei über sich selbst sagt: ihren Aufbau, ihre Integrität,
-  verletzte Schlüssel, Trigger und was das SQLite dieses Servers bietet
+- Was die Datei über sich sagt: Aufbau, Integrität, verletzte Schlüssel, Trigger
 - Wohin der Fremdschlüssel einer Zeile führt und was auf sie verweist
 
 ## Was Sie ändern können

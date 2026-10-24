@@ -13,8 +13,7 @@ página [Conexiones](connections.md).
 - El DDL de una relación, como lo guarda el archivo, con índices y disparadores
 - Los resultados del SQL que escribes, y el plan de SQLite para una consulta
 - Todas las filas que coinciden, descargadas en un archivo
-- Lo que el archivo dice de sí mismo: su estructura, su integridad, las claves
-  rotas, los disparadores y lo que ofrece el SQLite de este servidor
+- Lo que dice el archivo: estructura, integridad, claves rotas, disparadores
 - Adónde lleva la clave foránea de una fila, y qué apunta a ella
 
 ## Qué puedes cambiar

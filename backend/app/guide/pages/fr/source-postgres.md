@@ -20,8 +20,7 @@ connexions est décrit sur la page [Connexions](connections.md).
 - Un fichier CSV chargé dans une table
 - Les rôles
 - Une sauvegarde de toute la base de données
-- Les hypertables TimescaleDB, la compression et la rétention, quand il est
-  installé
+- Les hypertables TimescaleDB, la compression et la rétention, s'il est installé
 
 ## Se connecter
 

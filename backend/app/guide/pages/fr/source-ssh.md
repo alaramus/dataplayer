@@ -9,8 +9,7 @@ sur la page [Connexions](connections.md).
 
 ## Ce que vous pouvez voir
 
-- Les dossiers et les fichiers du serveur, à partir de l'endroit que vous
-  choisissez
+- Les dossiers et les fichiers du serveur, à partir de l'endroit choisi
 - Tables dans des fichiers CSV, TSV, Excel et Parquet, et dans des journaux
 - Documents, code, images, PDF, enregistrements et le contenu des archives zip
 - Fichiers trouvés par leur nom ou par le texte qu'ils contiennent

@@ -12,8 +12,7 @@ How connections work in general is on the [Connections](connections.md) page.
 - A relation's DDL, as the file keeps it, with its indexes and triggers
 - The results of SQL you write, and SQLite's plan for a query
 - Every matching row, downloaded as a file
-- What the file says about itself: its layout, integrity, broken keys,
-  triggers, and what this server's SQLite offers
+- What the file says about itself: layout, integrity, broken keys, triggers
 - Where a row's foreign key leads, and what points at it
 
 ## What you can change

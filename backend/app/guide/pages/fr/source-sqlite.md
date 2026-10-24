@@ -13,8 +13,7 @@ général est décrit sur la page [Connexions](connections.md).
 - Le DDL d'une relation, tel que le fichier le garde, avec index et déclencheurs
 - Les résultats du SQL que vous écrivez, et le plan de SQLite pour une requête
 - Toutes les lignes correspondantes, téléchargées dans un fichier
-- Ce que le fichier dit de lui-même : sa structure, son intégrité, les clés
-  rompues, les déclencheurs, et ce qu'offre le SQLite de ce serveur
+- Ce que dit le fichier : structure, intégrité, clés rompues, déclencheurs
 - Où mène la clé étrangère d'une ligne, et ce qui pointe vers elle
 
 ## Ce que vous pouvez modifier

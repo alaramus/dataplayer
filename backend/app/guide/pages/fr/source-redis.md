@@ -9,8 +9,7 @@ sur la page [Connexions](connections.md).
 ## Ce que vous pouvez voir
 
 - Chaque base de données du serveur, et ses clés sous forme d'arbre
-- Ce que contient une clé, sous forme de lignes : champs, éléments de list,
-  éléments de set, scores, entrées
+- Ce que contient une clé, en lignes : champs, éléments, membres, scores, entrées
 - Le type d'une clé, sa taille et le temps qui lui reste à vivre
 - Un dossier de hachages comme une seule table
 - Les métriques du serveur sur les tableaux de bord

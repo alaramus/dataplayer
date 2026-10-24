@@ -14,8 +14,7 @@ How connections work in general is on the [Connections](connections.md) page.
 - How big a table is, and when it was created and last written to
 - The results of SQL you write, and the server's plan for a query
 - Every matching row, downloaded as a file
-- What the server is doing: processes, variables, status, users, routines,
-  triggers, events and engines
+- The server's processes, variables, status, users, routines, triggers, events
 
 ## What you can change
 
@@ -23,8 +22,7 @@ How connections work in general is on the [Connections](connections.md) page.
 - Columns, indexes, unique keys and foreign keys
 - New tables, designed object by object or made from rows
 - Data and structure, through SQL in the console
-- What another connection is running: its statement can be stopped, or the
-  connection closed
+- What other connections run: stop a statement or close the connection
 - Databases: create and drop them
 - Tables and views: rename, move a table to another database, drop
 - Tables copied with their structure to another MySQL or MariaDB connection

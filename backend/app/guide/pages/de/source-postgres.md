@@ -7,8 +7,7 @@ steht auf der Seite [Verbindungen](connections.md).
 
 ## Was Sie sehen können
 
-- Schemas, Tabellen und Ansichten sowie ihre auf dem Server sortierten und
-  gefilterten Zeilen
+- Schemas, Tabellen und Ansichten, ihre Zeilen sortiert und gefiltert
 - Die Spalten einer Tabelle, ihre Schlüssel und die Tabellen, auf die sie
   verweist
 - Jede passende Zeile, heruntergeladen als Datei

@@ -9,8 +9,7 @@ Wie Verbindungen im Allgemeinen funktionieren, steht auf der Seite
 ## Was Sie sehen können
 
 - Jede Datenbank auf dem Server und ihre Schlüssel als Baum
-- Was ein Schlüssel enthält, als Zeilen: Felder, Listenelemente, Mitglieder,
-  Punkte, Einträge
+- Was ein Schlüssel enthält, als Zeilen: Felder, Elemente, Punkte, Einträge
 - Den Typ eines Schlüssels, seine Größe und die verbleibende Lebensdauer
 - Einen Ordner aus Hashes als eine Tabelle
 - Servermetriken auf Dashboards

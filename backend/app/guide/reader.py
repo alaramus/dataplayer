@@ -86,13 +86,25 @@ def page(key: str) -> GuidePage | None:
 
 
 def bullets(markdown: str, heading: str) -> list[str]:
-    """The top-level bullets under one `## ` heading, each on one line."""
+    """The top-level bullets under one `## ` heading, each as one line of text.
+
+    A bullet wrapped onto indented lines in the page is one item: the lines
+    under it are joined to it. Taking only its first line cut every wrapped
+    item short in the catalog's panel.
+    """
     items: list[str] = []
     inside = False
     for line in markdown.splitlines():
         if line.startswith("## "):
             inside = line[3:].strip() in (heading, say(heading))
             continue
-        if inside and line.startswith("- "):
+        if not inside:
+            continue
+        if line.startswith("- "):
             items.append(line[2:].strip())
+        elif items and line.startswith(" ") and line.strip():
+            items[-1] = f"{items[-1]} {line.strip()}"
+        elif not line.strip() and items:
+            # A blank line ends the item it follows; the list may go on.
+            continue
     return items

@@ -8,8 +8,7 @@ auf der Seite [Verbindungen](connections.md).
 
 ## Was Sie sehen können
 
-- Ordner und Dateien und was jeder einzelne ist: seine Größe, seine Daten, sein
-  Format
+- Ordner und Dateien und was jedes davon ist: Größe, Daten, Format
 - Tabellen in CSV-, TSV-, Excel- und Parquet-Dateien sowie in Logs
 - Dokumente, Code, Bilder, PDFs, Aufzeichnungen und das Innere von zip-Archiven
 - Dateien, die nach Namen oder nach dem Text in ihnen gefunden werden
