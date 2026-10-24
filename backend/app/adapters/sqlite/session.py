@@ -153,6 +153,10 @@ class Reading:
         names = [column[0] for column in cursor.description or []]
         return [dict(zip(names, row, strict=True)) for row in cursor.fetchall()]
 
+    def cursor(self, sql: str, params: tuple[object, ...] = ()) -> sqlite3.Cursor:
+        """A statement run and not read: its columns are named on it."""
+        return self._connection.execute(sql, params)
+
     def tuples(self, sql: str, params: tuple[object, ...] = ()) -> list[tuple[Any, ...]]:
         """A statement's rows by position: names may repeat, and `rowid` is one."""
         return list(self._connection.execute(sql, params).fetchall())

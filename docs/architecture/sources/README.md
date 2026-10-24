@@ -102,7 +102,10 @@ primary key or rowid and checked against a digest of what was shown, and keys
 are followed both ways (D254). Columns, indexes and constraints are changed
 by SQLite's ALTER TABLE or by rebuilding the table from its own text, edited
 (D255). A designed table is planned as statements run in one transaction, its
-identity the rowid (D256).
+identity the rowid (D256). The file's pragmas are reports in a System section,
+the catalog is searched by name and column, and every matching row is
+exported (D257). Relations are renamed and dropped — a drop rehearsed first —
+and a CSV file loaded (D258).
 
 ## Where the code is
 
@@ -177,7 +180,8 @@ backend/app/adapters/
 │                       references.py, restructure.py (the rebuild),
 │                       columns.py + keys.py (structure), vocabulary.py,
 │                       design.py (the designer), relation_changes.py,
-│                       actions.py (Create table),
+│                       actions.py, reports.py (System), search.py,
+│                       export.py,
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

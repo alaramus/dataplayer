@@ -11,6 +11,9 @@ How connections work in general is on the [Connections](connections.md) page.
 - A table's columns, keys, checks and indexes, and the tables it refers to
 - A relation's DDL, as the file keeps it, with its indexes and triggers
 - The results of SQL you write, and SQLite's plan for a query
+- Every matching row, downloaded as a file
+- What the file says about itself: its layout, integrity, broken keys,
+  triggers, and what this server's SQLite offers
 - Where a row's foreign key leads, and what points at it
 
 ## What you can change
@@ -18,6 +21,7 @@ How connections work in general is on the [Connections](connections.md) page.
 - Table data: edit cells, paste blocks, insert and delete rows
 - Columns, indexes, unique keys and foreign keys
 - New tables, designed object by object or made from rows
+- Tables and views: rename, drop
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -54,6 +58,9 @@ it cannot call a function with side effects either.
   keeps, followed by the table's indexes and triggers.
 - A virtual table made with a module this server does not have is listed, and
   says so when it is opened.
+- **System**, after `main`, is a section of reports (see **Reports** below).
+- The search in the header finds tables and views by name, and by their
+  columns.
 
 ## Reading rows
 
@@ -145,6 +152,35 @@ run together: the table is made whole or not at all.
 - Rows kept as a table, or a file loaded into one, arrive with the table in
   one go.
 
+## Reports
+
+**System** in the catalog holds eight reports. They are read like tables, and
+can be sorted, filtered, downloaded and charted. **View the statement** shows
+the SQL a report runs.
+
+- **File**: the page size and count, the file's size, free pages, encoding,
+  journal mode, auto-vacuum, and the version numbers the file keeps.
+- **Integrity**: SQLite's quick check of every page: `ok`, or what is damaged.
+  It reads the whole file, so it is read only when opened.
+- **Broken foreign keys**: rows whose key points at nothing, written by a
+  program that did not enforce them.
+- **Triggers**, with their definitions.
+- **Functions**, **Modules** and **Collations** this server's SQLite offers,
+  and the **Compile options** it was built with.
+
+## Catalog actions
+
+- **Rename** a table or a view. What refers to a table follows it. A view is
+  made again under the new name; a view that reads it by its old name refuses
+  the rename and is named.
+- **Drop** one relation or several together. The drop is tried out first and
+  undone, so the question shows what it would do: the triggers that go with
+  it, the tables that point at it, the views that read it. If a table that
+  points at it still has rows and does not cascade, the drop is refused with
+  that reason. Tables that point at each other can be dropped together.
+- **Load from CSV** makes a table of a file in `main`, every column as `TEXT`.
+- **Model as code** writes `main` or a selection out for an ORM or a diagram.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -172,7 +208,6 @@ first and undone before the console asks you about it.
 
 ## What SQLite does not have here yet
 
-- Catalog actions other than **Create table**, downloading every row, backups and copying tables. They
-  come later.
+- Backups and copying tables. They come later.
 - A file on an SSH server, or inside another connection, cannot be opened as a
   database.

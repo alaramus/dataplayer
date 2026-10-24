@@ -240,7 +240,7 @@ async def test_a_read_past_its_clock_is_stopped(home: Path) -> None:
 async def test_the_catalog_has_one_schema(home: Path) -> None:
     nodes = await _adapter(home).list_children(None)
 
-    assert [(node.id, node.kind) for node in nodes] == [("main", "schema")]
+    assert [(node.id, node.kind) for node in nodes] == [("main", "schema"), ("\\system", "report")]
 
 
 async def test_the_schema_lists_tables_views_and_virtual_tables(home: Path) -> None:

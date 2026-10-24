@@ -64,7 +64,7 @@ async def test_a_file_is_checked_browsed_read_and_described(
     assert check["ok"], check
 
     schemas = await get("catalog")
-    assert [node["id"] for node in schemas] == ["main"]
+    assert [node["id"] for node in schemas] == ["main", "\\system"]
     relations = await get("catalog", node_id="main")
     assert {node["name"] for node in relations} >= {"items", "labels", "cheap"}
 

@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,7 @@ from app.adapters.constraints import (
     DropConstraintRequest,
 )
 from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
@@ -55,12 +57,22 @@ from app.adapters.relation_changes import (
     CreateRelationResult,
     NewRelationOptions,
 )
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.sqlite.actions import SQLITE_ACTION_TYPES, SqliteActions
 from app.adapters.sqlite.catalog import SqliteCatalog
 from app.adapters.sqlite.columns import SqliteColumns
 from app.adapters.sqlite.content import SqliteContent
 from app.adapters.sqlite.design import SqliteTableDesign
 from app.adapters.sqlite.explain import SqliteExplain
+from app.adapters.sqlite.export import SqliteExport
 from app.adapters.sqlite.features import SqliteFeatures
 from app.adapters.sqlite.fetch import SqliteFetch
 from app.adapters.sqlite.keys import SqliteKeys
@@ -70,6 +82,7 @@ from app.adapters.sqlite.query import SqliteExecution, SqliteQuery, SqliteTransa
 from app.adapters.sqlite.references import SqliteReferences
 from app.adapters.sqlite.relation import SqliteRelation
 from app.adapters.sqlite.relation_changes import SqliteRelationChanges
+from app.adapters.sqlite.search import SqliteSearch
 from app.adapters.sqlite.session import SqliteSession
 from app.adapters.sqlite.statements import format_text
 from app.adapters.sqlite.summary import SqliteSummaries
@@ -118,7 +131,30 @@ class SqliteAdapter:
         self._design = SqliteTableDesign(self._session, self._catalog, self._relation)
         self._relations = SqliteRelationChanges(self._session, self._catalog)
         self._actions = SqliteActions(self._session, self._catalog)
+        self._search = SqliteSearch(self._session)
+        self._export = SqliteExport(self._session, self._fetch)
         self._references = SqliteReferences(self._session, self._catalog, self._relation)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """The file is on this server's disk, and its catalog is read whole (D257)."""
+        return "cheap"
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    async def search_columns(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_columns(request, bounds)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        return self._export.export_rows(request)
 
     @classmethod
     def action_types(cls) -> tuple[ActionType, ...]:

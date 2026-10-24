@@ -2,11 +2,11 @@
 
 What a SQLite source is, how it opens its file, how it reads its catalog and
 the parts of a table the pragmas do not give, and how its values and pages
-cross to the grid and are changed there, how its structure is changed and a table designed, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
+cross to the grid and are changed there, how its structure is changed and a table designed, its reports, search and catalog actions, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `sqlite` adapter.
 
-Decisions here: D247, D248, D249, D250, D251, D252, D253, D254, D255, D256.
+Decisions here: D247, D248, D249, D250, D251, D252, D253, D254, D255, D256, D257, D258.
 
 ## D247. A SQLite source is one file of its owner's storage, opened defensively
 
@@ -219,3 +219,43 @@ Known deviations:
 - A designed table is never STRICT: the designer has no choice for it.
 
 Spec: [Designing SQLite tables](../../decisions/2026-10-24-sqlite-design-design.md)
+
+## D257. Reports are the file's pragmas; search reads the catalog whole
+
+A **System** section after `main`, id `\system`, holds the file's reports:
+File (page size and count, size, free pages, encoding, journal, auto-vacuum,
+user version, application id, schema version), Integrity (`quick_check`),
+Broken foreign keys, Triggers, Functions, Modules, Collations and Compile
+options. Each is a statement of the package read as a subquery with the page's
+filters, sorting and paging; its columns are named by SQLite and typed `other`,
+since a result says no type. Nothing is written through a report and no table
+is made of one.
+
+Search reads every relation, and for a column search every column, in one
+inspection and classes names with the shared word rule in Python; it is cheap
+for every field. Reports are found by their titles. An export takes the page's
+read from one connection a batch at a time.
+
+Spec: [SQLite reports, search, export and catalog actions](../../decisions/2026-10-24-sqlite-actions-design.md)
+
+## D258. A drop is rehearsed; a view is renamed from its own text
+
+The catalog offers Rename, Drop, Load from CSV, Create table and Model as code;
+no schema is created, renamed, dropped or moved into. SQLite's own tables offer
+only the model. A table is renamed by ALTER TABLE; a view is made again under
+the new name from its own text, and every view is read afterwards, so one that
+read the old name refuses the rename.
+
+A drop's preview is the drop carried out and rolled back, with foreign keys on:
+dropping a table deletes its rows, so a cascade follows and a refusal blocks
+the drop with SQLite's reason. The preview also names the table's triggers,
+other tables' keys pointing at it, and the views whose text names it, read by
+tokens. In a selection, tables that point at others of it go first. A loaded
+CSV file is a table of TEXT columns made with its rows in one transaction.
+
+Known deviations:
+
+- A view that names a column called like the dropped table is listed as a
+  reader of it.
+
+Spec: [SQLite reports, search, export and catalog actions](../../decisions/2026-10-24-sqlite-actions-design.md)

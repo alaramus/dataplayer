@@ -7,6 +7,7 @@ file opens, and what a person pastes into another SQLite.
 
 from app.adapters.content import ContentRequest, ContentResult, SqlContent
 from app.adapters.sqlite.relation import SqliteRelation
+from app.adapters.sqlite.reports import report_for
 from app.adapters.sqlite.session import Reading, SqliteSession
 from app.core.translation import say
 
@@ -32,6 +33,9 @@ class SqliteContent:
                     representation=request.representation,
                 )
             )
+        report = report_for(request.node_id)
+        if report is not None:
+            return SqlContent(text=" ".join(report.statement.split()) + ";", truncated=False)
         # Confirms the relation is there, and says so as a missing node.
         facts = await self._relation.facts(request.node_id, structure=False)
 

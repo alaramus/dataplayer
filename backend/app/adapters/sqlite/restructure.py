@@ -238,6 +238,13 @@ def rebuild(
             "WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = ?)",
             (name, sequence[0], name),
         )
+    check_views(connection)
+    if connection.execute(_BROKEN_KEYS, (name,)).fetchone()[0]:
+        raise ValueError(say("Some rows point at nothing in the target relation"))
+
+
+def check_views(connection: sqlite3.Connection) -> None:
+    """Read every view once; one that reads what a change took away refuses it."""
     for (view,) in connection.execute(_VIEWS).fetchall():
         try:
             connection.execute(SQL("SELECT * FROM {} LIMIT 0").format(Identifier("main", view)).text())
@@ -245,5 +252,3 @@ def rebuild(
             raise ValueError(
                 say('The view "{name}" reads what this change takes away', name=view)
             ) from None
-    if connection.execute(_BROKEN_KEYS, (name,)).fetchone()[0]:
-        raise ValueError(say("Some rows point at nothing in the target relation"))

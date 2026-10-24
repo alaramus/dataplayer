@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, assert_never
 
 from app.adapters.fetch import (
+    PAGE_COMMANDS,
     FetchColumn,
     FetchReference,
     FetchRequest,
@@ -23,10 +24,11 @@ from app.adapters.fetch import (
 from app.adapters.relation import ColumnType
 from app.adapters.sqlite.inspection import SCHEMA, RelationFacts, is_system_relation
 from app.adapters.sqlite.relation import SqliteRelation
+from app.adapters.sqlite.reports import SystemReport, in_section, report_for
 from app.adapters.sqlite.rows import RowShape, encode_handle
 from app.adapters.sqlite.session import Reading, SqliteSession, Undecodable
 from app.adapters.sqlite.sql import SQL, Composable, Composed, Identifier
-from app.adapters.sqlite.types import read_cell
+from app.adapters.sqlite.types import build_column_type, read_cell
 from app.core.translation import N_, say
 
 _COMPARISONS: dict[str, str] = {
@@ -185,33 +187,58 @@ def ordering_of(facts: RelationFacts) -> list[Composable]:
 
 @dataclass(frozen=True)
 class PreparedRead:
-    """One validated read, shared by a page and, later, an export."""
+    """One validated read, shared by a page and an export.
 
-    facts: RelationFacts
+    `source` is what the statement selects from: a relation, or a report's
+    own statement as a subquery (D55, D257).
+    """
+
+    source: Composable
     shape: RowShape
+    facts: RelationFacts | None
+    report: SystemReport | None
     request: FetchRequest
 
     @property
     def columns(self) -> list[FetchColumn]:
         return self.shape.columns
 
+    @property
+    def order(self) -> list[Composable]:
+        if self.facts is not None:
+            return ordering_of(self.facts)
+        stable = self.report.stable_order if self.report is not None else ()
+        return [SQL("{} ASC").format(Identifier(name)) for name in stable]
+
     def statement(self, params: list[Any]) -> Composed:
+        """A page's SELECT: every column, then what names the row."""
+        return self._read(selected(self.shape), params)
+
+    def selection(self, columns: list[FetchColumn], params: list[Any]) -> Composed:
+        """The same read of some of the columns, for an export."""
+        return self._read(SQL(", ").join(Identifier(column.name) for column in columns), params)
+
+    def _read(self, selection: Composable, params: list[Any]) -> Composed:
         """SELECT, WHERE and ORDER BY, without a page."""
         known = {column.name: column for column in self.columns}
         conditions = [_condition(filter_, known, params) for filter_ in self.request.filters]
-        statement: Composed = SQL("SELECT {} FROM {}").format(
-            selected(self.shape), Identifier(SCHEMA, self.facts.name)
-        )
+        statement: Composed = SQL("SELECT {} FROM {}").format(selection, self.source)
         if conditions:
             statement += SQL(" WHERE ") + SQL(" AND ").join(conditions)
         ordering: list[Composable] = [
             SQL("{} DESC" if item.descending else "{} ASC").format(Identifier(item.column))
             for item in self.request.sort
         ]
-        ordering += ordering_of(self.facts)
+        # After the reader's own, so page two does not repeat page one (D251).
+        ordering += self.order
         if ordering:
             statement += SQL(" ORDER BY ") + SQL(", ").join(ordering)
         return statement
+
+
+def _report_columns(reading: Reading, statement: str) -> list[str]:
+    cursor = reading.cursor(f"SELECT * FROM ({statement}) AS report LIMIT 0")  # noqa: S608 — a report's own statement
+    return [str(column[0]) for column in cursor.description or []]
 
 
 class SqliteFetch:
@@ -220,8 +247,22 @@ class SqliteFetch:
         self._relation = relation
 
     async def prepare(self, request: FetchRequest) -> PreparedRead:
-        facts = await self._relation.facts(request.node_id, structure=False)
-        prepared = PreparedRead(facts=facts, shape=shape_of(facts), request=request)
+        report = report_for(request.node_id)
+        if report is not None:
+            prepared = await self._report(report, request)
+        elif in_section(request.node_id):
+            raise ValueError(
+                say('"{node_id}" is not a report of this source', node_id=request.node_id)
+            )
+        else:
+            facts = await self._relation.facts(request.node_id, structure=False)
+            prepared = PreparedRead(
+                source=Identifier(SCHEMA, facts.name),
+                shape=shape_of(facts),
+                facts=facts,
+                report=None,
+                request=request,
+            )
         known = {column.name for column in prepared.columns}
         for used in [item.column for item in request.filters] + [
             item.column for item in request.sort
@@ -232,6 +273,32 @@ class SqliteFetch:
         # the file is read.
         prepared.statement([])
         return prepared
+
+    async def _report(self, report: SystemReport, request: FetchRequest) -> PreparedRead:
+        """A report's columns as SQLite names them; nothing is written through it.
+
+        SQLite says no type for a column of a result, so each is `other`, read
+        by the class of every value (D250).
+        """
+        names = await self._session.inspection(lambda reading: _report_columns(reading, report.statement))
+        type_ = build_column_type("")
+        refused = say('"{title}" is a report and holds no rows of its own', title=say(report.title))
+        columns = [
+            FetchColumn(
+                name=name,
+                type=type_,
+                sortable=True,
+                filter_operators=column_capabilities(type_),
+            )
+            for name in names
+        ]
+        return PreparedRead(
+            source=SQL("(" + report.statement + ") AS report"),
+            shape=RowShape(columns=columns, key=[], rowid=None, update_reason=refused, insert_reason=refused),
+            facts=None,
+            report=report,
+            request=request,
+        )
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         prepared = await self.prepare(request)
@@ -246,13 +313,16 @@ class SqliteFetch:
         rows = await self._session.read(read, fallback_message=N_("Query failed"))
         shape = prepared.shape
         facts = prepared.facts
+        report = prepared.report
         page = [page_row(raw, shape) for raw in rows[: request.limit]]
         return FetchResult(
             columns=shape.columns,
             rows=[cells for cells, _ in page],
             has_more=len(rows) > request.limit,
             row_handles=[handle for _, handle in page],
-            references=[
+            references=[]
+            if facts is None
+            else [
                 FetchReference(
                     name=key.name,
                     columns=key.columns,
@@ -266,6 +336,15 @@ class SqliteFetch:
             insert_reason=shape.insert_reason,
             delete_supported=shape.update_supported,
             delete_reason=shape.update_reason,
+            export_supported=True,
+            # A row of a report is a line of an answer, not a thing (D111).
+            record_supported=report is None,
+            record_reason=None if report is None else shape.update_reason,
+            # A report is the file describing itself, and a table made of it
+            # would be a copy of a moment (D72).
+            page_commands=list(PAGE_COMMANDS)
+            if report is None
+            else [command for command in PAGE_COMMANDS if command != "create_relation"],
         )
 
 
