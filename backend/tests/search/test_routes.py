@@ -204,6 +204,16 @@ async def test_timescaledb_finds_postgresql(
     assert "postgres" in found
 
 
+async def test_mariadb_is_found_by_its_own_card_title(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """MariaDB is a card of the `mysql` type (D264), matched as a name."""
+    lines = await _search(client, normal_user_token_headers, "mariadb")
+
+    [hit] = [hit for hit in _hits(lines, "objects:source_types") if hit["target"]["object_id"] == "mysql"]
+    assert hit["match"]["field"] == "name"
+
+
 async def test_a_guide_page_is_found_by_a_word_in_its_body(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

@@ -32,6 +32,7 @@ export type {
   ActionResult,
   ActionSetRequest,
   ActionTargets,
+  AdapterFaceInfo,
   adaptersReadAdapterTypesData,
   adaptersReadAdapterTypesError,
   adaptersReadAdapterTypesErrors,

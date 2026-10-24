@@ -164,6 +164,21 @@ async def test_a_source_says_how_long_it_keeps_its_own_answers(
     assert types["file"]["cache_windows"] is None
 
 
+async def test_mysql_shows_a_card_for_each_product_and_its_own_server(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """One type, two cards (D264): no MariaDB type exists to choose wrongly."""
+    response = await client.get(f"{BASE}/", headers=normal_user_token_headers)
+
+    types = {item["name"]: item for item in response.json()}
+    assert "mariadb" not in types
+    assert types["mysql"]["faces"] == [
+        {"key": "mysql", "title": "MySQL", "templates": ["mysql"]},
+        {"key": "mariadb", "title": "MariaDB", "templates": ["mariadb"]},
+    ]
+    assert types["postgres"]["faces"] == []
+
+
 async def test_every_type_reads_its_short_lists_from_its_guide_page(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

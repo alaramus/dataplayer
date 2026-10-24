@@ -9,7 +9,7 @@ identity, an instance-level feature answer alongside D13, and typed relation
 specialisations. That file states what is implemented; this one does not keep a
 second copy of it.
 
-Decisions here: D1, D13, D183, D2, D2b, D2a, D98, D21, D2c, D8, D2d, D20.
+Decisions here: D1, D13, D183, D264, D2, D2b, D2a, D98, D21, D2c, D8, D2d, D20.
 
 ## D1. A source type is registered in code
 
@@ -106,6 +106,19 @@ Known deviations:
   English.
 
 Spec: [A user's guide, and the catalog's short lists](../../decisions/2026-09-28-user-guide-design.md)
+
+## D264. A source type may show a card per product
+
+A type that speaks to several products declares **faces** where it is
+registered: the catalog's cards for it, each with a key, a title and the
+service templates it offers. `mysql` shows MySQL and MariaDB (D228). Every card
+is the type — the same form, the same driver, a connection of that type, the
+server saying which product it is — so no second type exists to be chosen
+wrongly. A card draws its own logo, opens the form under its own name and
+offers only its own server (D244); categories count cards, and the search of
+types matches a card's title as a name. A type without faces is its own card.
+
+Spec: [A source type shown as a card per product](../../decisions/2026-10-25-catalog-faces-design.md)
 
 ## D2. Capabilities are optional protocols
 

@@ -18,6 +18,12 @@ import { AppButton, AppEmptyState, AppTooltip } from "@/shared/ui"
 const props = defineProps<{
   type: AdapterTypeInfo | null
   /**
+   * The card's own name and picture, for a type shown as several (D264);
+   * the type's when left out.
+   */
+  title?: string
+  iconKey?: string
+  /**
    * The services of this kind this server could start, if any.
    *
    * A source type does not know whether a container of it can be started
@@ -60,11 +66,11 @@ const groups = computed(() =>
   >
     <div class="adapter-panel__head">
       <q-icon
-        :name="adapterIcon(type.name)"
+        :name="adapterIcon(iconKey ?? type.name)"
         size="var(--dp-icon-xl)"
       />
       <div class="adapter-panel__title">
-        <span class="adapter-panel__name">{{ type.title }}</span>
+        <span class="adapter-panel__name">{{ title ?? type.title }}</span>
         <span class="adapter-panel__category">{{ type.category_title }}</span>
       </div>
     </div>

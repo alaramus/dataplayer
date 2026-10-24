@@ -130,6 +130,23 @@ class Capability(BaseModel):
 
 
 @dataclass(frozen=True)
+class CatalogFace:
+    """One card a source type shows in the catalog of types (D264).
+
+    A type that speaks to several products, the way `mysql` speaks to MySQL
+    and MariaDB, shows a card for each, so a person finds the product they
+    run rather than the type's name for it. Every card is the one type: one
+    form, one driver, and the server says which it is.
+    """
+
+    # Names the card, and its picture in the client.
+    key: str
+    title: str
+    # The services this card offers to start, by template key.
+    templates: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class AdapterType:
     name: str
     title: str
@@ -145,6 +162,8 @@ class AdapterType:
     # there are no options and no session to build an instance from.
     adapter_class: type[DataAdapter]
     factory: Factory
+    # Empty for a type that is one product: it is its own card.
+    faces: tuple[CatalogFace, ...] = ()
 
 
 _registry: dict[str, AdapterType] = {}
@@ -159,6 +178,7 @@ def register(
     options_schema: OptionsSchema,
     adapter_class: type[DataAdapter],
     catalog_shape: CatalogShape = "levels",
+    faces: tuple[CatalogFace, ...] = (),
 ) -> Callable[[Factory], Factory]:
     """Register a source type. Applied to the driver factory.
 
@@ -179,6 +199,7 @@ def register(
             options_schema=options_schema,
             adapter_class=adapter_class,
             factory=factory,
+            faces=faces,
         )
         return factory
 

@@ -87,7 +87,7 @@ from app.adapters.references import (
     FollowReferenceRequest,
     ReferenceTarget,
 )
-from app.adapters.registry import AdapterContext, register
+from app.adapters.registry import AdapterContext, CatalogFace, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -448,6 +448,12 @@ class MysqlAdapter:
     ),
     options_schema=MysqlOptions,
     adapter_class=MysqlAdapter,
+    # Two products, one type (D228): a card each, so MariaDB is found as
+    # itself, and each offers to start its own server (D244).
+    faces=(
+        CatalogFace(key="mysql", title=N_("MySQL"), templates=("mysql",)),
+        CatalogFace(key="mariadb", title=N_("MariaDB"), templates=("mariadb",)),
+    ),
 )
 def _build(options: MysqlOptions, context: AdapterContext) -> MysqlAdapter:
     return MysqlAdapter(options, context.pooling)

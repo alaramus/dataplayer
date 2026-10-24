@@ -3,6 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "MySQL": "MySQL",
+    "MariaDB": "MariaDB",
     "MySQL or MariaDB. Browse databases, tables and views, and read rows a page at a time with sorting and filtering done by the server.": "MySQL или MariaDB. Просмотр баз данных, таблиц и представлений, чтение строк постранично с сортировкой и фильтрацией на сервере.",
     "Host": "Хост",
     "Port": "Порт",

@@ -12,6 +12,11 @@ describe("the icon of a source type", () => {
     expect(adapterIcon("postgres")).toBe("img:/icons/services/postgresql.svg")
   })
 
+  it("draws MariaDB as itself, though it is a card of the mysql type (D264)", () => {
+    expect(adapterIcon("mariadb")).toBe("img:/icons/services/mariadb.svg")
+    expect(adapterIcon("mariadb")).not.toBe(adapterIcon("mysql"))
+  })
+
   it("falls back for a type the backend gained since this build", () => {
     expect(adapterIcon("kafka")).toBe(UNKNOWN_ADAPTER_ICON)
   })

@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import type { AdapterTypeInfo } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
+import type { CatalogCard } from "@/features/connectors/catalogCards"
 
 /**
- * One source type in the catalog's grid.
+ * One card in the catalog's grid: a source type, or one product of a type
+ * that speaks to several (D264).
  *
  * Three things: the logo, the name, and what sort of source it is. No
  * capability chips: a tile is scanned, and the panel beside it is what is read.
  */
-defineProps<{ type: AdapterTypeInfo; selected: boolean }>()
+defineProps<{ card: CatalogCard; selected: boolean }>()
 
 const emit = defineEmits<{ pick: []; open: [] }>()
 </script>
@@ -19,7 +20,7 @@ const emit = defineEmits<{ pick: []; open: [] }>()
     tabindex="0"
     class="adapter-tile"
     :class="{ 'adapter-tile--selected': selected }"
-    :data-testid="`adapter-${type.name}`"
+    :data-testid="`adapter-${card.key}`"
     @click="emit('pick')"
     @dblclick="emit('open')"
     @keydown.enter="emit('open')"
@@ -27,13 +28,13 @@ const emit = defineEmits<{ pick: []; open: [] }>()
   >
     <div class="adapter-tile__head">
       <q-icon
-        :name="adapterIcon(type.name)"
+        :name="adapterIcon(card.key)"
         size="var(--dp-icon-lg)"
       />
-      <span class="adapter-tile__name">{{ type.title }}</span>
+      <span class="adapter-tile__name">{{ card.title }}</span>
     </div>
 
-    <span class="adapter-tile__category">{{ type.category_title }}</span>
+    <span class="adapter-tile__category">{{ card.type.category_title }}</span>
   </div>
 </template>
 

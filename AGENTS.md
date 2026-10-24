@@ -80,7 +80,7 @@ file; `D247–D262` is every number between, all in that file.
 
 | Home | Decisions |
 | --- | --- |
-| [sources/contract](docs/architecture/sources/contract.md) | D1, D2, D2a, D2b, D2c, D2d, D8, D13, D20, D21, D98, D183 |
+| [sources/contract](docs/architecture/sources/contract.md) | D1, D2, D2a, D2b, D2c, D2d, D8, D13, D20, D21, D98, D183, D264 |
 | [backend](docs/architecture/backend.md) | D3–D5, D33, D34, D124, D184 |
 | [frontend](docs/architecture/frontend.md) | D6, D7, D50, D99, D131 |
 | [sources/actions](docs/architecture/sources/actions.md) | D9, D46, D56, D68, D74, D79, D118, D162, D209, D210 |

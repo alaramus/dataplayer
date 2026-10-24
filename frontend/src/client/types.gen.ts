@@ -290,6 +290,26 @@ export type ActionTargets = {
 }
 
 /**
+ * AdapterFaceInfo
+ *
+ * One card of a type in the catalog, as `registry.CatalogFace` says it.
+ */
+export type AdapterFaceInfo = {
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Templates
+   */
+  templates: Array<string>
+}
+
+/**
  * AdapterTypeInfo
  */
 export type AdapterTypeInfo = {
@@ -344,6 +364,10 @@ export type AdapterTypeInfo = {
    * Makes Here
    */
   makes_here?: boolean
+  /**
+   * Faces
+   */
+  faces?: Array<AdapterFaceInfo>
 }
 
 /**

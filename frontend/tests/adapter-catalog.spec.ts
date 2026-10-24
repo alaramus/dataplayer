@@ -225,3 +225,37 @@ test("says what a start runs on hover, and leaves the panel to its short lists",
 
   await page.getByTestId("adapter-catalog").screenshot({ path: "test-results/adapter-catalog-tooltips.png" })
 })
+
+// One type, two cards (D264): MySQL and MariaDB are found as themselves, each
+// offers its own server, and both open the one form of the `mysql` type.
+test("shows MySQL and MariaDB as two cards of one form", async ({ page }) => {
+  await login(page)
+  await page.getByTestId("add-connector").click()
+
+  await page.getByTestId("adapter-category-sql").click()
+  await expect(page.getByTestId("adapter-mysql")).toContainText("MySQL")
+  await expect(page.getByTestId("adapter-mariadb")).toContainText("MariaDB")
+  await expect(page.getByTestId("adapter-mariadb").locator("img")).toHaveAttribute("src", /mariadb\.svg$/)
+
+  const panel = page.getByTestId("adapter-panel")
+  await page.getByTestId("adapter-mariadb").click()
+  await expect(panel).toContainText("MariaDB")
+  await expect(panel.getByTestId("start-service-offer-mariadb")).toBeVisible()
+  await expect(panel.getByTestId("start-service-offer-mysql")).toHaveCount(0)
+
+  await page.getByTestId("adapter-mysql").click()
+  await expect(panel.getByTestId("start-service-offer-mysql")).toBeVisible()
+  await expect(panel.getByTestId("start-service-offer-mariadb")).toHaveCount(0)
+
+  // The MariaDB card opens the MySQL form, under its own name.
+  await page.getByTestId("adapter-mariadb").click()
+  await page.getByTestId("create-from-catalog").click()
+  await expect(page.getByTestId("connector-name")).toHaveValue("MariaDB")
+  await expect(page.getByTestId("field-host")).toHaveValue("localhost")
+  await expect(page.getByTestId("field-port")).toHaveValue("3306")
+
+  await page.getByTestId("back-to-catalog").click()
+  await page.getByTestId("adapter-search").fill("maria")
+  await expect(page.getByTestId("adapter-mariadb")).toBeVisible()
+  await expect(page.getByTestId("adapter-postgres")).toHaveCount(0)
+})

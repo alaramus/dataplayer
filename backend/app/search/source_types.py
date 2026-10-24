@@ -52,6 +52,8 @@ class _Described:
     category: str
     details: str
     body: str
+    # The cards the catalog shows for it, by title (D264).
+    faces: tuple[str, ...] = ()
 
 
 class SourceTypes:
@@ -74,6 +76,7 @@ class SourceTypes:
             match = best_of(
                 name_match(asked.words, one.title),
                 name_match(asked.words, one.name),
+                *(name_match(asked.words, face) for face in one.faces),
                 text_match(asked.words, "details", one.details),
                 text_match(asked.words, "body", one.body),
             )
@@ -103,6 +106,7 @@ class SourceTypes:
                     name=adapter_type.name,
                     title=say(adapter_type.title),
                     category=category,
+                    faces=tuple(say(face.title) for face in adapter_type.faces),
                     details=" · ".join([category, *(say(one.title) for one in services)]),
                     body=" ".join(
                         [

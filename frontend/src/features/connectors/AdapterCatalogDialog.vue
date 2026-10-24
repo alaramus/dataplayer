@@ -6,6 +6,8 @@ import AdapterDetailPanel from "@/features/connectors/AdapterDetailPanel.vue"
 import AdapterTile from "@/features/connectors/AdapterTile.vue"
 import { ALL_CATEGORIES, categoryCounts, inFoundOrder } from "@/features/connectors/adapterSearch"
 import { categoryIcon } from "@/features/connectors/adapters"
+import { cardsOf, templatesOf } from "@/features/connectors/catalogCards"
+import type { CatalogCard } from "@/features/connectors/catalogCards"
 import { useAdapterTypes } from "@/features/connectors/api"
 import { useServiceTemplates } from "@/features/services/api"
 import { useProviderHits } from "@/features/search/useProviderHits"
@@ -26,7 +28,8 @@ const props = defineProps<{ modelValue: boolean }>()
 
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
-  pick: [adapterType: string]
+  /** The type, and the card it was picked by: its name and picture (D264). */
+  pick: [adapterType: string, card: { key: string; title: string }]
   start: [template: ServiceTemplateInfo]
   makeHere: [type: AdapterTypeInfo]
 }>()
@@ -36,10 +39,11 @@ const serviceTemplates = useServiceTemplates()
 
 const query = ref("")
 const category = ref<string>(ALL_CATEGORIES)
-const selectedName = ref<string | null>(null)
+const selectedKey = ref<string | null>(null)
 
 const types = computed(() => adapterTypes.data.value ?? [])
-const categories = computed(() => categoryCounts(types.value))
+// Counted by card: MySQL and MariaDB are two things to choose in SQL.
+const categories = computed(() => categoryCounts(cardsOf(types.value).map((card) => card.type)))
 
 /**
  * Searching is not filtering: a query is asked of every type there is, by the
@@ -52,20 +56,23 @@ const categories = computed(() => categoryCounts(types.value))
 const { hits } = useProviderHits(query, "source_types")
 const searching = computed(() => hits.value !== null)
 
-const visible = computed<AdapterTypeInfo[]>(() => {
+const visible = computed<CatalogCard[]>(() => {
   if (hits.value !== null) {
-    return inFoundOrder(
-      types.value,
-      hits.value.flatMap((hit) => (hit.target.kind === "object" ? [hit.target.object_id] : []))
+    return cardsOf(
+      inFoundOrder(
+        types.value,
+        hits.value.flatMap((hit) => (hit.target.kind === "object" ? [hit.target.object_id] : []))
+      )
     )
   }
-  if (category.value === ALL_CATEGORIES) return types.value
-  return types.value.filter((type) => type.category === category.value)
+  if (category.value === ALL_CATEGORIES) return cardsOf(types.value)
+  return cardsOf(types.value.filter((type) => type.category === category.value))
 })
 
-const selected = computed(
-  () => visible.value.find((type) => type.name === selectedName.value) ?? null
+const selectedCard = computed(
+  () => visible.value.find((card) => card.key === selectedKey.value) ?? null
 )
+const selected = computed(() => selectedCard.value?.type ?? null)
 
 /** Everything this server offers to start, of any kind. */
 const startable = computed<ServiceTemplateInfo[]>(() => serviceTemplates.data.value ?? [])
@@ -76,7 +83,7 @@ const startable = computed<ServiceTemplateInfo[]>(() => serviceTemplates.data.va
  * two things to run (D119).
  */
 const templates = computed(() =>
-  startable.value.filter((offered) => offered.adapter_type === selected.value?.name)
+  selectedCard.value === null ? [] : templatesOf(selectedCard.value, startable.value)
 )
 
 // Reopened, the catalog starts where it started last time: a query left over
@@ -87,7 +94,7 @@ watch(
     if (!open) return
     query.value = ""
     category.value = ALL_CATEGORIES
-    selectedName.value = null
+    selectedKey.value = null
   }
 )
 
@@ -96,8 +103,8 @@ function selectCategory(id: string) {
   category.value = id
 }
 
-function pick(type: AdapterTypeInfo) {
-  emit("pick", type.name)
+function pick(card: CatalogCard) {
+  emit("pick", card.type.name, { key: card.key, title: card.title })
 }
 
 function start(template: ServiceTemplateInfo) {
@@ -159,12 +166,12 @@ function start(template: ServiceTemplateInfo) {
           class="adapter-catalog__grid"
         >
           <AdapterTile
-            v-for="type in visible"
-            :key="type.name"
-            :type="type"
-            :selected="type.name === selectedName"
-            @pick="selectedName = type.name"
-            @open="pick(type)"
+            v-for="card in visible"
+            :key="card.key"
+            :card="card"
+            :selected="card.key === selectedKey"
+            @pick="selectedKey = card.key"
+            @open="pick(card)"
           />
 
           <div
@@ -181,8 +188,10 @@ function start(template: ServiceTemplateInfo) {
 
       <AdapterDetailPanel
         :type="selected"
+        :title="selectedCard?.title"
+        :icon-key="selectedCard?.key"
         :templates="templates"
-        @create="selected && pick(selected)"
+        @create="selectedCard && pick(selectedCard)"
         @start="start"
         @make-here="selected && emit('makeHere', selected)"
       />

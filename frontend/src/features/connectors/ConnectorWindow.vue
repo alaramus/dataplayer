@@ -78,6 +78,8 @@ const props = defineProps<{
   adapterType: string | null
   /** Source-prepared defaults for a new connection, still editable before saving. */
   draft?: ConnectorDraft
+  /** The name a new connection starts with: the card it was picked by, MariaDB rather than MySQL (D264). */
+  initialName?: string
   /**
    * The page to open on, when the window is opened for something in
    * particular: answering a request for access arrives at the page where
@@ -463,7 +465,7 @@ function load() {
   } else {
     // A source action supplies the node's name and options; otherwise the
     // chosen type gives a new connection its initial name.
-    name.value = props.draft?.name ?? selectedType.value?.title ?? ""
+    name.value = props.draft?.name ?? props.initialName ?? selectedType.value?.title ?? ""
     tabColor.value = null
     enabled.value = true
     executionPolicy.value = "confirm_writes"

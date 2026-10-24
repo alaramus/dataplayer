@@ -29,6 +29,8 @@ export function connectorWindow(options: {
   connector: ConnectorPublic | null
   adapterType: string | null
   draft?: ConnectorDraft
+  /** The catalog card a new connection was picked by, for a type shown as several (D264). */
+  card?: { key: string; title: string }
   onCreated: (connector: ConnectorPublic) => void
   onClose: () => void
   onBack: () => void
@@ -48,6 +50,7 @@ export function connectorWindow(options: {
         connector: options.connector,
         adapterType: options.adapterType,
         draft: options.draft,
+        initialName: options.card?.title,
         startOn: options.startOn,
         onCreated: options.onCreated,
         onClose: options.onClose,
@@ -60,7 +63,7 @@ export function connectorWindow(options: {
     id: options.id,
     look: {
       title: options.connector ? options.connector.name : t("connectors.new_connection"),
-      icon: type ? adapterIcon(type) : undefined,
+      icon: options.card ? adapterIcon(options.card.key) : type ? adapterIcon(type) : undefined,
     },
     size: CONNECTOR_WINDOW_SIZE,
     sizing: "stable",

@@ -14,7 +14,9 @@ Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238
 `mysql` speaks to both servers. They share a protocol, a driver and nearly
 all of a dialect, and a person connecting does not choose between them: the
 server says which it is in `VERSION()`, and the session reads that once and
-keeps it. Where the two differ — how `information_schema` keeps checks, that
+keeps it. The catalog shows it as two cards, MySQL and MariaDB, of this one
+type ([D264](contract.md#d264-a-source-type-may-show-a-card-per-product)).
+Where the two differ — how `information_schema` keeps checks, that
 MariaDB's JSON is LONGTEXT with a `json_valid` check of the column's own, that
 MariaDB has no functional index — the module that asks branches on the profile,
 and nowhere else does. The server's version is shown as `MySQL 8.4.11` or

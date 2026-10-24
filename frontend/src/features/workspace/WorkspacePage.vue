@@ -416,7 +416,8 @@ function openConnectorWindow(
   connector: ConnectorPublic | null,
   adapterType: string | null,
   startOn?: string,
-  draft?: ConnectorDraft
+  draft?: ConnectorDraft,
+  card?: { key: string; title: string }
 ) {
   const opened = connector ? connectorWindowId(connector.id) : draftWindowId()
 
@@ -432,6 +433,7 @@ function openConnectorWindow(
       adapterType,
       startOn,
       draft,
+      card,
       // A saved draft becomes the window of the connection it created, so a
       // second Apply updates rather than opening a duplicate. See O7.
       onCreated: (created) => {
@@ -471,9 +473,9 @@ function openConnectorWindow(
  */
 const catalogOpen = ref(false)
 
-function pickAdapterType(adapterType: string) {
+function pickAdapterType(adapterType: string, card?: { key: string; title: string }) {
   catalogOpen.value = false
-  openConnectorWindow(null, adapterType)
+  openConnectorWindow(null, adapterType, undefined, undefined, card)
 }
 
 /**

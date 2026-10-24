@@ -24,6 +24,14 @@ router = APIRouter(
 )
 
 
+class AdapterFaceInfo(BaseModel):
+    """One card of a type in the catalog, as `registry.CatalogFace` says it."""
+
+    key: str
+    title: str
+    templates: list[str]
+
+
 class AdapterTypeInfo(BaseModel):
     name: str
     title: str
@@ -53,6 +61,9 @@ class AdapterTypeInfo(BaseModel):
     # Whether a new source of this type can be made here without starting
     # anything — a SQLite file (D263). Read off the driver, like the rest.
     makes_here: bool = False
+    # The cards the catalog shows for this type; empty when the type is
+    # its own one card (D264).
+    faces: list[AdapterFaceInfo] = []
 
 
 # A plain function: the first call reads the guide's pages from disk, and
@@ -84,4 +95,8 @@ def info(adapter_type: registry.AdapterType) -> AdapterTypeInfo:
         cache_windows=registry.cache_windows_of(adapter_type),
         options_schema=say_schema(options.json_schema(adapter_type.options_schema)),
         makes_here=issubclass(adapter_type.adapter_class, MakesSourceHere),
+        faces=[
+            AdapterFaceInfo(key=face.key, title=say(face.title), templates=list(face.templates))
+            for face in adapter_type.faces
+        ],
     )
