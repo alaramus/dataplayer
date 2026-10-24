@@ -18,6 +18,7 @@ nothing in this repository depends on either.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-10-24 | [The SQLite console](2026-10-24-sqlite-console-design.md) | D252, D253: statements split where SQLite says one is complete and classed by its first keyword, pragmas by whether they report; structure changes transactional, so runs, held transactions and rehearsals work as on PostgreSQL; foreign keys on in every connection and the application's settings kept from statements. On the branch `sqlite-adapter` |
 | 2026-10-24 | [A SQLite source](2026-10-24-sqlite-source-design.md) | D247, D248, D249, D250, D251: a file of the owner's storage opened defensively per call by sqlite3, one schema `main`, checks, collations, generated expressions and names read from the table's own text, values by their storage class, pages by the primary key or the rowid. On the branch `sqlite-adapter` |
 | 2026-10-23 | [MySQL sample data](2026-10-23-mysql-samples-design.md) | D245: a MySQL or MariaDB server started here may open on the lab PostgreSQL's samples describe, in a demo_lab database, told in what both servers have. On the branch `mysql-adapter` |
 | 2026-10-23 | [MySQL services](2026-10-23-mysql-services-design.md) | D244: Start MySQL here and Start MariaDB here, mysql:8.4 and mariadb:11.4, signed into as root with a made-up or chosen password, on one database the image makes. On the branch `mysql-adapter` |

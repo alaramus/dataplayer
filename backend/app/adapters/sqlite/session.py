@@ -2,8 +2,7 @@
 
 Knows about the file, connections and driver errors, and nothing about what
 the caller wants. The work itself is a plain function run on one connection
-inside a worker thread: `sqlite3` blocks, and a connection belongs to the
-thread that opened it.
+inside a worker thread: `sqlite3` blocks.
 """
 
 import asyncio
@@ -13,6 +12,7 @@ import sqlite3
 import threading
 import time
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -34,11 +34,18 @@ INSPECTION_SECONDS = 5.0
 # How many virtual machine steps pass between two looks at the clock.
 _PROGRESS_STEPS = 1000
 
-# Each of these reaches past the one file (D247). ATTACH and VACUUM INTO are
-# also refused by the limit on attached databases; the authorizer says no
-# before the limit is reached, for ATTACH and for DETACH.
+# Each of these reaches past the one file (D247). ATTACH is refused for any
+# file with a name: VACUUM attaches a nameless temporary one to rebuild the
+# file into, and VACUUM INTO attaches the file it writes, by name. One attached
+# database is all VACUUM needs, and the limit holds it to that.
 _DENIED_FUNCTIONS = frozenset({"load_extension", "fts3_tokenizer"})
 _DENIED_PRAGMAS = frozenset({"temp_store_directory", "data_store_directory"})
+# Settings this application makes on every connection, which a statement may
+# read and may not change: a read's guard, the checks against a crafted file,
+# and the foreign keys the file declares being enforced (D253).
+_KEPT_PRAGMAS = frozenset(
+    {"query_only", "writable_schema", "trusted_schema", "cell_size_check", "foreign_keys"}
+)
 
 # Primary result codes, the low byte of an extended one.
 _BUSY = frozenset({sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED})
@@ -62,25 +69,34 @@ def _text(raw: bytes) -> str | Undecodable:
 def _authorize(
     action: int, first: str | None, second: str | None, _db: str | None, _trigger: str | None
 ) -> int:
-    if action in (sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH):
+    if action == sqlite3.SQLITE_ATTACH and first != "":
         return sqlite3.SQLITE_DENY
     if action == sqlite3.SQLITE_FUNCTION and (second or "").lower() in _DENIED_FUNCTIONS:
         return sqlite3.SQLITE_DENY
-    if action == sqlite3.SQLITE_PRAGMA and (first or "").lower() in _DENIED_PRAGMAS:
-        return sqlite3.SQLITE_DENY
+    if action == sqlite3.SQLITE_PRAGMA:
+        name = (first or "").lower()
+        if name in _DENIED_PRAGMAS or (name in _KEPT_PRAGMAS and second is not None):
+            return sqlite3.SQLITE_DENY
     return sqlite3.SQLITE_OK
 
 
-def _harden(connection: sqlite3.Connection) -> None:
-    """What every connection is opened with, whatever it is for (D247)."""
-    connection.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED, 0)
+def _harden(connection: sqlite3.Connection, *, writes: bool) -> None:
+    """What every connection is opened with, whatever it is for (D247, D253).
+
+    The authorizer comes last: the settings before it are this application's,
+    and it refuses a statement that tries to change them back.
+    """
+    connection.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED, 1)
     connection.setconfig(sqlite3.SQLITE_DBCONFIG_DEFENSIVE, True)
     connection.setconfig(sqlite3.SQLITE_DBCONFIG_TRUSTED_SCHEMA, False)
     connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_FTS3_TOKENIZER, False)
     connection.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, False)
-    connection.set_authorizer(_authorize)
     connection.execute("PRAGMA cell_size_check = ON")
+    connection.execute("PRAGMA foreign_keys = ON")
+    if not writes:
+        connection.execute("PRAGMA query_only = ON")
     connection.text_factory = _text
+    connection.set_authorizer(_authorize)
 
 
 def library_version() -> str:
@@ -100,7 +116,7 @@ def classify(
     are read by number: the text can quote the statement and the data.
     """
     if isinstance(exc, sqlite3.Error):
-        code = (exc.sqlite_errorcode or 0) & 0xFF
+        code = (getattr(exc, "sqlite_errorcode", None) or 0) & 0xFF
         if code in _BUSY:
             return "locked", say("The database file is locked by another connection")
         if code == sqlite3.SQLITE_INTERRUPT:
@@ -118,7 +134,7 @@ def classify(
 
 
 class Reading:
-    """Statements on one open connection, inside the thread that opened it."""
+    """Statements on one open connection, inside the thread working on it."""
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
@@ -135,19 +151,74 @@ class Reading:
         return None if row is None else row[0]
 
 
-class _Clock:
-    """What stops a statement: a deadline passed, or the request gone."""
+class Handle:
+    """One open connection, worked on from worker threads, one call at a time.
 
-    def __init__(self, seconds: float | None) -> None:
-        self._deadline = None if seconds is None else time.monotonic() + seconds
-        self.cancelled = threading.Event()
+    The connection may move between threads because two calls never use it at
+    once: the lock is that promise. A statement stops at its next look at the
+    clock once its time is up or somebody stops it, which `stop` does from any
+    task.
+    """
 
-    def __call__(self) -> int:
-        if self.cancelled.is_set():
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+        self._lock = asyncio.Lock()
+        self._deadline: float | None = None
+        self._stopped = threading.Event()
+        # Whether the last call was stopped by its clock rather than by `stop`.
+        self.timed_out = False
+        connection.set_progress_handler(self._tick, _PROGRESS_STEPS)
+
+    def _tick(self) -> int:
+        if self._stopped.is_set():
             return 1
         if self._deadline is not None and time.monotonic() > self._deadline:
+            self.timed_out = True
             return 1
         return 0
+
+    def stop(self) -> None:
+        """Stop what runs now, and every call after it until `resume`."""
+        self._stopped.set()
+
+    def resume(self) -> None:
+        self._stopped.clear()
+
+    async def call[T](
+        self, work: Callable[[sqlite3.Connection], T], *, seconds: float | None = None
+    ) -> T:
+        """Run `work` on the connection in a worker thread.
+
+        A request that goes away stops the statement rather than leaving it to
+        run to its end in a thread nobody waits for.
+        """
+        async with self._lock:
+            self.timed_out = False
+            self._deadline = None if seconds is None else time.monotonic() + seconds
+            # run_in_executor carries no context variables, and the request's
+            # language is one: a refusal worded in the thread would be English.
+            context = contextvars.copy_context()
+            future = asyncio.get_running_loop().run_in_executor(
+                None, context.run, work, self._connection
+            )
+            try:
+                return await asyncio.shield(future)
+            except asyncio.CancelledError:
+                self._stopped.set()
+                # Nothing of the thread is wanted, its failure included, which
+                # is read so that it is not reported as never retrieved.
+                await asyncio.wait([future])
+                if not future.cancelled():
+                    future.exception()
+                raise
+            finally:
+                self._deadline = None
+
+    async def close(self) -> None:
+        # A statement still running is stopped first, so closing does not
+        # wait for it to finish.
+        self._stopped.set()
+        await self.call(lambda connection: connection.close())
 
 
 class SqliteSession:
@@ -177,7 +248,7 @@ class SqliteSession:
                 "config", say("The path must stay inside your personal storage")
             ) from None
 
-    def _open(self, *, writes: bool) -> sqlite3.Connection:
+    def _open(self, *, writes: bool, busy_seconds: float) -> sqlite3.Connection:
         path = self._file()
         if path.is_dir():
             raise AdapterError("config", say("The path names a folder, not a file"))
@@ -193,17 +264,40 @@ class SqliteSession:
         connection = sqlite3.connect(
             f"{path.as_uri()}?mode={mode}",
             uri=True,
-            timeout=BUSY_SECONDS,
+            timeout=busy_seconds,
             autocommit=True,
+            # A handle is worked on from more than one worker thread, never
+            # from two at once (`Handle`).
+            check_same_thread=False,
         )
         try:
-            _harden(connection)
-            if not writes:
-                connection.execute("PRAGMA query_only = ON")
+            _harden(connection, writes=writes)
         except BaseException:
             connection.close()
             raise
         return connection
+
+    async def handle(
+        self,
+        *,
+        writes: bool,
+        busy_seconds: float = BUSY_SECONDS,
+        fallback_message: str = N_("Query failed"),
+    ) -> Handle:
+        """A connection kept open by the caller, who closes it."""
+        context = contextvars.copy_context()
+        try:
+            connection = await asyncio.get_running_loop().run_in_executor(
+                None,
+                context.run,
+                partial(self._open, writes=writes, busy_seconds=busy_seconds),
+            )
+        except AdapterError:
+            raise
+        except sqlite3.Error as exc:
+            error_kind, message = classify(exc, fallback_message=fallback_message)
+            raise AdapterError(error_kind, message) from None
+        return Handle(connection)
 
     async def read[T](
         self,
@@ -212,41 +306,19 @@ class SqliteSession:
         seconds: float | None = None,
         fallback_message: str = N_("Query failed"),
     ) -> T:
-        """Run `work` on a connection that cannot write, and hand back its answer.
-
-        A request that goes away stops the statement rather than leaving it to
-        run to its end in a thread nobody waits for.
-        """
-        clock = _Clock(seconds)
-
-        def job() -> T:
-            connection = self._open(writes=False)
-            try:
-                connection.set_progress_handler(clock, _PROGRESS_STEPS)
-                return work(Reading(connection))
-            finally:
-                connection.close()
-
-        # run_in_executor carries no context variables, and the request's
-        # language is one: a refusal worded in the thread would be English.
-        context = contextvars.copy_context()
-        future = asyncio.get_running_loop().run_in_executor(None, context.run, job)
+        """Run `work` on a connection that cannot write, and hand back its answer."""
+        handle = await self.handle(writes=False, fallback_message=fallback_message)
         try:
-            return await asyncio.shield(future)
-        except asyncio.CancelledError:
-            clock.cancelled.set()
-            # The thread finishes at its next look at the clock; nothing of it
-            # is wanted, its failure included, which is read so that it is not
-            # reported as never retrieved.
-            await asyncio.wait([future])
-            if not future.cancelled():
-                future.exception()
-            raise
+            return await handle.call(
+                lambda connection: work(Reading(connection)), seconds=seconds
+            )
         except AdapterError:
             raise
         except sqlite3.Error as exc:
             error_kind, message = classify(exc, fallback_message=fallback_message)
             raise AdapterError(error_kind, message) from None
+        finally:
+            await handle.close()
 
     async def inspection[T](self, work: Callable[[Reading], T]) -> T:
         """Several catalog reads on one connection, under one clock (D246)."""

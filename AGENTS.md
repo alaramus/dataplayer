@@ -32,7 +32,7 @@ documentation.
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | SQL over files, the DuckDB sandbox behind it | [sources/file-sql.md](docs/architecture/sources/file-sql.md) |
 | MySQL and MariaDB, their catalog, values, pages, row and structure edits, console, reports, search, catalog actions, copying tables, backups, metrics | [sources/mysql.md](docs/architecture/sources/mysql.md) |
-| SQLite, the file it opens and how, its catalog, what is read from a table's text, values and pages | [sources/sqlite.md](docs/architecture/sources/sqlite.md) |
+| SQLite, the file it opens and how, its catalog, what is read from a table's text, values, pages and console | [sources/sqlite.md](docs/architecture/sources/sqlite.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
 | A source action too long for a request: its plan, review and outcomes | [sources/operations.md](docs/architecture/sources/operations.md) |
@@ -327,6 +327,8 @@ files. IDs are stable because specs and commits refer to them.
 | D249 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
 | D250 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
 | D251 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
+| D252 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
+| D253 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
 
 ## Working rules
 

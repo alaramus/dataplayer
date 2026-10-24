@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "SQLite": "SQLite",
-    "A SQLite database file in your personal storage. Browse its tables and views, and read rows a page at a time with sorting and filtering.": "Eine SQLite-Datenbankdatei in Ihrem persönlichen Speicher. Tabellen und Sichten durchsuchen und Zeilen seitenweise mit Sortierung und Filterung lesen.",
+    'A SQLite database file in your personal storage. Browse its tables and views, read rows a page at a time with sorting and filtering, and run SQL.': 'Eine SQLite-Datenbankdatei in Ihrem persönlichen Speicher. Tabellen und Sichten durchsuchen, Zeilen seitenweise mit Sortierung und Filterung lesen und SQL ausführen.',
     "Database file": "Datenbankdatei",
     "Path of the file inside your personal storage, such as data/shop.db": "Pfad der Datei in Ihrem persönlichen Speicher, etwa data/shop.db",
     "Create the file if it is missing": "Datei anlegen, wenn sie fehlt",
@@ -25,4 +25,8 @@ MESSAGES: dict[str, str] = {
     '"{node_id}" is not a relation: expected main.table': "„{node_id}“ ist keine Relation: erwartet wird main.Tabelle",
     'This SQLite source does not offer the "{representation}" content representation': "Diese SQLite-Quelle bietet die Inhaltsdarstellung „{representation}“ nicht an",
     "Rows of a SQLite file are read only for now": "Zeilen einer SQLite-Datei sind vorerst nur lesbar",
+    # The console.
+    'A connection to this file opens no other file': 'Eine Verbindung zu dieser Datei öffnet keine andere Datei',
+    'Query plan': 'Abfrageplan',
+    'The query editor changes tables, views and indexes; this is something else': 'Der Abfrageeditor ändert Tabellen, Sichten und Indizes; dies ist etwas anderes',
 }

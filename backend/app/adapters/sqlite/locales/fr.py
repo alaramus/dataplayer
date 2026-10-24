@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "SQLite": "SQLite",
-    "A SQLite database file in your personal storage. Browse its tables and views, and read rows a page at a time with sorting and filtering.": "Un fichier de base de données SQLite dans votre stockage personnel. Parcourez ses tables et vues, et lisez les lignes page par page avec tri et filtrage.",
+    'A SQLite database file in your personal storage. Browse its tables and views, read rows a page at a time with sorting and filtering, and run SQL.': 'Un fichier de base de données SQLite dans votre stockage personnel. Parcourez ses tables et vues, lisez les lignes page par page avec tri et filtrage, et exécutez du SQL.',
     "Database file": "Fichier de base de données",
     "Path of the file inside your personal storage, such as data/shop.db": "Chemin du fichier dans votre stockage personnel, par exemple data/shop.db",
     "Create the file if it is missing": "Créer le fichier s'il n'existe pas",
@@ -25,4 +25,8 @@ MESSAGES: dict[str, str] = {
     '"{node_id}" is not a relation: expected main.table': "« {node_id} » n'est pas une relation : attendu main.table",
     'This SQLite source does not offer the "{representation}" content representation': "Cette source SQLite ne propose pas la représentation de contenu « {representation} »",
     "Rows of a SQLite file are read only for now": "Les lignes d'un fichier SQLite sont pour l'instant en lecture seule",
+    # The console.
+    'A connection to this file opens no other file': "Une connexion à ce fichier n'ouvre aucun autre fichier",
+    'Query plan': 'Plan de requête',
+    'The query editor changes tables, views and indexes; this is something else': "L'éditeur de requêtes modifie les tables, les vues et les index ; ceci est autre chose",
 }

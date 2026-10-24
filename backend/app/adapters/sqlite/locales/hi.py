@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "SQLite": "SQLite",
-    "A SQLite database file in your personal storage. Browse its tables and views, and read rows a page at a time with sorting and filtering.": "आपके व्यक्तिगत संग्रहण में एक SQLite डेटाबेस फ़ाइल। इसकी टेबल और व्यू देखें, और सॉर्टिंग व फ़िल्टरिंग के साथ पंक्तियाँ एक-एक पेज पढ़ें।",
+    'A SQLite database file in your personal storage. Browse its tables and views, read rows a page at a time with sorting and filtering, and run SQL.': 'आपके व्यक्तिगत संग्रहण में एक SQLite डेटाबेस फ़ाइल। इसकी टेबल और व्यू देखें, सॉर्टिंग व फ़िल्टरिंग के साथ पंक्तियाँ एक-एक पेज पढ़ें, और SQL चलाएँ।',
     "Database file": "डेटाबेस फ़ाइल",
     "Path of the file inside your personal storage, such as data/shop.db": "आपके व्यक्तिगत संग्रहण में फ़ाइल का पथ, जैसे data/shop.db",
     "Create the file if it is missing": "फ़ाइल न हो तो बनाएँ",
@@ -25,4 +25,8 @@ MESSAGES: dict[str, str] = {
     '"{node_id}" is not a relation: expected main.table': "“{node_id}” रिलेशन नहीं है: main.टेबल अपेक्षित है",
     'This SQLite source does not offer the "{representation}" content representation': "यह SQLite स्रोत “{representation}” सामग्री प्रस्तुति नहीं देता",
     "Rows of a SQLite file are read only for now": "SQLite फ़ाइल की पंक्तियाँ अभी केवल पढ़ने के लिए हैं",
+    # The console.
+    'A connection to this file opens no other file': 'इस फ़ाइल का कनेक्शन कोई और फ़ाइल नहीं खोलता',
+    'Query plan': 'क्वेरी प्लान',
+    'The query editor changes tables, views and indexes; this is something else': 'क्वेरी एडिटर टेबल, व्यू और इंडेक्स बदलता है; यह कुछ और है',
 }

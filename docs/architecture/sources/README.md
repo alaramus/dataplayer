@@ -94,7 +94,10 @@ estimates `ANALYZE` left (D248), a relation's columns, keys, checks and
 indexes from the pragmas and the table's own text (D249), its summary and the
 file's own DDL, and rows paged, sorted and filtered with every value shown by
 its storage class (D250), in the order of the primary key or the rowid
-(D251). Read only for now.
+(D251). An SQL console whose statements are classed by SQLite's first keyword
+(D252), and which, since SQLite's structure changes are transactional, runs,
+holds and rehearses them as PostgreSQL's does, with foreign keys enforced
+(D253). Rows are read only in the grid for now.
 
 ## Where the code is
 
@@ -163,6 +166,8 @@ backend/app/adapters/
 │                       (pragmas and text, once), catalog.py, ids.py, sql.py,
 │                       relation.py, fetch.py, types.py (values by class),
 │                       content.py, summary.py, features.py, options.py,
+│                       statements.py (classing SQL), query.py (runs,
+│                       transactions, rehearsals), explain.py, metadata.py,
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

@@ -89,9 +89,9 @@ def test_it_claims_only_what_it_does(home: Path) -> None:
         SupportsContent,
     ):
         assert isinstance(adapter, capability)
-    # Rows are read only and there is no console in this slice (D2).
+    assert isinstance(adapter, SupportsQuery)
+    # Rows are read only in this slice; a capability is not claimed early (D2).
     assert not isinstance(adapter, SupportsUpdate)
-    assert not isinstance(adapter, SupportsQuery)
 
 
 # --- The file -------------------------------------------------------------
@@ -184,6 +184,8 @@ async def test_a_link_out_of_the_home_is_refused(home: Path, tmp_path_factory: p
     "statement",
     [
         "ATTACH DATABASE '{other}' AS other",
+        "ATTACH DATABASE ':memory:' AS other",
+        "DETACH DATABASE main",
         "VACUUM INTO '{other}'",
         "SELECT load_extension('anything')",
         "SELECT fts3_tokenizer('simple')",

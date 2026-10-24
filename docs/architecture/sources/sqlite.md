@@ -2,11 +2,11 @@
 
 What a SQLite source is, how it opens its file, how it reads its catalog and
 the parts of a table the pragmas do not give, and how its values and pages
-cross to the grid. The contract every source type follows is in
+cross to the grid, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `sqlite` adapter.
 
-Decisions here: D247, D248, D249, D250, D251.
+Decisions here: D247, D248, D249, D250, D251, D252, D253.
 
 ## D247. A SQLite source is one file of its owner's storage, opened defensively
 
@@ -21,10 +21,11 @@ its statement through the progress handler, and catalog reads share one
 five-second clock (D246). There is no read cache: an upload can replace the
 file without any connection hearing of it.
 
-The file's content is untrusted. Every connection is opened with no attached
-databases allowed (which refuses `ATTACH` and `VACUUM INTO`), an authorizer
-refusing `ATTACH`, `DETACH`, `load_extension`, `fts3_tokenizer` and the pragmas
-that move temporary files, `SQLITE_DBCONFIG_DEFENSIVE`, `trusted_schema` off,
+The file's content is untrusted. Every connection is opened with at most one
+attached database and an authorizer refusing any attachment that names a file
+(so `ATTACH` and `VACUUM INTO` are refused and VACUUM's own temporary database
+is not), `load_extension`, `fts3_tokenizer` and the pragmas that move temporary
+files, `SQLITE_DBCONFIG_DEFENSIVE`, `trusted_schema` off,
 the two-argument `fts3_tokenizer` and extension loading switched off,
 `cell_size_check` on, and `query_only` for every read. `sqlite3` is imported by
 this package alone (`lint-imports`).
@@ -103,3 +104,44 @@ the rowid, under whichever of `rowid`, `oid` and `_rowid_` no column takes. A
 columns take all three names, get no tiebreak.
 
 Spec: [A SQLite source](../../decisions/2026-10-24-sqlite-source-design.md)
+
+## D252. Statements are classed by SQLite's first keyword
+
+The console reads text with the adapter's own tokenizer (D249). A semicolon
+ends a statement only where `sqlite3.complete_statement` says the text before
+it is complete, so a trigger's body is not split. The keyword after an optional
+`EXPLAIN` or `WITH` clause decides the class: SELECT and VALUES read; INSERT,
+UPDATE, DELETE and REPLACE change rows; CREATE, DROP and ALTER change
+structure, within the vocabulary of tables, views and indexes, a trigger
+refused by name; ANALYZE, VACUUM and REINDEX are maintenance; BEGIN, COMMIT
+and their kind are transaction statements; anything else is unknown and not
+run.
+
+A PRAGMA that only reports is a read, one given a value is a session
+statement, `optimize`, `incremental_vacuum` and `wal_checkpoint` are
+maintenance, and the rest is unknown. ATTACH and DETACH are session statements
+refused by name. Parameters are `:name`, bound by SQLite itself. Formatting is
+sqlglot's, for reads and row changes only.
+
+Spec: [The SQLite console](../../decisions/2026-10-24-sqlite-console-design.md)
+
+## D253. Structure changes are transactional, so the console is PostgreSQL's
+
+A run is one transaction, structure changes included; a held transaction may
+change structure; a destructive change is rehearsed by carrying it out and
+rolling it back, in a savepoint when a transaction is held, waiting at most
+three seconds for another connection's lock before saying it is blocked.
+Maintenance runs alone, outside a transaction. A read runs with `query_only`.
+
+Every connection turns `foreign_keys` on, and the authorizer refuses setting
+it, `query_only`, `writable_schema`, `trusted_schema` or `cell_size_check`
+from a statement. A held transaction keeps its connection between requests and
+uses it from any worker thread, one call at a time. The time limit and Stop
+interrupt a statement through the progress handler. A failure that rolled the
+transaction back by itself marks it broken.
+
+A result column's type is what its values are. `EXPLAIN QUERY PLAN` gives the
+tree, with SQLite's sentence per step and no costs; reads and row changes are
+planned.
+
+Spec: [The SQLite console](../../decisions/2026-10-24-sqlite-console-design.md)

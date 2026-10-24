@@ -1,8 +1,8 @@
 # SQLite
 
 A SQLite database file in your personal storage. You browse its tables and
-views, read their rows a page at a time, see how a table is built and read the
-DDL the file keeps for it.
+views, read their rows a page at a time, see how a table is built, read the
+DDL the file keeps for it and run SQL in a console.
 How connections work in general is on the [Connections](connections.md) page.
 
 ## What you can see
@@ -10,10 +10,11 @@ How connections work in general is on the [Connections](connections.md) page.
 - Tables, views and virtual tables, and their rows sorted and filtered
 - A table's columns, keys, checks and indexes, and the tables it refers to
 - A relation's DDL, as the file keeps it, with its indexes and triggers
+- The results of SQL you write, and SQLite's plan for a query
 
 ## What you can change
 
-- Nothing yet: rows and structure are read only for now
+- Data and structure, through SQL in the console
 
 ## Connecting
 
@@ -73,9 +74,35 @@ How values are shown:
   that are not there;
 - large integers exactly.
 
+## SQL console
+
+**New query** under **Queries** on the left rail starts one on the connection,
+and **Open as a query** above a table starts one on that table. It works as
+the PostgreSQL console does — reads, changes committed at once or held in a
+**Manual** transaction, **Explain**, completion and formatting. SQLite changes
+structure inside a transaction, so a `CREATE`, `ALTER` or `DROP` is part of
+the transaction around it, can be held in a **Manual** one, and is tried out
+first and undone before the console asks you about it.
+
+- The schema is always `main`.
+- Parameters are written `:name`.
+- `ANALYZE`, `VACUUM` and `REINDEX` run on their own, outside a transaction.
+- A `PRAGMA` that reports something, such as `PRAGMA table_info(items)` or
+  `PRAGMA integrity_check`, is a read. A `PRAGMA` that sets a value is not run.
+- Foreign keys the file declares are enforced, which SQLite on its own does
+  only when a program asks it to.
+- Triggers are not changed from the console, and no other file can be opened
+  from it (`ATTACH`).
+- **Explain** shows SQLite's plan: one line per step, with no costs, since
+  SQLite gives none.
+- **Stop** and the time limit end a statement where it is.
+- A failed statement inside a transaction you hold leaves the transaction
+  open.
+
 ## What SQLite does not have here yet
 
-- Editing rows, the SQL console, changing the structure, catalog actions,
-  downloading every row, backups and copying tables. They come later.
+- Editing rows in the grid, changing the structure from the **Structure** tab,
+  catalog actions, downloading every row, backups and copying tables. They
+  come later.
 - A file on an SSH server, or inside another connection, cannot be opened as a
   database.
