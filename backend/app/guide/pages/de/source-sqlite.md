@@ -46,6 +46,10 @@ Die Seite **Verbindung** des Fensters fragt nach:
   die nicht da ist, sodass ein vertippter Pfad keine leere Datei hinterlässt.
   Der Ordner muss bereits existieren.
 
+Eine Datenbankdatei, die Sie schon in einer Verbindung vom Typ **Dateien**
+sehen, lässt sich von dort verbinden: **Als SQLite verbinden** füllt dieses
+Fenster für Sie aus.
+
 Die Datei wird für jede Anfrage neu geöffnet, sodass eine über **Dateien**
 ersetzte Datei so gelesen wird, wie sie jetzt ist.
 

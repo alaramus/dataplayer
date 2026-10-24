@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -98,3 +99,68 @@ async def test_a_path_that_options_would_trim_is_not_retargeted(tmp_path: Path) 
     assert isinstance(action, PreparesConnector)
     with pytest.raises(ActionRefused, match="start or end with spaces"):
         await action.prepare_connector(" reports", {})
+
+
+class _Elsewhere:
+    """A storage whose places are no paths in anybody's home, as a server's
+    folder or a bucket is: everything of a local one but the two answers."""
+
+    def __init__(self, inner: LocalStorage) -> None:
+        self._inner = inner
+
+    def __getattr__(self, name: str) -> Any:
+        if name in ("connection_for", "path_in_home"):
+            raise AttributeError(name)
+        return getattr(self._inner, name)
+
+
+async def test_a_database_file_becomes_a_draft_of_a_sqlite_connection_to_it(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "library" / "data").mkdir(parents=True)
+    (tmp_path / "library" / "data" / "shop.db").write_bytes(b"SQLite format 3\x00")
+    adapter = FileAdapter(FileOptions(path="library"), AdapterContext(home_dir=tmp_path))
+    action = adapter.action("connect_sqlite")
+    assert isinstance(action, PreparesConnector)
+    assert action.requires == "own"
+
+    offered = {one.name for one in await adapter.available("data/shop.db")}
+    draft = await action.prepare_connector("data/shop.db", {})
+
+    assert "connect_sqlite" in offered
+    assert draft.name == "shop.db"
+    assert draft.adapter_type == "sqlite"
+    # The path below the owner's home, which is what a SQLite connection names.
+    assert draft.options == {"path": "library/data/shop.db"}
+    assert str(tmp_path) not in draft.model_dump_json()
+
+
+async def test_a_file_that_is_no_database_is_not_offered_and_refused(tmp_path: Path) -> None:
+    (tmp_path / "notes.txt").write_text("kept", encoding="utf-8")
+    actions = ExplorerActions(LocalStorage(tmp_path))
+    action = actions.action("connect_sqlite")
+    assert isinstance(action, PreparesConnector)
+
+    offered = {one.name for one in await actions.available("notes.txt")}
+
+    assert "connect_sqlite" not in offered
+    with pytest.raises(ActionRefused, match="database file"):
+        await action.prepare_connector("notes.txt", {})
+
+
+async def test_a_database_outside_personal_storage_is_offered_greyed_with_the_reason(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "shop.db").write_bytes(b"SQLite format 3\x00")
+    storage = _Elsewhere(LocalStorage(tmp_path))
+    actions = ExplorerActions(storage)
+
+    offers = await actions.action_offers("shop.db")
+    action = actions.action("connect_sqlite")
+    assert isinstance(action, PreparesConnector)
+
+    assert "connect_sqlite" not in {one.name for one in offers.actions}
+    assert offers.reason_for("connect_sqlite") == "Only a file in your personal storage can be connected as SQLite"
+    with pytest.raises(ActionRefused, match="personal storage"):
+        await action.prepare_connector("shop.db", {})
+

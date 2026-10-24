@@ -262,15 +262,17 @@ class LocalStorage(PathPlaces):
 
     # --- a folder as a connection of its own ---------------------------------
 
-    def connection_for(self, place: Place) -> ConnectorDraft:
-        """A new file connection rooted in this folder, inside the home."""
-        path = self.path_of(place)
+    def path_in_home(self, place: Place) -> str:
         try:
-            relative = path.relative_to(self._home_dir.resolve()).as_posix()
+            return self.path_of(place).relative_to(self._home_dir.resolve()).as_posix()
         except ValueError:
             raise ValueError(
                 say("The folder must stay inside your personal storage")
             ) from None
+
+    def connection_for(self, place: Place) -> ConnectorDraft:
+        """A new file connection rooted in this folder, inside the home."""
+        relative = self.path_in_home(place)
         options = FileOptions(path=relative)
         if options.below_home != relative:
             raise ActionRefused(

@@ -23,10 +23,12 @@ from app.adapters.actions import (
     CHUNK_BYTES,
     Action,
     ActionDownload,
+    ActionOffers,
     ActionRefused,
     ActionResult,
     ActionSet,
     ActionType,
+    ActionUnavailability,
     ActsOn,
     ConnectorDraft,
     FileAction,
@@ -220,6 +222,53 @@ class ConnectFolder(_ActsOnNode, Action[ConnectFolderParams]):
         # Named as the person named the folder, which a link inside the root
         # may spell differently from where it leads.
         return draft.model_copy(update={"name": PurePosixPath(node_id or "").name})
+
+
+# Why a database file here cannot become a SQLite connection (D262).
+NOT_IN_PERSONAL_STORAGE = N_("Only a file in your personal storage can be connected as SQLite")
+
+
+def connects_as_sqlite(storage: Storage, place: Place) -> bool:
+    """Whether this file is one a SQLite connection could open: a database by
+    its name, in storage whose places are paths in somebody's home."""
+    return format_of(place.name) == "database" and isinstance(storage, DraftsConnections)
+
+
+class ConnectSqlite(_ActsOnNode, Action[ConnectFolderParams]):
+    """A new SQLite connection to this file, as a form to finish (D262).
+
+    A SQLite source opens only a file of its owner's personal storage (D247),
+    so a database elsewhere — a server's folder, a bucket — is offered this
+    with the reason it cannot be done rather than not at all.
+    """
+
+    name: ClassVar[str] = "connect_sqlite"
+    title: ClassVar[str] = N_("Connect as SQLite")
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"file"})
+    # As a folder: the new connection is its creator's, on their own file.
+    requires: ClassVar[Access] = "own"
+    params_model = ConnectFolderParams
+
+    async def prepare_connector(
+        self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ConnectorDraft:
+        self._validated(raw)
+        return await to_thread.run_sync(partial(self._draft, node_id))
+
+    def _draft(self, node_id: str | None) -> ConnectorDraft:
+        place = self._target(node_id)
+        if format_of(place.name) != "database":
+            raise ActionRefused("not_applicable", say("Choose a database file to connect"))
+        storage = self._storage
+        if not isinstance(storage, DraftsConnections):
+            raise ActionRefused("not_applicable", say(NOT_IN_PERSONAL_STORAGE))
+        # The driver's options are a dict here: the explorer does not import
+        # the SQLite package, whose driver stays inside it.
+        return ConnectorDraft(
+            name=place.name,
+            adapter_type="sqlite",
+            options={"path": storage.path_in_home(place)},
+        )
 
 
 class CreateFolder(_Bound, JsonAction[NameParams]):
@@ -793,6 +842,7 @@ EXPLORER_ACTION_TYPES: tuple[ExplorerActionType, ...] = (
     CreateFolder,
     CreateFile,
     ConnectFolder,
+    ConnectSqlite,
     Upload,
     PasteHere,
     Download,
@@ -827,15 +877,31 @@ class ExplorerActions:
             # The root is an ordinary directory, and its state — not its kind —
             # is what rules the two actions out.
             return [action for action in offered if not isinstance(action, _ActsOnNode)]
-        if kind == "file" and not is_unpackable(place.name):
+        if kind == "file":
             # Said here rather than in `applies_to`, which speaks about kinds:
-            # every file is a file, and only some of them are archives.
+            # every file is a file, and only some of them are archives or
+            # databases a SQLite connection could open.
             return [
                 action
                 for action in offered
-                if not isinstance(action, ExtractArchive)
+                if not (isinstance(action, ExtractArchive) and not is_unpackable(place.name))
+                and not (isinstance(action, ConnectSqlite) and not connects_as_sqlite(self._storage, place))
             ]
         return offered
+
+    async def action_offers(self, node_id: str | None) -> ActionOffers:
+        """What `available` offers, and why a database file here cannot be
+        connected as SQLite when it cannot: shown greyed, with the reason."""
+        offered = await self.available(node_id)
+        if node_id is None or node_id == "" or any(isinstance(action, ConnectSqlite) for action in offered):
+            return ActionOffers(actions=offered)
+        place, kind = await to_thread.run_sync(self._look_at, node_id)
+        if kind != "file" or format_of(place.name) != "database":
+            return ActionOffers(actions=offered)
+        return ActionOffers(
+            actions=offered,
+            refusals=[ActionUnavailability(name=ConnectSqlite.name, reason=say(NOT_IN_PERSONAL_STORAGE))],
+        )
 
     def _look_at(self, node_id: str | None) -> tuple[Place, NodeKind]:
         """What the id names, and of what kind. Blocking: it asks the storage.

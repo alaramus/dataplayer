@@ -38,6 +38,9 @@ La página **Conexión** de la ventana pide:
   vacía. Sin ello, un archivo que no está hace fallar la comprobación, así que
   una ruta mal escrita no deja un archivo vacío. La carpeta ya debe existir.
 
+Un archivo de base de datos que ya ves en una conexión **Archivos** se puede
+conectar desde allí: **Conectar como SQLite** rellena esta ventana por ti.
+
 El archivo se abre de nuevo en cada petición, así que un archivo reemplazado
 mediante **Archivos** se lee tal como está ahora.
 

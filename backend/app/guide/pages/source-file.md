@@ -30,6 +30,12 @@ it. Nothing outside your storage can be reached.
 **Connect folder**, in the catalog's actions menu on a folder, makes a new
 connection that opens on that folder.
 
+A SQLite database file (`.db`, `.db3`, `.sqlite`, `.sqlite3`) opens as the
+list of its tables and views, with roughly how many rows each holds.
+**Connect as SQLite**, above that list or in the actions menu on the file,
+makes a new SQLite connection to it. Only a file in your personal storage
+can be connected; elsewhere the action is shown off, with the reason.
+
 ## The catalog
 
 - The path of the level you are on is shown at the top. **Copy the path of this

@@ -39,6 +39,10 @@ La page **Connexion** de la fenêtre demande :
   qu'un chemin mal saisi ne laisse pas de fichier vide derrière lui. Le dossier
   doit déjà exister.
 
+Un fichier de base que vous voyez déjà dans une connexion **Fichiers** peut
+être connecté depuis là : **Connecter en SQLite** remplit cette fenêtre pour
+vous.
+
 Le fichier est rouvert à chaque requête, si bien qu'un fichier remplacé via
 **Fichiers** est lu tel qu'il est maintenant.
 

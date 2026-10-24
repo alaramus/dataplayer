@@ -6,13 +6,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService } from "@/client"
 import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
+import { workspaceActionsKey } from "@/features/workspace/state"
+import type { WorkspaceActions } from "@/features/workspace/state"
 
 import DatabasePanel from "./DatabasePanel.vue"
 
 let registry = createReloadRegistry()
+let createConnector = vi.fn()
+
+/** The action as the server describes it, offered or greyed with a reason. */
+function connectAction(applicable: boolean, reason: string | null = null) {
+  return {
+    name: "connect_sqlite",
+    title: "Connect as SQLite",
+    applicable,
+    unavailable_reason: reason,
+    available_node_ids: applicable ? ["data/shop.db"] : [],
+    prepares_connector: true,
+  }
+}
 
 const Host = defineComponent({
   components: { DatabasePanel },
+  provide() {
+    return { [workspaceActionsKey as symbol]: { createConnector } as unknown as WorkspaceActions }
+  },
   setup() {
     provideReloadRegistry(registry)
   },
@@ -40,9 +58,24 @@ function mountPanel() {
   })
 }
 
+const LAB = {
+  data: {
+    kind: "database",
+    engine: "SQLite 3.50.4",
+    size_bytes: 57344,
+    total: 2,
+    relations: [
+      { name: "items", kind: "table", row_estimate: 1200 },
+      { name: "cheap", kind: "view", row_estimate: null },
+    ],
+  },
+}
+
 beforeEach(() => {
   vi.restoreAllMocks()
   registry = createReloadRegistry()
+  createConnector = vi.fn()
+  vi.spyOn(ConnectorsService, "readActions").mockResolvedValue({ data: [] } as never)
 })
 
 describe("a database file opened from a file source (D262)", () => {
@@ -88,5 +121,48 @@ describe("a database file opened from a file source (D262)", () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="database-cut"]').text()).toContain("1 of 1500")
+  })
+
+  it("opens the form of a SQLite connection to the file, as the source drafted it", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(LAB as never)
+    vi.spyOn(ConnectorsService, "readActions").mockResolvedValue({ data: [connectAction(true)] } as never)
+    const draft = { name: "shop.db", adapter_type: "sqlite", options: { path: "data/shop.db" } }
+    const prepare = vi.spyOn(ConnectorsService, "prepareConnectorAction").mockResolvedValue({ data: draft } as never)
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="database-connect"]').trigger("click")
+    await flushPromises()
+
+    expect(prepare.mock.calls[0]?.[0]).toMatchObject({
+      path: { connector_id: "c1", action_name: "connect_sqlite" },
+      body: { node_id: "data/shop.db", params: {} },
+    })
+    expect(createConnector).toHaveBeenCalledWith(draft)
+  })
+
+  it("draws the action off where the file is out of reach, and asks nothing", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(LAB as never)
+    vi.spyOn(ConnectorsService, "readActions").mockResolvedValue({
+      data: [connectAction(false, "Only a file in your personal storage can be connected as SQLite")],
+    } as never)
+    const prepare = vi.spyOn(ConnectorsService, "prepareConnectorAction")
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="database-connect"]').trigger("click")
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="database-connect"]').attributes("disabled")).toBeDefined()
+    expect(prepare).not.toHaveBeenCalled()
+  })
+
+  it("draws nothing where the action is not offered at all", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(LAB as never)
+
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="database-connect"]').exists()).toBe(false)
   })
 })

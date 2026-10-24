@@ -266,4 +266,7 @@ MESSAGES: dict[str, str] = {
     # A database file (D262).
     'View the database': 'Datenbank anzeigen',
     'This server cannot read database files': 'Dieser Server kann keine Datenbankdateien lesen',
+    'Connect as SQLite': 'Als SQLite verbinden',
+    'Only a file in your personal storage can be connected as SQLite': 'Nur eine Datei in Ihrem persönlichen Speicher kann als SQLite verbunden werden',
+    'Choose a database file to connect': 'Wählen Sie eine Datenbankdatei zum Verbinden',
 }

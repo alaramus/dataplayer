@@ -37,6 +37,9 @@ The **Connection** page of the window asks for:
   Without it, a file that is not there fails the check, so a mistyped path
   does not leave an empty file behind. The folder must already exist.
 
+A database file you already see in a **Files** connection can be connected
+from there: **Connect as SQLite** fills this window in for you.
+
 The file is opened afresh for every request, so a file replaced through
 **Files** is read as it is now.
 

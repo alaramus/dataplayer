@@ -31,6 +31,13 @@ una carpeta dentro de él. No se puede llegar a nada fuera de tu almacenamiento.
 **Conectar carpeta**, en el menú de acciones del catálogo sobre una carpeta, crea
 una nueva conexión que se abre en esa carpeta.
 
+Un archivo de base de datos SQLite (`.db`, `.db3`, `.sqlite`, `.sqlite3`) se
+abre como la lista de sus tablas y vistas, con aproximadamente cuántas filas
+tiene cada una. **Conectar como SQLite**, sobre esa lista o en el menú de
+acciones del archivo, crea una nueva conexión SQLite a él. Solo se puede
+conectar un archivo de tu almacenamiento personal; en otros lugares la
+acción aparece desactivada y explica el motivo.
+
 ## El catálogo
 
 - La ruta del nivel en el que estás se muestra en la parte superior. **Copiar la

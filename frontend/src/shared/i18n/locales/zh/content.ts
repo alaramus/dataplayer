@@ -25,6 +25,7 @@ export const content: Messages["content"] = {
     source_aria: "{name} 的来源",
   },
   database: {
+    connect_failed: "无法准备到此文件的连接",
     could_not_open: "无法打开此数据库",
     relations: "{n} 个关系",
     name: "名称",

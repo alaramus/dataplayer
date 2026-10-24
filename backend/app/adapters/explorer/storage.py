@@ -358,6 +358,11 @@ class DraftsConnections(Protocol):
 
     def connection_for(self, place: Place) -> ConnectorDraft: ...
 
+    def path_in_home(self, place: Place) -> str:
+        """The place as a path below its owner's home, which is what a
+        connection to something in personal storage names (D8)."""
+        ...
+
 
 def walk_iterator(storage: Storage, place: Place) -> Iterator[Entry]:
     """Every entry below a place, depth first, links not followed.

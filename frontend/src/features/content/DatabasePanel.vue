@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 
 import type { ContentRequest, DatabaseRelation } from "@/client"
+import { useNodeActions, usePrepareConnectorAction } from "@/features/catalog/api"
 import { formatSize } from "@/features/catalog/nodes"
 import { useContent } from "@/features/content/api"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
+import { useWorkspaceActions } from "@/features/workspace/state"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
-import { AppBanner, AppSpinner, AppTable } from "@/shared/ui"
+import { AppBanner, AppButton, AppSpinner, AppTable, AppTooltip, useToast } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui"
 
 /**
@@ -78,6 +80,42 @@ const columns = computed<TableColumns>(() => [
   },
 ])
 
+/**
+ * A connection to this file, as a form to finish — the source's own action,
+ * so who may make one and where is the server's answer (D262). Not drawn at
+ * all where the action is not offered, as for somebody who only reads this
+ * connection; drawn off, with the reason, where the file is out of reach.
+ */
+const nodeIds = computed(() => [props.nodeId])
+const actions = useNodeActions(
+  computed(() => props.connectorId),
+  nodeIds
+)
+const connectAction = computed(
+  () => actions.data.value?.find((action) => action.name === "connect_sqlite") ?? null
+)
+const prepare = usePrepareConnectorAction()
+const workspace = useWorkspaceActions()
+const toast = useToast()
+const connecting = ref(false)
+
+async function connect() {
+  if (connectAction.value?.applicable !== true || connecting.value) return
+  connecting.value = true
+  try {
+    const draft = await prepare.mutateAsync({
+      connectorId: props.connectorId,
+      name: "connect_sqlite",
+      nodeId: props.nodeId,
+    })
+    workspace.createConnector(draft)
+  } catch (cause) {
+    toast.error(messageOf(cause, t("content.database.connect_failed")))
+  } finally {
+    connecting.value = false
+  }
+}
+
 async function reload() {
   await content.refetch()
 }
@@ -93,6 +131,25 @@ useReloadable(() => props.panelId, reload)
         data-testid="database-details"
       >{{ details }}</span>
       <div class="database-panel__commands">
+        <!-- The tooltip hangs off the wrapper: a disabled button takes no
+             pointer events. -->
+        <div
+          v-if="connectAction !== null"
+          data-testid="database-connect-wrap"
+        >
+          <AppButton
+            variant="secondary"
+            size="sm"
+            :label="connectAction.title"
+            :disable="!connectAction.applicable"
+            :loading="connecting"
+            data-testid="database-connect"
+            @click="connect"
+          />
+          <AppTooltip v-if="!connectAction.applicable && connectAction.unavailable_reason">
+            {{ connectAction.unavailable_reason }}
+          </AppTooltip>
+        </div>
         <PanelCommands
           :panel-id="panelId"
           :reveal="{ connectorId, nodeId, label: title }"

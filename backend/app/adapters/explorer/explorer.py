@@ -11,7 +11,7 @@ from typing import Any, ClassVar
 
 from anyio import to_thread
 
-from app.adapters.actions import Action, ActionType
+from app.adapters.actions import Action, ActionOffers, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
     AddColumnRequest,
@@ -250,6 +250,9 @@ class Explorer:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
+
+    async def action_offers(self, node_id: str | None) -> ActionOffers:
+        return await self._actions.action_offers(node_id)
 
     async def all_actions(self) -> list[Action[Any]]:
         return await self._actions.all_actions()

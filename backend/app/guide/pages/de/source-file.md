@@ -32,6 +32,13 @@ ein Ordner darin. Nichts außerhalb Ihres Speichers ist erreichbar.
 **Ordner verbinden**, im Aktionsmenü des Katalogs auf einem Ordner, erstellt eine
 neue Verbindung, die sich auf diesem Ordner öffnet.
 
+Eine SQLite-Datenbankdatei (`.db`, `.db3`, `.sqlite`, `.sqlite3`) öffnet sich
+als Liste ihrer Tabellen und Ansichten, mit ungefähr der Zeilenzahl jeder.
+**Als SQLite verbinden**, über dieser Liste oder im Aktionsmenü der Datei,
+erstellt eine neue SQLite-Verbindung zu ihr. Nur eine Datei in Ihrem
+persönlichen Speicher lässt sich verbinden; anderswo ist die Aktion
+ausgegraut und nennt den Grund.
+
 ## Der Katalog
 
 - Der Pfad der Ebene, auf der Sie sich befinden, wird oben gezeigt. **Pfad

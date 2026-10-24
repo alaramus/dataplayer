@@ -26,6 +26,7 @@ export const content: Messages["content"] = {
     source_aria: "{name} स्रोत",
   },
   database: {
+    connect_failed: "इस फ़ाइल का कनेक्शन तैयार नहीं किया जा सका",
     could_not_open: "यह डेटाबेस नहीं खोला जा सका",
     relations: "{n} रिलेशन | {n} रिलेशन",
     name: "नाम",

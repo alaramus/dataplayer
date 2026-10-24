@@ -301,7 +301,7 @@ and opened by the `sqlite-lab` connection `bun run seed:connectors` adds.
 
 Spec: [Copying SQLite tables, backing a file up, and the lab](../../decisions/2026-10-24-sqlite-copy-design.md)
 
-## D262. A SQLite file in a file source shows the tables it holds
+## D262. A SQLite file in a file source shows its tables and connects
 
 A file named `.db`, `.db3`, `.sqlite` or `.sqlite3` offers one representation,
 `database`: its tables, views and virtual tables with what ANALYZE counted, the
@@ -311,4 +311,10 @@ only under D247's guard and a clock; a file without SQLite's header says so.
 The driver stays in this package, which registers a reader for database files
 in the content module as it is imported; the file source asks for it by engine.
 
-Spec: [A SQLite file seen from a file source](../../decisions/2026-10-24-sqlite-in-files-design.md)
+**Connect as SQLite**, on such a file and above its tables, drafts a SQLite
+connection to it the way Connect folder drafts a file connection: owner only,
+the path below the owner's home, a form to finish. Only a storage whose places
+are paths in a home can draft one; elsewhere — a server's folder, a bucket —
+the source answers the action unavailable with its reason, so it is drawn off.
+
+Spec: [A SQLite file seen from a file source, and connected from it](../../decisions/2026-10-24-sqlite-in-files-design.md)

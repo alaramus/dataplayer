@@ -32,6 +32,13 @@ dossier qu'il contient. Rien en dehors de votre stockage n'est accessible.
 **Connecter un dossier**, dans le menu d'actions du catalogue sur un dossier,
 crée une nouvelle connexion qui s'ouvre sur ce dossier.
 
+Un fichier de base de données SQLite (`.db`, `.db3`, `.sqlite`, `.sqlite3`)
+s'ouvre sur la liste de ses tables et vues, avec à peu près le nombre de
+lignes de chacune. **Connecter en SQLite**, au-dessus de cette liste ou dans
+le menu d'actions du fichier, crée une nouvelle connexion SQLite vers lui.
+Seul un fichier de votre stockage personnel peut être connecté ; ailleurs,
+l'action est désactivée et en donne la raison.
+
 ## Le catalogue
 
 - Le chemin du niveau où vous vous trouvez est affiché en haut. **Copier le

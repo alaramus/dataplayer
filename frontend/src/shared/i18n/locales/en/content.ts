@@ -23,6 +23,7 @@ export const content = {
     source_aria: "{name} source",
   },
   database: {
+    connect_failed: "Could not prepare a connection to this file",
     could_not_open: "Could not open this database",
     relations: "{n} relation | {n} relations",
     name: "Name",
