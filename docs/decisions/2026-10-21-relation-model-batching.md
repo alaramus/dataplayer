@@ -22,6 +22,14 @@ D246 adds a bounded batch endpoint for selected relation descriptions.
   single reads, and so does a batch that ran out of its five seconds: one
   snapshot for a hundred relations on a busy server can time out where each
   relation on its own would not.
+- MySQL and MariaDB implement the capability too: five statements per
+  database on one connection, each a UNION ALL of one equality branch per
+  relation. `TABLE_NAME IN (...)` was rejected after EXPLAIN on MariaDB 11.4:
+  equality is a direct look-up ("Scanned 0 databases"), a list opens the frm
+  of every table in the database ("Scanned 1 database"). MySQL 8 reads either
+  through its data dictionary's indexes. Each branch answers with the name it
+  was asked by, so an answer from a server that compares names without case
+  still finds its relation.
 - The single and batch routes use the source-owned relation cache area.
   PostgreSQL and MySQL keep descriptions for five minutes. Owners cannot stretch that
   window through the row/catalog cache setting. DataPlayer mutations invalidate

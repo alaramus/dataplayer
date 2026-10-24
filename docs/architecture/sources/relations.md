@@ -59,6 +59,14 @@ into several catalog reads and a separate HTTP request.
   unrelated relations in the schema. A batch that runs out of that time is
   read again one relation at a time, each with its own five seconds; any other
   failure of the batch is the source failing.
+- MySQL and MariaDB read each database of the set in five statements — the
+  relations, their columns, checks, keys and indexes — on one connection under
+  one five-second clock, with the same fallback when it runs out. A statement
+  is a branch per relation joined by UNION ALL rather than `TABLE_NAME IN`:
+  MariaDB looks a relation up directly only by equality, and for a list opens
+  every table of the database. The single read is the same statements with one
+  branch. The data dictionary is not read under a transaction's snapshot, so
+  the set claims none.
 - Single and batch descriptions use the relation area of DataCache. PostgreSQL and
   MySQL own a five-minute TTL; the connector's row/catalog TTL setting does not
   change it. Incomplete batch results are returned but not stored. A DataPlayer

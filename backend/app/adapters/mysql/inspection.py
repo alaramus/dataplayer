@@ -1,20 +1,27 @@
-"""What `information_schema` says about one relation, read once for all callers.
+"""What `information_schema` says about a relation, read once for all callers.
 
 The relation model, the summary and a page of rows ask about the same table,
 and each reading it its own way would be three answers to one question. Every
 column is aliased in lower case: MySQL 8 names the columns of its catalog in
 capitals and MariaDB does not, so an unaliased `*` reads differently by server.
+
+Each statement names one relation and answers with the name it was asked
+for as `requested`. Several relations are one statement of such branches
+joined by UNION ALL, and the answer is grouped back by the name each was
+asked by, even where the server compares names without case.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from app.adapters.mysql.session import MysqlSession, ServerProfile, quoted_name
 from app.adapters.mysql.types import build_column_type
 from app.adapters.relation import ColumnType, RefAction
 
 _RELATION = """
-SELECT TABLE_TYPE AS table_type,
+SELECT %s AS requested,
+       TABLE_TYPE AS table_type,
        ENGINE AS engine,
        TABLE_ROWS AS table_rows,
        DATA_LENGTH + INDEX_LENGTH AS size_bytes,
@@ -25,7 +32,8 @@ WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
 """
 
 _COLUMNS = """
-SELECT COLUMN_NAME AS name,
+SELECT %s AS requested,
+       COLUMN_NAME AS name,
        ORDINAL_POSITION AS position,
        DATA_TYPE AS data_type,
        COLUMN_TYPE AS column_type,
@@ -40,15 +48,16 @@ SELECT COLUMN_NAME AS name,
        NUMERIC_SCALE AS numeric_scale
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
-ORDER BY ORDINAL_POSITION
 """
 
 # Keys and their columns in key order. A foreign key's target schema is read
 # rather than assumed to be the table's own: MySQL lets a key point into any
 # database on the server.
 _KEYS = """
-SELECT tc.CONSTRAINT_NAME AS name,
+SELECT %s AS requested,
+       tc.CONSTRAINT_NAME AS name,
        tc.CONSTRAINT_TYPE AS constraint_type,
+       k.ORDINAL_POSITION AS ordinal,
        k.COLUMN_NAME AS column_name,
        k.REFERENCED_TABLE_SCHEMA AS target_schema,
        k.REFERENCED_TABLE_NAME AS target_table,
@@ -67,14 +76,14 @@ LEFT JOIN information_schema.REFERENTIAL_CONSTRAINTS AS rc
  AND rc.TABLE_NAME = tc.TABLE_NAME
 WHERE tc.TABLE_SCHEMA = %s AND tc.TABLE_NAME = %s
   AND tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'UNIQUE', 'FOREIGN KEY')
-ORDER BY tc.CONSTRAINT_NAME, k.ORDINAL_POSITION
 """
 
 # The two servers keep checks differently: MySQL names a check's table only in
 # TABLE_CONSTRAINTS and says there whether it is enforced; MariaDB names the
 # table in CHECK_CONSTRAINTS itself, and says whether the check is a column's.
 _MYSQL_CHECKS = """
-SELECT cc.CONSTRAINT_NAME AS name,
+SELECT %s AS requested,
+       cc.CONSTRAINT_NAME AS name,
        cc.CHECK_CLAUSE AS expression,
        tc.ENFORCED AS enforced,
        'Table' AS level
@@ -83,21 +92,22 @@ JOIN information_schema.CHECK_CONSTRAINTS AS cc
   ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
  AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
 WHERE tc.TABLE_SCHEMA = %s AND tc.TABLE_NAME = %s AND tc.CONSTRAINT_TYPE = 'CHECK'
-ORDER BY cc.CONSTRAINT_NAME
 """
 
 _MARIADB_CHECKS = """
-SELECT CONSTRAINT_NAME AS name,
+SELECT %s AS requested,
+       CONSTRAINT_NAME AS name,
        CHECK_CLAUSE AS expression,
        'YES' AS enforced,
        LEVEL AS level
 FROM information_schema.CHECK_CONSTRAINTS
 WHERE CONSTRAINT_SCHEMA = %s AND TABLE_NAME = %s
-ORDER BY CONSTRAINT_NAME
 """
 
 _MYSQL_INDEXES = """
-SELECT INDEX_NAME AS name,
+SELECT %s AS requested,
+       INDEX_NAME AS name,
+       SEQ_IN_INDEX AS seq,
        NON_UNIQUE AS non_unique,
        COLUMN_NAME AS column_name,
        EXPRESSION AS expression,
@@ -106,12 +116,13 @@ SELECT INDEX_NAME AS name,
        INDEX_TYPE AS index_type
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
-ORDER BY INDEX_NAME, SEQ_IN_INDEX
 """
 
 # MariaDB has no functional index, and so no EXPRESSION column to read.
 _MARIADB_INDEXES = """
-SELECT INDEX_NAME AS name,
+SELECT %s AS requested,
+       INDEX_NAME AS name,
+       SEQ_IN_INDEX AS seq,
        NON_UNIQUE AS non_unique,
        COLUMN_NAME AS column_name,
        NULL AS expression,
@@ -120,8 +131,14 @@ SELECT INDEX_NAME AS name,
        INDEX_TYPE AS index_type
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
-ORDER BY INDEX_NAME, SEQ_IN_INDEX
 """
+
+# Over the whole answer, by the names its columns answer with: an ORDER BY
+# inside one branch of a UNION is not kept.
+_COLUMN_ORDER = "ORDER BY requested, position"
+_KEY_ORDER = "ORDER BY requested, name, ordinal"
+_CHECK_ORDER = "ORDER BY requested, name"
+_INDEX_ORDER = "ORDER BY requested, name, seq"
 
 _REF_ACTIONS: dict[str, RefAction] = {
     "NO ACTION": "no_action",
@@ -275,8 +292,35 @@ def _json_columns(checks: list[dict[str, Any]], columns: list[dict[str, Any]]) -
     }
 
 
+class Reader(Protocol):
+    async def query(
+        self, sql: str, params: tuple[object, ...] = ()
+    ) -> list[dict[str, Any]]: ...
+
+
+async def _read(
+    reader: Reader, statement: str, order: str, schema: str, names: Sequence[str]
+) -> list[dict[str, Any]]:
+    """`statement` once per relation, in one round trip.
+
+    Not `TABLE_NAME IN (...)`: MariaDB finds a relation directly only by
+    equality, and for a list it opens every table of the database to compare
+    its name. A branch per relation is a direct look-up on both servers.
+    """
+    text = "\nUNION ALL\n".join([statement] * len(names)) + order
+    params = tuple(value for name in names for value in (name, schema, name))
+    return await reader.query(text, params)
+
+
+def _by_requested(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault(str(row["requested"]), []).append(row)
+    return grouped
+
+
 async def relation_exists(session: MysqlSession, schema: str, name: str) -> dict[str, Any] | None:
-    rows = await session.query(_RELATION, (schema, name))
+    rows = await _read(session, _RELATION, "", schema, [name])
     if not rows or str(rows[0]["table_type"]) not in RELATION_TYPES:
         return None
     return rows[0]
@@ -290,14 +334,85 @@ async def read_relation(
     `structure` reads checks and indexes as well, which a page of rows does
     not need.
     """
-    relation = await relation_exists(session, schema, name)
-    if relation is None:
-        return None
-    profile = await session.profile()
-    column_rows = await session.query(_COLUMNS, (schema, name))
-    check_rows = await session.query(
-        _MARIADB_CHECKS if profile.mariadb else _MYSQL_CHECKS, (schema, name)
+    found = await read_relations(
+        session, await session.profile(), schema, [name], structure=structure
     )
+    return found.get(name)
+
+
+async def read_relations(
+    reader: Reader,
+    profile: ServerProfile,
+    schema: str,
+    names: Sequence[str],
+    *,
+    structure: bool = True,
+) -> dict[str, RelationFacts]:
+    """The relations of one database that exist, by the name each was asked by.
+
+    Five statements however many relations are asked for (D246).
+    """
+    relations = {
+        str(row["requested"]): row
+        for row in await _read(reader, _RELATION, "", schema, list(dict.fromkeys(names)))
+        if str(row["table_type"]) in RELATION_TYPES
+    }
+    if not relations:
+        return {}
+    found = list(relations)
+    columns = _by_requested(await _read(reader, _COLUMNS, _COLUMN_ORDER, schema, found))
+    # Read even without the structure: MariaDB's JSON columns are known by them.
+    checks = _by_requested(
+        await _read(
+            reader,
+            _MARIADB_CHECKS if profile.mariadb else _MYSQL_CHECKS,
+            _CHECK_ORDER,
+            schema,
+            found,
+        )
+    )
+    keys = _by_requested(await _read(reader, _KEYS, _KEY_ORDER, schema, found))
+    indexes = (
+        _by_requested(
+            await _read(
+                reader,
+                _MARIADB_INDEXES if profile.mariadb else _MYSQL_INDEXES,
+                _INDEX_ORDER,
+                schema,
+                found,
+            )
+        )
+        if structure
+        else {}
+    )
+    return {
+        name: _facts(
+            schema,
+            name,
+            relation,
+            profile,
+            column_rows=columns.get(name, []),
+            check_rows=checks.get(name, []),
+            key_rows=keys.get(name, []),
+            index_rows=indexes.get(name, []),
+            structure=structure,
+        )
+        for name, relation in relations.items()
+    }
+
+
+def _facts(
+    schema: str,
+    name: str,
+    relation: dict[str, Any],
+    profile: ServerProfile,
+    *,
+    column_rows: list[dict[str, Any]],
+    check_rows: list[dict[str, Any]],
+    key_rows: list[dict[str, Any]],
+    index_rows: list[dict[str, Any]],
+    structure: bool,
+) -> RelationFacts:
     json_columns = _json_columns(check_rows, column_rows) if profile.mariadb else set()
     table_collation = _text(relation["collation"])
 
@@ -322,7 +437,6 @@ async def read_relation(
             )
         )
 
-    keys = _keys(await session.query(_KEYS, (schema, name)))
     checks = (
         [
             CheckFacts(
@@ -333,15 +447,6 @@ async def read_relation(
             for row in check_rows
             if str(row["name"]) not in json_columns or str(row["level"]) != "Column"
         ]
-        if structure
-        else []
-    )
-    indexes = (
-        _indexes(
-            await session.query(
-                _MARIADB_INDEXES if profile.mariadb else _MYSQL_INDEXES, (schema, name)
-            )
-        )
         if structure
         else []
     )
@@ -358,9 +463,9 @@ async def read_relation(
         # MySQL writes the word VIEW as the comment of every view.
         comment=None if is_view else _text(relation["comment"]),
         columns=columns,
-        keys=keys,
+        keys=_keys(key_rows),
         checks=checks,
-        indexes=indexes,
+        indexes=_indexes(index_rows) if structure else [],
     )
 
 

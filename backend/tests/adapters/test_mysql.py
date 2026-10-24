@@ -1,4 +1,4 @@
-"""A MySQL or MariaDB server as a source type (D228–D231).
+"""A MySQL or MariaDB server as a source type (D228–D231, D246).
 
 Every test that needs a server runs against both: one source type speaks to
 both, and they differ exactly where the catalog looks.
@@ -14,10 +14,12 @@ from app.adapters import registry
 from app.adapters.content import ContentRequest, SqlContent
 from app.adapters.fetch import FetchRequest, InFilter, NullFilter, ScalarFilter, Sort
 from app.adapters.mysql import ids
+from app.adapters.mysql import session as mysql_session
 from app.adapters.mysql.adapter import MysqlAdapter
 from app.adapters.mysql.options import MysqlNoPassword, MysqlUserPassword
-from app.adapters.mysql.session import options_from_url, read_profile
+from app.adapters.mysql.session import Inspection, options_from_url, read_profile
 from app.adapters.protocol import (
+    AdapterError,
     DataAdapter,
     EnumeratesNames,
     NodeNotFound,
@@ -32,6 +34,7 @@ from app.adapters.protocol import (
     SupportsNodeSummary,
     SupportsReferences,
     SupportsRelationModel,
+    SupportsRelationModelBatch,
     SupportsTableDesign,
     SupportsUpdate,
 )
@@ -40,6 +43,7 @@ from app.adapters.relation import (
     CheckConstraint,
     ForeignKey,
     PrimaryKey,
+    RelationModelsRequest,
     UniqueConstraint,
 )
 from app.adapters.resources import Pooling, ResourceStore
@@ -93,6 +97,7 @@ def test_it_claims_only_what_it_does() -> None:
         SupportsNodePath,
         SupportsFetch,
         SupportsRelationModel,
+        SupportsRelationModelBatch,
         SupportsNodeSummary,
         SupportsContent,
     ):
@@ -350,6 +355,68 @@ async def test_a_missing_relation_is_not_found(target: Target) -> None:
         await target.adapter().relation_model(ids.relation_id(DATABASE, "gone"))
     with pytest.raises(ValueError):
         await target.adapter().relation_model(ids.database_id(DATABASE))
+
+
+
+async def test_a_batch_describes_relations_as_one_at_a_time_does(target: Target) -> None:
+    adapter = target.adapter()
+    asked = [
+        ITEMS,
+        ids.relation_id(DATABASE, "item_labels"),
+        ids.relation_id(DATABASE, "keyless"),
+        ids.relation_id(DATABASE, "heap"),
+        ids.relation_id(OTHER, "owners"),
+    ]
+
+    batch = await adapter.relation_models_for_nodes(
+        RelationModelsRequest(
+            node_ids=[*asked, ids.relation_id(DATABASE, "gone"), ids.database_id(DATABASE)]
+        )
+    )
+
+    by_id = {model.node_id: model for model in batch}
+    assert set(by_id) == set(asked)
+    for node_id in asked:
+        assert by_id[node_id] == await adapter.relation_model(node_id)
+
+
+async def test_a_batch_reads_a_database_in_five_statements(
+    target: Target, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    statements: list[str] = []
+    query = Inspection.query
+
+    async def counted(
+        self: Inspection, sql: str, params: tuple[object, ...] = ()
+    ) -> list[dict[str, object]]:
+        statements.append(sql)
+        return await query(self, sql, params)
+
+    monkeypatch.setattr(Inspection, "query", counted)
+    names = ["items", "item_labels", "keyless", "heap"]
+
+    models = await target.adapter().relation_models_for_nodes(
+        RelationModelsRequest(node_ids=[ids.relation_id(DATABASE, name) for name in names])
+    )
+
+    assert len(models) == 4
+    assert len(statements) == 5
+
+
+async def test_a_batch_past_its_clock_is_a_timeout_and_the_pool_still_works(
+    target: Target, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = ResourceStore(max_entries=4, max_idle_seconds=60)
+    adapter = MysqlAdapter(target.options(), Pooling(store=store, connector_id=uuid.uuid4()))
+    monkeypatch.setattr(mysql_session, "INSPECTION_SECONDS", 0.000_001)
+    try:
+        with pytest.raises(AdapterError) as caught:
+            await adapter.relation_models_for_nodes(RelationModelsRequest(node_ids=[ITEMS]))
+        assert caught.value.error_kind == "timeout"
+
+        assert (await adapter.relation_model(ITEMS)).name == "items"
+    finally:
+        await store.aclose()
 
 
 # --- Rows ------------------------------------------------------------------

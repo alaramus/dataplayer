@@ -36,8 +36,8 @@ relation models and node paths; the current rows never decide whether the
 source describes relationships. The panel tab names the connection and the
 size of the set, so the view itself carries no standing bar of its own. The
 explicit set lives in its workspace descriptor. Loading is limited to 100
-relations. PostgreSQL reads the selected set in one batch; other sources use at
-most four concurrent single reads (D246).
+relations. PostgreSQL and MySQL read the selected set in one batch; other
+sources use at most four concurrent single reads (D246).
 Failed reads and references outside the set appear as distinct placeholders.
 Only outgoing foreign keys of loaded tables are claimed; unseen incoming
 references are not inferred. Graph bounds are 300 nodes, 5,000 rows/ports and
@@ -53,9 +53,9 @@ identity. d3-force-3d applies link, charge, collision, center and weak sketch
 forces. Nodes move in all three dimensions rather than staying on group planes.
 Collision treats each table as a sphere around its center; it does not
 guarantee that every line misses every table box. The simulation runs for a
-bounded number of ticks in the layout worker, not on every frame. An explicit
-3D layout revision recalculates saved 3D positions and camera once while
-retaining the 2D layout and view options. Three.js supplies the 3D scene and
+bounded number of ticks in the layout worker, not on every frame. Existing
+untouched flat 3D layouts are recalculated once while manually moved positions
+remain as they were. Three.js supplies the 3D scene and
 camera controls.
 Selection, neighboring objects, search and details are available in both
 modes. Rendering and input follow the actual panel lifecycle, including

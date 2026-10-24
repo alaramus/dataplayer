@@ -2,7 +2,7 @@
 
 from app.adapters.mysql import ids
 from app.adapters.mysql.catalog import is_system_database
-from app.adapters.mysql.inspection import RelationFacts, read_relation
+from app.adapters.mysql.inspection import RelationFacts, read_relation, read_relations
 from app.adapters.mysql.session import MysqlSession, quoted_name
 from app.adapters.mysql.vocabulary import MYSQL_COLUMN_TYPE_OPTIONS, MYSQL_INDEX_METHODS
 from app.adapters.protocol import NodeNotFound
@@ -169,3 +169,25 @@ class MysqlRelation:
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return model_of(node_id, await self.facts(node_id))
+
+    async def relation_models_for_nodes(self, node_ids: list[str]) -> list[RelationModel]:
+        """Selected relations on one connection, five statements a database (D246).
+
+        An id that names no relation is left out; the caller says so.
+        """
+        selected: dict[str, dict[str, str]] = {}
+        for node_id in node_ids:
+            schema, relation = ids.parse(node_id)
+            if relation:
+                selected.setdefault(schema, {})[relation] = node_id
+        if not selected:
+            return []
+        profile = await self._session.profile()
+        models: list[RelationModel] = []
+        async with self._session.inspection() as reader:
+            for schema, wanted in selected.items():
+                found = await read_relations(reader, profile, schema, list(wanted))
+                models.extend(
+                    model_of(wanted[name], facts) for name, facts in found.items()
+                )
+        return models

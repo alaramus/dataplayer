@@ -88,7 +88,7 @@ from app.adapters.references import (
     ReferenceTarget,
 )
 from app.adapters.registry import AdapterContext, register
-from app.adapters.relation import RelationModel
+from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.relation_changes import (
     CreateRelationRequest,
     CreateRelationResult,
@@ -320,6 +320,11 @@ class MysqlAdapter:
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)
+
+    async def relation_models_for_nodes(
+        self, request: RelationModelsRequest
+    ) -> list[RelationModel]:
+        return await self._relation.relation_models_for_nodes(request.node_ids)
 
     async def node_summary(self, node_id: str) -> NodeSummary:
         return await self._summaries.node_summary(node_id)

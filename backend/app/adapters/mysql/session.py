@@ -28,6 +28,8 @@ from app.core.translation import N_, say
 logger = logging.getLogger(__name__)
 
 CHECK_TIMEOUT_SECONDS = 5.0
+# How long a plan of several catalog reads may take altogether (D246).
+INSPECTION_SECONDS = 5.0
 
 Flavour = Literal["mysql", "mariadb"]
 
@@ -301,6 +303,20 @@ class Writing:
         return True
 
 
+class Inspection:
+    """Reads on one connection that a plan of several statements shares."""
+
+    def __init__(self, connection: aiomysql.Connection) -> None:
+        self._connection = connection
+
+    async def query(
+        self, sql: str, params: tuple[object, ...] = ()
+    ) -> list[dict[str, Any]]:
+        async with self._connection.cursor(aiomysql.DictCursor) as cursor:
+            await cursor.execute(sql, params)
+            return list(await cursor.fetchall())
+
+
 class MysqlSession:
     """How to talk to one MySQL or MariaDB server."""
 
@@ -443,6 +459,24 @@ class MysqlSession:
             if exc.args and isinstance(exc.args[0], int) and exc.args[0] < 2000:
                 raise ValueError(say("The source rejected the change")) from None
             error_kind, message = classify(exc, fallback_message=N_("Update failed"))
+            raise AdapterError(error_kind, message) from None
+
+    @asynccontextmanager
+    async def inspection(self) -> AsyncIterator[Inspection]:
+        """One connection and one clock for several catalog reads (D246).
+
+        A read past the clock is cancelled, and aiomysql closes a connection
+        cancelled in the middle of an answer rather than letting the pool have
+        it back.
+        """
+        try:
+            async with asyncio.timeout(INSPECTION_SECONDS):
+                async with self.acquire() as connection:
+                    yield Inspection(connection)
+        except TimeoutError:
+            raise AdapterError("timeout", say("The server did not answer in time")) from None
+        except pymysql.err.MySQLError as exc:
+            error_kind, message = classify(exc, fallback_message=N_("Query failed"))
             raise AdapterError(error_kind, message) from None
 
     async def kill_query(self, thread_id: int) -> None:
