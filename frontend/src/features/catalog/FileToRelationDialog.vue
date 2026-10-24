@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { callsDatabases } from "@/features/catalog/nodes"
 import { t } from "@/shared/i18n"
 import {
   AppBanner,
@@ -40,6 +41,20 @@ const emit = defineEmits<{
 
 const file = ref<File | null>(null)
 const schemas = ref<{ label: string; value: string }[]>([])
+/** Whether the connection calls its schemas databases, as MySQL does (D229). */
+const databases = ref(false)
+const WORDS = {
+  schemas_failed: ["catalog.file_to_relation.schemas_failed", "catalog.file_to_relation.databases_failed"],
+  schema_choice: ["catalog.file_to_relation.schema_choice", "catalog.file_to_relation.database_choice"],
+  existing_schema: ["catalog.file_to_relation.existing_schema", "catalog.file_to_relation.existing_database"],
+  new_schema_option: ["catalog.file_to_relation.new_schema_option", "catalog.file_to_relation.new_database_option"],
+  schema: ["catalog.file_to_relation.schema", "catalog.file_to_relation.database"],
+  new_schema: ["catalog.file_to_relation.new_schema", "catalog.file_to_relation.new_database"],
+  new_schema_hint: ["catalog.file_to_relation.new_schema_hint", "catalog.file_to_relation.new_database_hint"],
+} as const
+function word(key: keyof typeof WORDS): string {
+  return t(WORDS[key][databases.value ? 1 : 0])
+}
 const schemaMode = ref<"existing" | "new">("existing")
 const schemaName = ref(props.initialSchema)
 const tableName = ref("")
@@ -87,6 +102,7 @@ onMounted(async () => {
       path: { connector_id: props.connectorId },
       query: {},
     })
+    databases.value = callsDatabases(answer.data)
     schemas.value = answer.data
       .filter((node) => node.kind === "schema" && node.is_system !== true)
       .map((node) => ({ label: node.name, value: node.id }))
@@ -94,7 +110,7 @@ onMounted(async () => {
       schemaName.value = schemas.value[0]?.value ?? ""
     }
   } catch (cause) {
-    trouble.value = messageOf(cause, t("catalog.file_to_relation.schemas_failed"))
+    trouble.value = messageOf(cause, word("schemas_failed"))
   }
 })
 
@@ -171,25 +187,25 @@ function run() {
       />
       <AppSelect
         v-model="schemaMode"
-        :label="t('catalog.file_to_relation.schema_choice')"
+        :label="word('schema_choice')"
         :options="[
-          { label: t('catalog.file_to_relation.existing_schema'), value: 'existing' },
-          { label: t('catalog.file_to_relation.new_schema_option'), value: 'new' },
+          { label: word('existing_schema'), value: 'existing' },
+          { label: word('new_schema_option'), value: 'new' },
         ]"
         data-testid="load-schema-mode"
       />
       <AppSelect
         v-if="schemaMode === 'existing'"
         v-model="schemaName"
-        :label="t('catalog.file_to_relation.schema')"
+        :label="word('schema')"
         :options="schemas"
         data-testid="load-schema"
       />
       <AppInput
         v-else
         v-model="schemaName"
-        :label="t('catalog.file_to_relation.new_schema')"
-        :hint="t('catalog.file_to_relation.new_schema_hint')"
+        :label="word('new_schema')"
+        :hint="word('new_schema_hint')"
         autocomplete="off"
         data-testid="load-new-schema"
       />

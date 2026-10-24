@@ -297,6 +297,7 @@ export const grid: Messages["grid"] = {
     connection: "Verbindung",
     place: {
       schema: "Schema",
+      database: "Datenbank",
       folder: "Ordner",
     },
     name: {

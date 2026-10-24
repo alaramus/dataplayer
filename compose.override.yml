@@ -92,6 +92,28 @@ services:
     ports:
       - "127.0.0.1:2222:2222"
 
+  # A MySQL and a MariaDB for the backend suite and for a person to point a
+  # MySQL connection at: user `root`, password `dataplayer`, host `mysql` or
+  # `mariadb` port 3306 from the backend, 127.0.0.1:3307 and 127.0.0.1:3308
+  # from this machine. Both, because the one source type speaks to both and
+  # they differ exactly where a catalog looks (D228). Published on the loopback
+  # only, because that password is in this file. Behind the `tools` profile.
+  mysql:
+    image: mysql:8.4
+    profiles: ["tools"]
+    environment:
+      MYSQL_ROOT_PASSWORD: dataplayer
+    ports:
+      - "127.0.0.1:3307:3306"
+
+  mariadb:
+    image: mariadb:11.4
+    profiles: ["tools"]
+    environment:
+      MARIADB_ROOT_PASSWORD: dataplayer
+    ports:
+      - "127.0.0.1:3308:3306"
+
   # dataplayer-monitor-agent reporting the machine Docker runs on to the
   # metrics process, started with
   # `docker compose --profile monitor-agent up -d monitor-agent`. It signs

@@ -44,7 +44,7 @@ describe("bounded relationship loading", () => {
   })
 
   it("keeps unexpected batch errors behind the safe fallback", async () => {
-    const read = vi.fn(async (_nodeIds: string[]) => {
+    const read = vi.fn(async () => {
       throw new Error("password=secret")
     })
 

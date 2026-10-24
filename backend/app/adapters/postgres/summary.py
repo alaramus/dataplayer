@@ -22,9 +22,9 @@ from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.details import inspect_details
 from app.adapters.postgres.timescale.statistics import inspect_statistics
 from app.adapters.postgres.timescale.summary import related_views
-from app.adapters.postgres.words import worded_titles
 from app.adapters.relation import RelationKind, RelationModel
 from app.adapters.summary import NodeSummary, RelationContents
+from app.adapters.words import worded_titles
 
 # When the planner's statistics were last brought up to date, and when the dead
 # rows were last cleared, whether a person asked or the server decided to. Both

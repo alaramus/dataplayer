@@ -5,6 +5,7 @@ import bundledIcons from "@quasar/extras/material-symbols-outlined/icons.json"
 
 import {
   ICONS,
+  callsDatabases,
   MATERIALIZED_VIEW_ICON,
   REPORT_SECTION_ICON,
   TIMESCALE_ICON,
@@ -161,6 +162,21 @@ describe("a key-value database", () => {
     expect(groupTitle(toListNodes([db(0, 0)]))).toBe("Databases")
     expect(groupTitle([group("public")])).toBe("Schemas")
     expect(groupTitle([])).toBe("Groups")
+  })
+
+  it("is called a database where the source calls its schema one (D229)", () => {
+    const shop = {
+      kind: "schema" as const,
+      id: "shop",
+      name: "shop",
+      term: "database" as const,
+      has_children: true,
+      representations: [],
+    }
+
+    expect(groupTitle(toListNodes([shop]))).toBe("Databases")
+    expect(callsDatabases([shop])).toBe(true)
+    expect(callsDatabases([{ ...shop, term: "schema" as const }])).toBe(false)
   })
 })
 

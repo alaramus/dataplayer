@@ -161,6 +161,10 @@ class HypertableOffer(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # False where the source has no such thing at all, and the editor leaves
+    # the section out; a PostgreSQL database without TimescaleDB is offered
+    # it and says why it is unavailable.
+    offered: bool = True
     available: bool = False
     reason: str | None = None
     # Whether "Timescale chooses" is a state the release keeps after enabling.

@@ -33,6 +33,7 @@ export const table_design: Messages["table_design"] = {
   designer: {
     title: "Создать таблицу",
     schema: "Схема",
+    database: "База данных",
     table_name: "Имя таблицы",
     name_first: "Укажите имя таблицы и её столбцов",
     working_out: "Составление SQL…",
@@ -130,6 +131,7 @@ export const table_design: Messages["table_design"] = {
   foreign: {
     constraint_name: "Имя ограничения",
     schema: "Целевая схема",
+    database: "Целевая база данных",
     table: "Целевая таблица",
     key: "Целевой ключ",
     match: "Сопоставление (MATCH)",

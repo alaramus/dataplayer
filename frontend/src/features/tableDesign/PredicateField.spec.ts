@@ -24,6 +24,7 @@ describe("compact predicate field", () => {
       typeChoices: computed(() => []),
       types: computed(() => []),
       functions: computed(() => []),
+      databases: computed(() => false),
     })
     const wrapper = mount(PredicateField, {
       global: { plugins: [Quasar] },

@@ -81,4 +81,9 @@ MESSAGES: dict[str, str] = {
     "The backup exceeds the 2 GiB restore limit": "Die Sicherung überschreitet das Wiederherstellungslimit von 2 GiB",
     "The backup could not be read safely": "Die Sicherung konnte nicht sicher gelesen werden",
     "{name} was deleted": "{name} wurde gelöscht",
+    # Von MySQL und MariaDB gestartete Server (D244).
+    'MySQL': 'MySQL',
+    'MariaDB': 'MariaDB',
+    'A MySQL server of its own, started on this machine with a password nobody has to choose.': 'Ein eigener MySQL-Server, auf diesem Rechner gestartet, mit einem Passwort, das niemand wählen muss.',
+    'A MariaDB server of its own, started on this machine with a password nobody has to choose.': 'Ein eigener MariaDB-Server, auf diesem Rechner gestartet, mit einem Passwort, das niemand wählen muss.',
 }

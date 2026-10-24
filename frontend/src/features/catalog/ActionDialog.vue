@@ -731,6 +731,7 @@ async function runReviewed(value: {
     :node-id="String(nodeIds[0] ?? '')"
     :node-label="nodeLabel"
     :destinations="destinationChoices"
+    :databases="(props.groupings ?? []).some((grouping) => grouping.term === 'database')"
     :running="runAction.isPending.value"
     :error="failure"
     @run="runDesign"

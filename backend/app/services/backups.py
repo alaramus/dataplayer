@@ -228,7 +228,9 @@ class RestoreConnector(_BackupJob):
         await progress.reached("asking the source what would restore it")
         source = self._source(connector)
         name = _restore_filename(job)
-        staged = await to_thread.run_sync(snapshot, connector.owner_id, name)
+        staged = await to_thread.run_sync(
+            snapshot, connector.owner_id, name, source.restore_archive_reason
+        )
         try:
             return await self._restore(job, progress, connector, source, name, staged)
         finally:

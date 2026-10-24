@@ -28,8 +28,8 @@ from app.adapters.postgres.timescale.names import DEDICATED_SCHEMAS
 from app.adapters.postgres.timescale.profile import discover
 from app.adapters.postgres.timescale.reports import REPORTS as TIMESCALE_REPORTS
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
-from app.adapters.postgres.words import worded_titles
 from app.adapters.protocol import AdapterError, NodeNotFound
+from app.adapters.words import worded_titles
 from app.core.translation import N_, say
 
 _SYSTEM_SCHEMAS = ("information_schema",)

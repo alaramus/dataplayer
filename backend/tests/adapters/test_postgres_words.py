@@ -8,7 +8,7 @@ from app.adapters.actions import ActionRefused, Previews, TakesParams
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.column_types import POSTGRES_COLUMN_TYPE_OPTIONS
 from app.adapters.postgres.options import PostgresUserPassword
-from app.adapters.postgres.words import worded_titles
+from app.adapters.words import worded_titles
 from app.core.translation import current_language, in_language
 from tests.utils.database import working_postgres_options
 from tests.utils.relation_fixture import run

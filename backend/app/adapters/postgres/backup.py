@@ -104,6 +104,12 @@ class PostgresBackup:
     def validate_restore_inventory(self, lines: Sequence[str]) -> None:
         validate_inventory(lines)
 
+    def restore_archive_reason(self, head: bytes) -> str | None:
+        """A custom-format archive begins with its own signature."""
+        if head.startswith(b"PGDMP"):
+            return None
+        return say("Restore requires a PostgreSQL custom archive")
+
     async def _image(self) -> str:
         """The image of the server's own major version.
 

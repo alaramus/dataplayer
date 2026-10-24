@@ -1,6 +1,6 @@
 # Data sources
 
-What the four existing source types do, where their code sits, and which
+What the five existing source types do, where their code sits, and which
 file holds which decision.
 
 | File | Open it to |
@@ -17,9 +17,10 @@ file holds which decision.
 | [content.md](content.md) | open a node as something other than a page of rows |
 | [actions.md](actions.md) | add an action or change what a form applies to |
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
+| [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, or where SSH keys and passphrases are kept |
 
-## Four source types
+## Five source types
 
 **PostgreSQL** — schemas and relations, safe schema create/rename/drop and
 relation moves, bounded relation DDL, server-side paging and sorting, streaming
@@ -64,6 +65,27 @@ delete. Nothing runs a command on the server. It signs in with a password or
 one of its owner's SSH keys, and only to the server whose key a person
 confirmed when the connection was made (D145, D146).
 
+**MySQL** — MySQL and MariaDB through one type that reads which server it is
+(D228): databases as schemas, their tables and views with the server's row
+estimates (D229), a relation's columns, keys, checks and indexes, its summary
+and the server's own DDL, and rows paged, sorted and filtered on the server
+with every value as exact text (D230, D231). An SQL console read by sqlglot's
+MySQL dialect, where a structure change runs alone and is never rehearsed,
+because MySQL commits it at once (D232, D233). Rows are edited, inserted and
+deleted in the grid against a digest of what was shown, and keys are followed
+both ways (D234). Columns, indexes and constraints are changed in the
+definition the server printed (D235). A designed table is planned as one
+`CREATE TABLE`, and a table made from rows is dropped if its rows are refused
+(D236). Eight reports about the server sit in a System section, and the
+processes can be cancelled or terminated; the catalog is searched by name and
+by column, and every matching row is exported (D237). Databases are created
+and dropped, relations renamed, moved and dropped, and a CSV file loaded,
+with previews read from `information_schema` (D238). Tables are copied with
+their structure between MySQL and MariaDB connections (D239), a database is
+backed up by its own family's dump program (D240), and the server's counters
+feed dashboards (D241). A row of a table with no key is named by its values
+(D242), and an account is made from the Users report (D243).
+
 ## Where the code is
 
 ```
@@ -97,6 +119,7 @@ backend/app/adapters/
 ├── resources.py        ResourceStore: what outlives a request; Pooling
 ├── credentials.py      a signing key handed to a driver, a pinned server key
 ├── cache.py            bounded read cache, coalescing, connector invalidation
+├── words.py            vocabulary titles worded in the language of the request
 ├── postgres/           session.py and pool.py (reaching the server), catalog.py,
 │                       fetch.py, export.py, update.py, references.py,
 │                       relation.py + columns.py + constraints.py + indexes.py
@@ -107,6 +130,22 @@ backend/app/adapters/
 │                       sample_data/ (the demonstration schema),
 │                       options.py (a union by auth_method),
 │                       adapter.py (facade)
+├── mysql/              session.py and pool.py (reaching the server, the
+│                       profile), sql.py (composing a statement), ids.py,
+│                       inspection.py (information_schema, once), catalog.py,
+│                       relation.py, fetch.py, types.py (values as text),
+│                       content.py (SHOW CREATE), summary.py, statements.py
+│                       (classing SQL), query.py (runs, transactions, KILL
+│                       QUERY), explain.py, metadata.py, rows.py (handles,
+│                       values written back), update.py, references.py,
+│                       definitions.py + columns.py + keys.py (structure),
+│                       vocabulary.py (types, index kinds), design.py
+│                       (the designer), relation_changes.py, actions.py,
+│                       reports.py + row_commands.py (System), search.py,
+│                       export.py, table_copy.py, backup.py, metrics.py,
+│                       users.py (New user), samples.py + sample_data/
+│                       (the lab a started server opens on),
+│                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and
 │                       what a key is), fetch.py (a key read as rows),

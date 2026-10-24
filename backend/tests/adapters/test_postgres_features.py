@@ -128,6 +128,45 @@ async def test_one_adapter_shares_an_in_flight_profile() -> None:
     session.query.assert_awaited_once()
 
 
+
+async def test_a_callers_reader_is_used_inline_and_its_answer_kept() -> None:
+    session = AsyncMock()
+    reader = AsyncMock()
+    reader.query.return_value = []
+    features = PostgresFeatures(session)
+
+    first = await features.timescale(reader)
+    second = await features.timescale()
+
+    assert first is second
+    reader.query.assert_awaited_once()
+    session.query.assert_not_awaited()
+
+
+async def test_a_cancelled_reader_does_not_spoil_discovery_for_others() -> None:
+    session = AsyncMock()
+    session.query.return_value = []
+    reader = AsyncMock()
+    started = asyncio.Event()
+
+    async def hang(*_: object, **__: object) -> list[dict[str, object]]:
+        started.set()
+        await asyncio.Event().wait()
+        return []
+
+    reader.query.side_effect = hang
+    features = PostgresFeatures(session)
+    batch = asyncio.create_task(features.timescale(reader))
+    await started.wait()
+    batch.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await batch
+
+    profile = await features.timescale()
+
+    assert profile.feature.code == "timescaledb"
+    session.query.assert_awaited_once()
+
 def test_an_available_profile_yields_the_installed_version() -> None:
     profile = TimescaleProfile(SourceFeature(
         code="timescaledb", title="TimescaleDB", state="available", installed_version="2.30.0",

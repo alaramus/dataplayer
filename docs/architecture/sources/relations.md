@@ -4,7 +4,7 @@ For anything that reads a relation or changes the rows in it. Changing its
 structure is [ddl.md](ddl.md); moving rows in or out of one is
 [transfer.md](transfer.md).
 
-Decisions here: D22, D23, D42, D25, D26, D41, D36, D70, D72, D54, D109, D110, D228.
+Decisions here: D22, D23, D42, D25, D26, D41, D36, D70, D72, D54, D109, D110, D246.
 
 ## D22. A source describes a relation in full
 
@@ -38,11 +38,11 @@ column splits a composite foreign key into independent one-column links.
 Known deviations:
 
 - **There is no public schema-wide response.** The batch read is restricted to
-  the relations the caller selected (D228).
+  the relations the caller selected (D246).
 
 Spec: [The relation model](../../decisions/2026-08-24-relation-model-design.md)
 
-## D228. Selected relation descriptions load together, and keep a short source-owned cache
+## D246. Selected relation descriptions load together, and keep a short source-owned cache
 
 The graph needs complete models, but asking for one at a time turns each one
 into several catalog reads and a separate HTTP request.
@@ -56,9 +56,11 @@ into several catalog reads and a separate HTTP request.
   constraint, index, access-method and Timescale classification metadata inside
   one repeatable-read, read-only inspection transaction. The transaction keeps
   a five-second statement timeout local to the connection. It does not scan
-  unrelated relations in the schema.
-- Single and batch descriptions use the relation area of DataCache. PostgreSQL
-  owns a five-minute TTL; the connector's row/catalog TTL setting does not
+  unrelated relations in the schema. A batch that runs out of that time is
+  read again one relation at a time, each with its own five seconds; any other
+  failure of the batch is the source failing.
+- Single and batch descriptions use the relation area of DataCache. PostgreSQL and
+  MySQL own a five-minute TTL; the connector's row/catalog TTL setting does not
   change it. Incomplete batch results are returned but not stored. A DataPlayer
   mutation invalidates the connector's cached descriptions. External PostgreSQL
   schema changes are read after the server entry expires on the next source
@@ -144,6 +146,8 @@ Known deviations:
   keyset paging is a separate contract.
 - **`ctid` never leaves the handle.** It is not offered as a column to filter or
   sort by.
+- **A MySQL table without a usable key is not edited.** MySQL has no row
+  address to fall back on, so such a table takes inserted rows only (D234).
 
 Spec: [What identifies a row, and what order rows arrive in](../../decisions/2026-08-30-row-identity-and-order-design.md)
 
@@ -175,6 +179,8 @@ Known deviations:
 - **`xmin` is PostgreSQL-specific and finite.** It stays behind the opaque
   handle and is sufficient for the interval between reading and saving; an
   adapter with an explicit revision column can issue a different handle.
+- **A MySQL handle's version is a digest of the row as shown**, since MySQL
+  keeps no version a client can read; it is checked under `FOR UPDATE` (D234).
 
 Spec: [Editing data](../../decisions/2026-08-27-data-editing-design.md)
 

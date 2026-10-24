@@ -189,6 +189,7 @@ export const queries: Messages["queries"] = {
     prepare_failed: "Cette requête n'a pas pu être préparée",
     fill_parameters: "Renseignez les paramètres que cette requête demande",
     tried_out: "Essayée sur la source, puis annulée :",
+    not_tried: "Cette source ne peut pas essayer la modification d'abord : elle est faite immédiatement et ne peut pas être annulée.",
     risky_title: "Exécuter une opération irréversible ?",
     write_title: "Confirmer cette écriture ?",
     changes_named: "Cela modifie {name}.",

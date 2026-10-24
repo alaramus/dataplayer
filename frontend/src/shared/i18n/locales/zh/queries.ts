@@ -187,6 +187,7 @@ export const queries: Messages["queries"] = {
     prepare_failed: "无法准备此查询",
     fill_parameters: "填写此查询所需的参数",
     tried_out: "已在数据源上试运行，随后撤销：",
+    not_tried: "此数据源无法先试运行该更改：更改会立即生效，且无法撤销。",
     risky_title: "运行无法撤销的操作？",
     write_title: "确认此写入？",
     changes_named: "这会更改 {name}。",

@@ -118,6 +118,8 @@ export interface Grouping {
   label: string
   /** Whether the source considers it part of its own machinery. */
   system: boolean
+  /** What the source calls it, where it calls a schema a database (D229). */
+  term?: "database"
 }
 
 /**

@@ -298,6 +298,7 @@ export const grid: Messages["grid"] = {
     connection: "连接",
     place: {
       schema: "模式",
+      database: "数据库",
       folder: "文件夹",
     },
     name: {

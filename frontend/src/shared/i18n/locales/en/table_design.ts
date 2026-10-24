@@ -32,6 +32,7 @@ export const table_design = {
   designer: {
     title: "Create table",
     schema: "Schema",
+    database: "Database",
     table_name: "Table name",
     name_first: "Name the table and its columns",
     working_out: "Working out the SQL…",
@@ -129,6 +130,7 @@ export const table_design = {
   foreign: {
     constraint_name: "Constraint name",
     schema: "Referenced schema",
+    database: "Referenced database",
     table: "Referenced table",
     key: "Referenced key",
     match: "Match",

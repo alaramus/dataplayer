@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from app.adapters import csv_load
 from app.adapters.actions import (
     Action,
     ActionPreview,
@@ -470,7 +471,7 @@ async def test_more_rows_than_the_ceiling_are_refused_rather_than_cut_off(
     schema: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A whole file was handed over; a part of one arriving would go unnoticed."""
-    monkeypatch.setattr(postgres_actions, "CSV_ROW_CEILING", 2)
+    monkeypatch.setattr(csv_load, "CSV_ROW_CEILING", 2)
     source = adapter()
 
     with pytest.raises(ActionRefused) as refused:
@@ -483,7 +484,7 @@ async def test_more_rows_than_the_ceiling_are_refused_rather_than_cut_off(
 async def test_a_file_larger_than_the_ceiling_is_refused_while_it_arrives(
     schema: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(postgres_actions, "CSV_MAX_BYTES", 16)
+    monkeypatch.setattr(csv_load, "CSV_MAX_BYTES", 16)
     source = adapter()
 
     with pytest.raises(ActionRefused) as refused:

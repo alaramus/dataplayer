@@ -71,6 +71,30 @@ jobs:
           PASSWORD_ACCESS: "true"
         ports:
           - 2222:2222
+      # The MySQL and the MariaDB the MySQL source tests read (D228): both,
+      # because the one source type speaks to both.
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: dataplayer
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -pdataplayer"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: dataplayer
+        ports:
+          - 3308:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
       PROJECT_NAME: DataPlayer
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
@@ -94,6 +118,9 @@ jobs:
       # The SSH service signs in as this user; a test that needs a key
       # authorizes one of its own over SFTP first.
       TEST_SSH_URL: ssh://dataplayer:dataplayer@localhost:2222
+      # The MySQL and MariaDB services above, signing in as root.
+      TEST_MYSQL_URL: mysql://root:dataplayer@127.0.0.1:3307
+      TEST_MARIADB_URL: mysql://root:dataplayer@127.0.0.1:3308
       # backend/scripts/test.sh runs the suite this way, and the private routes
       # exist only in development: without it their tests get a 404.
       FASTAPI_ENV: development

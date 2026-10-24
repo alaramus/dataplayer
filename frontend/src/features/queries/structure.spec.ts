@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import type { PreparedScript, QueryRehearsal } from "@/client"
 
-import { blockedReason, invalidationsFor, needsRehearsal, rehearsalReport } from "./structure"
+import {
+  blockedReason,
+  cannotBeTriedOut,
+  invalidationsFor,
+  needsRehearsal,
+  rehearsalReport,
+} from "./structure"
 
 function script(...statements: Partial<PreparedScript["statements"][number]>[]): PreparedScript {
   return {
@@ -31,6 +37,18 @@ describe("what has to be tried out first", () => {
   it("does not ask for one when nothing is destructive", () => {
     expect(needsRehearsal(script({ destructive: false }))).toBe(false)
     expect(needsRehearsal(null)).toBe(false)
+  })
+})
+
+describe("what a source cannot try out", () => {
+  it("says so when the change should be tried and the source cannot", () => {
+    expect(cannotBeTriedOut(script({ destructive: true }), false)).toBe(true)
+    expect(cannotBeTriedOut(script({ destructive: true }), undefined)).toBe(true)
+  })
+
+  it("says nothing when it can, or when nothing needs trying", () => {
+    expect(cannotBeTriedOut(script({ destructive: true }), true)).toBe(false)
+    expect(cannotBeTriedOut(script({ destructive: false }), false)).toBe(false)
   })
 })
 

@@ -303,6 +303,7 @@ export const grid: Messages["grid"] = {
     connection: "Подключение",
     place: {
       schema: "Схема",
+      database: "База данных",
       folder: "Папка",
     },
     name: {

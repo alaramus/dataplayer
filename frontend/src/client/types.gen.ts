@@ -5809,6 +5809,10 @@ export type HypertableFacts = {
  */
 export type HypertableOffer = {
   /**
+   * Offered
+   */
+  offered?: boolean
+  /**
    * Available
    */
   available?: boolean
@@ -8862,7 +8866,7 @@ export type PreferencesPublic = {
   /**
    * Language
    */
-  language: "en" | "ru" | "de" | "fr" | "zh" | null
+  language: "en" | "ru" | "de" | "fr" | "zh" | "hi" | "es" | null
   /**
    * Theme
    */
@@ -8898,7 +8902,7 @@ export type PreferencesUpdate = {
   /**
    * Language
    */
-  language?: "en" | "ru" | "de" | "fr" | "zh" | null
+  language?: "en" | "ru" | "de" | "fr" | "zh" | "hi" | "es" | null
   /**
    * Theme
    */
@@ -11577,6 +11581,10 @@ export type SchemaNode = {
    * Kind
    */
   kind?: "schema"
+  /**
+   * Term
+   */
+  term?: "schema" | "database"
   /**
    * Is System
    */

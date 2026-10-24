@@ -6,7 +6,7 @@ from httpx import AsyncClient
 from pydantic import BaseModel
 
 from app.adapters import registry
-from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
+from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.connectors.routes import _relation_models_for_request
 from app.core.config import settings
@@ -43,6 +43,46 @@ async def test_batch_read_falls_back_to_four_single_reads() -> None:
     assert len(result.models) == 8
     assert [failure.node_id for failure in result.failures] == ["missing"]
 
+
+
+async def test_a_batch_past_its_snapshot_clock_is_read_one_by_one() -> None:
+    class SlowBatchAdapter:
+        async def relation_models_for_nodes(
+            self, request: RelationModelsRequest
+        ) -> list[RelationModel]:
+            raise AdapterError("timeout", "The server did not answer in time")
+
+        async def relation_model(self, node_id: str) -> RelationModel:
+            return RelationModel(node_id=node_id, name=node_id, kind="table")
+
+    request = RelationModelsRequest(node_ids=["public.a", "public.b"])
+
+    result = await _relation_models_for_request(SlowBatchAdapter(), request)
+
+    assert [model.node_id for model in result.models] == ["public.a", "public.b"]
+    assert result.failures == []
+
+
+async def test_a_batch_that_cannot_reach_the_source_is_not_retried() -> None:
+    class UnreachableAdapter:
+        singles = 0
+
+        async def relation_models_for_nodes(
+            self, request: RelationModelsRequest
+        ) -> list[RelationModel]:
+            raise AdapterError("network", "Could not reach the server")
+
+        async def relation_model(self, node_id: str) -> RelationModel:
+            self.singles += 1
+            raise AssertionError("not expected")
+
+    adapter = UnreachableAdapter()
+
+    with pytest.raises(AdapterError):
+        await _relation_models_for_request(
+            adapter, RelationModelsRequest(node_ids=["public.a"])
+        )
+    assert adapter.singles == 0
 
 async def _postgres_connector(client: AsyncClient, headers: dict[str, str]) -> str:
     response = await client.post(

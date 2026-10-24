@@ -158,6 +158,9 @@ Known deviations:
   about.
 - **The target vocabulary carries no parameters.** No `varchar(n)`,
   `numeric(p,s)`, arrays, enums or domains.
+- **MySQL counts after the change is refused, for every source type.** It has
+  no TRY_CAST either; the refused `MODIFY` is followed by a count of what the
+  new type refuses (D235).
 
 Spec: [Changing a column's type](../../decisions/2026-08-30-column-type-change-design.md)
 
@@ -194,6 +197,7 @@ Known deviations:
   a transaction block and can leave an invalid index behind. The model reports
   `valid`, so an invalid index is at least visible.
 - **A unique index is not a unique constraint.** They are different objects.
+  In MySQL they are one object, dropped through the constraint (D235).
 - **No reindex or rebuild**, and no storage parameters or tablespace.
 
 Spec: [Creating and dropping an index](../../decisions/2026-08-30-index-create-drop-design.md)
@@ -330,6 +334,9 @@ the composition before anything runs.
   `text`'s operator.
 
 Known deviations:
+
+- **A MySQL plan is one statement**, with every key and index inside it,
+  because MySQL commits each structure statement by itself (D236).
 
 - **Exclusion constraints are not implemented.** They need operator metadata per
   method and type beyond the operator classes published here, and the design

@@ -104,6 +104,8 @@ export interface ListNode {
   preferred: boolean
   /** Framework hints supplied by a schema, independent of its filtered rows. */
   frameworks?: DetectedFramework[]
+  /** What the source calls a schema, where it calls it a database (D229). */
+  term?: "database"
   /** Which grouping this node came from, when several were listed at once. */
   group?: string
   /**
@@ -181,8 +183,17 @@ const GROUP_TITLES: Partial<Record<CatalogNode["kind"], "schemas" | "databases">
 /** The word for the groupings on a level, or none when it offers no kind. */
 export function groupTitle(groups: ListNode[]): string {
   const kind = groups[0]?.kind
-  const title = kind === undefined ? undefined : GROUP_TITLES[kind]
+  const title = groups[0]?.term === "database" ? "databases" : kind === undefined ? undefined : GROUP_TITLES[kind]
   return t(`catalog.nodes.${title ?? "groups"}`)
+}
+
+/**
+ * Whether a source calls its schemas databases, as MySQL does (D229): the
+ * windows that pick one say "database" rather than a word the person never
+ * sees anywhere else for it.
+ */
+export function callsDatabases(nodes: readonly { kind?: string; term?: string }[]): boolean {
+  return nodes.some((node) => node.kind === "schema" && node.term === "database")
 }
 
 /**
@@ -444,6 +455,7 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
       ...(node.kind === "schema" && node.frameworks?.length
         ? { frameworks: node.frameworks }
         : {}),
+      ...(node.kind === "schema" && node.term === "database" ? { term: "database" as const } : {}),
       // Only a table knows roughly how many rows it holds. A file would have
       // to be read from end to end to answer, so the grid pages without a
       // total.

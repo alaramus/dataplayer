@@ -34,6 +34,7 @@ export const table_design: Messages["table_design"] = {
   designer: {
     title: "创建表",
     schema: "模式",
+    database: "数据库",
     table_name: "表名",
     name_first: "为表及其列命名",
     working_out: "正在生成 SQL……",
@@ -131,6 +132,7 @@ export const table_design: Messages["table_design"] = {
   foreign: {
     constraint_name: "约束名称",
     schema: "引用的模式",
+    database: "引用的数据库",
     table: "引用的表",
     key: "引用的键",
     match: "匹配",

@@ -187,7 +187,8 @@ read directly rather than cached on a guess.
   share an answer accidentally.
 - `SupportsReadCache` chooses a TTL separately for catalog, fetch and relation
   descriptions. PostgreSQL keeps catalog levels for 30 seconds, bounded fetch
-  pages for 10, and relation descriptions for five minutes (D228).
+  pages for 10, and relation descriptions for five minutes (D246); MySQL keeps
+  the same windows.
 - A hard entry ceiling evicts the least recently used answer. TTL controls
   staleness, not memory, so neither can replace the other. Errors are never
   stored.

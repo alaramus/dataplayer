@@ -18,18 +18,32 @@ _VERSION_SQL = "SELECT split_part(current_setting('server_version'), ' ', 1) AS 
 class PostgresFeatures:
     def __init__(self, session: PostgresSession) -> None:
         self._session = session
-        self._timescale_task: asyncio.Task[TimescaleProfile] | None = None
+        self._timescale_task: asyncio.Future[TimescaleProfile] | None = None
 
     async def timescale(
         self, reader: PostgresReader | None = None
     ) -> TimescaleProfile:
+        """What TimescaleDB offers here, discovered once per adapter.
+
+        A caller's `reader` is a transaction it owns and closes. Discovery on
+        it runs inline and only its answer is kept: a shared task on that
+        connection would outlive the transaction for every other waiter, and
+        a cancelled batch would leave the task cancelled for good.
+        """
         task = self._timescale_task
+        if task is None and reader is not None:
+            profile = await discover(reader)
+            if self._timescale_task is None:
+                done: asyncio.Future[TimescaleProfile] = (
+                    asyncio.get_running_loop().create_future()
+                )
+                done.set_result(profile)
+                self._timescale_task = done
+            return profile
         if task is None:
-            task = asyncio.create_task(discover(reader or self._session))
+            task = asyncio.ensure_future(discover(self._session))
             self._timescale_task = task
         try:
-            if reader is not None:
-                return await task
             return await asyncio.shield(task)
         except Exception:
             if self._timescale_task is task and task.done():

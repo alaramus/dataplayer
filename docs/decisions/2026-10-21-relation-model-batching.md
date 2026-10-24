@@ -10,7 +10,7 @@ held by another view in the browser.
 
 ## Decision
 
-D228 adds a bounded batch endpoint for selected relation descriptions.
+D246 adds a bounded batch endpoint for selected relation descriptions.
 
 - The request contains 1–100 unique opaque node ids. The response carries
   successful models and per-node failures, so an unreadable relation remains a
@@ -19,9 +19,11 @@ D228 adds a bounded batch endpoint for selected relation descriptions.
   by schema and reading the selected relations in a single repeatable-read,
   read-only inspection transaction. The connection-local statement timeout is
   five seconds. A source without the capability retains at most four concurrent
-  single reads.
+  single reads, and so does a batch that ran out of its five seconds: one
+  snapshot for a hundred relations on a busy server can time out where each
+  relation on its own would not.
 - The single and batch routes use the source-owned relation cache area.
-  PostgreSQL keeps descriptions for five minutes. Owners cannot stretch that
+  PostgreSQL and MySQL keep descriptions for five minutes. Owners cannot stretch that
   window through the row/catalog cache setting. DataPlayer mutations invalidate
   all entries for the connector. Incomplete batches are returned but not
   cached; an external DDL change is read after server-cache expiry on the next

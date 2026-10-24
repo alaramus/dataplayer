@@ -187,6 +187,7 @@ export const queries = {
     prepare_failed: "This query could not be prepared",
     fill_parameters: "Fill in the parameters this query asks for",
     tried_out: "Tried out on the source, then undone:",
+    not_tried: "This source cannot try the change out first: it is made at once and cannot be undone.",
     risky_title: "Run something that cannot be undone?",
     write_title: "Confirm this write?",
     changes_named: "This changes {name}.",

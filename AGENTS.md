@@ -31,6 +31,7 @@ documentation.
 | What a catalog shows of a node, searching it, a key space | [sources/catalog.md](docs/architecture/sources/catalog.md) |
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | SQL over files, the DuckDB sandbox behind it | [sources/file-sql.md](docs/architecture/sources/file-sql.md) |
+| MySQL and MariaDB, their catalog, values, pages, row and structure edits, console, reports, search, catalog actions, copying tables, backups, metrics | [sources/mysql.md](docs/architecture/sources/mysql.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
 | A source action too long for a request: its plan, review and outcomes | [sources/operations.md](docs/architecture/sources/operations.md) |
@@ -301,7 +302,25 @@ files. IDs are stable because specs and commits refer to them.
 | D225 | [localization](docs/architecture/localization.md) |
 | D226 | [localization](docs/architecture/localization.md) |
 | D227 | [localization](docs/architecture/localization.md) |
-| D228 | [sources/relations](docs/architecture/sources/relations.md) |
+| D228 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D229 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D230 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D231 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D232 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D233 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D234 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D235 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D236 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D237 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D238 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D239 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D240 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D241 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D242 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D243 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D244 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D245 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D246 | [sources/relations](docs/architecture/sources/relations.md) |
 
 ## Working rules
 
@@ -360,7 +379,8 @@ uv run lint-imports
 The suite needs the database; every other server belongs to the tests of one
 piece, and a test whose server does not answer is skipped with the command that
 starts it. `pytest --require-services` stops the run instead, as CI does. Redis
-is `docker compose up -d redis` — not `redis-cache`, which publishes no port.
+is `docker compose up -d redis` — not `redis-cache`, which publishes no port;
+MySQL and MariaDB are `docker compose up -d mysql mariadb`.
 The scenario that provisions the Timescale
 `docker compose -f backend/compatibility/timescale/compose.yml up -d v2_30_pg18`
 See [backend.md](docs/architecture/backend.md#tests-and-the-servers-they-need).

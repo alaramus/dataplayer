@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from app.adapters.cache_serialization import CacheFormat
 
 # What a source may be asked to cache. "metadata" is editor completion data;
-# "relation" is a full description of one selected relation (D65, D228).
+# "relation" is a full description of one selected relation (D65, D246).
 CacheArea = Literal["catalog", "fetch", "metadata", "relation"]
 CacheStatus = Literal["hit", "miss", "coalesced", "refreshed", "bypass"]
 CacheBackendName = Literal["memory", "redis"]
@@ -356,7 +356,7 @@ def connector_may_choose(area: CacheArea) -> bool:
     Catalog levels and pages of rows are what somebody is looking at, and how
     stale that may be is a judgement about their data rather than about the
     driver. Editor metadata and relation descriptions instead use their source's
-    own windows (D105, D228).
+    own windows (D105, D246).
     """
     match area:
         case "catalog" | "fetch":

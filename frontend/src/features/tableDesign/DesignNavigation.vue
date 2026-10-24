@@ -15,7 +15,7 @@ const props = defineProps<{
   problems: PlanProblem[]
 }>()
 const emit = defineEmits<{ select: [section: DraftSection, objectId: string] }>()
-const { draft } = useDesign(props.designId)
+const { draft, options } = useDesign(props.designId)
 const troubled = computed(() => new Set(props.problems.map((problem) => problem.object_id)))
 const groups = computed(() => [
   {
@@ -59,8 +59,11 @@ const groups = computed(() => [
     count: null,
     rows: [
       { id: "options", label: t("table_design.navigation.storage") },
-      // The only section the server may lack: a database without TimescaleDB says so in it.
-      { id: "hypertable", label: draft.hypertable ? t("table_design.navigation.hypertable") : t("table_design.navigation.hypertable_off") },
+      // The only section the server may lack: a database without TimescaleDB
+      // says so in it, and a source with no hypertables at all leaves it out.
+      ...(options.value?.hypertable?.offered === false
+        ? []
+        : [{ id: "hypertable", label: draft.hypertable ? t("table_design.navigation.hypertable") : t("table_design.navigation.hypertable_off") }]),
     ],
   },
 ])

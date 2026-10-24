@@ -26,6 +26,8 @@ export interface DesignContext {
   typeChoices: ComputedRef<SelectOption[]>
   types: ComputedRef<DesignTypeOption[]>
   functions: ComputedRef<FunctionOption[]>
+  /** Whether the source calls its schemas databases (D229). */
+  databases: ComputedRef<boolean>
 }
 
 const designs = new Map<string, DesignContext>()

@@ -35,6 +35,7 @@ export const table_design: Messages["table_design"] = {
   designer: {
     title: "Tabelle erstellen",
     schema: "Schema",
+    database: "Datenbank",
     table_name: "Tabellenname",
     name_first: "Benennen Sie die Tabelle und ihre Spalten",
     working_out: "SQL wird erstellt…",
@@ -132,6 +133,7 @@ export const table_design: Messages["table_design"] = {
   foreign: {
     constraint_name: "Einschränkungsname",
     schema: "Referenziertes Schema",
+    database: "Referenzierte Datenbank",
     table: "Referenzierte Tabelle",
     key: "Referenzierter Schlüssel",
     match: "Abgleich",

@@ -275,40 +275,43 @@ def _cache_key(
     return CacheKey(current_user.id, connector_id, area, request, current_language.get())
 
 
+async def _relation_models_one_by_one(
+    adapter: SupportsRelationModel, node_ids: list[str]
+) -> RelationModelsResult:
+    semaphore = asyncio.Semaphore(4)
+
+    async def read_one(
+        node_id: str,
+    ) -> tuple[RelationModel | None, RelationModelFailure | None]:
+        async with semaphore:
+            try:
+                return await adapter.relation_model(node_id), None
+            except (NodeNotFound, ValueError) as exc:
+                return None, RelationModelFailure(node_id=node_id, message=str(exc))
+            except AdapterError as exc:
+                return None, RelationModelFailure(node_id=node_id, message=exc.message)
+
+    reads = await asyncio.gather(*(read_one(node_id) for node_id in node_ids))
+    return RelationModelsResult(
+        models=[model for model, _ in reads if model is not None],
+        failures=[failure for _, failure in reads if failure is not None],
+    )
+
+
 async def _relation_models_for_request(
     adapter: SupportsRelationModel, request: RelationModelsRequest
 ) -> RelationModelsResult:
-    if isinstance(adapter, SupportsRelationModelBatch):
+    if not isinstance(adapter, SupportsRelationModelBatch):
+        return await _relation_models_one_by_one(adapter, request.node_ids)
+    try:
         described = await adapter.relation_models_for_nodes(request)
-    else:
-        semaphore = asyncio.Semaphore(4)
-
-        async def read_one(
-            node_id: str,
-        ) -> tuple[RelationModel | None, RelationModelFailure | None]:
-            async with semaphore:
-                try:
-                    return await adapter.relation_model(node_id), None
-                except NodeNotFound as exc:
-                    return None, RelationModelFailure(
-                        node_id=node_id, message=str(exc)
-                    )
-                except ValueError as exc:
-                    return None, RelationModelFailure(
-                        node_id=node_id, message=str(exc)
-                    )
-                except AdapterError as exc:
-                    return None, RelationModelFailure(
-                        node_id=node_id, message=exc.message
-                    )
-
-        reads = await asyncio.gather(
-            *(read_one(node_id) for node_id in request.node_ids)
-        )
-        return RelationModelsResult(
-            models=[model for model, failure in reads if model is not None],
-            failures=[failure for model, failure in reads if failure is not None],
-        )
+    except AdapterError as exc:
+        # The whole set shares one five-second snapshot; on a busy server that
+        # can run out where each relation on its own would not, so a timeout
+        # falls back to single reads with a budget each (D246).
+        if exc.error_kind != "timeout":
+            raise
+        return await _relation_models_one_by_one(adapter, request.node_ids)
 
     requested = set(request.node_ids)
     by_id = {

@@ -1,9 +1,10 @@
 """A pipeline that runs by itself on a schedule (D179)."""
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
@@ -23,6 +24,14 @@ from tests.pipelines.canvas import BASE, Canvas, card, connector, link
 pytestmark = pytest.mark.usefixtures("clean")
 
 EVERY_FIVE = {"enabled": True, "kind": "interval", "every_minutes": 5, "time_zone": "Europe/Riga"}
+
+
+def _three_next_day(came: datetime) -> datetime:
+    """03:00 in Riga the day after `came`: a day later on the wall clock, which
+    is not 24 hours later in UTC when the clocks change in between."""
+    riga = ZoneInfo("Europe/Riga")
+    day = came.astimezone(riga).date() + timedelta(days=1)
+    return datetime.combine(day, time(3, 0), tzinfo=riga).astimezone(UTC)
 
 
 async def _schedule(canvas: Canvas, chosen: dict[str, Any]) -> Any:
@@ -146,7 +155,7 @@ async def test_a_time_that_comes_while_the_last_run_goes_is_skipped(
 
     assert [job.id for job in await _runs(canvas)] == [going.id]
     assert await _notes(canvas) == [("skipped", came, "the previous run was still going")]
-    assert (await _row(canvas)).next_at == came + timedelta(days=1)
+    assert (await _row(canvas)).next_at == _three_next_day(came)
 
 
 async def test_a_pipeline_run_would_refuse_is_skipped_and_says_why(
@@ -175,7 +184,7 @@ async def test_a_time_missed_while_the_server_was_off_is_not_caught_up(
     assert await _scheduler(back).settle_missed() >= 1
 
     assert await _notes(canvas) == [("missed", came, "the server was off")]
-    assert (await _row(canvas)).next_at == came + timedelta(days=1)
+    assert (await _row(canvas)).next_at == _three_next_day(came)
     assert await _scheduler(back).tick() == 0
     assert await _runs(canvas) == []
 

@@ -195,6 +195,16 @@ class SupportsBackup(Protocol):
 
     def validate_restore_inventory(self, lines: Sequence[str]) -> None: ...
 
+    def restore_archive_reason(self, head: bytes) -> str | None:
+        """Why a file beginning with these bytes is not a backup this source
+        restores, or None when it may be one.
+
+        Asked before the file is staged, so a file of another kind is refused
+        before any program is fetched or run. The inventory then says whether
+        it is a whole one.
+        """
+        ...
+
 
 @runtime_checkable
 class SupportsSampleData(Protocol):

@@ -37,7 +37,7 @@ source describes relationships. The panel tab names the connection and the
 size of the set, so the view itself carries no standing bar of its own. The
 explicit set lives in its workspace descriptor. Loading is limited to 100
 relations. PostgreSQL reads the selected set in one batch; other sources use at
-most four concurrent single reads (D228).
+most four concurrent single reads (D246).
 Failed reads and references outside the set appear as distinct placeholders.
 Only outgoing foreign keys of loaded tables are claimed; unseen incoming
 references are not inferred. Graph bounds are 300 nodes, 5,000 rows/ports and

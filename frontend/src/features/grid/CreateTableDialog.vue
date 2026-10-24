@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { FetchColumn, NewRelationColumn, NewRelationOptions, PasteColumn } from "@/client"
+import { callsDatabases } from "@/features/catalog/nodes"
 import { useAdapterTypes, useConnectors } from "@/features/connectors/api"
 import { placesIn } from "@/features/grid/relationPlaces"
 import type { Destination } from "@/features/grid/relationPlaces"
@@ -103,7 +104,13 @@ const selected = computed(() => mappings.value.filter((mapping) => mapping.inclu
 const destination = computed<Destination>(
   () => schemas.value.find((place) => place.value === schemaId.value)?.kind ?? "schema"
 )
-const placeLabel = computed(() => t(`grid.create_table.place.${destination.value}`))
+// A schema the source calls a database is named so, as MySQL's are (D229).
+const databases = ref(false)
+const placeLabel = computed(() =>
+  destination.value === "schema" && databases.value
+    ? t("grid.create_table.place.database")
+    : t(`grid.create_table.place.${destination.value}`)
+)
 const loading = computed(() => catalogLoading.value || optionsLoading.value)
 const typeChoices = computed(() =>
   (options.value?.column_type_options ?? []).map((choice) => ({
@@ -176,6 +183,7 @@ async function loadSchemas(id: string) {
       query: {},
     })
     if (mine !== catalogAsked) return
+    databases.value = callsDatabases(answer.data)
     schemas.value = placesIn(
       answer.data,
       targets.value.find((target) => target.value === id)?.label ?? t("grid.create_table.top_level")

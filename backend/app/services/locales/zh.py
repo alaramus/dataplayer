@@ -81,4 +81,9 @@ MESSAGES: dict[str, str] = {
     "The backup exceeds the 2 GiB restore limit": "备份超过 2 GiB 的恢复上限",
     "The backup could not be read safely": "无法安全地读取备份",
     "{name} was deleted": "{name} 已被删除",
+    # 在此启动的 MySQL 和 MariaDB 服务器（D244）。
+    'MySQL': 'MySQL',
+    'MariaDB': 'MariaDB',
+    'A MySQL server of its own, started on this machine with a password nobody has to choose.': '一台属于自己的 MySQL 服务器，在本机启动，密码无需任何人选择。',
+    'A MariaDB server of its own, started on this machine with a password nobody has to choose.': '一台属于自己的 MariaDB 服务器，在本机启动，密码无需任何人选择。',
 }

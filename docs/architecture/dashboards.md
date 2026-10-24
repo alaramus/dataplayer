@@ -37,11 +37,11 @@ its ready-made layouts — today one, *Linux host* — filled with what that hos
 reports and placed under what the dashboard already holds. Any widget opens in a
 floating window, which stays when the screen is switched back to Data.
 
-A PostgreSQL or Redis connection reports about itself once its owner switches
+A PostgreSQL, MySQL or Redis connection reports about itself once its owner switches
 reporting on in the Connections view of the Sources window, choosing how often. Its series sit beside the
 agents in the tree under the connection's own name, anybody the connection is
 shared with can draw them, and selecting it offers the layout its type declares:
-*PostgreSQL database* or *Redis server*. Counters of a connection are drawn as
+*PostgreSQL database*, *MySQL server* (D241) or *Redis server*. Counters of a connection are drawn as
 rates per second.
 
 The store keeps raw samples for a week, compressed after a day, and averages over
@@ -372,7 +372,7 @@ them after the connection.
 
 - **Whether a connection reports is its own capability**, `SupportsMetrics`, read
   off the driver like every other (D2, D13), with the layouts it declares.
-  PostgreSQL and Redis implement it; the file source does not, and switching it on
+  PostgreSQL, MySQL and Redis implement it; the file source does not, and switching it on
   answers 501.
 - **Switching reporting on is the owner's decision alone**: it is this server
   polling their database. Anybody the connection is shared with sees whether it

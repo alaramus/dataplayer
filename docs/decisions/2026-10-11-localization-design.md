@@ -4,8 +4,8 @@ Date: 2026-10-11. Decisions: D224, D225.
 
 The whole application was written in English: templates, toasts, constants in
 TypeScript modules and the sentences the server refuses with. The goal is a
-language chosen in Preferences, Russian first, then German, French and
-Chinese.
+language chosen in Preferences, Russian first, then German, French, Chinese,
+Hindi and Spanish.
 
 ## Where the words live in the browser
 

@@ -17,7 +17,6 @@ from app.adapters.postgres.relation_context import (
     SchemaRelationContext,
 )
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.words import worded_titles
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.relation import (
     CandidateKey,
@@ -38,6 +37,7 @@ from app.adapters.relation import (
     Storage,
     UniqueConstraint,
 )
+from app.adapters.words import worded_titles
 from app.core.translation import say
 
 _KINDS: dict[str, RelationKind] = {
