@@ -267,7 +267,7 @@ earns its place at all rests on review.
 ## Documentation of decisions
 
 - A decision that shaped the code is written down three times over, each shorter
-  than the last: one line in the table in [AGENTS.md](AGENTS.md), the statement
+  than the last: its ID in the row of its file in [AGENTS.md](AGENTS.md), the statement
   and its reasoning in `docs/architecture/`, the full argument in
   `docs/decisions/`.
 - **When a plan turns out to be wrong during execution, the plan is corrected

@@ -75,269 +75,51 @@ index and by git; do not inventory it here or there.
 ## Decision registry
 
 The wording, reasoning and known deviations live in the linked architecture
-files. IDs are stable because specs and commits refer to them.
+files. IDs are stable because specs and commits refer to them. One row per
+file; `D247–D262` is every number between, all in that file.
 
-| ID | Home |
+| Home | Decisions |
 | --- | --- |
-| D1 | [sources/contract](docs/architecture/sources/contract.md) |
-| D2 | [sources/contract](docs/architecture/sources/contract.md) |
-| D2a | [sources/contract](docs/architecture/sources/contract.md) |
-| D2b | [sources/contract](docs/architecture/sources/contract.md) |
-| D2c | [sources/contract](docs/architecture/sources/contract.md) |
-| D2d | [sources/contract](docs/architecture/sources/contract.md) |
-| D3 | [backend](docs/architecture/backend.md) |
-| D4 | [backend](docs/architecture/backend.md) |
-| D5 | [backend](docs/architecture/backend.md) |
-| D6 | [frontend](docs/architecture/frontend.md) |
-| D7 | [frontend](docs/architecture/frontend.md) |
-| D8 | [sources/contract](docs/architecture/sources/contract.md) |
-| D9 | [sources/actions](docs/architecture/sources/actions.md) |
-| D10 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D11 | [design-system](docs/architecture/design-system.md) |
-| D12 | [workspace](docs/architecture/workspace.md) |
-| D13 | [sources/contract](docs/architecture/sources/contract.md) |
-| D14 | [windows](docs/architecture/windows.md) |
-| D15 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D16 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D17 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D18 | [realtime](docs/architecture/realtime.md) |
-| D19 | [realtime](docs/architecture/realtime.md) |
-| D20 | [sources/contract](docs/architecture/sources/contract.md) |
-| D21 | [sources/contract](docs/architecture/sources/contract.md) |
-| D22 | [sources/relations](docs/architecture/sources/relations.md) |
-| D23 | [sources/relations](docs/architecture/sources/relations.md) |
-| D24 | [grid](docs/architecture/grid.md) |
-| D25 | [sources/relations](docs/architecture/sources/relations.md) |
-| D26 | [sources/relations](docs/architecture/sources/relations.md) |
-| D27 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D28 | [grid](docs/architecture/grid.md) |
-| D29 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D30 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D31 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D32 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D33 | [backend](docs/architecture/backend.md) |
-| D34 | [backend](docs/architecture/backend.md) |
-| D35 | [grid](docs/architecture/grid.md) |
-| D36 | [sources/relations](docs/architecture/sources/relations.md) |
-| D37 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D38 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D39 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D40 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D41 | [sources/relations](docs/architecture/sources/relations.md) |
-| D42 | [sources/relations](docs/architecture/sources/relations.md) |
-| D43 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D44 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D45 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D46 | [sources/actions](docs/architecture/sources/actions.md) |
-| D47 | [sources/content](docs/architecture/sources/content.md) |
-| D48 | [sources/content](docs/architecture/sources/content.md) |
-| D49 | [sources/downloads](docs/architecture/sources/downloads.md) |
-| D50 | [frontend](docs/architecture/frontend.md) |
-| D51 | [sources/content](docs/architecture/sources/content.md) |
-| D52 | [sources/content](docs/architecture/sources/content.md) |
-| D53 | [sources/content](docs/architecture/sources/content.md) |
-| D54 | [sources/relations](docs/architecture/sources/relations.md) |
-| D55 | [sources/downloads](docs/architecture/sources/downloads.md) |
-| D56 | [sources/actions](docs/architecture/sources/actions.md) |
-| D57 | [sources/content](docs/architecture/sources/content.md) |
-| D58 | [sharing](docs/architecture/sharing.md) |
-| D59 | [sharing](docs/architecture/sharing.md) |
-| D60 | [sharing](docs/architecture/sharing.md) |
-| D61 | [sharing](docs/architecture/sharing.md) |
-| D62 | [querying](docs/architecture/querying.md) |
-| D63 | [querying](docs/architecture/querying.md) |
-| D64 | [querying](docs/architecture/querying.md) |
-| D65 | [querying](docs/architecture/querying.md) |
-| D66 | [querying](docs/architecture/querying.md) |
-| D67 | [grid](docs/architecture/grid.md) |
-| D68 | [sources/actions](docs/architecture/sources/actions.md) |
-| D69 | [workspace](docs/architecture/workspace.md) |
-| D70 | [sources/relations](docs/architecture/sources/relations.md) |
-| D71 | [sources/content](docs/architecture/sources/content.md) |
-| D72 | [sources/relations](docs/architecture/sources/relations.md) |
-| D73 | [sources/downloads](docs/architecture/sources/downloads.md) |
-| D74 | [sources/actions](docs/architecture/sources/actions.md) |
-| D75 | [sources/catalog](docs/architecture/sources/catalog.md) |
-| D76 | [sources/catalog](docs/architecture/sources/catalog.md) |
-| D77 | [sources/file-sql](docs/architecture/sources/file-sql.md) |
-| D78 | [sources/file-sql](docs/architecture/sources/file-sql.md) |
-| D79 | [sources/actions](docs/architecture/sources/actions.md) |
-| D80 | [services](docs/architecture/services.md) |
-| D81 | [jobs](docs/architecture/jobs.md) |
-| D82 | [services-runtime](docs/architecture/services-runtime.md) |
-| D83 | [services](docs/architecture/services.md) |
-| D84 | [services](docs/architecture/services.md) |
-| D85 | [services](docs/architecture/services.md) |
-| D86 | [services-runtime](docs/architecture/services-runtime.md) |
-| D87 | [backups](docs/architecture/backups.md) |
-| D88 | [services](docs/architecture/services.md) |
-| D89 | [services](docs/architecture/services.md) |
-| D90 | [services](docs/architecture/services.md) |
-| D91 | [sources/catalog](docs/architecture/sources/catalog.md) |
-| D92 | [windows](docs/architecture/windows.md) |
-| D93 | [windows](docs/architecture/windows.md) |
-| D94 | [workspace](docs/architecture/workspace.md) |
-| D95 | [jobs](docs/architecture/jobs.md) |
-| D96 | [sources/file-sql](docs/architecture/sources/file-sql.md) |
-| D97 | [graphs](docs/architecture/graphs.md) |
-| D98 | [sources/contract](docs/architecture/sources/contract.md) |
-| D99 | [frontend](docs/architecture/frontend.md) |
-| D100 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D101 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D102 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D103 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D104 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D105 | [sources/connecting](docs/architecture/sources/connecting.md) |
-| D106 | [sources/declared](docs/architecture/sources/declared.md) |
-| D107 | [sources/declared](docs/architecture/sources/declared.md) |
-| D108 | [sources/declared](docs/architecture/sources/declared.md) |
-| D109 | [sources/relations](docs/architecture/sources/relations.md) |
-| D110 | [sources/relations](docs/architecture/sources/relations.md) |
-| D111 | [grid](docs/architecture/grid.md) |
-| D112 | [workspace](docs/architecture/workspace.md) |
-| D113 | [notifications](docs/architecture/notifications.md) |
-| D114 | [notifications](docs/architecture/notifications.md) |
-| D115 | [notifications](docs/architecture/notifications.md) |
-| D116 | [grid](docs/architecture/grid.md) |
-| D117 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D118 | [sources/actions](docs/architecture/sources/actions.md) |
-| D119 | [sources/timescale](docs/architecture/sources/timescale.md) |
-| D120 | [sources/timescale](docs/architecture/sources/timescale.md) |
-| D121 | [sources/timescale](docs/architecture/sources/timescale.md) |
-| D122 | [sources/timescale](docs/architecture/sources/timescale.md) |
-| D123 | [sources/operations](docs/architecture/sources/operations.md) |
-| D124 | [backend](docs/architecture/backend.md) |
-| D125 | [dashboards](docs/architecture/dashboards.md) |
-| D126 | [dashboards](docs/architecture/dashboards.md) |
-| D127 | [dashboards](docs/architecture/dashboards.md) |
-| D128 | [dashboards](docs/architecture/dashboards.md) |
-| D129 | [dashboards](docs/architecture/dashboards.md) |
-| D130 | [dashboards](docs/architecture/dashboards.md) |
-| D131 | [frontend](docs/architecture/frontend.md) |
-| D132 | [windows](docs/architecture/windows.md) |
-| D133 | [ai](docs/architecture/ai.md) |
-| D134 | [ai](docs/architecture/ai.md) |
-| D135 | [ai](docs/architecture/ai.md) |
-| D136 | [ai](docs/architecture/ai.md) |
-| D137 | [ai](docs/architecture/ai.md) |
-| D138 | [ai](docs/architecture/ai.md) |
-| D139 | [ai](docs/architecture/ai.md) |
-| D140 | [ai-models](docs/architecture/ai-models.md) |
-| D141 | [ai](docs/architecture/ai.md) |
-| D142 | [ai](docs/architecture/ai.md) |
-| D143 | [workspace](docs/architecture/workspace.md) |
-| D144 | [sources/ssh](docs/architecture/sources/ssh.md) |
-| D145 | [sources/ssh](docs/architecture/sources/ssh.md) |
-| D146 | [sources/ssh](docs/architecture/sources/ssh.md) |
-| D147 | [sources/ssh](docs/architecture/sources/ssh.md) |
-| D148 | [terminals](docs/architecture/terminals.md) |
-| D149 | [terminals](docs/architecture/terminals.md) |
-| D150 | [sources/explorer](docs/architecture/sources/explorer.md) |
-| D151 | [sources/explorer](docs/architecture/sources/explorer.md) |
-| D152 | [sources/explorer](docs/architecture/sources/explorer.md) |
-| D153 | [sources/ssh](docs/architecture/sources/ssh.md) |
-| D154 | [sources/ssh](docs/architecture/sources/ssh.md) |
-| D155 | [windows](docs/architecture/windows.md) |
-| D156 | [ai-models](docs/architecture/ai-models.md) |
-| D157 | [ai-models](docs/architecture/ai-models.md) |
-| D158 | [ai](docs/architecture/ai.md) |
-| D159 | [ai](docs/architecture/ai.md) |
-| D160 | [querying](docs/architecture/querying.md) |
-| D161 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D162 | [sources/actions](docs/architecture/sources/actions.md) |
-| D163 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D164 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D165 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D166 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D167 | [windows](docs/architecture/windows.md) |
-| D168 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D169 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D170 | [sources/declared](docs/architecture/sources/declared.md) |
-| D171 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D172 | [sources/declared](docs/architecture/sources/declared.md) |
-| D173 | [sources/declared](docs/architecture/sources/declared.md) |
-| D174 | [pipelines](docs/architecture/pipelines.md) |
-| D175 | [pipelines](docs/architecture/pipelines.md) |
-| D176 | [pipelines](docs/architecture/pipelines.md) |
-| D177 | [pipelines](docs/architecture/pipelines.md) |
-| D178 | [pipelines](docs/architecture/pipelines.md) |
-| D179 | [pipelines](docs/architecture/pipelines.md) |
-| D180 | [pipelines](docs/architecture/pipelines.md) |
-| D181 | [notifications](docs/architecture/notifications.md) |
-| D182 | [sources/transfer](docs/architecture/sources/transfer.md) |
-| D183 | [sources/contract](docs/architecture/sources/contract.md) |
-| D184 | [backend](docs/architecture/backend.md) |
-| D185 | [design-system](docs/architecture/design-system.md) |
-| D186 | [design-system](docs/architecture/design-system.md) |
-| D187 | [design-system](docs/architecture/design-system.md) |
-| D195 | [sources/declared](docs/architecture/sources/declared.md) |
-| D196 | [design-system](docs/architecture/design-system.md) |
-| D197 | [search](docs/architecture/search.md) |
-| D198 | [search](docs/architecture/search.md) |
-| D199 | [search](docs/architecture/search.md) |
-| D200 | [search](docs/architecture/search.md) |
-| D201 | [search](docs/architecture/search.md) |
-| D202 | [search](docs/architecture/search.md) |
-| D203 | [search](docs/architecture/search.md) |
-| D204 | [search](docs/architecture/search.md) |
-| D205 | [search](docs/architecture/search.md) |
-| D206 | [querying](docs/architecture/querying.md) |
-| D207 | [sources/timescale](docs/architecture/sources/timescale.md) |
-| D208 | [sources/timescale](docs/architecture/sources/timescale.md) |
-| D209 | [sources/actions](docs/architecture/sources/actions.md) |
-| D210 | [sources/actions](docs/architecture/sources/actions.md) |
-| D211 | [sources/timescale](docs/architecture/sources/timescale.md) |
-| D212 | [search-kept](docs/architecture/search-kept.md) |
-| D213 | [search-kept](docs/architecture/search-kept.md) |
-| D214 | [search-kept](docs/architecture/search-kept.md) |
-| D215 | [search-kept](docs/architecture/search-kept.md) |
-| D216 | [search-kept](docs/architecture/search-kept.md) |
-| D217 | [search-kept](docs/architecture/search-kept.md) |
-| D218 | [search-kept](docs/architecture/search-kept.md) |
-| D219 | [search-kept](docs/architecture/search-kept.md) |
-| D220 | [search-kept](docs/architecture/search-kept.md) |
-| D221 | [search-kept](docs/architecture/search-kept.md) |
-| D222 | [search-kept](docs/architecture/search-kept.md) |
-| D223 | [ai](docs/architecture/ai.md) |
-| D224 | [localization](docs/architecture/localization.md) |
-| D225 | [localization](docs/architecture/localization.md) |
-| D226 | [localization](docs/architecture/localization.md) |
-| D227 | [localization](docs/architecture/localization.md) |
-| D228 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D229 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D230 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D231 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D232 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D233 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D234 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D235 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D236 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D237 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D238 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D239 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D240 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D241 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D242 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D243 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D244 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D245 | [sources/mysql](docs/architecture/sources/mysql.md) |
-| D246 | [sources/relations](docs/architecture/sources/relations.md) |
-| D247 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D248 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D249 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D250 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D251 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D252 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D253 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D254 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D255 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D256 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D257 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D258 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D259 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D260 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D261 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
-| D262 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
+| [sources/contract](docs/architecture/sources/contract.md) | D1, D2, D2a, D2b, D2c, D2d, D8, D13, D20, D21, D98, D183 |
+| [backend](docs/architecture/backend.md) | D3–D5, D33, D34, D124, D184 |
+| [frontend](docs/architecture/frontend.md) | D6, D7, D50, D99, D131 |
+| [sources/actions](docs/architecture/sources/actions.md) | D9, D46, D56, D68, D74, D79, D118, D162, D209, D210 |
+| [sources/connecting](docs/architecture/sources/connecting.md) | D10, D15–D17, D31, D100–D105 |
+| [design-system](docs/architecture/design-system.md) | D11, D185–D187, D196 |
+| [workspace](docs/architecture/workspace.md) | D12, D69, D94, D112, D143 |
+| [windows](docs/architecture/windows.md) | D14, D92, D93, D132, D155, D167 |
+| [realtime](docs/architecture/realtime.md) | D18, D19 |
+| [sources/relations](docs/architecture/sources/relations.md) | D22, D23, D25, D26, D36, D41, D42, D54, D70, D72, D109, D110, D246 |
+| [grid](docs/architecture/grid.md) | D24, D28, D35, D67, D111, D116 |
+| [sources/ddl](docs/architecture/sources/ddl.md) | D27, D29, D30, D32, D37–D40, D117 |
+| [sources/transfer](docs/architecture/sources/transfer.md) | D43–D45, D161, D163–D166, D168, D169, D171, D182 |
+| [sources/content](docs/architecture/sources/content.md) | D47, D48, D51–D53, D57, D71 |
+| [sources/downloads](docs/architecture/sources/downloads.md) | D49, D55, D73 |
+| [sharing](docs/architecture/sharing.md) | D58–D61 |
+| [querying](docs/architecture/querying.md) | D62–D66, D160, D206 |
+| [sources/catalog](docs/architecture/sources/catalog.md) | D75, D76, D91 |
+| [sources/file-sql](docs/architecture/sources/file-sql.md) | D77, D78, D96 |
+| [services](docs/architecture/services.md) | D80, D83–D85, D88–D90 |
+| [jobs](docs/architecture/jobs.md) | D81, D95 |
+| [services-runtime](docs/architecture/services-runtime.md) | D82, D86 |
+| [backups](docs/architecture/backups.md) | D87 |
+| [graphs](docs/architecture/graphs.md) | D97 |
+| [sources/declared](docs/architecture/sources/declared.md) | D106–D108, D170, D172, D173, D195 |
+| [notifications](docs/architecture/notifications.md) | D113–D115, D181 |
+| [sources/timescale](docs/architecture/sources/timescale.md) | D119–D122, D207, D208, D211 |
+| [sources/operations](docs/architecture/sources/operations.md) | D123 |
+| [dashboards](docs/architecture/dashboards.md) | D125–D130 |
+| [ai](docs/architecture/ai.md) | D133–D139, D141, D142, D158, D159, D223 |
+| [ai-models](docs/architecture/ai-models.md) | D140, D156, D157 |
+| [sources/ssh](docs/architecture/sources/ssh.md) | D144–D147, D153, D154 |
+| [terminals](docs/architecture/terminals.md) | D148, D149 |
+| [sources/explorer](docs/architecture/sources/explorer.md) | D150–D152 |
+| [pipelines](docs/architecture/pipelines.md) | D174–D180 |
+| [search](docs/architecture/search.md) | D197–D205 |
+| [search-kept](docs/architecture/search-kept.md) | D212–D222 |
+| [localization](docs/architecture/localization.md) | D224–D227 |
+| [sources/mysql](docs/architecture/sources/mysql.md) | D228–D245 |
+| [sources/sqlite](docs/architecture/sources/sqlite.md) | D247–D262 |
 
 ## Working rules
 

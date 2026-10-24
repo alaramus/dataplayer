@@ -8,7 +8,9 @@
 #   2. every decision listed in the AGENTS.md table lives in exactly the file
 #      the table names, and no decision lives in docs/architecture/ unlisted.
 #      The table names a file rather than an area, so it is a checked index
-#      rather than a hint that drifts silently;
+#      rather than a hint that drifts silently. A row per file, its decisions
+#      listed with ranges for runs, since a row per decision repeated the same
+#      file two hundred times;
 #   3. AGENTS.md stays under its size budget — it is loaded into every session,
 #      which is the whole reason it was split up. Raised from 16 KB to 24 KB in
 #      round 8: the file had 142 bytes left, and the first thing the budget
@@ -129,7 +131,26 @@ done < <(docs)
 
 # 2. Decisions ---------------------------------------------------------------
 
-registry=$(sed -n 's/^| \(D[0-9][0-9a-z]*\) | \[[^]]*\](\([^)]*\)) |.*/\1 \2/p' AGENTS.md)
+# One row per file: `| [name](path) | D1, D2a, D37–D40 |`. A range is every
+# number between its ends, all in that file; it is spelled out here into one
+# "<id> <file>" line per decision, which is what the checks below read.
+registry=$(sed -n 's/^| \[[^]]*\](\([^)]*\)) | \(D[0-9][^|]*[0-9a-z]\) |$/\1|\2/p' AGENTS.md |
+    while IFS='|' read -r home ids; do
+        IFS=',' read -ra tokens <<< "$ids"
+        for token in "${tokens[@]}"; do
+            token=${token// /}
+            case "$token" in
+                D[0-9]*–D[0-9]*)
+                    from=${token%%–*}
+                    to=${token##*–}
+                    for ((n = ${from#D}; n <= ${to#D}; n++)); do
+                        printf 'D%s %s\n' "$n" "$home"
+                    done
+                    ;;
+                *) printf '%s %s\n' "$token" "$home" ;;
+            esac
+        done
+    done)
 
 if [ -z "$registry" ]; then
     note "the decision table in AGENTS.md is empty or its shape changed"
