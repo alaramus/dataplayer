@@ -140,6 +140,12 @@ job runner uses for its kinds of work (D81) and the workspace for its panels
 - **A source that cannot answer yet returns nothing.** Not a placeholder — the
   section is empty when nothing is waiting, and an empty section is the goal
   rather than a state to apologise for.
+- **A connection is news when it changes, not while it stays.** One item when a
+  connection that answered stops, kept through every later bad probe; its
+  answering again removes it and says so once in Recent. A connection that has
+  not answered since the tab opened — saved broken, or down before anyone
+  looked — has no item: its dot says it, and a probe every few minutes made one
+  fact a new notification every few minutes.
 
 Spec: [Everything that needs a person](../decisions/2026-09-06-activity-centre-design.md)
 

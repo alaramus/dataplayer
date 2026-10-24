@@ -8,6 +8,7 @@ export const connectors = {
   },
   attention: {
     not_answering: "{name} is not answering",
+    answering_again: "{name} is answering again",
     open: "Open",
   },
   cache: {

@@ -10,6 +10,7 @@ export const connectors: Messages["connectors"] = {
   },
   attention: {
     not_answering: "{name} 无响应",
+    answering_again: "“{name}”已恢复响应",
     open: "打开",
   },
   cache: {

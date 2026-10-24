@@ -1,36 +1,38 @@
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 import type { ComputedRef } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
 import { t } from "@/shared/i18n"
 import type { AttentionItem } from "@/shared/notifications"
+import { useToast } from "@/shared/ui"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
-import type { CheckReport } from "@/stores/connectorChecks"
+import type { Outage } from "@/stores/connectorChecks"
 
 /**
- * A connection that answered badly the last time anybody asked (D115).
+ * A connection that answered and then stopped (D115).
  *
- * Reports what is already known and starts nothing: the server probes only
- * while a screen is watching (D18), so this source is honest about being a
- * view over the last thing heard rather than a monitor.
+ * One item per outage, not per bad answer: the server probes every few
+ * minutes while a screen watches (D18), and an item per probe was a new
+ * notification every few minutes about one fact. A connection that never
+ * answered in this tab has no outage — its dot says it is down.
  */
 
-export function checkItem(
+export function outageItem(
   connectorId: string,
   name: string,
-  report: CheckReport,
+  outage: Outage,
+  detail: string,
   open: (connectorId: string) => void,
   dismiss: () => void
 ): AttentionItem {
   return {
-    id: `check:${connectorId}:${report.checkedAt}`,
+    id: `check:${connectorId}:${outage.since}`,
     tone: "error",
     title: t("connectors.attention.not_answering", { name }),
-    detail: report.message,
-    at: Date.parse(report.checkedAt) || Date.now(),
+    detail,
+    at: Date.parse(outage.since) || Date.now(),
     action: { label: t("connectors.attention.open"), run: () => { open(connectorId) } },
-    // Waved away by the report it was about, so the next bad answer from the
-    // same connection is news again.
+    // Waved away for this outage, so the next one is news again.
     dismiss,
   }
 }
@@ -40,16 +42,32 @@ export function useHealthAttention(
 ): ComputedRef<AttentionItem[]> {
   const checks = useConnectorChecksStore()
   const connectors = useConnectors()
+  const toast = useToast()
   const waved = ref(new Set<string>())
 
-  return computed(() => Object.entries(checks.results)
-    .filter(([, report]) => !report.ok)
-    .flatMap(([connectorId, report]) => {
-      const found = connectors.data.value?.data.find((connector) => connector.id === connectorId)
-      if (found === undefined) return []
-      const key = `${connectorId}:${report.checkedAt}`
+  const nameOf = (connectorId: string) =>
+    connectors.data.value?.data.find((connector) => connector.id === connectorId)?.name
+
+  // An outage ending is one line in Recent, not something waiting for anybody.
+  let told = checks.recoveries.length
+  watch(
+    () => checks.recoveries.length,
+    (length) => {
+      for (const recovery of checks.recoveries.slice(told, length)) {
+        const name = nameOf(recovery.connectorId)
+        if (name !== undefined) toast.success(t("connectors.attention.answering_again", { name }))
+      }
+      told = length
+    }
+  )
+
+  return computed(() => Object.entries(checks.outages)
+    .flatMap(([connectorId, outage]) => {
+      const name = nameOf(connectorId)
+      if (name === undefined) return []
+      const key = `${connectorId}:${outage.since}`
       if (waved.value.has(key)) return []
-      return [checkItem(connectorId, found.name, report, open, () => {
+      return [outageItem(connectorId, name, outage, checks.results[connectorId]?.message ?? "", open, () => {
         waved.value = new Set([...waved.value, key])
       })]
     }))

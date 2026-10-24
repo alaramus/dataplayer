@@ -10,6 +10,7 @@ export const connectors: Messages["connectors"] = {
   },
   attention: {
     not_answering: "{name} ne répond pas",
+    answering_again: "{name} répond de nouveau",
     open: "Ouvrir",
   },
   cache: {

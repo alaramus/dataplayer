@@ -19,11 +19,43 @@ export interface CheckReport {
   checkedAt: string
 }
 
+/** A connection that answered and then stopped: when the first bad answer came. */
+export interface Outage {
+  since: string
+}
+
+/** A connection whose outage ended, as news for whoever tells people. */
+export interface Recovery {
+  connectorId: string
+  at: string
+}
+
 export const useConnectorChecksStore = defineStore("connector-checks", () => {
   const results = ref<Record<string, CheckReport>>({})
+  /**
+   * Outages, by connection: a change from answering to not, not every bad
+   * answer (D115). A connection that has not answered since this tab first
+   * heard of it has none — it was saved broken, or broke while nobody was
+   * looking, and its dot says so without a notification every few minutes.
+   */
+  const outages = ref<Record<string, Outage>>({})
+  const recoveries = ref<Recovery[]>([])
+  // Outlives `clear`: the probes stop when nobody watches, and a connection
+  // that answered before that is still one that answered.
+  const answered = new Set<string>()
 
   function record(connectorId: string, report: CheckReport) {
     results.value = { ...results.value, [connectorId]: report }
+    const outage = outages.value[connectorId]
+    if (report.ok) {
+      answered.add(connectorId)
+      if (outage !== undefined) {
+        outages.value = without(outages.value, connectorId)
+        recoveries.value = [...recoveries.value, { connectorId, at: report.checkedAt }]
+      }
+    } else if (outage === undefined && answered.has(connectorId)) {
+      outages.value = { ...outages.value, [connectorId]: { since: report.checkedAt } }
+    }
   }
 
   function reportOf(connectorId: string): CheckReport | null {
@@ -37,9 +69,9 @@ export const useConnectorChecksStore = defineStore("connector-checks", () => {
   }
 
   function forget(connectorId: string) {
-    results.value = Object.fromEntries(
-      Object.entries(results.value).filter(([id]) => id !== connectorId)
-    )
+    results.value = without(results.value, connectorId)
+    outages.value = without(outages.value, connectorId)
+    answered.delete(connectorId)
   }
 
   /** Forget the lot: nothing is being probed any more, so nothing is known. */
@@ -47,5 +79,9 @@ export const useConnectorChecksStore = defineStore("connector-checks", () => {
     results.value = {}
   }
 
-  return { results, record, reportOf, stateOf, forget, clear }
+  return { results, outages, recoveries, record, reportOf, stateOf, forget, clear }
 })
+
+function without<T>(map: Record<string, T>, key: string): Record<string, T> {
+  return Object.fromEntries(Object.entries(map).filter(([id]) => id !== key))
+}
