@@ -1,7 +1,7 @@
 # SQLite
 
 A SQLite database file in your personal storage. You browse its tables and
-views, read their rows a page at a time, see how a table is built, read the
+views, read and edit their rows a page at a time, see how a table is built, read the
 DDL the file keeps for it and run SQL in a console.
 How connections work in general is on the [Connections](connections.md) page.
 
@@ -11,9 +11,11 @@ How connections work in general is on the [Connections](connections.md) page.
 - A table's columns, keys, checks and indexes, and the tables it refers to
 - A relation's DDL, as the file keeps it, with its indexes and triggers
 - The results of SQL you write, and SQLite's plan for a query
+- Where a row's foreign key leads, and what points at it
 
 ## What you can change
 
+- Table data: edit cells, paste blocks, insert and delete rows
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -74,6 +76,29 @@ How values are shown:
   that are not there;
 - large integers exactly.
 
+## Changing rows
+
+With **Edit rows** access, a table is edited in its grid as a PostgreSQL table
+is: double-click a cell, paste a block, **Insert row**, tick rows and
+**Delete selected rows**. Views, virtual tables and SQLite's own tables are
+read only, and a generated column is computed rather than written.
+
+- A row is found again by its primary key, or by its `rowid` when the table
+  has none.
+- If somebody changed a row after you read it, in any column, your change is
+  refused rather than written over theirs. Reload and try again.
+- Write values the way the grid shows them: binary as `0x…` in a `BLOB`
+  column, `true` or `false` in a `BOOLEAN` one. A column with no type keeps a
+  number a number. SQLite stores what any other column is given, converted as
+  its type says.
+- A `STRICT` table refuses a value of the wrong type before anything is
+  written, and the cells that hold such values are named. Nothing of a pasted
+  block lands until all of it can.
+- A change the table's keys, checks or required columns refuse is not made,
+  and says which rule refused it. The file's foreign keys are enforced.
+- A cell in a foreign key has an arrow that opens the row it points at, and
+  **What points at this row** opens the rows that point here.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -101,7 +126,7 @@ first and undone before the console asks you about it.
 
 ## What SQLite does not have here yet
 
-- Editing rows in the grid, changing the structure from the **Structure** tab,
+- Changing the structure from the **Structure** tab,
   catalog actions, downloading every row, backups and copying tables. They
   come later.
 - A file on an SSH server, or inside another connection, cannot be opened as a

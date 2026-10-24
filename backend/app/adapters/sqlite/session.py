@@ -11,7 +11,7 @@ import logging
 import sqlite3
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -144,6 +144,10 @@ class Reading:
         cursor = self._connection.execute(sql, params)
         names = [column[0] for column in cursor.description or []]
         return [dict(zip(names, row, strict=True)) for row in cursor.fetchall()]
+
+    def tuples(self, sql: str, params: tuple[object, ...] = ()) -> list[tuple[Any, ...]]:
+        """A statement's rows by position: names may repeat, and `rowid` is one."""
+        return list(self._connection.execute(sql, params).fetchall())
 
     def value(self, sql: str, params: tuple[object, ...] = ()) -> Any:
         """The first column of the first row, or nothing when there is no row."""
@@ -316,6 +320,46 @@ class SqliteSession:
             raise
         except sqlite3.Error as exc:
             error_kind, message = classify(exc, fallback_message=fallback_message)
+            raise AdapterError(error_kind, message) from None
+        finally:
+            await handle.close()
+
+    async def write[T](
+        self,
+        work: Callable[[sqlite3.Connection], T],
+        *,
+        refusals: Mapping[int, str] | None = None,
+    ) -> T:
+        """Run `work` as one transaction that holds the file's write lock from
+        its first statement, committed when it returns (D254).
+
+        IMMEDIATE, so nobody writes between what `work` reads and what it
+        changes. A constraint the change breaks is the caller's to hear, as a
+        ValueError naming it; anything else is the source failing.
+        """
+
+        def job(connection: sqlite3.Connection) -> T:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                answer = work(connection)
+            except BaseException:
+                if connection.in_transaction:
+                    connection.execute("ROLLBACK")
+                raise
+            connection.execute("COMMIT")
+            return answer
+
+        handle = await self.handle(writes=True, fallback_message=N_("Update failed"))
+        try:
+            return await handle.call(job)
+        except sqlite3.Error as exc:
+            extended = getattr(exc, "sqlite_errorcode", None) or 0
+            named = (refusals or {}).get(extended)
+            if named is not None:
+                raise ValueError(say(named)) from None
+            if extended & 0xFF == sqlite3.SQLITE_CONSTRAINT:
+                raise ValueError(say("The source rejected the change")) from None
+            error_kind, message = classify(exc, fallback_message=N_("Update failed"))
             raise AdapterError(error_kind, message) from None
         finally:
             await handle.close()

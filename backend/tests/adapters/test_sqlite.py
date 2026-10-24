@@ -90,8 +90,7 @@ def test_it_claims_only_what_it_does(home: Path) -> None:
     ):
         assert isinstance(adapter, capability)
     assert isinstance(adapter, SupportsQuery)
-    # Rows are read only in this slice; a capability is not claimed early (D2).
-    assert not isinstance(adapter, SupportsUpdate)
+    assert isinstance(adapter, SupportsUpdate)
 
 
 # --- The file -------------------------------------------------------------
@@ -416,7 +415,8 @@ async def test_a_page_follows_the_primary_key(home: Path) -> None:
 
     assert [row[0] for row in result.rows] == ["1", "2"]
     assert result.has_more is True
-    assert result.update_supported is False
+    assert result.update_supported is True
+    assert all(result.row_handles)
     assert [reference.name for reference in result.references] == ["to_label"]
 
 

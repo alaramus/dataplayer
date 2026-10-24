@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "SQLite": "SQLite",
-    'A SQLite database file in your personal storage. Browse its tables and views, read rows a page at a time with sorting and filtering, and run SQL.': 'Un archivo de base de datos SQLite en tu almacenamiento personal. Explora sus tablas y vistas, lee filas página a página con ordenación y filtrado, y ejecuta SQL.',
+    'A SQLite database file in your personal storage. Browse its tables and views, read and edit rows a page at a time with sorting and filtering, and run SQL.': 'Un archivo de base de datos SQLite en tu almacenamiento personal. Explora sus tablas y vistas, lee y edita filas página a página con ordenación y filtrado, y ejecuta SQL.',
     "Database file": "Archivo de base de datos",
     "Path of the file inside your personal storage, such as data/shop.db": "Ruta del archivo dentro de tu almacenamiento personal, por ejemplo data/shop.db",
     "Create the file if it is missing": "Crear el archivo si no existe",
@@ -24,9 +24,13 @@ MESSAGES: dict[str, str] = {
     '"{name}" needs a module this server does not have': "«{name}» necesita un módulo que este servidor no tiene",
     '"{node_id}" is not a relation: expected main.table': "«{node_id}» no es una relación: se esperaba main.tabla",
     'This SQLite source does not offer the "{representation}" content representation': "Esta fuente SQLite no ofrece la representación de contenido «{representation}»",
-    "Rows of a SQLite file are read only for now": "Por ahora, las filas de un archivo SQLite son de solo lectura",
     # The console.
     'A connection to this file opens no other file': 'Una conexión a este archivo no abre ningún otro archivo',
     'Query plan': 'Plan de consulta',
     'The query editor changes tables, views and indexes; this is something else': 'El editor de consultas modifica tablas, vistas e índices; esto es otra cosa',
+    # Changing rows.
+    '"{name}" belongs to SQLite': '«{name}» pertenece a SQLite',
+    'Rows of a virtual table are not changed here': 'Las filas de una tabla virtual no se cambian aquí',
+    'The rows of this table cannot be told apart': 'Las filas de esta tabla no se pueden distinguir',
+    'The value is not of the type its column holds': 'El valor no es del tipo que guarda la columna',
 }

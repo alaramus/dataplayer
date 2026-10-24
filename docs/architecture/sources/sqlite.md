@@ -2,11 +2,11 @@
 
 What a SQLite source is, how it opens its file, how it reads its catalog and
 the parts of a table the pragmas do not give, and how its values and pages
-cross to the grid, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
+cross to the grid and are changed there, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `sqlite` adapter.
 
-Decisions here: D247, D248, D249, D250, D251, D252, D253.
+Decisions here: D247, D248, D249, D250, D251, D252, D253, D254.
 
 ## D247. A SQLite source is one file of its owner's storage, opened defensively
 
@@ -145,3 +145,25 @@ tree, with SQLite's sentence per step and no costs; reads and row changes are
 planned.
 
 Spec: [The SQLite console](../../decisions/2026-10-24-sqlite-console-design.md)
+
+## D254. A row is named by its primary key or its rowid
+
+A row's handle carries its primary key, or else its rowid, with each value as
+SQLite stores it and tagged with its class, so a key is found again whatever
+the column's affinity would make of text; it is matched by `IS`, and a row
+whose primary key holds NULL is not named. The version is a digest of the row
+as shown, checked in a transaction opened with `BEGIN IMMEDIATE`, and the
+change ends in `RETURNING`.
+
+A value is bound as shown text, except that a binary column takes hexadecimal
+back as bytes, a boolean one `true` and `false` as 1 and 0, and a column with
+no type a number as a number when the text is its own spelling. A STRICT
+table's values are tried in a temporary STRICT table first, so a block lands
+whole or the refused cells are named. A broken constraint is named by its
+extended result code.
+
+Views, virtual tables and SQLite's own tables are read only, and a generated
+column cannot be written. The keys that point at a table are found by asking
+every table for its own.
+
+Spec: [Editing SQLite rows](../../decisions/2026-10-24-sqlite-rows-design.md)

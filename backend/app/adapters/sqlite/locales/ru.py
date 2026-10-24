@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "SQLite": "SQLite",
-    'A SQLite database file in your personal storage. Browse its tables and views, read rows a page at a time with sorting and filtering, and run SQL.': 'Файл базы данных SQLite в вашем личном хранилище. Просмотр таблиц и представлений, чтение строк постранично с сортировкой и фильтрацией и выполнение SQL.',
+    'A SQLite database file in your personal storage. Browse its tables and views, read and edit rows a page at a time with sorting and filtering, and run SQL.': 'Файл базы данных SQLite в вашем личном хранилище. Просмотр таблиц и представлений, чтение и правка строк постранично с сортировкой и фильтрацией и выполнение SQL.',
     "Database file": "Файл базы данных",
     "Path of the file inside your personal storage, such as data/shop.db": "Путь к файлу внутри вашего личного хранилища, например data/shop.db",
     "Create the file if it is missing": "Создать файл, если его нет",
@@ -24,9 +24,13 @@ MESSAGES: dict[str, str] = {
     '"{name}" needs a module this server does not have': "«{name}» требует модуля, которого нет на этом сервере",
     '"{node_id}" is not a relation: expected main.table': "«{node_id}» не является отношением: ожидается main.таблица",
     'This SQLite source does not offer the "{representation}" content representation': "Этот источник SQLite не предлагает представление содержимого «{representation}»",
-    "Rows of a SQLite file are read only for now": "Строки файла SQLite пока доступны только для чтения",
     # The console.
     'A connection to this file opens no other file': 'Подключение к этому файлу не открывает другие файлы',
     'Query plan': 'План запроса',
     'The query editor changes tables, views and indexes; this is something else': 'Редактор запросов изменяет таблицы, представления и индексы; это что-то другое',
+    # Changing rows.
+    '"{name}" belongs to SQLite': '«{name}» принадлежит SQLite',
+    'Rows of a virtual table are not changed here': 'Строки виртуальной таблицы здесь не меняются',
+    'The rows of this table cannot be told apart': 'Строки этой таблицы невозможно отличить друг от друга',
+    'The value is not of the type its column holds': 'Значение не того типа, который хранит столбец',
 }

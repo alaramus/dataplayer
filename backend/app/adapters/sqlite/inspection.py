@@ -30,6 +30,9 @@ WHERE schema = 'main' AND type IN ('table', 'view', 'virtual', 'shadow')
 _RELATION = _RELATIONS + " AND name = ?"
 
 _TEXT = "SELECT sql FROM sqlite_schema WHERE type IN ('table', 'view') AND name = ?"
+_SPELLING = (
+    "SELECT name FROM sqlite_schema WHERE type IN ('table', 'view') AND name = ? COLLATE NOCASE"
+)
 
 _COLUMNS = """
 SELECT cid, name, type, "notnull" AS not_null, dflt_value, pk, hidden
@@ -202,7 +205,10 @@ def _keys(
     # pragma_foreign_key_list numbers keys from the last one written.
     for members in reversed(list(grouped.values())):
         first = members[0]
-        target = str(first["target"])
+        # A key names its target as it was written; SQLite finds the table
+        # without case, and a node id needs its own spelling.
+        written = str(first["target"])
+        target = str(reading.value(_SPELLING, (written,)) or written)
         sources = [str(member["source"]) for member in members]
         targets = [member["target_column"] for member in members]
         if any(column is None for column in targets):

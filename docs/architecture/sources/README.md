@@ -97,7 +97,9 @@ its storage class (D250), in the order of the primary key or the rowid
 (D251). An SQL console whose statements are classed by SQLite's first keyword
 (D252), and which, since SQLite's structure changes are transactional, runs,
 holds and rehearses them as PostgreSQL's does, with foreign keys enforced
-(D253). Rows are read only in the grid for now.
+(D253). Rows are edited, inserted and deleted in the grid, named by their
+primary key or rowid and checked against a digest of what was shown, and keys
+are followed both ways (D254).
 
 ## Where the code is
 
@@ -168,6 +170,8 @@ backend/app/adapters/
 │                       content.py, summary.py, features.py, options.py,
 │                       statements.py (classing SQL), query.py (runs,
 │                       transactions, rehearsals), explain.py, metadata.py,
+│                       rows.py (handles, values written back), update.py,
+│                       references.py,
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

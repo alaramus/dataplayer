@@ -21,9 +21,10 @@ from app.adapters.fetch import (
     ScalarFilter,
 )
 from app.adapters.relation import ColumnType
-from app.adapters.sqlite.inspection import SCHEMA, RelationFacts
+from app.adapters.sqlite.inspection import SCHEMA, RelationFacts, is_system_relation
 from app.adapters.sqlite.relation import SqliteRelation
-from app.adapters.sqlite.session import Reading, SqliteSession
+from app.adapters.sqlite.rows import RowShape, encode_handle
+from app.adapters.sqlite.session import Reading, SqliteSession, Undecodable
 from app.adapters.sqlite.sql import SQL, Composable, Composed, Identifier
 from app.adapters.sqlite.types import read_cell
 from app.core.translation import N_, say
@@ -106,18 +107,70 @@ def _like(value: str, *, starts: bool) -> str:
     return f"{escaped}%" if starts else f"%{escaped}%"
 
 
-def shape_of(facts: RelationFacts) -> list[FetchColumn]:
-    """The columns of a page. Nothing is written through it in this slice."""
-    return [
-        FetchColumn(
-            name=column.name,
-            type=column.type,
-            sortable=True,
-            filter_operators=column_capabilities(column.type),
-            nullable=column.nullable,
+def refusals_of(facts: RelationFacts) -> tuple[str | None, str | None]:
+    """Why rows cannot be changed, and why none can be added, or nothing."""
+    if is_system_relation(facts.name, facts.type):
+        refused = say('"{name}" belongs to SQLite', name=facts.name)
+        return refused, refused
+    if facts.type == "view":
+        return say("Only tables can be edited"), say("Only tables accept inserted rows")
+    if facts.type == "virtual":
+        refused = say("Rows of a virtual table are not changed here")
+        return refused, refused
+    if not facts.primary_key and facts.rowid is None:
+        return say("The rows of this table cannot be told apart"), None
+    return None, None
+
+
+def shape_of(facts: RelationFacts) -> RowShape:
+    """The columns of a page and what may be done to its rows (D254)."""
+    update_reason, insert_reason = refusals_of(facts)
+    columns: list[FetchColumn] = []
+    for column in facts.columns:
+        stored = column.generated is None
+        insertable = insert_reason is None and stored
+        has_default = column.default is not None or column.rowid_alias
+        columns.append(
+            FetchColumn(
+                name=column.name,
+                type=column.type,
+                sortable=True,
+                filter_operators=column_capabilities(column.type),
+                editable=update_reason is None and stored,
+                nullable=column.nullable,
+                insertable=insertable,
+                insert_required=insertable and not column.nullable and not has_default,
+                has_default=has_default,
+            )
         )
-        for column in facts.columns
-    ]
+    return RowShape(
+        columns=columns,
+        key=facts.primary_key,
+        rowid=facts.rowid,
+        update_reason=update_reason,
+        insert_reason=insert_reason,
+    )
+
+
+def selected(shape: RowShape) -> Composable:
+    """Every column of the page, then what names the row (D254)."""
+    return SQL(", ").join(
+        [*(Identifier(column.name) for column in shape.columns), *shape.naming()]
+    )
+
+
+def page_row(raw: tuple[Any, ...], shape: RowShape) -> tuple[list[str | None], str | None]:
+    """A row read with `selected`, as its page shows it and with its handle."""
+    width = len(shape.columns)
+    cells = [read_cell(value, column.type) for value, column in zip(raw[:width], shape.columns, strict=True)]
+    keys = list(raw[width:])
+    unnamed = shape.update_reason is not None or any(
+        # Text that is not UTF-8 cannot be bound again as the text it is, and
+        # a key with no value in a primary key of a rowid table names nothing.
+        isinstance(value, Undecodable) or (value is None and shape.key)
+        for value in keys
+    )
+    return cells, None if unnamed else encode_handle(keys, cells)
 
 
 def ordering_of(facts: RelationFacts) -> list[Composable]:
@@ -135,16 +188,19 @@ class PreparedRead:
     """One validated read, shared by a page and, later, an export."""
 
     facts: RelationFacts
-    columns: list[FetchColumn]
+    shape: RowShape
     request: FetchRequest
+
+    @property
+    def columns(self) -> list[FetchColumn]:
+        return self.shape.columns
 
     def statement(self, params: list[Any]) -> Composed:
         """SELECT, WHERE and ORDER BY, without a page."""
         known = {column.name: column for column in self.columns}
         conditions = [_condition(filter_, known, params) for filter_ in self.request.filters]
         statement: Composed = SQL("SELECT {} FROM {}").format(
-            SQL(", ").join(Identifier(column.name) for column in self.columns),
-            Identifier(SCHEMA, self.facts.name),
+            selected(self.shape), Identifier(SCHEMA, self.facts.name)
         )
         if conditions:
             statement += SQL(" WHERE ") + SQL(" AND ").join(conditions)
@@ -165,7 +221,7 @@ class SqliteFetch:
 
     async def prepare(self, request: FetchRequest) -> PreparedRead:
         facts = await self._relation.facts(request.node_id, structure=False)
-        prepared = PreparedRead(facts=facts, columns=shape_of(facts), request=request)
+        prepared = PreparedRead(facts=facts, shape=shape_of(facts), request=request)
         known = {column.name for column in prepared.columns}
         for used in [item.column for item in request.filters] + [
             item.column for item in request.sort
@@ -184,20 +240,18 @@ class SqliteFetch:
         params.extend([request.limit + 1, request.offset])
         text = statement.text()
 
-        def read(reading: Reading) -> list[dict[str, Any]]:
-            return reading.rows(text, tuple(params))
+        def read(reading: Reading) -> list[tuple[Any, ...]]:
+            return reading.tuples(text, tuple(params))
 
         rows = await self._session.read(read, fallback_message=N_("Query failed"))
-        columns = prepared.columns
+        shape = prepared.shape
         facts = prepared.facts
-        refused = say("Rows of a SQLite file are read only for now")
+        page = [page_row(raw, shape) for raw in rows[: request.limit]]
         return FetchResult(
-            columns=columns,
-            rows=[
-                [read_cell(row[column.name], column.type) for column in columns]
-                for row in rows[: request.limit]
-            ],
+            columns=shape.columns,
+            rows=[cells for cells, _ in page],
             has_more=len(rows) > request.limit,
+            row_handles=[handle for _, handle in page],
             references=[
                 FetchReference(
                     name=key.name,
@@ -206,9 +260,12 @@ class SqliteFetch:
                 )
                 for key in facts.foreign_keys
             ],
-            update_reason=refused,
-            insert_reason=refused,
-            delete_reason=refused,
+            update_supported=shape.update_supported,
+            update_reason=shape.update_reason,
+            insert_supported=shape.insert_supported,
+            insert_reason=shape.insert_reason,
+            delete_supported=shape.update_supported,
+            delete_reason=shape.update_reason,
         )
 
 

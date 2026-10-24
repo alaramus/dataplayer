@@ -189,6 +189,8 @@ Known deviations:
   adapter with an explicit revision column can issue a different handle.
 - **A MySQL handle's version is a digest of the row as shown**, since MySQL
   keeps no version a client can read; it is checked under `FOR UPDATE` (D234).
+- **A SQLite handle's version is a digest too**, checked inside `BEGIN
+  IMMEDIATE`; the row is named by its primary key or its rowid (D254).
 
 Spec: [Editing data](../../decisions/2026-08-27-data-editing-design.md)
 

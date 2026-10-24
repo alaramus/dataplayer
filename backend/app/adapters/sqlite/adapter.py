@@ -18,6 +18,11 @@ from app.adapters.query import (
     QueryRequest,
     TransactionContext,
 )
+from app.adapters.references import (
+    ArrivingReference,
+    FollowReferenceRequest,
+    ReferenceTarget,
+)
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.sqlite.catalog import SqliteCatalog
@@ -28,11 +33,25 @@ from app.adapters.sqlite.fetch import SqliteFetch
 from app.adapters.sqlite.metadata import SqliteGeneration, SqliteMetadata
 from app.adapters.sqlite.options import SqliteOptions
 from app.adapters.sqlite.query import SqliteExecution, SqliteQuery, SqliteTransaction
+from app.adapters.sqlite.references import SqliteReferences
 from app.adapters.sqlite.relation import SqliteRelation
 from app.adapters.sqlite.session import SqliteSession
 from app.adapters.sqlite.statements import format_text
 from app.adapters.sqlite.summary import SqliteSummaries
+from app.adapters.sqlite.update import SqliteUpdate
 from app.adapters.summary import NodeSummary
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
+)
 from app.core.translation import N_
 
 
@@ -57,6 +76,8 @@ class SqliteAdapter:
         self._explain = SqliteExplain(self._session)
         self._metadata = SqliteMetadata(self._session)
         self._generation = SqliteGeneration(self._session)
+        self._update = SqliteUpdate(self._session, self._relation)
+        self._references = SqliteReferences(self._session, self._catalog, self._relation)
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -86,6 +107,27 @@ class SqliteAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        return await self._update.update_cell(request)
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        return await self._update.update_cells(request)
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._update.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request)
+
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        return await self._update.delete_rows(request)
+
+    async def follow_reference(self, request: FollowReferenceRequest) -> ReferenceTarget:
+        return await self._references.follow_reference(request)
+
+    async def arriving_references(self, node_id: str) -> list[ArrivingReference]:
+        return await self._references.arriving_references(node_id)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62)."""
@@ -124,7 +166,7 @@ class SqliteAdapter:
     category="sql",
     description=N_(
         "A SQLite database file in your personal storage. Browse its tables and "
-        "views, read rows a page at a time with sorting and filtering, and run SQL."
+        "views, read and edit rows a page at a time with sorting and filtering, and run SQL."
     ),
     options_schema=SqliteOptions,
     adapter_class=SqliteAdapter,

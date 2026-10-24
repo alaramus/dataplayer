@@ -71,7 +71,7 @@ async def test_a_file_is_checked_browsed_read_and_described(
     page = await post("fetch", {"node_id": "main.items", "limit": 2})
     assert [row[0] for row in page["rows"]] == ["1", "2"]
     assert page["has_more"] is True
-    assert page["update_supported"] is False
+    assert page["update_supported"] is True
 
     model = await get("relation-model", node_id="main.items")
     assert model["kind"] == "table"
@@ -101,20 +101,38 @@ async def test_a_path_out_of_the_storage_is_refused_by_the_form(
 
 
 @pytest.mark.usefixtures("home")
-async def test_what_it_does_not_do_is_refused_as_not_implemented(
+async def test_a_row_is_edited_through_the_grids_routes(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
-    connector = await _connector(client, normal_user_token_headers, {"path": FILE})
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers, {"path": FILE})
 
-    response = await client.request(
+    page = await client.post(
+        f"{BASE}/{connector}/fetch", headers=headers, json={"node_id": "main.items", "limit": 1}
+    )
+    handle = page.json()["row_handles"][0]
+    edited = await client.patch(
+        f"{BASE}/{connector}/rows/cell",
+        headers=headers,
+        json={"node_id": "main.items", "row_handle": handle, "column": "name", "value": "uno"},
+    )
+    stale = await client.patch(
+        f"{BASE}/{connector}/rows/cell",
+        headers=headers,
+        json={"node_id": "main.items", "row_handle": handle, "column": "name", "value": "eins"},
+    )
+    forged = await client.request(
         "DELETE",
         f"{BASE}/{connector}/rows",
-        headers=normal_user_token_headers,
+        headers=headers,
         json={"node_id": "main.items", "row_handles": ["x"]},
     )
 
-    # Rows are read only in this slice, and the capability is not claimed (D2).
-    assert response.status_code == 501, response.text
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["values"][1] == "uno"
+    # The handle read before the edit names a version that is gone.
+    assert stale.status_code == 409, stale.text
+    assert forged.status_code in (400, 422), forged.text
 
 
 @pytest.mark.usefixtures("home")
