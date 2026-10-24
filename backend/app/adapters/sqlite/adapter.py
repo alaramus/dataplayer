@@ -1,9 +1,34 @@
 from pathlib import Path
+from typing import Any
 
+from app.adapters.actions import Action, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.column_changes import (
+    AddColumnRequest,
+    ColumnChangeResult,
+    ColumnDefaultRequest,
+    ColumnNullabilityRequest,
+    ColumnNullabilityResult,
+    ColumnTypeChangeResult,
+    ColumnTypeRequest,
+    DropColumnRequest,
+    RenameColumnRequest,
+)
+from app.adapters.constraints import (
+    ConstraintDropped,
+    CreateConstraintRequest,
+    CreateConstraintResult,
+    DropConstraintRequest,
+)
 from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.indexes import (
+    CreateIndexRequest,
+    CreateIndexResult,
+    DropIndexRequest,
+    IndexDropped,
+)
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.query import (
     ExplainRequest,
@@ -25,21 +50,32 @@ from app.adapters.references import (
 )
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
+from app.adapters.relation_changes import (
+    CreateRelationRequest,
+    CreateRelationResult,
+    NewRelationOptions,
+)
+from app.adapters.sqlite.actions import SQLITE_ACTION_TYPES, SqliteActions
 from app.adapters.sqlite.catalog import SqliteCatalog
+from app.adapters.sqlite.columns import SqliteColumns
 from app.adapters.sqlite.content import SqliteContent
+from app.adapters.sqlite.design import SqliteTableDesign
 from app.adapters.sqlite.explain import SqliteExplain
 from app.adapters.sqlite.features import SqliteFeatures
 from app.adapters.sqlite.fetch import SqliteFetch
+from app.adapters.sqlite.keys import SqliteKeys
 from app.adapters.sqlite.metadata import SqliteGeneration, SqliteMetadata
 from app.adapters.sqlite.options import SqliteOptions
 from app.adapters.sqlite.query import SqliteExecution, SqliteQuery, SqliteTransaction
 from app.adapters.sqlite.references import SqliteReferences
 from app.adapters.sqlite.relation import SqliteRelation
+from app.adapters.sqlite.relation_changes import SqliteRelationChanges
 from app.adapters.sqlite.session import SqliteSession
 from app.adapters.sqlite.statements import format_text
 from app.adapters.sqlite.summary import SqliteSummaries
 from app.adapters.sqlite.update import SqliteUpdate
 from app.adapters.summary import NodeSummary
+from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -77,7 +113,38 @@ class SqliteAdapter:
         self._metadata = SqliteMetadata(self._session)
         self._generation = SqliteGeneration(self._session)
         self._update = SqliteUpdate(self._session, self._relation)
+        self._columns = SqliteColumns(self._session, self._relation)
+        self._keys = SqliteKeys(self._session, self._relation)
+        self._design = SqliteTableDesign(self._session, self._catalog, self._relation)
+        self._relations = SqliteRelationChanges(self._session, self._catalog)
+        self._actions = SqliteActions(self._session, self._catalog)
         self._references = SqliteReferences(self._session, self._catalog, self._relation)
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return SQLITE_ACTION_TYPES
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return await self._actions.available(node_id)
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.action(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return await self._actions.all_actions()
+
+    async def table_design_options(self, node_id: str) -> TableDesignOptions:
+        """What `main` will accept a designed table with (D117)."""
+        return await self._design.table_design_options(node_id)
+
+    async def plan_table(self, request: TablePlanRequest) -> TablePlan:
+        return await self._design.plan_table(request)
+
+    async def new_relation_options(self, parent_node_id: str) -> NewRelationOptions:
+        return await self._relations.new_relation_options(parent_node_id)
+
+    async def create_relation(self, request: CreateRelationRequest) -> CreateRelationResult:
+        return await self._relations.create_relation(request)
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -122,6 +189,38 @@ class SqliteAdapter:
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         return await self._update.delete_rows(request)
+
+    async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
+        return await self._columns.add_column(request)
+
+    async def drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
+        return await self._columns.drop_column(request)
+
+    async def rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
+        return await self._columns.rename_column(request)
+
+    async def change_column_default(self, request: ColumnDefaultRequest) -> ColumnChangeResult:
+        return await self._columns.change_column_default(request)
+
+    async def change_column_nullability(
+        self, request: ColumnNullabilityRequest
+    ) -> ColumnNullabilityResult:
+        return await self._columns.change_column_nullability(request)
+
+    async def change_column_type(self, request: ColumnTypeRequest) -> ColumnTypeChangeResult:
+        return await self._columns.change_column_type(request)
+
+    async def create_index(self, request: CreateIndexRequest) -> CreateIndexResult:
+        return await self._keys.create_index(request)
+
+    async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
+        return await self._keys.drop_index(request)
+
+    async def create_constraint(self, request: CreateConstraintRequest) -> CreateConstraintResult:
+        return await self._keys.create_constraint(request)
+
+    async def drop_constraint(self, request: DropConstraintRequest) -> ConstraintDropped:
+        return await self._keys.drop_constraint(request)
 
     async def follow_reference(self, request: FollowReferenceRequest) -> ReferenceTarget:
         return await self._references.follow_reference(request)

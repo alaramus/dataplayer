@@ -13,8 +13,15 @@ from app.adapters.relation import (
     UniqueConstraint,
 )
 from app.adapters.sqlite import ids
-from app.adapters.sqlite.inspection import SCHEMA, RelationFacts, read_relation
+from app.adapters.sqlite.inspection import (
+    SCHEMA,
+    RelationFacts,
+    is_system_relation,
+    read_relation,
+)
 from app.adapters.sqlite.session import Reading, SqliteSession
+from app.adapters.sqlite.vocabulary import SQLITE_INDEX_METHODS, column_types
+from app.adapters.words import worded_titles
 from app.core.translation import say
 
 
@@ -66,8 +73,20 @@ def _indexes(facts: RelationFacts) -> list[Index]:
     ]
 
 
+def structure_reason(facts: RelationFacts) -> str | None:
+    """Why this relation's structure cannot be changed, or nothing (D255)."""
+    if is_system_relation(facts.name, facts.type):
+        return say('"{name}" belongs to SQLite', name=facts.name)
+    if facts.type != "table":
+        return say("Only a table's structure can be changed")
+    if not facts.text:
+        return say("The table's definition could not be read")
+    return None
+
+
 def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
-    # Structure is changed in a later slice; until then nothing claims it.
+    refused = structure_reason(facts)
+    changeable = refused is None
     return RelationModel(
         node_id=node_id,
         schema_name=SCHEMA,
@@ -90,6 +109,17 @@ def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
         ],
         constraints=_constraints(facts),
         indexes=_indexes(facts),
+        column_changes_supported=changeable,
+        column_changes_reason=refused,
+        column_operations=(
+            ["add", "drop", "rename", "default", "nullability", "type"] if changeable else []
+        ),
+        column_type_options=worded_titles(column_types(facts.strict)) if changeable else [],
+        index_changes_supported=changeable,
+        index_changes_reason=refused,
+        index_methods=worded_titles(SQLITE_INDEX_METHODS) if changeable else [],
+        constraint_changes_supported=changeable,
+        constraint_changes_reason=refused,
         candidate_keys=[
             CandidateKey(name=key.name, columns=key.columns)
             for key in facts.keys

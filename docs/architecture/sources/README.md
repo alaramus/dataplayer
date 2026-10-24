@@ -99,7 +99,10 @@ its storage class (D250), in the order of the primary key or the rowid
 holds and rehearses them as PostgreSQL's does, with foreign keys enforced
 (D253). Rows are edited, inserted and deleted in the grid, named by their
 primary key or rowid and checked against a digest of what was shown, and keys
-are followed both ways (D254).
+are followed both ways (D254). Columns, indexes and constraints are changed
+by SQLite's ALTER TABLE or by rebuilding the table from its own text, edited
+(D255). A designed table is planned as statements run in one transaction, its
+identity the rowid (D256).
 
 ## Where the code is
 
@@ -171,7 +174,10 @@ backend/app/adapters/
 │                       statements.py (classing SQL), query.py (runs,
 │                       transactions, rehearsals), explain.py, metadata.py,
 │                       rows.py (handles, values written back), update.py,
-│                       references.py,
+│                       references.py, restructure.py (the rebuild),
+│                       columns.py + keys.py (structure), vocabulary.py,
+│                       design.py (the designer), relation_changes.py,
+│                       actions.py (Create table),
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

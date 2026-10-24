@@ -16,6 +16,8 @@ How connections work in general is on the [Connections](connections.md) page.
 ## What you can change
 
 - Table data: edit cells, paste blocks, insert and delete rows
+- Columns, indexes, unique keys and foreign keys
+- New tables, designed object by object or made from rows
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -99,6 +101,50 @@ read only, and a generated column is computed rather than written.
 - A cell in a foreign key has an arrow that opens the row it points at, and
   **What points at this row** opens the rows that point here.
 
+## Changing the structure
+
+**Structure** of a table changes it as it changes a PostgreSQL table: add,
+rename and drop a column, set or remove its default, require a value or stop
+requiring one, change its type, add and drop indexes, unique keys and foreign
+keys.
+
+- SQLite itself can only add a column that may be empty and rename one. For
+  everything else the table is rebuilt, the way SQLite's documentation
+  describes: a new table, the rows copied with their `rowid`, the old one
+  replaced, its indexes and triggers made again. What the change does not
+  touch — `AUTOINCREMENT`, `DEFERRABLE`, comments — is kept as written.
+- A change the rows already contradict is not made, and the count is shown:
+  rows with no value, values that repeat, rows that point at nothing.
+- A column with a type takes any value in SQLite, so a type change is refused
+  only in a `STRICT` table, with the values it cannot hold counted.
+- Dropping a column drops the keys and indexes over it. A check or a view that
+  reads the column refuses the drop, and says which.
+- The types offered are SQLite's: text, integer, floating point, number,
+  boolean, date, date and time, JSON, UUID and binary. A `STRICT` table is
+  offered its own: text, integer, floating point, binary and any value.
+- SQLite builds one kind of index, a B-tree, and names what it makes after the
+  table and its columns.
+
+## Creating a table
+
+**Create table** in the actions menu of `main` opens the table designer, as
+for PostgreSQL. The plan is a `CREATE TABLE` and one `CREATE INDEX` per index,
+run together: the table is made whole or not at all.
+
+- An identity column is SQLite's own row number: an integer that is the whole
+  primary key, written `INTEGER PRIMARY KEY AUTOINCREMENT`. It may start
+  anywhere, counts one at a time, and takes a value you write into it.
+- What SQLite does not have is marked on the object that asks for it before
+  you can review the plan: an unlogged or partitioned table, a unique key
+  checked at commit, nulls ordered first or last, extra columns carried by an
+  index.
+- SQLite has what MySQL lacks: an index on part of the rows, a foreign key
+  checked at commit, `SET DEFAULT` and an index on an expression.
+- Comments are not kept; the plan says so.
+- Collations are SQLite's own: `BINARY`, `NOCASE` and `RTRIM`.
+- Rows kept as a table, or a file loaded into one, arrive with the table in
+  one go.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -126,8 +172,7 @@ first and undone before the console asks you about it.
 
 ## What SQLite does not have here yet
 
-- Changing the structure from the **Structure** tab,
-  catalog actions, downloading every row, backups and copying tables. They
+- Catalog actions other than **Create table**, downloading every row, backups and copying tables. They
   come later.
 - A file on an SSH server, or inside another connection, cannot be opened as a
   database.

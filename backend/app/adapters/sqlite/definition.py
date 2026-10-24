@@ -98,36 +98,73 @@ def name_of(token: Token, text: str) -> str:
     """A name as SQLite reads it: quoted without its quotes, a word as written."""
     return token.value if token.kind == "name" else text[token.start : token.end]
 
+# A stretch of the text, as (start, end) offsets into it.
+Span = tuple[int, int]
+
+ClauseKind = Literal[
+    "primary", "unique", "foreign", "check", "not_null", "null", "default", "collate", "generated"
+]
+
 
 @dataclass(frozen=True)
-class CheckText:
+class Clause:
+    """One constraint of the table, or one clause of a column, where it is written.
+
+    `span` runs from the clause's CONSTRAINT name, when it has one, to its last
+    token; a table constraint's span is its whole item. A structure change
+    edits the text by these spans and leaves everything else as written (D255).
+    """
+
+    kind: ClauseKind
     name: str | None
-    expression: str
-
-
-@dataclass(frozen=True)
-class KeyText:
-    """A key the text names: a primary key, a unique one, or a foreign one."""
-
-    name: str | None
-    columns: list[str]
+    span: Span
+    # Which comma-separated item of the definition it is in.
+    item: int
+    # Inside a column's definition rather than an item of its own.
+    inline: bool
+    columns: list[str] = field(default_factory=list)
     target: str | None = None
+    expression: str | None = None
 
 
 @dataclass
 class ColumnText:
+    name: str
+    item: int
+    # Where the declared type is; an empty span just after the name if none.
+    type_span: Span
     collation: str | None = None
     generated: str | None = None
+    clauses: list[Clause] = field(default_factory=list)
 
 
 @dataclass
 class TableText:
+    text: str = ""
+    # The table's name as written, qualified or not.
+    name_span: Span | None = None
+    # Every comma-separated item between the definition's parentheses.
+    items: list[Span] = field(default_factory=list)
     # By the column's name in lower case: SQLite compares names without case.
     columns: dict[str, ColumnText] = field(default_factory=dict)
-    checks: list[CheckText] = field(default_factory=list)
-    primary_key: KeyText | None = None
-    unique: list[KeyText] = field(default_factory=list)
-    foreign: list[KeyText] = field(default_factory=list)
+    # The constraints, inline and table-level, in the order they are written.
+    constraints: list[Clause] = field(default_factory=list)
+
+    @property
+    def checks(self) -> list[Clause]:
+        return [clause for clause in self.constraints if clause.kind == "check"]
+
+    @property
+    def primary_key(self) -> Clause | None:
+        return next((clause for clause in self.constraints if clause.kind == "primary"), None)
+
+    @property
+    def unique(self) -> list[Clause]:
+        return [clause for clause in self.constraints if clause.kind == "unique"]
+
+    @property
+    def foreign(self) -> list[Clause]:
+        return [clause for clause in self.constraints if clause.kind == "foreign"]
 
 
 # Where a column's type ends and its constraints begin.
@@ -222,47 +259,130 @@ def _skip_to_constraint(tokens: list[Token], at: int) -> int:
     return index
 
 
-def _column(text: str, item: list[Token], table: TableText) -> None:
+def _conflict(tokens: list[Token], at: int) -> int:
+    """Past an `ON CONFLICT <resolution>` clause, if one starts at `at`."""
+    if at + 1 < len(tokens) and tokens[at].is_word("ON") and tokens[at + 1].is_word("CONFLICT"):
+        return min(at + 3, len(tokens))
+    return at
+
+
+def _reference_end(tokens: list[Token], at: int) -> int:
+    """Past a foreign key clause whose REFERENCES is at `at`.
+
+    `ON DELETE SET NULL` holds a word that starts a column's NULL clause, so
+    the clause is read word by word rather than skipped to the next such word.
+    """
+    index = at + 2
+    if index < len(tokens) and tokens[index].value == "(":
+        index = _group(tokens, index)
+    while index < len(tokens):
+        token = tokens[index]
+        if token.is_word("ON") and index + 1 < len(tokens):
+            index += 2
+            if index < len(tokens) and tokens[index].is_word("SET", "NO"):
+                index += 2
+            else:
+                index += 1
+        elif token.is_word("MATCH"):
+            index += 2
+        elif token.is_word("NOT") and index + 1 < len(tokens) and tokens[index + 1].is_word(
+            "DEFERRABLE"
+        ):
+            index += 2
+        elif token.is_word("DEFERRABLE"):
+            index += 1
+        elif token.is_word("INITIALLY"):
+            index += 2
+        else:
+            break
+    return min(index, len(tokens))
+
+
+def _default_end(tokens: list[Token], at: int) -> int:
+    """Past a DEFAULT clause whose keyword is at `at`: a group, or one value."""
+    index = at + 1
+    if index < len(tokens) and tokens[index].value == "(":
+        return _group(tokens, index)
+    if index < len(tokens) and tokens[index].value in ("+", "-"):
+        index += 1
+    return min(index + 1, len(tokens))
+
+
+def _span(tokens: list[Token], start: int, end: int) -> Span:
+    """From the start of `tokens[start]` to the end of `tokens[end - 1]`."""
+    return tokens[start].start, tokens[max(end, start + 1) - 1].end
+
+
+def _column(text: str, item: list[Token], position: int, table: TableText) -> None:
     name = name_of(item[0], text)
-    column = table.columns.setdefault(name.lower(), ColumnText())
-    index = _skip_to_constraint(item, 1)
+    typed = _skip_to_constraint(item, 1)
+    type_span = (
+        _span(item, 1, typed) if typed > 1 else (item[0].end, item[0].end)
+    )
+    column = ColumnText(name=name, item=position, type_span=type_span)
+    table.columns[name.lower()] = column
+    index = typed
+    named_at: int | None = None
     constraint_name: str | None = None
     while index < len(item):
         token = item[index]
         if token.is_word("CONSTRAINT") and index + 1 < len(item):
+            named_at = index
             constraint_name = name_of(item[index + 1], text)
             index += 2
             continue
+        start = index if named_at is None else named_at
+        clause: Clause | None = None
         if token.is_word("CHECK") and index + 1 < len(item) and item[index + 1].value == "(":
             expression, index = _inside(text, item, index + 1)
-            table.checks.append(CheckText(constraint_name, expression))
+            clause = Clause("check", constraint_name, _span(item, start, index), position, True, [name], expression=expression)
         elif token.is_word("COLLATE") and index + 1 < len(item):
             column.collation = name_of(item[index + 1], text)
             index += 2
+            clause = Clause("collate", constraint_name, _span(item, start, index), position, True)
         elif token.is_word("PRIMARY"):
-            table.primary_key = KeyText(constraint_name, [name])
-            index = _skip_to_constraint(item, index + 1)
+            index = min(index + 2, len(item))
+            if index < len(item) and item[index].is_word("ASC", "DESC"):
+                index += 1
+            index = _conflict(item, index)
+            if index < len(item) and item[index].is_word("AUTOINCREMENT"):
+                index += 1
+            clause = Clause("primary", constraint_name, _span(item, start, index), position, True, [name])
         elif token.is_word("UNIQUE"):
-            table.unique.append(KeyText(constraint_name, [name]))
-            index = _skip_to_constraint(item, index + 1)
+            index = _conflict(item, index + 1)
+            clause = Clause("unique", constraint_name, _span(item, start, index), position, True, [name])
+        elif token.is_word("NOT") and index + 1 < len(item) and item[index + 1].is_word("NULL"):
+            index = _conflict(item, index + 2)
+            clause = Clause("not_null", constraint_name, _span(item, start, index), position, True)
+        elif token.is_word("NULL"):
+            index = _conflict(item, index + 1)
+            clause = Clause("null", constraint_name, _span(item, start, index), position, True)
+        elif token.is_word("DEFAULT"):
+            index = _default_end(item, index)
+            clause = Clause("default", constraint_name, _span(item, start, index), position, True)
         elif token.is_word("REFERENCES") and index + 1 < len(item):
-            table.foreign.append(KeyText(constraint_name, [name], name_of(item[index + 1], text)))
-            index = _skip_to_constraint(item, index + 2)
+            target = name_of(item[index + 1], text)
+            index = _reference_end(item, index)
+            clause = Clause("foreign", constraint_name, _span(item, start, index), position, True, [name], target)
         elif token.is_word("GENERATED", "AS"):
-            opening = next(
-                (i for i in range(index, len(item)) if item[i].value == "("), None
-            )
+            opening = next((i for i in range(index, len(item)) if item[i].value == "("), None)
             if opening is None:
                 return
             column.generated, index = _inside(text, item, opening)
+            if index < len(item) and item[index].is_word("STORED", "VIRTUAL"):
+                index += 1
+            clause = Clause("generated", constraint_name, _span(item, start, index), position, True)
         else:
             index = _skip_to_constraint(item, index + 1)
-            constraint_name = None
-            continue
+        if clause is not None:
+            column.clauses.append(clause)
+            if clause.kind in ("primary", "unique", "foreign", "check"):
+                table.constraints.append(clause)
+        named_at = None
         constraint_name = None
 
 
-def _table_constraint(text: str, item: list[Token], table: TableText) -> None:
+def _table_constraint(text: str, item: list[Token], position: int, table: TableText) -> None:
     index = 0
     name: str | None = None
     if item[0].is_word("CONSTRAINT") and len(item) > 1:
@@ -274,15 +394,16 @@ def _table_constraint(text: str, item: list[Token], table: TableText) -> None:
     opening = next((i for i in range(index, len(item)) if item[i].value == "("), None)
     if opening is None:
         return
+    span = _span(item, 0, len(item))
     if head.is_word("CHECK"):
         expression, _ = _inside(text, item, opening)
-        table.checks.append(CheckText(name, expression))
+        table.constraints.append(Clause("check", name, span, position, False, expression=expression))
     elif head.is_word("PRIMARY"):
         columns, _ = _names(text, item, opening)
-        table.primary_key = KeyText(name, columns)
+        table.constraints.append(Clause("primary", name, span, position, False, columns))
     elif head.is_word("UNIQUE"):
         columns, _ = _names(text, item, opening)
-        table.unique.append(KeyText(name, columns))
+        table.constraints.append(Clause("unique", name, span, position, False, columns))
     elif head.is_word("FOREIGN"):
         columns, end = _names(text, item, opening)
         target = next(
@@ -293,19 +414,33 @@ def _table_constraint(text: str, item: list[Token], table: TableText) -> None:
             ),
             None,
         )
-        table.foreign.append(KeyText(name, columns, target))
+        table.constraints.append(Clause("foreign", name, span, position, False, columns, target))
+
+
+def _name_span(tokens: list[Token]) -> Span | None:
+    """Where the table's name is: the name, maybe qualified, before its `(`."""
+    opening = next((i for i, token in enumerate(tokens) if token.value == "("), None)
+    if opening is None or opening < 1 or tokens[opening - 1].kind not in ("word", "name"):
+        return None
+    first = opening - 1
+    if first >= 2 and tokens[first - 1].value == "." and tokens[first - 2].kind in ("word", "name"):
+        first -= 2
+    return tokens[first].start, tokens[opening - 1].end
 
 
 def read_table(text: str | None) -> TableText:
     """What a `CREATE TABLE` statement says; empty for no text or `AS SELECT`."""
-    table = TableText()
+    table = TableText(text=text or "")
     if not text:
         return table
-    for item in _items(tokenize(text)):
+    tokens = tokenize(text)
+    table.name_span = _name_span(tokens)
+    for position, item in enumerate(_items(tokens)):
+        table.items.append((item[0].start, item[-1].end))
         if item[0].kind == "word" and item[0].value in _TABLE_CONSTRAINT_WORDS:
-            _table_constraint(text, item, table)
+            _table_constraint(text, item, position, table)
         elif item[0].kind in ("word", "name"):
-            _column(text, item, table)
+            _column(text, item, position, table)
     return table
 
 

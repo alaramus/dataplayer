@@ -361,7 +361,7 @@ def read_relation(reading: Reading, name: str, *, structure: bool = True) -> Rel
     index_rows = reading.rows(_INDEXES, (name,)) if relation_type == "table" else []
     keys = _keys(reading, name, text, columns, index_rows) if relation_type == "table" else []
     checks = [
-        CheckFacts(name=check.name or f"CHECK {position}", expression=check.expression)
+        CheckFacts(name=check.name or f"CHECK {position}", expression=check.expression or "")
         for position, check in enumerate(text.checks, start=1)
     ]
     return RelationFacts(

@@ -99,6 +99,14 @@ def _harden(connection: sqlite3.Connection, *, writes: bool) -> None:
     connection.set_authorizer(_authorize)
 
 
+_UNSAFE = {ord(character): None for character in ("\r", "\n", "\t", "\x00")}
+
+
+def _sentence(text: str) -> str:
+    """SQLite's own refusal, on one line and of a bounded length."""
+    return text.translate(_UNSAFE).strip()[:500] or say("The source rejected the change")
+
+
 def library_version() -> str:
     return sqlite3.sqlite_version
 
@@ -360,6 +368,64 @@ class SqliteSession:
             if extended & 0xFF == sqlite3.SQLITE_CONSTRAINT:
                 raise ValueError(say("The source rejected the change")) from None
             error_kind, message = classify(exc, fallback_message=N_("Update failed"))
+            raise AdapterError(error_kind, message) from None
+        finally:
+            await handle.close()
+
+    async def restructure[T](
+        self,
+        work: Callable[[sqlite3.Connection], T],
+        *,
+        refusals: Mapping[int, str] | None = None,
+    ) -> T:
+        """Run `work` as one structure change, with foreign keys off for it (D255).
+
+        A table is rebuilt by dropping the old one, and with foreign keys on
+        that drop acts on every row pointing at it. They are switched off
+        outside the transaction, as SQLite requires, by this application
+        rather than by a statement: the authorizer is lifted for that one
+        pragma and put back before the work runs.
+
+        What SQLite refuses is said in its own sentence, as the console says
+        it (D253): it names the view, the trigger or the column in the way.
+        """
+
+        def own(connection: sqlite3.Connection, statement: str) -> None:
+            connection.set_authorizer(None)
+            try:
+                connection.execute(statement)
+            finally:
+                connection.set_authorizer(_authorize)
+
+        def job(connection: sqlite3.Connection) -> T:
+            own(connection, "PRAGMA foreign_keys = OFF")
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+                try:
+                    answer = work(connection)
+                except BaseException:
+                    if connection.in_transaction:
+                        connection.execute("ROLLBACK")
+                    raise
+                connection.execute("COMMIT")
+                return answer
+            finally:
+                own(connection, "PRAGMA foreign_keys = ON")
+
+        handle = await self.handle(writes=True, fallback_message=N_("The structure could not be changed"))
+        try:
+            return await handle.call(job)
+        except sqlite3.Error as exc:
+            extended = getattr(exc, "sqlite_errorcode", None) or 0
+            named = (refusals or {}).get(extended)
+            if named is not None:
+                raise ValueError(say(named)) from None
+            if isinstance(exc, sqlite3.OperationalError | sqlite3.IntegrityError) and extended & 0xFF in (
+                sqlite3.SQLITE_ERROR,
+                sqlite3.SQLITE_CONSTRAINT,
+            ):
+                raise ValueError(_sentence(str(exc))) from None
+            error_kind, message = classify(exc, fallback_message=N_("The structure could not be changed"))
             raise AdapterError(error_kind, message) from None
         finally:
             await handle.close()

@@ -2,11 +2,11 @@
 
 What a SQLite source is, how it opens its file, how it reads its catalog and
 the parts of a table the pragmas do not give, and how its values and pages
-cross to the grid and are changed there, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
+cross to the grid and are changed there, how its structure is changed and a table designed, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `sqlite` adapter.
 
-Decisions here: D247, D248, D249, D250, D251, D252, D253, D254.
+Decisions here: D247, D248, D249, D250, D251, D252, D253, D254, D255, D256.
 
 ## D247. A SQLite source is one file of its owner's storage, opened defensively
 
@@ -167,3 +167,55 @@ column cannot be written. The keys that point at a table are found by asking
 every table for its own.
 
 Spec: [Editing SQLite rows](../../decisions/2026-10-24-sqlite-rows-design.md)
+
+## D255. A structure change is a rebuild of the table's own text, edited
+
+Adding a column that may be empty, renaming a column and renaming a table are
+SQLite's ALTER TABLE. Every other change rebuilds the table as SQLite
+documents it: a new table, the rows copied with their rowids, the old one
+dropped, the new one renamed, its indexes and triggers made again, the
+`sqlite_sequence` counter put back — in one transaction, with foreign keys
+switched off by the application for its duration and the rename done in the
+legacy way, after which every view is read once and one that reads what was
+taken away refuses the change by name.
+
+The new definition is the table's `CREATE TABLE` text with one clause edited,
+by the positions the reader of that text keeps (D249): a type replaced, a `NOT
+NULL` removed, a `DEFAULT` or a constraint written in, an item removed with its
+comma. AUTOINCREMENT, conflict clauses, DEFERRABLE and comments survive
+because nothing writes them out again. A dropped column takes its keys and
+indexes along; a check that reads it refuses the change in SQLite's words.
+
+Requirements, unique keys and indexes and foreign keys are counted against the
+rows first, up to 1000. Only a STRICT table refuses a value for its type, and
+its values are tried in a temporary STRICT column. Names are made in
+PostgreSQL's pattern; a constraint is dropped by its shown name. The types are
+declared types that read back as their category (D250), a STRICT table's own
+five for a STRICT table, and the one index method is the B-tree.
+
+Spec: [Changing SQLite structure](../../decisions/2026-10-24-sqlite-structure-design.md)
+
+## D256. A designed table is statements in one transaction, its identity the rowid
+
+The designer's plan is a `CREATE TABLE`, one `CREATE INDEX` per index and, for
+an identity that starts elsewhere than 1, a row of `sqlite_sequence`, run in
+one transaction. An identity is the table's rowid under the column's name: an
+integer that is the whole primary key, written `INTEGER PRIMARY KEY
+AUTOINCREMENT`; a second identity, one that is not the whole key, ALWAYS, or a
+step other than one is a plan problem on the column.
+
+What SQLite lacks is a plan problem on the object: an unlogged or partitioned
+table, a hypertable, a deferrable unique key, MATCH FULL, NULLS FIRST or LAST,
+an operator class, INCLUDE, an array, nulls not distinct. A partial index, SET
+DEFAULT, a deferrable foreign key and an index on an expression are SQLite's
+and are written. A comment is a warning, since SQLite keeps none. A primary
+key column must have a value. Collations are BINARY, NOCASE and RTRIM.
+
+A table made from rows is made with its rows in one transaction; no value is
+refused for its type.
+
+Known deviations:
+
+- A designed table is never STRICT: the designer has no choice for it.
+
+Spec: [Designing SQLite tables](../../decisions/2026-10-24-sqlite-design-design.md)
