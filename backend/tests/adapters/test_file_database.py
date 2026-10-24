@@ -71,3 +71,15 @@ async def test_a_view_that_calls_a_refused_function_cannot_run_while_it_is_liste
 
     assert isinstance(result, DatabaseContent)
     assert "sneaky" in {relation.name for relation in result.relations}
+
+
+async def test_a_file_in_wal_mode_is_read_without_leaving_files_beside_it(root: Path) -> None:
+    connection = sqlite3.connect(root / FILE)
+    connection.execute("PRAGMA journal_mode = WAL")
+    connection.close()
+    before = sorted(path.name for path in (root / FILE).parent.iterdir())
+
+    result = await _read(root, FILE)
+
+    assert isinstance(result, DatabaseContent)
+    assert sorted(path.name for path in (root / FILE).parent.iterdir()) == before

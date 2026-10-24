@@ -5,6 +5,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import Annotated, Any, cast
 
 from anyio import to_thread
@@ -19,7 +20,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse, StreamingResponse
@@ -109,6 +110,8 @@ from app.adapters.protocol import (
     ConnectionCheckResult,
     DataAdapter,
     DescribesDraft,
+    MakeChoice,
+    MakesSourceHere,
     NodeNotFound,
     ParsesConnectionString,
     SearchesContents,
@@ -606,6 +609,59 @@ async def create_connector(
         cache_ttl_seconds=connector_in.cache_ttl_seconds,
         allow_third_party_transfer=connector_in.allow_third_party_transfer,
     )
+    return await _public(session, connector, "own")
+
+
+class MadeHereRequest(BaseModel):
+    """A new source to make on this server, and the connection to keep for it.
+
+    `choice` is what the person decided; a choice left empty is the type's to
+    make, as a service started automatically is (D263).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    adapter_type: str
+    choice: MakeChoice = Field(default_factory=MakeChoice)
+
+
+@router.post("/made-here", response_model=ConnectorPublic)
+async def make_connector_here(
+    session: SessionDep, current_user: CurrentUser, body: MadeHereRequest
+) -> Any:
+    """
+    Make a new source of a type that needs no server, and its connection.
+
+    The counterpart of starting a service here (D80) for a type that starts
+    nothing — a SQLite file in the owner's storage (D263). Done at once rather
+    than as a job: there is nothing to pull and nothing to wait for.
+    """
+    adapter_type = adapter_type_or_422(body.adapter_type)
+    driver = adapter_type.adapter_class
+    if not issubclass(driver, MakesSourceHere):
+        raise Problem(501, "connectors.not_made_here", error_kind="config")
+    home_dir = context_for(current_user.id).home_dir
+    try:
+        made = await to_thread.run_sync(partial(driver.make_source_here, home_dir, body.choice))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body", "choice"], "msg": str(exc), "type": "value_error"}],
+        ) from None
+    try:
+        config, secrets = _split_or_422(adapter_type, made.options)
+        connector = await crud.create(
+            session,
+            name=made.name,
+            adapter_type=adapter_type.name,
+            config=config,
+            secrets=secrets,
+            owner_id=current_user.id,
+        )
+    except BaseException:
+        # A file no connection holds is a file nobody asked for.
+        await to_thread.run_sync(partial(driver.unmake_source_here, home_dir, made))
+        raise
     return await _public(session, connector, "own")
 
 

@@ -172,3 +172,73 @@ async def test_the_console_runs_and_rehearses(
     [statement] = run["statements"]
     page = await client.get(f"{queries}/results/{statement['result_id']}", headers=headers)
     assert page.json()["rows"][0] == ["1", "one"]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_database_is_made_here_with_its_connection(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], home: Path
+) -> None:
+    """The counterpart of starting a server here, for a type that starts nothing (D263)."""
+    headers = normal_user_token_headers
+    name = f"lab {uuid.uuid4().hex[:8]}"
+
+    types = await client.get(f"{settings.API_V1_STR}/adapter-types/", headers=headers)
+    made = await client.post(
+        f"{BASE}/made-here",
+        headers=headers,
+        json={"adapter_type": "sqlite", "choice": {"name": name, "folder": "work", "wal": True}},
+    )
+
+    assert {item["name"]: item["makes_here"] for item in types.json()}["sqlite"] is True
+    assert {item["name"]: item["makes_here"] for item in types.json()}["postgres"] is False
+    assert made.status_code == 200, made.text
+    connector = made.json()
+    file = f"work/{name.replace(' ', '-')}.db"
+    assert connector["name"] == name
+    assert connector["config"]["path"] == file
+    assert (home / file).is_file()
+    tables = await client.get(f"{BASE}/{connector['id']}/catalog", headers=headers, params={"node_id": "main"})
+    assert "tasks" in {node["name"] for node in tables.json()}
+
+
+@pytest.mark.usefixtures("home")
+async def test_left_to_the_server_it_is_named_after_its_file(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    made = await client.post(
+        f"{BASE}/made-here", headers=normal_user_token_headers, json={"adapter_type": "sqlite"}
+    )
+
+    assert made.status_code == 200, made.text
+    assert made.json()["name"].startswith("dataplayer")
+    assert made.json()["config"]["path"].startswith("databases/dataplayer")
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_folder_outside_the_storage_is_refused_and_nothing_is_saved(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    before = (await client.get(f"{BASE}/", headers=normal_user_token_headers)).json()["count"]
+
+    made = await client.post(
+        f"{BASE}/made-here",
+        headers=normal_user_token_headers,
+        json={"adapter_type": "sqlite", "choice": {"folder": "../elsewhere"}},
+    )
+
+    assert made.status_code == 422, made.text
+    after = (await client.get(f"{BASE}/", headers=normal_user_token_headers)).json()["count"]
+    assert after == before
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_type_that_needs_a_server_is_not_made_here(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.post(
+        f"{BASE}/made-here",
+        headers=normal_user_token_headers,
+        json={"adapter_type": "postgres", "choice": {"name": "nope"}},
+    )
+
+    assert response.status_code == 501, response.text

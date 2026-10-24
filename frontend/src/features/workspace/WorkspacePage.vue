@@ -5,12 +5,20 @@ import { computed, nextTick, onBeforeUnmount, provide, ref, useTemplateRef, watc
 import type { ShallowRef } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
+import type {
+  AdapterTypeInfo,
+  ConnectorDraft,
+  ConnectorPublic,
+  MakeChoice,
+  NodeReplacement,
+  ServiceTemplateInfo,
+} from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
+import MakeHereDialog from "@/features/connectors/MakeHereDialog.vue"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/connectors/windows"
-import { connectorsKey, useConnectors } from "@/features/connectors/api"
+import { connectorsKey, useConnectors, useMakeConnectorHere } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import ServiceCredentialsDialog from "@/features/services/ServiceCredentialsDialog.vue"
 import StartServiceDialog from "@/features/services/StartServiceDialog.vue"
@@ -478,6 +486,33 @@ function pickAdapterType(adapterType: string) {
  * beside the connections until it becomes one (D83).
  */
 const startingTemplate = ref<ServiceTemplateInfo | null>(null)
+
+/** A type that needs no server, whose source is being named before it is made. */
+const makingType = ref<AdapterTypeInfo | null>(null)
+const makeConnectorHere = useMakeConnectorHere()
+
+function askToMake(type: AdapterTypeInfo) {
+  catalogOpen.value = false
+  makingType.value = type
+}
+
+/**
+ * Made at once — there is nothing to pull or wait for — and opened, as a
+ * started service is once it is ready (D263).
+ */
+async function makeHere(payload: { adapterType: string; choice: MakeChoice }) {
+  try {
+    const connector = await makeConnectorHere.mutateAsync({
+      adapter_type: payload.adapterType,
+      choice: payload.choice,
+    })
+    const where = typeof connector.config.path === "string" ? connector.config.path : ""
+    toast.success(t("connectors.make_here.made", { name: connector.name, where }))
+    openCatalog(connector)
+  } catch (cause) {
+    toast.error(messageOf(cause, t("connectors.make_here.failed")))
+  }
+}
 
 function askToStart(template: ServiceTemplateInfo) {
   catalogOpen.value = false
@@ -1347,6 +1382,12 @@ onBeforeUnmount(unregisterSearch)
       v-model="catalogOpen"
       @pick="pickAdapterType"
       @start="askToStart"
+      @make-here="askToMake"
+    />
+
+    <MakeHereDialog
+      v-model:type="makingType"
+      @make="makeHere"
     />
 
     <StartServiceDialog

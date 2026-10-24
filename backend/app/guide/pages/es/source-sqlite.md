@@ -50,6 +50,15 @@ extensión o alcanzar cualquier otra cosa del servidor. Cualquiera puede subir
 un archivo, así que una vista o un disparador dentro de él tampoco puede llamar
 a una función con efectos secundarios.
 
+## Una base propia
+
+**Nueva conexión** ofrece **Crear SQLite aquí**, de las dos maneras en que se
+inicia un servidor. **Configúralo por mí** crea `databases/dataplayer.db` en tu
+almacenamiento, lleno con un laboratorio de organizaciones, personas, proyectos
+y tareas, y guarda la conexión por ti. **Déjame elegir** pregunta el nombre, la
+carpeta, si llenarlo y si usar el registro de escritura anticipada (WAL). Un nombre ya usado recibe un número en lugar de reemplazar el archivo.
+El archivo es uno normal: se renombra, descarga o elimina en **Archivos**.
+
 ## El catálogo
 
 - El primer nivel es `main`, el único esquema del archivo.

@@ -34,7 +34,7 @@ const props = defineProps<{
   templates?: ServiceTemplateInfo[]
 }>()
 
-const emit = defineEmits<{ create: []; start: [template: ServiceTemplateInfo] }>()
+const emit = defineEmits<{ create: []; start: [template: ServiceTemplateInfo]; makeHere: [] }>()
 
 const offers = computed(() => props.templates ?? [])
 const openGuide = useOpenGuide()
@@ -138,6 +138,21 @@ const groups = computed(() =>
               : offer.unavailable_reason ?? t('connectors.panel.cannot_start')
           }}
         </AppTooltip>
+      </div>
+      <!-- A type that needs no server makes its source here instead: a
+           SQLite file in the person's own storage (D263). -->
+      <div
+        v-if="type.makes_here"
+        class="adapter-panel__start"
+        data-testid="make-here-offer"
+      >
+        <AppButton
+          variant="secondary"
+          :label="t('connectors.panel.make_here', { title: type.title })"
+          data-testid="make-here"
+          @click="emit('makeHere')"
+        />
+        <AppTooltip>{{ t('connectors.panel.makes_here') }}</AppTooltip>
       </div>
       <div class="adapter-panel__commands">
         <AppButton

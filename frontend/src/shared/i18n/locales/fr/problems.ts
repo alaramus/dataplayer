@@ -56,6 +56,7 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_content_previews": "Cette source ne prend pas en charge l'aperçu du contenu",
   "connectors.no_content_stream": "Cette source ne diffuse pas le contenu en flux",
   "connectors.no_connection_string": "Cette source n'a pas de chaîne de connexion",
+  "connectors.not_made_here": "Une source de ce type ne peut pas être créée sur ce serveur",
   "connectors.no_server_key": "Cette source ne mémorise pas de clé du serveur",
   "connectors.no_reading_rows": "Cette source ne prend pas en charge la lecture des lignes",
   "connectors.no_content_viewers": "Cette source ne prend pas en charge les visionneuses de contenu",

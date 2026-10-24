@@ -28,6 +28,7 @@ const emit = defineEmits<{
   "update:modelValue": [value: boolean]
   pick: [adapterType: string]
   start: [template: ServiceTemplateInfo]
+  makeHere: [type: AdapterTypeInfo]
 }>()
 
 const adapterTypes = useAdapterTypes()
@@ -183,6 +184,7 @@ function start(template: ServiceTemplateInfo) {
         :templates="templates"
         @create="selected && pick(selected)"
         @start="start"
+        @make-here="selected && emit('makeHere', selected)"
       />
     </div>
 

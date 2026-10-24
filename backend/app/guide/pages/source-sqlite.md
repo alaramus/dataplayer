@@ -48,6 +48,16 @@ second file (`ATTACH`, `VACUUM INTO`), load an extension, or reach anything
 else on the server. A file is anybody's to upload, so a view or a trigger in
 it cannot call a function with side effects either.
 
+## A database of your own
+
+**New connection** offers **Create SQLite here**, with the same two ways a
+server is started. **Set it up for me** makes `databases/dataplayer.db` in your
+storage, filled with a lab of organizations, people, projects and tasks, and
+saves the connection for you. **Let me choose** asks for the name, the folder,
+whether to fill it, and whether to use the write-ahead log (WAL). A name
+already taken gets a number rather than replacing the file. The file is an
+ordinary one: rename, download or delete it in **Files**.
+
 ## The catalog
 
 - The first level is `main`, the file's one schema.

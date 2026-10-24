@@ -90,4 +90,6 @@ MESSAGES: dict[str, str] = {
     '{label}: its options could not be read, and are not copied': '{label}: इसके विकल्प पढ़े नहीं जा सके, और कॉपी नहीं किए जाएँगे',
     'This backup is damaged and cannot be restored': 'यह बैकअप क्षतिग्रस्त है और पुनर्स्थापित नहीं किया जा सकता',
     'This file is not a SQLite backup': 'यह फ़ाइल SQLite का बैकअप नहीं है',
+    # A database made here (D263).
+    '{folder} is a file, not a folder': '{folder} एक फ़ाइल है, फ़ोल्डर नहीं',
 }

@@ -210,6 +210,9 @@ import type {
   connectorsKeepPageData,
   connectorsKeepPageErrors,
   connectorsKeepPageResponses,
+  connectorsMakeConnectorHereData,
+  connectorsMakeConnectorHereErrors,
+  connectorsMakeConnectorHereResponses,
   connectorsNewRelationOptionsData,
   connectorsNewRelationOptionsErrors,
   connectorsNewRelationOptionsResponses,
@@ -1340,6 +1343,34 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Make Connector Here
+   *
+   * Make a new source of a type that needs no server, and its connection.
+   *
+   * The counterpart of starting a service here (D80) for a type that starts
+   * nothing — a SQLite file in the owner's storage (D263). Done at once rather
+   * than as a job: there is nothing to pull and nothing to wait for.
+   */
+  public static makeConnectorHere<ThrowOnError extends boolean = true>(
+    options: Options<connectorsMakeConnectorHereData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsMakeConnectorHereResponses,
+      connectorsMakeConnectorHereErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/made-here",
       ...options,
       headers: {
         "Content-Type": "application/json",

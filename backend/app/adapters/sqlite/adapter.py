@@ -36,6 +36,8 @@ from app.adapters.protocol import (
     BackupAvailability,
     BackupProgram,
     ConnectionCheckResult,
+    MadeSource,
+    MakeChoice,
 )
 from app.adapters.query import (
     ExplainRequest,
@@ -71,6 +73,7 @@ from app.adapters.search import (
     SearchedField,
     SourceCost,
 )
+from app.adapters.sqlite import made_here
 from app.adapters.sqlite.actions import SQLITE_ACTION_TYPES, SqliteActions
 from app.adapters.sqlite.backup import SqliteBackup
 from app.adapters.sqlite.catalog import SqliteCatalog
@@ -151,6 +154,15 @@ class SqliteAdapter:
         self._references = SqliteReferences(self._session, self._catalog, self._relation)
         self._table_copy = SqliteTableCopy(self._session, self._relations)
         self._backup = SqliteBackup(self._session)
+
+    @classmethod
+    def make_source_here(cls, home_dir: Path, choice: MakeChoice) -> MadeSource:
+        """A new file, `databases/dataplayer.db` with the lab unless chosen (D263)."""
+        return made_here.make(home_dir, choice)
+
+    @classmethod
+    def unmake_source_here(cls, home_dir: Path, made: MadeSource) -> None:
+        made_here.unmake(home_dir, made)
 
     async def backup_availability(self) -> BackupAvailability:
         return await self._backup.backup_availability()

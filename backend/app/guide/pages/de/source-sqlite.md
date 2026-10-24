@@ -59,6 +59,17 @@ irgendetwas anderes auf dem Server erreichen. Eine Datei kann jeder hochladen,
 deshalb kann eine Ansicht oder ein Trigger darin auch keine Funktion mit
 Nebenwirkungen aufrufen.
 
+## Eine eigene Datenbank
+
+**Neue Verbindung** bietet **SQLite hier erstellen** an, auf die zwei Arten,
+auf die ein Server gestartet wird. **Für mich einrichten** legt
+`databases/dataplayer.db` in Ihrem Speicher an, gefüllt mit einem Labor aus
+Organisationen, Personen, Projekten und Aufgaben, und speichert die Verbindung
+für Sie. **Selbst auswählen** fragt nach Name, Ordner, ob Beispieldaten hinein
+sollen und ob das Write-Ahead-Log (WAL) genutzt wird. Ein schon vergebener Name erhält eine
+Nummer, statt die Datei zu ersetzen. Die Datei ist eine gewöhnliche: Umbenennen,
+Herunterladen oder Löschen geht in **Dateien**.
+
 ## Der Katalog
 
 - Die erste Ebene ist `main`, das einzige Schema der Datei.

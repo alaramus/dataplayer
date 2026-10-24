@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.adapters import options, registry
 from app.adapters.cache import SourceCacheWindows
+from app.adapters.protocol import MakesSourceHere
 from app.core.translation import say, say_schema
 from app.guide import reader as guide
 from app.users.deps import get_current_user
@@ -49,6 +50,9 @@ class AdapterTypeInfo(BaseModel):
     # nothing at all (D105).
     cache_windows: SourceCacheWindows | None
     options_schema: dict[str, Any]
+    # Whether a new source of this type can be made here without starting
+    # anything — a SQLite file (D263). Read off the driver, like the rest.
+    makes_here: bool = False
 
 
 # A plain function: the first call reads the guide's pages from disk, and
@@ -79,4 +83,5 @@ def info(adapter_type: registry.AdapterType) -> AdapterTypeInfo:
         can_change=guide.bullets(markdown, guide.CAN_CHANGE),
         cache_windows=registry.cache_windows_of(adapter_type),
         options_schema=say_schema(options.json_schema(adapter_type.options_schema)),
+        makes_here=issubclass(adapter_type.adapter_class, MakesSourceHere),
     )

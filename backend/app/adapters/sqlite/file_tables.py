@@ -34,7 +34,11 @@ def tables_of(path: Path) -> DatabaseContent:
             raise ValueError(say("The file is not a SQLite database"))
     deadline = time.monotonic() + SECONDS
     try:
-        connection = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True, autocommit=True)
+        # Immutable, not merely read only: a read-only connection to a file in
+        # WAL mode makes its -shm and -wal beside it and cannot take them away,
+        # which left two files in somebody's folder for a glance at a listing.
+        # A listing read while another program writes may then be stale.
+        connection = sqlite3.connect(f"{path.as_uri()}?mode=ro&immutable=1", uri=True, autocommit=True)
     except sqlite3.Error:
         raise ValueError(say("The database file cannot be opened")) from None
     try:

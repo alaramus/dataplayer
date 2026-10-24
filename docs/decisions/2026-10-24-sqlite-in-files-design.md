@@ -20,7 +20,11 @@ source would be a second SQLite source.
 ## How it is read
 
 The file is opened the way every SQLite connection here opens one (D247): read
-only, with the same authorizer and settings, under a five-second clock. A file
+only, with the same authorizer and settings, under a five-second clock. It is
+also opened immutable: a read-only connection to a file in WAL mode makes the
+-shm and -wal files beside it and cannot remove them, so a glance at a listing
+left two files in the person's folder. The price is that a listing read while
+another program writes the file may be stale. A file
 whose header is not SQLite's is refused with that reason, so a `.db` that is
 something else says so rather than showing an empty list. A remote file is read
 from its bounded local copy (D152).

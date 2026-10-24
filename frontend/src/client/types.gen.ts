@@ -340,6 +340,10 @@ export type AdapterTypeInfo = {
   options_schema: {
     [key: string]: unknown
   }
+  /**
+   * Makes Here
+   */
+  makes_here?: boolean
 }
 
 /**
@@ -7042,6 +7046,47 @@ export type LogPage = {
 }
 
 /**
+ * MadeHereRequest
+ *
+ * A new source to make on this server, and the connection to keep for it.
+ *
+ * `choice` is what the person decided; a choice left empty is the type's to
+ * make, as a service started automatically is (D263).
+ */
+export type MadeHereRequest = {
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  choice?: MakeChoice
+}
+
+/**
+ * MakeChoice
+ *
+ * What a person chose about a source made here; whatever is left out,
+ * the type decides (D263).
+ */
+export type MakeChoice = {
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Folder
+   */
+  folder?: string | null
+  /**
+   * Sample Data
+   */
+  sample_data?: boolean
+  /**
+   * Wal
+   */
+  wal?: boolean
+}
+
+/**
  * MarkdownContent
  *
  * The bounded source of a document that the browser renders itself.
@@ -9163,6 +9208,7 @@ export type ProblemDetail = {
     | "connectors.no_content_previews"
     | "connectors.no_content_stream"
     | "connectors.no_connection_string"
+    | "connectors.not_made_here"
     | "connectors.no_server_key"
     | "connectors.no_reading_rows"
     | "connectors.no_content_viewers"
@@ -15313,6 +15359,33 @@ export type connectorsCreateConnectorResponses = {
 
 export type connectorsCreateConnectorResponse =
   connectorsCreateConnectorResponses[keyof connectorsCreateConnectorResponses]
+
+export type connectorsMakeConnectorHereData = {
+  body: MadeHereRequest
+  path?: never
+  query?: never
+  url: "/api/v1/connectors/made-here"
+}
+
+export type connectorsMakeConnectorHereErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsMakeConnectorHereError =
+  connectorsMakeConnectorHereErrors[keyof connectorsMakeConnectorHereErrors]
+
+export type connectorsMakeConnectorHereResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConnectorPublic
+}
+
+export type connectorsMakeConnectorHereResponse =
+  connectorsMakeConnectorHereResponses[keyof connectorsMakeConnectorHereResponses]
 
 export type connectorsDeleteConnectorData = {
   body?: never

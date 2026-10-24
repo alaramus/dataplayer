@@ -56,6 +56,7 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_content_previews": "यह स्रोत सामग्री पूर्वावलोकन का समर्थन नहीं करता",
   "connectors.no_content_stream": "यह स्रोत सामग्री को स्ट्रीम के रूप में नहीं भेजता",
   "connectors.no_connection_string": "इस स्रोत के पास कनेक्शन स्ट्रिंग नहीं है",
+  "connectors.not_made_here": "इस प्रकार का स्रोत इस सर्वर पर नहीं बनाया जा सकता",
   "connectors.no_server_key": "यह स्रोत सर्वर कुंजी नहीं रखता",
   "connectors.no_reading_rows": "यह स्रोत पंक्तियाँ पढ़ने का समर्थन नहीं करता",
   "connectors.no_content_viewers": "यह स्रोत सामग्री व्यूअर का समर्थन नहीं करता",

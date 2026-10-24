@@ -56,6 +56,7 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_content_previews": "Esta fuente no admite vistas previas de contenido",
   "connectors.no_content_stream": "Esta fuente no envía el contenido como flujo continuo",
   "connectors.no_connection_string": "Esta fuente no tiene cadena de conexión",
+  "connectors.not_made_here": "Una fuente de este tipo no se puede crear en este servidor",
   "connectors.no_server_key": "Esta fuente no tiene clave de servidor",
   "connectors.no_reading_rows": "Esta fuente no admite la lectura de filas",
   "connectors.no_content_viewers": "Esta fuente no admite visores de contenido",

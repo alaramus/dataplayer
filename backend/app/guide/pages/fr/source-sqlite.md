@@ -52,6 +52,17 @@ extension ou atteindre quoi que ce soit d'autre sur le serveur. N'importe qui
 peut téléverser un fichier, donc une vue ou un déclencheur qu'il contient ne
 peut pas non plus appeler une fonction à effets de bord.
 
+## Une base à vous
+
+**Nouvelle connexion** propose **Créer SQLite ici**, des deux manières dont on
+démarre un serveur. **Le configurer pour moi** crée `databases/dataplayer.db` dans
+votre stockage, rempli d'un laboratoire d'organisations, de personnes, de
+projets et de tâches, et enregistre la connexion pour vous. **Me laisser
+choisir** demande le nom, le dossier, s'il faut le remplir et s'il faut
+utiliser le journal en écriture anticipée (WAL). Un nom déjà pris reçoit
+un numéro au lieu de remplacer le fichier. Le fichier est ordinaire : on le
+renomme, le télécharge ou le supprime dans **Fichiers**.
+
 ## Le catalogue
 
 - Le premier niveau est `main`, l'unique schéma du fichier.

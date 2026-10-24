@@ -49,6 +49,9 @@ DELETE /api/v1/services/{service_id}
 
 ## D80. An approved service is written in code, and a client names one
 
+A type that starts nothing makes its source here instead — a SQLite file
+([D263](sources/sqlite.md#d263-a-sqlite-database-is-made-here-as-a-file-not-started-as-a-service)).
+
 A client that can name an image can run any image, and one that can name a host
 path can mount any directory into it. So nothing about a container comes from a
 request.

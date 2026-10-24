@@ -6,7 +6,7 @@ cross to the grid and are changed there, how its structure is changed and a tabl
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `sqlite` adapter.
 
-Decisions here: D247, D248, D249, D250, D251, D252, D253, D254, D255, D256, D257, D258, D259, D260, D261, D262.
+Decisions here: D247, D248, D249, D250, D251, D252, D253, D254, D255, D256, D257, D258, D259, D260, D261, D262, D263.
 
 ## D247. A SQLite source is one file of its owner's storage, opened defensively
 
@@ -307,7 +307,8 @@ A file named `.db`, `.db3`, `.sqlite` or `.sqlite3` offers one representation,
 `database`: its tables, views and virtual tables with what ANALYZE counted, the
 engine and the size; SQLite's own tables are left out, at most a thousand are
 listed. No rows: they belong to a connection to the file. It is opened read
-only under D247's guard and a clock; a file without SQLite's header says so.
+only and immutable — a file in WAL mode gets no -shm or -wal beside it — under
+D247's guard and a clock; a file without SQLite's header says so.
 The driver stays in this package, which registers a reader for database files
 in the content module as it is imported; the file source asks for it by engine.
 
@@ -318,3 +319,18 @@ are paths in a home can draft one; elsewhere — a server's folder, a bucket —
 the source answers the action unavailable with its reason, so it is drawn off.
 
 Spec: [A SQLite file seen from a file source, and connected from it](../../decisions/2026-10-24-sqlite-in-files-design.md)
+
+## D263. A SQLite database is made here as a file, not started as a service
+
+**Create SQLite here**, beside the type in the new-connection catalog, is this
+type's counterpart of starting a server here (D80), with the same two ways.
+Left to the server it makes `databases/dataplayer.db` with the lab of D261 and
+names the connection after the file; chosen, it takes the folder (made where
+missing), the name, the lab or an empty file with SQLite's header, and WAL. The
+file and its connection are made in one request, no job. A taken name is
+numbered, never overwritten; a file whose connection could not be saved is
+removed; a folder outside the storage is refused (D8). It is not a managed
+service: there is nothing to stop, and the file lives in **Files**. The driver
+says it can through `MakesSourceHere`, and the types list carries `makes_here`.
+
+Spec: [A SQLite database made here](../../decisions/2026-10-24-sqlite-made-here-design.md)

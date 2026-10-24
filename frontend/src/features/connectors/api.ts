@@ -7,8 +7,9 @@ import { waitingKey } from "@/features/shares/attention"
 import type {
   AdapterTypeInfo,
   ConnectorCreate,
-  ConnectorsPublic,
   ConnectorUpdate,
+  ConnectorsPublic,
+  MadeHereRequest,
 } from "@/client"
 
 export const connectorsKey = ["connectors"] as const
@@ -130,6 +131,16 @@ export function useCreateConnector() {
   return useMutation({
     mutationFn: async (body: ConnectorCreate) =>
       (await ConnectorsService.createConnector({ body })).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: connectorsKey }),
+  })
+}
+
+/** A new source made on this server, and its connection saved (D263). */
+export function useMakeConnectorHere() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: MadeHereRequest) =>
+      (await ConnectorsService.makeConnectorHere({ body })).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: connectorsKey }),
   })
 }

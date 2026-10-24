@@ -1,9 +1,10 @@
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
@@ -895,6 +896,47 @@ class ComposesSecretUrl(Protocol):
     def connection_url_with_password(
         cls, options: Mapping[str, Any]
     ) -> str | None: ...
+
+
+class MakeChoice(BaseModel):
+    """What a person chose about a source made here; whatever is left out,
+    the type decides (D263)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, max_length=255)
+    # A folder of the person's storage, made where it is missing.
+    folder: str | None = Field(default=None, max_length=512)
+    sample_data: bool = True
+    # SQLite's write-ahead log: readers and a writer at once.
+    wal: bool = False
+
+
+class MadeSource(BaseModel):
+    """A source a type made of itself on this server, before any connection
+    holds it: the options a connection to it takes, where it is, said to the
+    person who asked, and the name its connection is saved under."""
+
+    options: dict[str, Any]
+    where: str
+    name: str
+
+
+@runtime_checkable
+class MakesSourceHere(Protocol):
+    """A source type that can make a new source of itself here without
+    starting anything — a file in its owner's storage (D263).
+
+    The counterpart of a service this server starts (D80) for a type that has
+    no server. Classmethods: there is no connection yet to ask. `unmake`
+    takes back what `make` made when no connection came to hold it.
+    """
+
+    @classmethod
+    def make_source_here(cls, home_dir: Path, choice: MakeChoice) -> MadeSource: ...
+
+    @classmethod
+    def unmake_source_here(cls, home_dir: Path, made: MadeSource) -> None: ...
 
 
 @runtime_checkable
