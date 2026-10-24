@@ -55,6 +55,7 @@ export const catalog: Messages["catalog"] = {
     open: "Открыть {name}",
     select: "Выбрать {name}",
     copy_name: "Копировать «{name}»",
+    copy_path: "Копировать путь к «{name}»",
   },
   keyspace: {
     open_failed: "Не удалось открыть {name}",

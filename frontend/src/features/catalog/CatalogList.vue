@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed, nextTick, ref, watch } from "vue"
 
+import { levelPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import { copyText } from "@/shared/clipboard"
 import { t } from "@/shared/i18n"
@@ -48,7 +49,22 @@ const root = ref<HTMLElement | null>(null)
 const toast = useToast()
 
 /**
- * The name of a row, in the clipboard.
+ * What a row's copy button puts in the clipboard: a file's or a folder's path
+ * from the root of its connection, in the form the head's path copy writes,
+ * and anything else's name. A file name alone is rarely what is pasted.
+ */
+function copiedText(node: ListNode): string {
+  return node.kind === "file" || node.kind === "directory" ? levelPath(node.id) : node.label
+}
+
+function copyTooltip(node: ListNode): string {
+  return node.kind === "file" || node.kind === "directory"
+    ? t("catalog.list.copy_path", { name: node.label })
+    : t("catalog.list.copy_name", { name: node.label })
+}
+
+/**
+ * The name or path of a row, in the clipboard.
  *
  * The gesture lives on the icon rather than in a column of its own: a control
  * wanted only on the row under the pointer must not cost every row the width,
@@ -56,9 +72,10 @@ const toast = useToast()
  * needs while they are reaching for it.
  */
 async function copyName(node: ListNode) {
+  const text = copiedText(node)
   try {
-    await copyText(node.label)
-    toast.success(t("catalog.list.copied", { name: node.label }))
+    await copyText(text)
+    toast.success(t("catalog.list.copied", { name: text }))
   } catch {
     toast.error(t("catalog.list.copy_refused"))
   }
@@ -226,7 +243,7 @@ const countLabel = computed(() => {
           <AppIconButton
             class="catalog-list__copy"
             :icon="appIcons.copy"
-            :tooltip="t('catalog.list.copy_name', { name: node.label })"
+            :tooltip="copyTooltip(node)"
             :data-testid="`catalog-copy-${node.label}`"
             @click.stop="copyName(node)"
             @keydown.enter.stop

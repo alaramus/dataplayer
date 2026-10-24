@@ -75,6 +75,20 @@ describe("copying the name of a row", () => {
     expect(writeText).toHaveBeenCalledWith("orders")
   })
 
+  it("puts a file's whole path in the clipboard, from the root of its connection", async () => {
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
+    const file: ListNode = { ...table("data/shop.db", "shop.db"), kind: "file", icon: "description" }
+    const wrapper = mount(CatalogList, {
+      props: { items: [file], checked: [], loading: false },
+      global: { plugins: [[Quasar, { plugins: { Notify } }]] },
+    })
+
+    await wrapper.get('[data-testid="catalog-copy-shop.db"]').trigger("click")
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith("/data/shop.db")
+  })
+
   it("does not open the row it was copied from", async () => {
     vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
     const wrapper = mountList()

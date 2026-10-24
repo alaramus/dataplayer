@@ -54,6 +54,7 @@ export const catalog = {
     open: "Open {name}",
     select: "Select {name}",
     copy_name: "Copy “{name}”",
+    copy_path: "Copy the path of “{name}”",
   },
   keyspace: {
     open_failed: "Could not open {name}",

@@ -57,6 +57,7 @@ export const catalog: Messages["catalog"] = {
     open: "打开 {name}",
     select: "选择 {name}",
     copy_name: "复制“{name}”",
+    copy_path: "复制“{name}”的路径",
   },
   keyspace: {
     open_failed: "无法打开 {name}",
