@@ -67,8 +67,7 @@ offer an alternative to picking a small line with the pointer.
 View state is versioned and validated before restoration. The relationship
 feature stores only UI state in localStorage, scoped to the signed-in user,
 connection and explicit node set. Relation metadata and rows are not persisted.
-A 3D layout revision recalculates saved 3D positions and the camera once while
-retaining the 2D layout and view options. Storage failure is reported while
+Storage failure is reported while
 leaving the current view usable.
 
 ## Evidence and deferred validation
