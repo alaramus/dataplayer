@@ -154,6 +154,63 @@ forbidden_modules =
     pglast
     app.adapters.postgres
 
+# SQLite's driver is the standard library's, and the rule is the same: the
+# module that opens a file defensively (D247) is the only one that opens one.
+[importlinter:contract:sqlite-driver-is-contained]
+name = sqlite3 is imported only by the sqlite adapter
+type = forbidden
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.pipelines
+    app.transfers
+    app.search
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.ai
+    app.terminals
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.fetch
+    app.adapters.routes
+    app.adapters.actions
+    app.adapters.operations
+    app.adapters.resources
+    app.adapters.file
+    app.adapters.explorer
+    app.adapters.postgres
+    app.adapters.mysql
+    app.adapters.redis
+    app.adapters.ssh
+forbidden_modules =
+    sqlite3
+
+# And no other source's driver or dialect reaches the SQLite adapter.
+[importlinter:contract:other-drivers-stay-out-of-sqlite]
+name = the sqlite adapter imports no other source's driver
+type = forbidden
+source_modules =
+    app.adapters.sqlite
+forbidden_modules =
+    psycopg
+    psycopg_pool
+    pglast
+    aiomysql
+    pymysql
+    redis
+    asyncssh
+    app.adapters.postgres
+    app.adapters.mysql
+
 # The same rule as the psycopg one, for the three libraries the file explorer
 # reads with: a format's library belongs to the module that owns the format, so
 # an upgrade has one place to change, and every source that is a tree of files

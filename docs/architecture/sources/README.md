@@ -1,6 +1,6 @@
 # Data sources
 
-What the five existing source types do, where their code sits, and which
+What the six existing source types do, where their code sits, and which
 file holds which decision.
 
 | File | Open it to |
@@ -18,9 +18,10 @@ file holds which decision.
 | [actions.md](actions.md) | add an action or change what a form applies to |
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
+| [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, or how its values and pages are read |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, or where SSH keys and passphrases are kept |
 
-## Five source types
+## Six source types
 
 **PostgreSQL** — schemas and relations, safe schema create/rename/drop and
 relation moves, bounded relation DDL, server-side paging and sorting, streaming
@@ -86,6 +87,15 @@ backed up by its own family's dump program (D240), and the server's counters
 feed dashboards (D241). A row of a table with no key is named by its values
 (D242), and an account is made from the Users report (D243).
 
+**SQLite** — a database file of the owner's storage, opened per call by the
+standard library with everything that reaches past the file refused (D247):
+one schema, `main`, with its tables, views and virtual tables and the
+estimates `ANALYZE` left (D248), a relation's columns, keys, checks and
+indexes from the pragmas and the table's own text (D249), its summary and the
+file's own DDL, and rows paged, sorted and filtered with every value shown by
+its storage class (D250), in the order of the primary key or the rowid
+(D251). Read only for now.
+
 ## Where the code is
 
 ```
@@ -120,6 +130,8 @@ backend/app/adapters/
 ├── credentials.py      a signing key handed to a driver, a pinned server key
 ├── cache.py            bounded read cache, coalescing, connector invalidation
 ├── words.py            vocabulary titles worded in the language of the request
+├── compose.py          a statement from fixed text and quoted names, for
+│                       drivers without psycopg's sql module
 ├── postgres/           session.py and pool.py (reaching the server), catalog.py,
 │                       fetch.py, export.py, update.py, references.py,
 │                       relation.py + columns.py + constraints.py + indexes.py
@@ -145,6 +157,12 @@ backend/app/adapters/
 │                       export.py, table_copy.py, backup.py, metrics.py,
 │                       users.py (New user), samples.py + sample_data/
 │                       (the lab a started server opens on),
+│                       adapter.py
+├── sqlite/             session.py (opening the file, guarded, in a thread),
+│                       definition.py (reading a CREATE TABLE), inspection.py
+│                       (pragmas and text, once), catalog.py, ids.py, sql.py,
+│                       relation.py, fetch.py, types.py (values by class),
+│                       content.py, summary.py, features.py, options.py,
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and
