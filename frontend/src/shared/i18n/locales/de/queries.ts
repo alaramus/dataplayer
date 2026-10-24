@@ -189,6 +189,7 @@ export const queries: Messages["queries"] = {
     prepare_failed: "Diese Abfrage konnte nicht vorbereitet werden",
     fill_parameters: "Füllen Sie die Parameter aus, die diese Abfrage verlangt",
     tried_out: "An der Quelle versucht und dann rückgängig gemacht:",
+    not_tried: "Diese Quelle kann die Änderung nicht vorher ausprobieren: Sie wird sofort vorgenommen und kann nicht rückgängig gemacht werden.",
     risky_title: "Etwas ausführen, das nicht rückgängig gemacht werden kann?",
     write_title: "Dieses Schreiben bestätigen?",
     changes_named: "Dies ändert {name}.",

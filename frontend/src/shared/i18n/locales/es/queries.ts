@@ -189,6 +189,7 @@ export const queries: Messages["queries"] = {
     prepare_failed: "No se pudo preparar esta consulta",
     fill_parameters: "Rellena los parámetros que pide esta consulta",
     tried_out: "Probado en la fuente y luego deshecho:",
+    not_tried: "Esta fuente no puede probar el cambio antes: se hace al instante y no se puede deshacer.",
     risky_title: "¿Ejecutar algo que no se puede deshacer?",
     write_title: "¿Confirmar esta escritura?",
     changes_named: "Esto cambia {name}.",
