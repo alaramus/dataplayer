@@ -2667,6 +2667,7 @@ export type ContentRequest = {
     | "video"
     | "pdf"
     | "sql"
+    | "database"
   /**
    * Limit
    */
@@ -3370,6 +3371,34 @@ export type DashboardSave = {
 }
 
 /**
+ * DatabaseContent
+ *
+ * A database file seen from a file source: what it holds, not its rows (D262).
+ */
+export type DatabaseContent = {
+  /**
+   * Kind
+   */
+  kind?: "database"
+  /**
+   * Engine
+   */
+  engine: string
+  /**
+   * Size Bytes
+   */
+  size_bytes: number
+  /**
+   * Relations
+   */
+  relations: Array<DatabaseRelation>
+  /**
+   * Total
+   */
+  total: number
+}
+
+/**
  * DatabaseNode
  *
  * One numbered key space of a key-value server.
@@ -3421,6 +3450,24 @@ export type DatabaseNode = {
    * Keys
    */
   keys?: number | null
+}
+
+/**
+ * DatabaseRelation
+ */
+export type DatabaseRelation = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Kind
+   */
+  kind: "table" | "view" | "virtual"
+  /**
+   * Row Estimate
+   */
+  row_estimate?: number | null
 }
 
 /**
@@ -7468,6 +7515,7 @@ export type NodeRepresentation = {
     | "video"
     | "pdf"
     | "sql"
+    | "database"
   /**
    * Title
    */
@@ -15592,6 +15640,9 @@ export type connectorsReadContentResponses = {
     | ({
         kind: "pdf"
       } & PdfContent)
+    | ({
+        kind: "database"
+      } & DatabaseContent)
 }
 
 export type connectorsReadContentResponse =

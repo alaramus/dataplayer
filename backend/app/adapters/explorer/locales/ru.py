@@ -263,4 +263,7 @@ MESSAGES: dict[str, str] = {
     "This folder holds more than {count} entries": "В этой папке больше {count} элементов",
     "This file could not be read as delimited rows": "Не удалось прочитать файл как строки с разделителями",
     "This folder could not be read": "Не удалось прочитать папку",
+    # A database file (D262).
+    'View the database': 'Открыть базу данных',
+    'This server cannot read database files': 'Этот сервер не умеет читать файлы баз данных',
 }

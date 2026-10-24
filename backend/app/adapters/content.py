@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -19,9 +20,10 @@ RepresentationKind = Literal[
     "video",
     "pdf",
     "sql",
+    "database",
 ]
 ContentRepresentationKind = Literal[
-    "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf", "sql"
+    "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf", "sql", "database"
 ]
 # The representations whose bytes a client reads through the ranged transport
 # of D52 rather than holding whole.
@@ -334,6 +336,44 @@ class BoundedContentPreview:
     height: int
 
 
+class DatabaseRelation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    kind: Literal["table", "view", "virtual"]
+    # What the database last counted, when it ever did; nothing counts rows.
+    row_estimate: int | None = None
+
+
+class DatabaseContent(BaseModel):
+    """A database file seen from a file source: what it holds, not its rows (D262)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["database"] = "database"
+    engine: str
+    size_bytes: int
+    relations: list[DatabaseRelation]
+    # How many relations the file has; more than are listed when it was cut.
+    total: int
+
+
+# Who reads a database file a file source lists, by engine (D262). The
+# engine's package registers its reader as it is imported, so a file source
+# reaches a database driver without importing it: a driver stays inside the
+# package that opens files with it.
+DatabaseReader = Callable[[Path], DatabaseContent]
+_DATABASE_READERS: dict[str, DatabaseReader] = {}
+
+
+def register_database_reader(engine: str, reader: DatabaseReader) -> None:
+    _DATABASE_READERS[engine] = reader
+
+
+def database_reader(engine: str) -> DatabaseReader | None:
+    return _DATABASE_READERS.get(engine)
+
+
 ContentResult = Annotated[
     TextContent
     | SqlContent
@@ -343,7 +383,8 @@ ContentResult = Annotated[
     | ImageContent
     | AudioContent
     | VideoContent
-    | PdfContent,
+    | PdfContent
+    | DatabaseContent,
     Field(discriminator="kind"),
 ]
 

@@ -24,6 +24,9 @@ VIDEO_EXTENSIONS: frozenset[str] = frozenset(
     {".m4v", ".mov", ".mp4", ".ogv", ".webm"}
 )
 PDF_EXTENSIONS: frozenset[str] = frozenset({".pdf"})
+# The names SQLite files are given. A file by one of them that is something
+# else is found out by its header when it is opened (D262).
+DATABASE_EXTENSIONS: frozenset[str] = frozenset({".db", ".db3", ".sqlite", ".sqlite3"})
 # ZIP alone: a tar has no index, so listing it means reading it end to end and
 # reading one entry means reading it again (D53).
 ARCHIVE_EXTENSIONS: frozenset[str] = frozenset({".zip"})
@@ -90,6 +93,7 @@ FileFormat = Literal[
     "audio",
     "video",
     "pdf",
+    "database",
     "archive",
     "opaque",
 ]
@@ -104,6 +108,7 @@ MARKDOWN = NodeRepresentation(kind="markdown", title=N_("View as document"))
 AUDIO = NodeRepresentation(kind="audio", title=N_("Play"))
 VIDEO = NodeRepresentation(kind="video", title=N_("Play"))
 PDF = NodeRepresentation(kind="pdf", title=N_("Read"))
+DATABASE = NodeRepresentation(kind="database", title=N_("View the database"))
 
 
 def worded(items: list[NodeRepresentation]) -> list[NodeRepresentation]:
@@ -135,6 +140,8 @@ def format_of(name: str) -> FileFormat:
         return "video"
     if suffix in PDF_EXTENSIONS:
         return "pdf"
+    if suffix in DATABASE_EXTENSIONS:
+        return "database"
     if suffix in ARCHIVE_EXTENSIONS:
         return "archive"
     if suffix in BINARY_EXTENSIONS:
@@ -186,6 +193,10 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             return [VIDEO]
         case "pdf":
             return [PDF]
+        case "database":
+            # Its tables, read from the file: what a person opens a database
+            # to see. Rows belong to a connection to it (D262).
+            return [DATABASE]
         case "archive":
             # An archive has no viewer of its own: it is walked into, and what
             # is inside it has the viewers (D53).

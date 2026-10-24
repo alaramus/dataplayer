@@ -25,6 +25,20 @@ export const content: Messages["content"] = {
     keyword: "कीवर्ड",
     source_aria: "{name} स्रोत",
   },
+  database: {
+    could_not_open: "यह डेटाबेस नहीं खोला जा सका",
+    relations: "{n} रिलेशन | {n} रिलेशन",
+    name: "नाम",
+    kind: "प्रकार",
+    rows: "पंक्तियाँ",
+    empty: "इस डेटाबेस में कोई टेबल नहीं है",
+    cut: "{total} में से पहले {shown} रिलेशन दिखाए गए हैं",
+    kinds: {
+      table: "टेबल",
+      view: "व्यू",
+      virtual: "वर्चुअल टेबल",
+    },
+  },
   image: {
     could_not_open: "यह छवि खोली नहीं जा सकी",
     preview_failed:

@@ -6,7 +6,7 @@ cross to the grid and are changed there, how its structure is changed and a tabl
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `sqlite` adapter.
 
-Decisions here: D247, D248, D249, D250, D251, D252, D253, D254, D255, D256, D257, D258, D259, D260, D261.
+Decisions here: D247, D248, D249, D250, D251, D252, D253, D254, D255, D256, D257, D258, D259, D260, D261, D262.
 
 ## D247. A SQLite source is one file of its owner's storage, opened defensively
 
@@ -300,3 +300,15 @@ written into the development superuser's storage by `app.seed_storage`
 and opened by the `sqlite-lab` connection `bun run seed:connectors` adds.
 
 Spec: [Copying SQLite tables, backing a file up, and the lab](../../decisions/2026-10-24-sqlite-copy-design.md)
+
+## D262. A SQLite file in a file source shows the tables it holds
+
+A file named `.db`, `.db3`, `.sqlite` or `.sqlite3` offers one representation,
+`database`: its tables, views and virtual tables with what ANALYZE counted, the
+engine and the size; SQLite's own tables are left out, at most a thousand are
+listed. No rows: they belong to a connection to the file. It is opened read
+only under D247's guard and a clock; a file without SQLite's header says so.
+The driver stays in this package, which registers a reader for database files
+in the content module as it is imported; the file source asks for it by engine.
+
+Spec: [A SQLite file seen from a file source](../../decisions/2026-10-24-sqlite-in-files-design.md)

@@ -261,4 +261,7 @@ MESSAGES: dict[str, str] = {
     "This folder holds more than {count} entries": "此文件夹包含超过 {count} 个条目",
     "This file could not be read as delimited rows": "无法将此文件作为分隔行读取",
     "This folder could not be read": "无法读取此文件夹",
+    # A database file (D262).
+    'View the database': '查看数据库',
+    'This server cannot read database files': '此服务器无法读取数据库文件',
 }

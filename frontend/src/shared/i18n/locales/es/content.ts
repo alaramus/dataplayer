@@ -24,6 +24,20 @@ export const content: Messages["content"] = {
     keyword: "palabra clave",
     source_aria: "Código fuente de {name}",
   },
+  database: {
+    could_not_open: "No se pudo abrir esta base de datos",
+    relations: "{n} relación | {n} relaciones",
+    name: "Nombre",
+    kind: "Tipo",
+    rows: "Filas",
+    empty: "Esta base de datos no contiene tablas",
+    cut: "Se muestran las primeras {shown} de {total} relaciones",
+    kinds: {
+      table: "tabla",
+      view: "vista",
+      virtual: "tabla virtual",
+    },
+  },
   image: {
     could_not_open: "No se pudo abrir esta imagen",
     preview_failed: "No se pudo cargar la vista previa verificada. Recarga esta pestaña para solicitar una nueva.",

@@ -22,6 +22,20 @@ export const content = {
     keyword: "keyword",
     source_aria: "{name} source",
   },
+  database: {
+    could_not_open: "Could not open this database",
+    relations: "{n} relation | {n} relations",
+    name: "Name",
+    kind: "Kind",
+    rows: "Rows",
+    empty: "This database holds no tables",
+    cut: "The first {shown} of {total} relations are shown",
+    kinds: {
+      table: "table",
+      view: "view",
+      virtual: "virtual table",
+    },
+  },
   image: {
     could_not_open: "Could not open this image",
     preview_failed: "The verified preview could not be loaded. Reload this tab to request a new one.",

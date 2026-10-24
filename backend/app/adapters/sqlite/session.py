@@ -81,7 +81,7 @@ def _authorize(
     return sqlite3.SQLITE_OK
 
 
-def _harden(connection: sqlite3.Connection, *, writes: bool) -> None:
+def harden(connection: sqlite3.Connection, *, writes: bool) -> None:
     """What every connection is opened with, whatever it is for (D247, D253).
 
     The authorizer comes last: the settings before it are this application's,
@@ -305,7 +305,7 @@ class SqliteSession:
             check_same_thread=False,
         )
         try:
-            _harden(connection, writes=writes)
+            harden(connection, writes=writes)
         except BaseException:
             connection.close()
             raise

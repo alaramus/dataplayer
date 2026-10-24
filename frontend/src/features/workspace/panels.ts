@@ -74,6 +74,7 @@ export const CONTENT_REPRESENTATIONS = [
   "video",
   "pdf",
   "sql",
+  "database",
 ] as const
 export type ContentRepresentation = (typeof CONTENT_REPRESENTATIONS)[number]
 
@@ -337,6 +338,9 @@ const ServiceLogsPanelView = defineAsyncComponent(
  * The PDF renderer is the same kind of cost as the document stack: nobody who
  * does not open a PDF downloads it.
  */
+const DatabasePanelView = defineAsyncComponent(
+  () => import("@/features/content/DatabasePanel.vue")
+)
 const PdfPanelView = defineAsyncComponent(
   () => import("@/features/content/PdfPanel.vue")
 )
@@ -711,6 +715,16 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
             nodeId: panel.nodeId,
             title: panel.title,
             representation,
+          })
+        )
+      }
+      if (representation === "database") {
+        return bind(key, () =>
+          h(DatabasePanelView, {
+            panelId: panel.id,
+            connectorId: panel.connectorId,
+            nodeId: panel.nodeId,
+            title: panel.title,
           })
         )
       }

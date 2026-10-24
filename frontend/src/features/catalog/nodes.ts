@@ -215,6 +215,7 @@ export const REPRESENTATION_ICONS: Record<NodeRepresentation["kind"], string> = 
   video: "movie",
   pdf: "picture_as_pdf",
   sql: "code",
+  database: "storage",
 }
 
 /**

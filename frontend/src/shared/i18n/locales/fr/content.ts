@@ -24,6 +24,20 @@ export const content: Messages["content"] = {
     keyword: "mot-clé",
     source_aria: "Source de {name}",
   },
+  database: {
+    could_not_open: "Impossible d'ouvrir cette base de données",
+    relations: "{n} relation | {n} relations",
+    name: "Nom",
+    kind: "Type",
+    rows: "Lignes",
+    empty: "Cette base de données ne contient aucune table",
+    cut: "Les {shown} premières relations sur {total} sont affichées",
+    kinds: {
+      table: "table",
+      view: "vue",
+      virtual: "table virtuelle",
+    },
+  },
   image: {
     could_not_open: "Cette image n'a pas pu être ouverte",
     preview_failed: "L'aperçu vérifié n'a pas pu être chargé. Rechargez cet onglet pour en demander un nouveau.",

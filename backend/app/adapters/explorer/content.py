@@ -47,6 +47,7 @@ from app.adapters.content import (
     TextContent,
     UpdateContentRequest,
     VideoContent,
+    database_reader,
 )
 from app.adapters.explorer import archive
 from app.adapters.explorer.binary import bytes_look_binary
@@ -147,6 +148,8 @@ class ExplorerContent:
         entry = _archive_entry(self._storage, request.node_id)
         if entry is None:
             place = self._file_place(request.node_id)
+            if request.representation == "database":
+                return self._read_database(place, request)
             return self._read(_in_storage(self._storage, place), request)
         # An entry is expanded into a bounded temporary file and read by the
         # ordinary viewer, which is what lets every one of them work inside an
@@ -166,6 +169,22 @@ class ExplorerContent:
             archive.expanded(container, name) as expanded,
         ):
             return self._read(_on_disk(expanded, _entry_name(name)), request)
+
+    def _read_database(self, place: Place, request: ContentRequest) -> ContentResult:
+        """A database file's tables, read from a path SQLite can open: the
+        file itself, or the bounded local copy of a remote one (D152, D262)."""
+        source = _in_storage(self._storage, place)
+        if not source.exists or source.is_directory:
+            raise ValueError(say("No such file: {node_id}", node_id=request.node_id))
+        if "database" not in {item.kind for item in representations_of(source.name)}:
+            raise ValueError(
+                say('This file does not offer the "{representation}" representation', representation="database")
+            )
+        reader = database_reader("sqlite")
+        if reader is None:
+            raise ValueError(say("This server cannot read database files"))
+        with self._storage.local_file(place) as local:
+            return reader(local)
 
     def _file_place(self, node_id: str) -> Place:
         """The place of a node that is a file or a folder, never a member.
@@ -267,6 +286,10 @@ class ExplorerContent:
                 return _video_content(source)
             case "pdf":
                 return _pdf_content(source)
+            case "database":
+                # Read by `_read_database`, which needs a path rather than a
+                # stream; an archive entry offers no database (D53).
+                raise ValueError(say('This file does not offer the "{representation}" representation', representation="database"))
             case "sql":
                 # The catalog guard above makes this unreachable for a file,
                 # but the closed content vocabulary includes source-issued SQL.

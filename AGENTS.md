@@ -337,6 +337,7 @@ files. IDs are stable because specs and commits refer to them.
 | D259 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
 | D260 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
 | D261 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
+| D262 | [sources/sqlite](docs/architecture/sources/sqlite.md) |
 
 ## Working rules
 

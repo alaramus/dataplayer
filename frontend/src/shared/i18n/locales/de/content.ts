@@ -24,6 +24,20 @@ export const content: Messages["content"] = {
     keyword: "Schlüsselwort",
     source_aria: "Quelltext von „{name}“",
   },
+  database: {
+    could_not_open: "Diese Datenbank konnte nicht geöffnet werden",
+    relations: "{n} Relation | {n} Relationen",
+    name: "Name",
+    kind: "Art",
+    rows: "Zeilen",
+    empty: "Diese Datenbank enthält keine Tabellen",
+    cut: "Die ersten {shown} von {total} Relationen werden angezeigt",
+    kinds: {
+      table: "Tabelle",
+      view: "Ansicht",
+      virtual: "virtuelle Tabelle",
+    },
+  },
   image: {
     could_not_open: "Dieses Bild konnte nicht geöffnet werden",
     preview_failed: "Die geprüfte Vorschau konnte nicht geladen werden. Laden Sie diesen Tab neu, um eine neue anzufordern.",

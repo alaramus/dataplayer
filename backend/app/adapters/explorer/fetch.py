@@ -143,7 +143,7 @@ class ExplorerFetch:
                 return _reader_for(textual).read(
                     path, request.limit, request.offset, request.filters
                 )
-            case "markdown" | "image" | "audio" | "video" | "pdf" | "archive" | "opaque":
+            case "markdown" | "image" | "audio" | "video" | "pdf" | "database" | "archive" | "opaque":
                 raise ValueError(
                     say("This file cannot be read as rows: {node_id}", node_id=request.node_id)
                 )

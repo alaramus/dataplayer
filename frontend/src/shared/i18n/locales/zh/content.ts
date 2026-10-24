@@ -24,6 +24,20 @@ export const content: Messages["content"] = {
     keyword: "关键词",
     source_aria: "{name} 的来源",
   },
+  database: {
+    could_not_open: "无法打开此数据库",
+    relations: "{n} 个关系",
+    name: "名称",
+    kind: "类型",
+    rows: "行数",
+    empty: "此数据库中没有表",
+    cut: "显示了 {total} 个关系中的前 {shown} 个",
+    kinds: {
+      table: "表",
+      view: "视图",
+      virtual: "虚拟表",
+    },
+  },
   image: {
     could_not_open: "无法打开此图片",
     preview_failed: "无法加载已验证的预览。请重新加载此标签页以请求新的预览。",
