@@ -1,11 +1,16 @@
 """A ClickHouse relation described in the adapter-neutral model."""
 
+from app.adapters.clickhouse.catalog import is_system_database
 from app.adapters.clickhouse.inspection import (
     RelationFacts,
     read_relation,
     read_relations,
 )
 from app.adapters.clickhouse.session import ClickhouseSession, quoted_name
+from app.adapters.clickhouse.vocabulary import (
+    CLICKHOUSE_COLUMN_TYPE_OPTIONS,
+    CLICKHOUSE_INDEX_METHODS,
+)
 from app.adapters.database_ids import parse
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import (
@@ -16,6 +21,7 @@ from app.adapters.relation import (
     RelationKind,
     RelationModel,
 )
+from app.adapters.words import worded_titles
 from app.core.translation import say
 
 
@@ -69,8 +75,23 @@ def _indexes(facts: RelationFacts) -> list[Index]:
     return indexes
 
 
+def structure_reason(facts: RelationFacts) -> str | None:
+    """Why this relation's structure cannot be changed, or nothing (D273)."""
+    if is_system_database(facts.schema):
+        return say('"{schema}" belongs to the server', schema=facts.schema)
+    if facts.is_view:
+        return say("Only a table's structure can be changed")
+    if not facts.engine.endswith("MergeTree"):
+        return say(
+            "Only a MergeTree table's structure can be changed; this one is {engine}",
+            engine=facts.engine,
+        )
+    return None
+
+
 def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
-    refused = say("Changing the structure of a ClickHouse table is not supported yet")
+    refused = structure_reason(facts)
+    changeable = refused is None
     return RelationModel(
         node_id=node_id,
         schema_name=facts.schema,
@@ -94,9 +115,17 @@ def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
         ],
         constraints=_constraints(facts),
         indexes=_indexes(facts),
+        column_changes_supported=changeable,
         column_changes_reason=refused,
+        column_operations=(
+            ["add", "drop", "rename", "default", "nullability", "type"] if changeable else []
+        ),
+        column_type_options=worded_titles(CLICKHOUSE_COLUMN_TYPE_OPTIONS) if changeable else [],
+        index_changes_supported=changeable,
         index_changes_reason=refused,
-        constraint_changes_reason=refused,
+        index_methods=worded_titles(CLICKHOUSE_INDEX_METHODS) if changeable else [],
+        # No unique key and no foreign key exist in ClickHouse to be made (D269).
+        constraint_changes_reason=say("ClickHouse has no unique keys and no foreign keys"),
     )
 
 

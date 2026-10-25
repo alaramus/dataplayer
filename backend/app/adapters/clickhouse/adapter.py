@@ -4,10 +4,12 @@ from typing import Any
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
 from app.adapters.clickhouse.catalog import ClickhouseCatalog
+from app.adapters.clickhouse.columns import ClickhouseColumns
 from app.adapters.clickhouse.content import ClickhouseContent
 from app.adapters.clickhouse.explain import ClickhouseExplain
 from app.adapters.clickhouse.features import ClickhouseFeatures
 from app.adapters.clickhouse.fetch import ClickhouseFetch
+from app.adapters.clickhouse.indexes import ClickhouseIndexes
 from app.adapters.clickhouse.metadata import ClickhouseGeneration, ClickhouseMetadata
 from app.adapters.clickhouse.options import ClickhouseOptions
 from app.adapters.clickhouse.query import ClickhouseExecution, ClickhouseQuery
@@ -21,9 +23,26 @@ from app.adapters.clickhouse.session import (
 from app.adapters.clickhouse.statements import format_text
 from app.adapters.clickhouse.summary import ClickhouseSummaries
 from app.adapters.clickhouse.update import ClickhouseUpdate
+from app.adapters.column_changes import (
+    AddColumnRequest,
+    ColumnChangeResult,
+    ColumnDefaultRequest,
+    ColumnNullabilityRequest,
+    ColumnNullabilityResult,
+    ColumnTypeChangeResult,
+    ColumnTypeRequest,
+    DropColumnRequest,
+    RenameColumnRequest,
+)
 from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.indexes import (
+    CreateIndexRequest,
+    CreateIndexResult,
+    DropIndexRequest,
+    IndexDropped,
+)
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.query import (
     ExplainRequest,
@@ -87,6 +106,8 @@ class ClickhouseAdapter:
         self._summaries = ClickhouseSummaries(self._session, self._relation)
         self._query = ClickhouseQuery(self._session)
         self._update = ClickhouseUpdate(self._session, self._relation)
+        self._columns = ClickhouseColumns(self._session, self._relation)
+        self._indexes = ClickhouseIndexes(self._session, self._relation)
         self._explain = ClickhouseExplain(self._session)
         self._metadata = ClickhouseMetadata(self._session)
         self._generation = ClickhouseGeneration(self._session)
@@ -177,6 +198,33 @@ class ClickhouseAdapter:
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         """Every row alike to the ones picked, identical rows together (D272)."""
         return await self._update.delete_rows(request)
+
+    async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
+        return await self._columns.add_column(request)
+
+    async def drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
+        return await self._columns.drop_column(request)
+
+    async def rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
+        return await self._columns.rename_column(request)
+
+    async def change_column_default(self, request: ColumnDefaultRequest) -> ColumnChangeResult:
+        return await self._columns.change_column_default(request)
+
+    async def change_column_nullability(
+        self, request: ColumnNullabilityRequest
+    ) -> ColumnNullabilityResult:
+        return await self._columns.change_column_nullability(request)
+
+    async def change_column_type(self, request: ColumnTypeRequest) -> ColumnTypeChangeResult:
+        """Counted first and put back on failure: a failed mutation breaks a table (D273)."""
+        return await self._columns.change_column_type(request)
+
+    async def create_index(self, request: CreateIndexRequest) -> CreateIndexResult:
+        return await self._indexes.create_index(request)
+
+    async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
+        return await self._indexes.drop_index(request)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62, D270)."""

@@ -160,6 +160,10 @@ Known deviations:
   `numeric(p,s)`, arrays, enums or domains.
 - **SQLite changes structure by rebuilding the table** from its own text,
   edited, since its ALTER TABLE does little more than add and rename (D255).
+- **ClickHouse counts before a type or nullability change, and undoes a failed
+  one.** Its conversion is a mutation after the metadata has changed, and a
+  failed mutation leaves the table unreadable, so the change is refused while
+  any value would stop it (D273).
 - **MySQL counts after the change is refused, for every source type.** It has
   no TRY_CAST either; the refused `MODIFY` is followed by a count of what the
   new type refuses (D235).

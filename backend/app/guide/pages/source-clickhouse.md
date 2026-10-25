@@ -17,6 +17,7 @@ How connections work in general is on the [Connections](connections.md) page.
 ## What you can change
 
 - Table data: edit cells, paste blocks, insert and delete rows
+- Columns and skipping indexes of MergeTree tables
 - Data and structure, through SQL in the console, one change at a time
 
 ## Connecting
@@ -97,6 +98,27 @@ which such a user may not.
   few rows, slow for a paste of hundreds.
 - A new row has no handle until the page is read again, so it cannot be
   edited straight away.
+
+## Changing the structure
+
+- A MergeTree table's columns are added, renamed, dropped, given a default,
+  made to require a value or not, and changed in type; skipping indexes are
+  made and dropped. Other engines and views are not changed.
+- A column of the sorting, primary or partition key is not dropped, renamed or
+  changed: ClickHouse decides where a row is kept by its key.
+- Before a type changes, the server counts the values the new type cannot
+  hold, and before a column is made to require a value, the rows that have
+  none. While either count is above zero nothing changes: ClickHouse converts
+  rows after it has changed the column, and a conversion that fails would leave
+  the table unreadable. If one fails anyway, it is stopped and the old type
+  put back. A value that would lose something — `1.5` into an integer — counts
+  as one the type cannot hold.
+- A type change rewrites the whole table on disk, so it takes as long as the
+  table is big.
+- A skipping index is min and max, a set of up to a hundred values or a Bloom
+  filter, over the columns you pick. It is built over the rows already there
+  as well. None is unique, and the primary key cannot be dropped.
+- There are no unique keys and no foreign keys in ClickHouse to make.
 
 ## SQL console
 

@@ -335,8 +335,8 @@ async def test_the_relation_model_reads_checks_and_indexes() -> None:
     assert indexes["PRIMARY KEY"].columns == ["id", "label"]
     assert indexes["items_label"].method == "bloom_filter"
     assert model.candidate_keys == []
-    assert not model.column_changes_supported
-    assert model.column_changes_reason
+    assert model.column_changes_supported
+    assert not model.constraint_changes_supported and model.constraint_changes_reason
 
 
 @pytest.mark.usefixtures("server")

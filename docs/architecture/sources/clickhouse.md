@@ -1,13 +1,13 @@
 # ClickHouse
 
 What a ClickHouse source is, how it reaches the server, what its catalog shows,
-how its values and pages cross to the grid and are changed there, and how its
-SQL console differs from PostgreSQL's. The contract every source type
+how its values and pages cross to the grid and are changed there, how its
+structure is changed, and how its SQL console differs from PostgreSQL's. The contract every source type
 follows is in [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `clickhouse`
 adapter.
 
-Decisions here: D267, D268, D269, D270, D271, D272.
+Decisions here: D267, D268, D269, D270, D271, D272, D273.
 
 ## D267. A ClickHouse source speaks HTTP, with the application's own client
 
@@ -198,3 +198,40 @@ Known deviations:
 - An inserted row has no handle until the page is read again.
 
 Spec: [Editing ClickHouse rows](../../decisions/2026-10-25-clickhouse-rows-design.md)
+
+## D273. Structure changes are checked before the mutation that makes them
+
+Only a MergeTree table's structure is changed: Log, Memory and the rest answer
+`NOT_IMPLEMENTED` to most of `ALTER`, and a view has no columns of its own.
+Every statement waits for what it starts (`mutations_sync`, `alter_sync`).
+
+A column is added, dropped, renamed, given or relieved of a literal default,
+and changed in type or nullability. A type comes from a closed vocabulary of
+scalars; a column that may hold NULL keeps `Nullable`, and `LowCardinality`
+stays outside it. `MODIFY COLUMN` with the type alone keeps the default, the
+comment and the codec. A default is a parameter typed as the column, which the
+server keeps as a constant. A column of the sorting, primary or partition key
+is not dropped, renamed or changed: it decides where rows are kept.
+
+ClickHouse changes a column's type in its metadata at once and converts the
+rows in a mutation afterwards; a mutation that meets a value it cannot convert
+leaves the table unreadable and every later change waiting behind it. So the
+values the new type refuses are counted first with `accurateCastOrNull`, and
+the NULLs before a column is made to require a value, and the change is not
+made while either count is above zero. A mutation that fails all the same is
+killed and the old type put back.
+
+A skipping index — min and max, a set of up to a hundred values, or a Bloom
+filter, over any columns, one granule at a time — is added and then
+materialized over the parts already written, and dropped again if that fails.
+Its name is derived from the table and its columns. None is unique, and the
+primary key is not dropped. ClickHouse has no unique key and no foreign key,
+so no constraint is made or dropped.
+
+Known deviations:
+
+- A conversion `CAST` accepts and `accurateCastOrNull` refuses — `1.5` into an
+  integer — is refused rather than rounded.
+- A type change rewrites every part of the table, however few rows it has.
+
+Spec: [Changing ClickHouse structure](../../decisions/2026-10-25-clickhouse-structure-design.md)
