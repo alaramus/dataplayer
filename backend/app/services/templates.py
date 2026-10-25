@@ -346,6 +346,58 @@ MARIADB = ServiceTemplate(
 )
 
 
+
+# The server's schedule pool is 512 threads, which alone is the ceiling on
+# processes every service is held to (D86), so it aborts on start. A limit is
+# not the template's to raise; the pool is the server's to lower, and only a
+# file in config.d keeps it lowered, since a reload of the configuration drops
+# a value given on the command line. So the command writes the file and hands
+# over to the image's own entrypoint, which sets up the user and the database.
+_CLICKHOUSE_START = (
+    "printf '%s' '<clickhouse><background_schedule_pool_size>64"
+    "</background_schedule_pool_size></clickhouse>' "
+    "> /etc/clickhouse-server/config.d/dataplayer.xml && exec /entrypoint.sh"
+)
+
+CLICKHOUSE = ServiceTemplate(
+    key="clickhouse",
+    title=N_("ClickHouse"),
+    description=N_(
+        "A ClickHouse server of its own, started on this machine with a "
+        "password nobody has to choose."
+    ),
+    # The long-term-support release the source type is tested against.
+    image="clickhouse/clickhouse-server:25.8",
+    # The HTTP interface, which is all the source type speaks (D267).
+    container_port=8123,
+    data_path="/var/lib/clickhouse",
+    credentials={
+        # The image's own `default` user, given the right to manage users and
+        # grants, as MySQL's root is: the server is its owner's whole (D280).
+        USER: Fixed("default"),
+        DATABASE: Fixed("dataplayer"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({DATABASE, PASSWORD}),
+    environment={
+        "CLICKHOUSE_USER": USER,
+        "CLICKHOUSE_PASSWORD": PASSWORD,
+        "CLICKHOUSE_DB": DATABASE,
+        "CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": Fixed("1"),
+    },
+    command=(Fixed("bash"), Fixed("-c"), Fixed(_CLICKHOUSE_START)),
+    adapter_type="clickhouse",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "database": DATABASE,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=120,
+)
+
 # Everything this server may be asked to start. A tuple rather than a registry
 # with a `register` decorator: an adapter type is registered by the module that
 # implements a driver, and there is nothing to implement here. A template is
@@ -464,7 +516,9 @@ SSH = ServiceTemplate(
 )
 
 
-SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (POSTGRES, TIMESCALE, MYSQL, MARIADB, REDIS, SSH)
+SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
+    POSTGRES, TIMESCALE, MYSQL, MARIADB, CLICKHOUSE, REDIS, SSH
+)
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}
 

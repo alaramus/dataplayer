@@ -202,3 +202,25 @@ def test_a_mysql_server_is_signed_into_as_its_root(key: str, image: str, variabl
     assert generated_slots(template) == ("password",)
     assert "user" not in template.choosable
     assert not may_run_unprotected(template)
+
+
+def test_a_clickhouse_server_is_signed_into_as_its_default_user() -> None:
+    """The image's own user, managing users and grants: the server is its owner's whole (D280)."""
+    template = template_for("clickhouse")
+
+    assert template.image == "clickhouse/clickhouse-server:25.8"
+    assert template.adapter_type == "clickhouse"
+    assert template.container_port == 8123
+    assert template.credentials["user"] == Fixed("default")
+    assert template.environment["CLICKHOUSE_PASSWORD"] == "password"
+    assert template.environment["CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT"] == Fixed("1")
+    assert generated_slots(template) == ("password",)
+    assert "user" not in template.choosable
+    assert not may_run_unprotected(template)
+    # Sized to the process ceiling every service has (D86), then the image's
+    # own entrypoint.
+    [shell, flag, script] = template.command
+    assert (shell, flag) == (Fixed("bash"), Fixed("-c"))
+    assert isinstance(script, Fixed)
+    assert "background_schedule_pool_size" in script.value
+    assert script.value.endswith("exec /entrypoint.sh")

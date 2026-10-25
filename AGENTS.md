@@ -121,7 +121,7 @@ file; `D247–D262` is every number between, all in that file.
 | [localization](docs/architecture/localization.md) | D224–D227 |
 | [sources/mysql](docs/architecture/sources/mysql.md) | D228–D245 |
 | [sources/sqlite](docs/architecture/sources/sqlite.md) | D247–D263 |
-| [sources/clickhouse](docs/architecture/sources/clickhouse.md) | D267–D279 |
+| [sources/clickhouse](docs/architecture/sources/clickhouse.md) | D267–D280 |
 
 ## Working rules
 

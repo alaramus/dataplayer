@@ -12,26 +12,16 @@ Not an action and not a route: it is offered only where this server has just
 started the database itself (D80).
 """
 
-import re
 from pathlib import Path
 
 from anyio import to_thread
 
 from app.adapters.mysql.session import MysqlSession, QuietCursor
+from app.adapters.sample_scripts import statements_of
 from app.core.translation import say
 
 SAMPLE_DATABASE = "demo_lab"
 SCRIPT = Path(__file__).parent / "sample_data" / "mysql_lab.sql"
-
-# Where one statement ends: a semicolon at the end of a line. The script is
-# written so that nothing else is one; see its own first lines.
-_END = re.compile(r";[ \t]*\r?\n")
-
-
-def statements_of(script: str) -> list[str]:
-    """The script's statements, its comment lines left out."""
-    text = "\n".join(line for line in script.splitlines() if not line.lstrip().startswith("--"))
-    return [statement.strip() for statement in _END.split(text + "\n") if statement.strip()]
 
 
 class MysqlSamples:

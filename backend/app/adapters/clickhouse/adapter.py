@@ -24,6 +24,7 @@ from app.adapters.clickhouse.query import ClickhouseExecution, ClickhouseQuery
 from app.adapters.clickhouse.relation import ClickhouseRelation
 from app.adapters.clickhouse.relation_changes import ClickhouseRelationChanges
 from app.adapters.clickhouse.row_commands import ClickhouseRowCommands
+from app.adapters.clickhouse.samples import ClickhouseSamples
 from app.adapters.clickhouse.search import ClickhouseSearch
 from app.adapters.clickhouse.session import (
     ClickhouseSession,
@@ -162,6 +163,7 @@ class ClickhouseAdapter:
         self._generation = ClickhouseGeneration(self._session)
         self._backup = ClickhouseBackup(self._session, options)
         self._metrics = ClickhouseMetrics(self._session)
+        self._samples = ClickhouseSamples(self._session)
 
     table_copy_dialect = DIALECT
 
@@ -186,6 +188,10 @@ class ClickhouseAdapter:
     ) -> None:
         """Tables made, rows streamed in, everything made dropped on failure (D277)."""
         await self._table_copy.carry_table_copy(request, rows_of, arrived)
+
+    async def install_sample_data(self) -> str:
+        """The lab, in a database of its own, for a server started here (D280)."""
+        return await self._samples.install_sample_data()
 
     async def metric_samples(self) -> list[MetricSample]:
         """The server's counters, and the database's size and parts, per poll (D279)."""

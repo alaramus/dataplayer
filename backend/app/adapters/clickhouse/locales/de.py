@@ -117,4 +117,6 @@ MESSAGES: dict[str, str] = {
     'materialized view {view}': 'materialisierte Sicht {view}',
     '{label}: its engine could not be read': '{label}: die Engine konnte nicht gelesen werden',
     '{name} is too long a name': '{name} ist ein zu langer Name',
+    # A server started here.
+    'A ClickHouse server of its own, started on this machine with a password nobody has to choose.': 'Ein eigener ClickHouse-Server, auf diesem Rechner gestartet, mit einem Passwort, das niemand wählen muss.',
 }

@@ -225,6 +225,16 @@ server**: connections and running queries, queries per second, rows read,
 inserted and merged, memory, network traffic, active parts, failed queries and
 the size of the connection's database. The counters are the whole server's.
 
+## A server of your own
+
+**New connection** offers **Start ClickHouse here**: a server started on this
+machine, saved as a connection signed into as its `default` user, who may also
+manage users and grants. With sample data, it opens on `demo_lab` —
+organizations, people, projects and their tasks, and two hundred thousand page
+views — with something on it for every screen: partitions, a TTL, codecs and
+skipping indexes, a ReplacingMergeTree and a SummingMergeTree, two materialized
+views fed by the page views, a view and a Log table.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,

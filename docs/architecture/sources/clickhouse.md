@@ -3,13 +3,13 @@
 What a ClickHouse source is, how it reaches the server, what its catalog shows,
 how its values and pages cross to the grid and are changed there, how its
 structure is changed and a table designed, its reports, search, export and
-catalog actions, how its tables are copied, backed up and measured,
+catalog actions, how its tables are copied, backed up and measured, how a server is started here,
 and how its SQL console differs from PostgreSQL's. The contract every source type
 follows is in [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `clickhouse`
 adapter.
 
-Decisions here: D267, D268, D269, D270, D271, D272, D273, D274, D275, D276, D277, D278, D279.
+Decisions here: D267, D268, D269, D270, D271, D272, D273, D274, D275, D276, D277, D278, D279, D280.
 
 ## D267. A ClickHouse source speaks HTTP, with the application's own client
 
@@ -407,3 +407,31 @@ is read as nought. One preset, ClickHouse server.
 
 Spec: [ClickHouse copies, backups and metrics](../../decisions/2026-10-25-clickhouse-copy-design.md)
 
+## D280. A ClickHouse server is started here, and may open on the lab
+
+**Start ClickHouse here** is a service template (D80):
+`clickhouse/clickhouse-server:25.8`, the release the source type is tested
+against, with its data in `/var/lib/clickhouse` and the HTTP interface, port
+8123, published. The connection a ready service becomes signs in as the
+image's `default` user with a password made up here or chosen, given the right
+to manage users and grants, as MySQL's template signs in as root (D244): a
+server started for somebody is theirs whole. It opens on the one database the
+image makes, `dataplayer` unless another is named. No template runs without a
+password.
+
+The server's schedule pool is 512 threads, which alone is the ceiling on
+processes every service is held to (D86), and it aborts on start. The template
+does not raise the limit; its command writes a file to `config.d` lowering the
+pool to 64 and hands over to the image's entrypoint. A value given on the
+command line does not hold, since a reload of the configuration drops it.
+
+Started with sample data, it is filled with the lab the other servers' samples
+describe, in a database of its own, `demo_lab`, which the script drops first,
+told in what ClickHouse has: partitions, a TTL, codecs and skipping indexes, a
+ReplacingMergeTree and a SummingMergeTree, LowCardinality, Enum, Array, Map,
+Tuple, IPv4 and UUID, a materialized view feeding a table and one keeping its
+own rows, a view, a Log table and two hundred thousand page views. The script
+is split by the rule MySQL's lab is (D245), now shared, and every name in it
+carries its database.
+
+Spec: [ClickHouse services](../../decisions/2026-10-25-clickhouse-services-design.md)
