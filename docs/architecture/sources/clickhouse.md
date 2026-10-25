@@ -1,13 +1,13 @@
 # ClickHouse
 
 What a ClickHouse source is, how it reaches the server, what its catalog shows,
-how its values and pages cross to the grid, and how its SQL console differs
-from PostgreSQL's. The contract every source type
+how its values and pages cross to the grid and are changed there, and how its
+SQL console differs from PostgreSQL's. The contract every source type
 follows is in [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `clickhouse`
 adapter.
 
-Decisions here: D267, D268, D269, D270, D271.
+Decisions here: D267, D268, D269, D270, D271, D272.
 
 ## D267. A ClickHouse source speaks HTTP, with the application's own client
 
@@ -151,3 +151,50 @@ Known deviations:
   and the document's database do the same work.
 
 Spec: [The ClickHouse console](../../decisions/2026-10-25-clickhouse-console-design.md)
+
+## D272. A row is its whole row; rows alike are changed together
+
+No key of ClickHouse is unique (D269), so a row's handle carries every value
+its page showed and a digest of them (`app.adapters.row_handles`, shared with
+MySQL). It is found again by every column that compares exactly — not a float,
+which may be NaN, not a map, JSON, a variant or an aggregate state — and the
+change is made only when every row found digests as the row shown; rows alike
+in what compares and different elsewhere are refused rather than guessed
+between. Rows the same in every value are one row to anybody reading them:
+an edit changes all of them and a delete removes all of them, and the count
+says so.
+
+A change is a lightweight `UPDATE` or `DELETE`. A table made without the block
+number column a lightweight update needs answers `NOT_IMPLEMENTED`, and is
+changed by the `ALTER TABLE … UPDATE` or `DELETE` mutation instead, with
+`mutations_sync=1`. The row is then read back as the server shows it.
+
+A value goes back as it was shown: `accurateCast` of its text to the column's
+type, which refuses what the type cannot hold, a moment through
+`parseDateTime64BestEffort` in UTC, and an array, a tuple or a shape from its
+JSON to the server's text first. The column's type travels as a parameter too.
+Every value is cast by a `SELECT` before anything is written, a refused batch
+halved until the refused values are named, so a paste lands whole or not at
+all. Rows are inserted as `JSONEachRow` in one statement; a column left out
+takes its default, which every ClickHouse column has.
+
+Only a MergeTree table's rows are changed; Log, TinyLog, StripeLog, Memory,
+Buffer and Distributed tables take inserted rows; a view, an engine reading
+from outside and the server's own tables take nothing. A column of the
+sorting, primary or partition key, a computed column and a map, JSON, variant
+or aggregate column are not edited.
+
+A parameter's value is sent in the server's escaped text, so a backslash, a
+tab or a line break in a name, a filter or an edited value arrives as typed.
+A value typed for the console keeps the server's own reading, as
+clickhouse-client's `--param_` does (D270).
+
+Known deviations:
+
+- The check and the change are two requests with no transaction between
+  them, so a change somebody makes in between is not seen.
+- A table without lightweight updates is changed by a mutation, which rewrites
+  the parts it touches; a paste of many rows is a mutation per row.
+- An inserted row has no handle until the page is read again.
+
+Spec: [Editing ClickHouse rows](../../decisions/2026-10-25-clickhouse-rows-design.md)

@@ -191,6 +191,9 @@ Known deviations:
   keeps no version a client can read; it is checked under `FOR UPDATE` (D234).
 - **A SQLite handle's version is a digest too**, checked inside `BEGIN
   IMMEDIATE`; the row is named by its primary key or its rowid (D254).
+- **A ClickHouse row is named by its whole row**, with no transaction around
+  the check: no key is unique, and rows the same in every value are changed and
+  deleted together (D272).
 
 Spec: [Editing data](../../decisions/2026-08-27-data-editing-design.md)
 

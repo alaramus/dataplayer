@@ -82,8 +82,7 @@ def test_it_claims_only_what_it_does() -> None:
     ):
         assert isinstance(source, capability)
     assert isinstance(source, SupportsQuery)
-    # Not yet: rows are read and not written.
-    assert not isinstance(source, SupportsUpdate)
+    assert isinstance(source, SupportsUpdate)
 
 
 def test_a_server_is_read_as_its_number() -> None:
@@ -403,8 +402,6 @@ async def test_every_value_crosses_as_its_canonical_text() -> None:
     assert second["100%"] is None
     # MATERIALIZED is read only when asked for by name, and it is.
     assert first["doubled"] == "10"
-    assert not result.update_supported and result.update_reason
-    assert not result.delete_supported
 
 
 @pytest.mark.usefixtures("server")

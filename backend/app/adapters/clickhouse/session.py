@@ -224,6 +224,25 @@ def options_from_url(url: str) -> dict[str, Any]:
     return options
 
 
+class Encoded(str):
+    """A parameter's value already in the server's text format: an array
+    written with its quotes, or a value somebody typed for the console, which
+    the server reads as clickhouse-client's `--param_` would (D270)."""
+
+
+_ESCAPES = {ord("\\"): "\\\\", ord("\t"): "\\t", ord("\n"): "\\n", ord("\r"): "\\r"}
+
+
+def escaped(value: str) -> str:
+    """A value as the text the server reads a parameter in.
+
+    The server reads `param_<name>` in its escaped text format, so a
+    backslash, a tab or a line break in a name or a filter would otherwise be
+    read as an escape, or end the value early.
+    """
+    return value.translate(_ESCAPES)
+
+
 def quoted_name(*parts: str) -> str:
     """A name quoted for ClickHouse, each part apart: `db`.`table`.
 
@@ -337,7 +356,7 @@ class ClickhouseSession:
         if query_id is not None:
             sent["query_id"] = query_id
         for name, value in params.items():
-            sent[f"param_{name}"] = value
+            sent[f"param_{name}"] = value if isinstance(value, Encoded) else escaped(value)
         return sent
 
     async def _send(
@@ -525,6 +544,49 @@ class ClickhouseSession:
             written_rows=written,
         )
 
+    async def command(
+        self,
+        sql: str,
+        params: Mapping[str, str],
+        *,
+        settings: Mapping[str, str] | None = None,
+        refusals: Mapping[int, str] | None = None,
+        data: bytes | None = None,
+        passing: frozenset[int] = frozenset(),
+    ) -> int | None:
+        """Run a change and answer how many rows it wrote, where the server says.
+
+        With `data` the statement travels in the address and the rows in the
+        body, as an `INSERT … FORMAT` takes them. The change is waited for to
+        its end, so a failure is a refusal of the whole of it. An error whose
+        code is in `passing` is handed back as it is, for a caller with
+        another way to do the same.
+        """
+        sent = {"wait_end_of_query": "1", **(settings or {})}
+        query = self._request_params(params, sent, read=False, query_id=str(uuid.uuid4()))
+        if data is not None:
+            query["query"] = sql
+        try:
+            async with self._client() as client:
+                response = await client.post(
+                    self._base_url(),
+                    params=query,
+                    content=data if data is not None else sql.encode(),
+                    auth=httpx.BasicAuth(self._options.user, self._password()),
+                )
+                if response.status_code != 200:
+                    raise _server_error(response.status_code, response.headers, response.text)
+                return _written_rows(response.headers.get("x-clickhouse-summary"))
+        except ServerError as exc:
+            if exc.code in passing:
+                raise
+            raise refused_change(exc, refusals) from None
+        except httpx.PoolTimeout:
+            raise AdapterError("unknown", say("All connections to this source are busy")) from None
+        except (httpx.TransportError, OSError) as exc:
+            error_kind, message = classify(exc, fallback_message=N_("Update failed"))
+            raise AdapterError(error_kind, message) from None
+
     async def kill_query(self, query_id: str) -> None:
         """Stop one statement, from a request of its own.
 
@@ -563,3 +625,18 @@ def _written_rows(summary: str | None) -> int | None:
         return int(json.loads(summary)["written_rows"])
     except (ValueError, KeyError, TypeError):
         return None
+
+
+def refused_change(exc: ServerError, refusals: Mapping[int, str] | None) -> Exception:
+    """A server's refusal of a change, as the caller's ValueError or the source failing.
+
+    What is about reaching the server or who is asking is the source failing;
+    anything else the server refused is about the change, and is said so.
+    """
+    named = named_refusal(exc, refusals)
+    if named is not None:
+        return ValueError(named)
+    if exc.code in (*_AUTH_ERRORS, ACCESS_DENIED, UNKNOWN_DATABASE, *_TIMEOUT_ERRORS):
+        error_kind, message = classify(exc, fallback_message=N_("Update failed"))
+        return AdapterError(error_kind, message)
+    return ValueError(say("The source rejected the change"))

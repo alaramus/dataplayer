@@ -16,6 +16,7 @@ How connections work in general is on the [Connections](connections.md) page.
 
 ## What you can change
 
+- Table data: edit cells, paste blocks, insert and delete rows
 - Data and structure, through SQL in the console, one change at a time
 
 ## Connecting
@@ -67,6 +68,36 @@ which such a user may not.
   or that never ends, such as `system.numbers`, is read in the order the
   engine gives.
 
+## Changing rows
+
+- Cells are edited, blocks pasted, rows inserted and deleted in a MergeTree
+  table. Log, TinyLog, StripeLog, Memory, Buffer and Distributed tables take
+  inserted rows only; views, tables reading from outside and the server's own
+  tables take nothing.
+- ClickHouse has no key that tells rows apart, so a row is found by all of its
+  values. Rows the same in every value are one row to anybody looking at them:
+  editing one changes all of them, and deleting one deletes all of them — the
+  count after a delete says how many went.
+- A row that differs from another only in a floating-point, map or JSON column
+  cannot be told apart from it, and is not changed; the reason is shown.
+- A row somebody changed after you read the page is refused rather than
+  overwritten. Read the page again and repeat the change. A change made in the
+  same instant as yours is not caught: ClickHouse has no transaction to hold
+  the row.
+- Columns of the sorting, primary or partition key, computed columns, maps and
+  JSON columns are not edited. ClickHouse decides where a row is kept by its
+  key, and cannot move it.
+- A value is read by the server as its column's type and refused if it does
+  not fit; a paste lands whole or not at all, and the cells that do not fit
+  are marked. Moments are read in UTC, as they are shown; arrays and tuples
+  are written as the JSON they are shown as.
+- A table made with `enable_block_number_column` and
+  `enable_block_offset_column` is changed by a lightweight `UPDATE`. Any other
+  is changed by a mutation, which rewrites the parts it touches: fine for a
+  few rows, slow for a paste of hundreds.
+- A new row has no handle until the page is read again, so it cannot be
+  edited straight away.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -87,7 +118,8 @@ formatting — with these differences:
   next read already sees the rows changed.
 - Parameters are written as ClickHouse writes them, `{name:Type}`. The server
   reads the value as that type and refuses one that does not fit; **SQL null**
-  sends NULL to a `Nullable` type.
+  sends NULL to a `Nullable` type. A value is read as clickhouse-client's
+  `--param_` reads it, so a backslash in it starts an escape.
 - `INSERT INTO t FORMAT JSONEachRow` followed by its rows works, as do `SHOW`,
   `DESCRIBE`, `EXISTS`, `CHECK TABLE`, and `EXPLAIN AST`, `SYNTAX`, `PIPELINE`
   and `ESTIMATE`. A plain `EXPLAIN` is **Explain**.

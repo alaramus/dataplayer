@@ -15,6 +15,14 @@ from typing import assert_never
 from app.adapters.clickhouse.catalog import is_system_database
 from app.adapters.clickhouse.inspection import RelationFacts, has_finite_rows
 from app.adapters.clickhouse.relation import ClickhouseRelation
+from app.adapters.clickhouse.rows import (
+    RowShape,
+    comparable_type,
+    editable_engine,
+    handles_of,
+    insertable_engine,
+    writable_type,
+)
 from app.adapters.clickhouse.session import BAD_QUERY_PARAMETER, ClickhouseSession
 from app.adapters.clickhouse.sql import SQL, Composable, Composed, Identifier, Params
 from app.adapters.clickhouse.types import read_cell, type_name, unwrapped
@@ -127,8 +135,12 @@ def _order(facts: RelationFacts, columns: list[FetchColumn]) -> list[str]:
 @dataclass(frozen=True)
 class PreparedRead:
     facts: RelationFacts
-    columns: list[FetchColumn]
+    shape: RowShape
     request: FetchRequest
+
+    @property
+    def columns(self) -> list[FetchColumn]:
+        return self.shape.columns
 
     @property
     def order(self) -> list[str]:
@@ -157,21 +169,58 @@ class PreparedRead:
         return statement
 
 
-def columns_of(facts: RelationFacts) -> list[FetchColumn]:
+def shape_of(facts: RelationFacts) -> RowShape:
+    """The columns of a page and what may be done to its rows (D272)."""
+    if is_system_database(facts.schema):
+        refused: str | None = say('"{schema}" belongs to the server', schema=facts.schema)
+        update_reason: str | None = refused
+        insert_reason: str | None = refused
+    else:
+        update_reason = (
+            None
+            if editable_engine(facts.engine)
+            else say(
+                "Only a MergeTree table's rows can be changed; this one is {engine}",
+                engine=facts.engine,
+            )
+        )
+        insert_reason = (
+            None
+            if insertable_engine(facts.engine)
+            else say("A {engine} table does not keep rows inserted into it", engine=facts.engine)
+        )
     columns: list[FetchColumn] = []
     for column in facts.columns:
         sortable, operators = column_capabilities(column.type)
+        stored = column.generated is None
         columns.append(
             FetchColumn(
                 name=column.name,
                 type=column.type,
                 sortable=sortable,
                 filter_operators=operators,
+                # A key decides where the row is kept, and no UPDATE moves it.
+                editable=update_reason is None
+                and stored
+                and not column.in_key
+                and writable_type(column.type),
                 nullable=column.nullable,
-                has_default=column.default is not None,
+                insertable=insert_reason is None and stored,
+                # Every ClickHouse column has a default, its type's own zero
+                # when nothing else is said.
+                has_default=True,
             )
         )
-    return columns
+    return RowShape(
+        columns=columns,
+        matched=[
+            column.name
+            for column in facts.columns
+            if column.generated is None and comparable_type(column.type)
+        ],
+        update_reason=update_reason,
+        insert_reason=insert_reason,
+    )
 
 
 class ClickhouseFetch:
@@ -181,7 +230,7 @@ class ClickhouseFetch:
 
     async def prepare(self, request: FetchRequest) -> PreparedRead:
         facts = await self._relation.facts(request.node_id, structure=False)
-        prepared = PreparedRead(facts=facts, columns=columns_of(facts), request=request)
+        prepared = PreparedRead(facts=facts, shape=shape_of(facts), request=request)
         known = {column.name: column for column in prepared.columns}
         for used in [item.column for item in request.filters] + [item.column for item in request.sort]:
             if used not in known:
@@ -208,18 +257,18 @@ class ClickhouseFetch:
             refusals={BAD_QUERY_PARAMETER: N_("A filter value does not fit its column")},
         )
         rows = [[read_cell(value) for value in row] for row in answer.rows[: request.limit]]
-        facts = prepared.facts
-        if is_system_database(facts.schema):
-            reason = say('"{schema}" belongs to the server', schema=facts.schema)
-        else:
-            reason = say("Editing ClickHouse rows is not supported yet")
+        shape = prepared.shape
         return FetchResult(
-            columns=prepared.columns,
+            columns=shape.columns,
             rows=rows,
             has_more=len(answer.rows) > request.limit,
-            update_reason=reason,
-            insert_reason=reason,
-            delete_reason=reason,
+            row_handles=handles_of(shape, rows),
+            update_supported=shape.update_supported,
+            update_reason=shape.update_reason,
+            insert_supported=shape.insert_supported,
+            insert_reason=shape.insert_reason,
+            delete_supported=shape.update_supported,
+            delete_reason=shape.update_reason,
         )
 
 

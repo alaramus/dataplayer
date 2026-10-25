@@ -27,7 +27,7 @@ WHERE database = {database:String} AND name IN {names:Array(String)} AND NOT is_
 
 _COLUMNS = """
 SELECT table, name, position, type, default_kind, default_expression, comment,
-       compression_codec
+       compression_codec, is_in_sorting_key, is_in_partition_key, is_in_primary_key
 FROM system.columns
 WHERE database = {database:String} AND table IN {names:Array(String)}
 ORDER BY table, position
@@ -81,6 +81,9 @@ class ColumnFacts:
     generated: str | None
     comment: str | None
     codec: str | None
+    # In the sorting, primary or partition key: where a row is stored, which
+    # an UPDATE cannot move it from.
+    in_key: bool = False
 
 
 @dataclass(frozen=True)
@@ -297,6 +300,10 @@ def _column(row: dict[str, Any]) -> ColumnFacts:
         generated=expression if kind in ("MATERIALIZED", "ALIAS") else None,
         comment=_text(row["comment"]),
         codec=_text(row["compression_codec"]),
+        in_key=any(
+            int(row[flag]) == 1
+            for flag in ("is_in_sorting_key", "is_in_partition_key", "is_in_primary_key")
+        ),
     )
 
 

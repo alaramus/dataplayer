@@ -20,6 +20,7 @@ from app.adapters.clickhouse.session import (
 )
 from app.adapters.clickhouse.statements import format_text
 from app.adapters.clickhouse.summary import ClickhouseSummaries
+from app.adapters.clickhouse.update import ClickhouseUpdate
 from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
@@ -39,6 +40,18 @@ from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.resources import Pooling
 from app.adapters.summary import NodeSummary
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
+)
 from app.core.translation import N_
 
 
@@ -73,6 +86,7 @@ class ClickhouseAdapter:
         self._content = ClickhouseContent(self._session, self._relation)
         self._summaries = ClickhouseSummaries(self._session, self._relation)
         self._query = ClickhouseQuery(self._session)
+        self._update = ClickhouseUpdate(self._session, self._relation)
         self._explain = ClickhouseExplain(self._session)
         self._metadata = ClickhouseMetadata(self._session)
         self._generation = ClickhouseGeneration(self._session)
@@ -148,6 +162,22 @@ class ClickhouseAdapter:
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
 
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        return await self._update.update_cell(request)
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        return await self._update.update_cells(request)
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._update.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request)
+
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        """Every row alike to the ones picked, identical rows together (D272)."""
+        return await self._update.delete_rows(request)
+
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62, D270)."""
         return self._query.profile()
@@ -177,8 +207,8 @@ class ClickhouseAdapter:
     category="sql",
     description=N_(
         "A ClickHouse server, over its HTTP interface. Browse databases, tables "
-        "and views, read rows a page at a time with sorting and filtering "
-        "done by the server, and run SQL."
+        "and views, read and edit rows a page at a time with sorting and "
+        "filtering done by the server, and run SQL."
     ),
     options_schema=ClickhouseOptions,
     adapter_class=ClickhouseAdapter,

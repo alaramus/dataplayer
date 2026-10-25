@@ -13,17 +13,17 @@ digests the same: somebody else's change in between, to any column, refuses
 this one rather than being written over.
 """
 
-import base64
-import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
 
 from app.adapters.fetch import FetchColumn
 from app.adapters.mysql.sql import SQL, Composable, Identifier
 from app.adapters.relation import ColumnType
-from app.core.translation import say
+from app.adapters.row_handles import RowHandle as RowHandle
+from app.adapters.row_handles import decode_handle as decode_shared
+from app.adapters.row_handles import encode_handle as encode_handle
+from app.adapters.row_handles import version_of as version_of
 
 
 @dataclass(frozen=True)
@@ -51,51 +51,13 @@ class RowShape:
         return self.insert_reason is None
 
 
-def version_of(cells: list[str | None]) -> str:
-    """A digest of a row's values as they are shown."""
-    encoded = json.dumps(cells, ensure_ascii=False, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()[:32]
-
-
 # A row named by its values carries them all in its handle, to every page and
 # back; past this many bytes of them it is not named, and cannot be edited.
 WHOLE_ROW_BYTES = 64 * 1024
 
 
-@dataclass(frozen=True)
-class RowHandle:
-    # A value of a row named whole may be NULL; a key's never is.
-    keys: list[str | None]
-    version: str
-
-
-def encode_handle(keys: list[str | None], version: str, occurrence: int = 0) -> str:
-    named: dict[str, object] = {"keys": keys, "version": version}
-    if occurrence:
-        # Rows that are the same in every value get handles of their own all
-        # the same: a page and a selection tell rows apart by them.
-        named["n"] = occurrence
-    raw = json.dumps(named, separators=(",", ":"), ensure_ascii=False)
-    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
-
-
 def decode_handle(value: str, shape: RowShape) -> RowHandle:
-    try:
-        padded = value + "=" * (-len(value) % 4)
-        decoded: Any = json.loads(base64.urlsafe_b64decode(padded).decode())
-        keys = decoded["keys"]
-        version = decoded["version"]
-        if (
-            not isinstance(keys, list)
-            or not all(isinstance(item, str) or item is None for item in keys)
-            or not isinstance(version, str)
-        ):
-            raise ValueError
-    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
-        raise ValueError(say("The row handle is not valid")) from None
-    if len(keys) != len(shape.naming) or (not shape.whole_row and None in keys):
-        raise ValueError(say("The row handle is not valid for this relation"))
-    return RowHandle(keys=keys, version=version)
+    return decode_shared(value, len(shape.naming), nulls=shape.whole_row)
 
 
 def handle_of(shape: RowShape, cells: list[str | None], occurrence: int = 0) -> str | None:

@@ -120,6 +120,7 @@ ignore = [
 "tests/adapters/test_file_query.py" = ["S608"]
 "tests/adapters/test_mysql_query.py" = ["S608"]
 "tests/adapters/test_clickhouse_query.py" = ["S608"]
+"tests/adapters/test_clickhouse_update.py" = ["S608"]
 "tests/ai/test_changes.py" = ["S608"]
 # The schema the MySQL tests read, written as a person writes DDL, into a
 # database whose name is a constant of the same file.

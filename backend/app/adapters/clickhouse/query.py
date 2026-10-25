@@ -24,6 +24,7 @@ from sqlglot import exp
 
 from app.adapters.clickhouse.session import (
     ClickhouseSession,
+    Encoded,
     Ran,
     ServerError,
     classify,
@@ -134,11 +135,13 @@ class ResultTooLarge(Exception):
         self.message = message
 
 
-def values_of(parameters: list[ParameterValue], statement: PreparedStatement) -> dict[str, str]:
+def values_of(
+    parameters: list[ParameterValue], statement: PreparedStatement
+) -> dict[str, str]:
     """Each parameter the statement names, as the server's text; NULL is `\\N`."""
     given = {parameter.name: parameter.value for parameter in parameters}
     return {
-        name: "\\N" if given[name] is None else str(given[name])
+        name: Encoded("\\N") if given[name] is None else Encoded(str(given[name]))
         for name in statement.parameters
         if name in given
     }
