@@ -234,11 +234,20 @@ class QuietCursor(aiomysql.Cursor):  # type: ignore[misc]  # aiomysql is untyped
 
     aiomysql reads SHOW WARNINGS after any statement that left one, which
     resets @@warning_count before anybody can ask for it, and turns each into
-    a Python warning in the server's log.
+    a Python warning in the server's log — one for every `IF EXISTS` that
+    found nothing. The default class of every connection the adapter opens.
     """
 
     async def _show_warnings(self, conn: Any) -> None:
         return None
+
+
+class QuietDictCursor(QuietCursor, aiomysql.DictCursor):  # type: ignore[misc]  # aiomysql is untyped
+    pass
+
+
+class QuietSSDictCursor(QuietCursor, aiomysql.SSDictCursor):  # type: ignore[misc]  # aiomysql is untyped
+    pass
 
 
 class Writing:
@@ -264,7 +273,7 @@ class Writing:
             await cursor.executemany(sql, rows)
 
     async def rows(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, Any]]:
-        async with self._connection.cursor(aiomysql.DictCursor) as cursor:
+        async with self._connection.cursor(QuietDictCursor) as cursor:
             await cursor.execute(sql, params)
             return list(await cursor.fetchall())
 
@@ -312,7 +321,7 @@ class Inspection:
     async def query(
         self, sql: str, params: tuple[object, ...] = ()
     ) -> list[dict[str, Any]]:
-        async with self._connection.cursor(aiomysql.DictCursor) as cursor:
+        async with self._connection.cursor(QuietDictCursor) as cursor:
             await cursor.execute(sql, params)
             return list(await cursor.fetchall())
 
@@ -350,6 +359,7 @@ class MysqlSession:
             "connect_timeout": CHECK_TIMEOUT_SECONDS,
             "init_command": _SESSION_SETUP,
             "ssl": _PREFERRED_TLS,
+            "cursorclass": QuietCursor,
         }
 
     def connection_string(self) -> str:
@@ -551,7 +561,7 @@ class MysqlSession:
         """
         try:
             async with self._connection() as connection:
-                async with connection.cursor(aiomysql.DictCursor) as cursor:
+                async with connection.cursor(QuietDictCursor) as cursor:
                     await cursor.execute(sql, params)
                     rows: list[dict[str, Any]] = list(await cursor.fetchall())
                     return rows
@@ -595,7 +605,7 @@ class MysqlSession:
             async with self._connection() as connection:
                 finished = False
                 try:
-                    async with connection.cursor(aiomysql.SSDictCursor) as cursor:
+                    async with connection.cursor(QuietSSDictCursor) as cursor:
                         await cursor.execute(sql, params)
                         while rows := await cursor.fetchmany(batch_size):
                             yield list(rows)

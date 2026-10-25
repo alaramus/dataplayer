@@ -10,7 +10,7 @@ import aiomysql
 
 from app.adapters.mysql.adapter import MysqlAdapter
 from app.adapters.mysql.options import MysqlUserPassword
-from app.adapters.mysql.session import options_from_url
+from app.adapters.mysql.session import QuietCursor, options_from_url
 from tests.utils.services import MARIADB, MYSQL, Server
 
 # A dot in the name on purpose: MySQL allows one, and a node id must survive it.
@@ -90,6 +90,7 @@ async def run(target: Target, *statements: str) -> None:
         user=options.user,
         password=options.password.get_secret_value(),
         autocommit=True,
+        cursorclass=QuietCursor,
     )
     try:
         async with connection.cursor() as cursor:
