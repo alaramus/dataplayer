@@ -22,6 +22,9 @@ are encrypted at rest and never leave the backend.
 
 - **PostgreSQL**, including TimescaleDB: hypertables, chunks, policies and
   continuous aggregates.
+- **MySQL** and **MariaDB**: connect to databases and work with their catalogs
+  and tables.
+- **SQLite**: open a database file and browse and edit its tables.
 - **Redis**: the key space as a tree grouped by `:`, every value type read as
   rows.
 - **Files** on the server, and **SSH servers**: a file explorer with preview,
