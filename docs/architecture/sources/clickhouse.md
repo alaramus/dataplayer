@@ -2,21 +2,24 @@
 
 What a ClickHouse source is, how it reaches the server, what its catalog shows,
 how its values and pages cross to the grid and are changed there, how its
-structure is changed and a table designed, and how its SQL console differs
-from PostgreSQL's. The contract every source type
+structure is changed and a table designed, its reports, search and export,
+and how its SQL console differs from PostgreSQL's. The contract every source type
 follows is in [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `clickhouse`
 adapter.
 
-Decisions here: D267, D268, D269, D270, D271, D272, D273, D274.
+Decisions here: D267, D268, D269, D270, D271, D272, D273, D274, D275.
 
 ## D267. A ClickHouse source speaks HTTP, with the application's own client
 
 The adapter talks to the server's HTTP interface (8123, or 8443 with TLS)
 through `httpx`, which the application already has; there is no driver package.
-A statement is the request body, a value is one of the server's own
-`{name:Type}` parameters sent apart from it as `param_<name>`, and the user and
-password travel as Basic authentication. A read carries `readonly=2` and
+A value is one of the server's own `{name:Type}` parameters, never in the
+statement; the statement and every `param_<name>` travel as fields of a
+multipart body, so the address — which httpx writes into its log — carries
+settings alone, and the user and password travel as Basic authentication. An
+insert's rows are its body, and its statement, which binds nothing, is in the
+address. A read carries `readonly=2` and
 `cancel_http_readonly_queries_on_client_close`, so it cannot write and a
 request that goes away stops its statement on the server. A connector keeps one
 client in the resource store; its connections are reused below the server's
@@ -266,3 +269,37 @@ A table made from rows is a MergeTree with `ORDER BY tuple()` and every column
 dropped again if its rows are refused once it exists.
 
 Spec: [Designing ClickHouse tables](../../decisions/2026-10-25-clickhouse-design-design.md)
+
+## D275. Reports read the system tables; search narrows on the server
+
+A System section after the databases holds eight reports, each a statement
+written in this package over the server's `system` tables: processes,
+mutations, merges, table sizes, disks, changed server settings, metrics and
+users. A report pages, sorts and filters as a subquery, its columns as
+`DESCRIBE TABLE` gives them, ordered by a stable key of its own; its rows are
+lines of an answer, so nothing is written through them and no table is made
+of them (D72, D111). Changed settings are the server's (`system.server_settings`):
+every request here carries settings of its own (D268), which would fill a list
+of the session's.
+
+Processes offer Cancel query (`KILL QUERY … SYNC` by query id) and Mutations
+offer Stop mutation: a mutation's own id repeats from table to table, so its
+report names each by a hash of its database, table and id, and `KILL MUTATION`
+finds it by the same hash. A failing mutation holds up every later change of
+its table (D273), and this is how a person clears one.
+
+Search by name and by column asks the server for candidates holding every
+word — `positionCaseInsensitiveUTF8` on a bound value, so nothing typed is
+compiled and `%` is a character — at most five thousand, and classes them here
+by the shared word rule (D202), as SQLite's search does. A relation found by a
+column carries that column, or the column's comment, or its own comment as
+evidence. The inner tables of materialized views are not found. Every
+matching row of a page is exported from one streamed request, the server
+stopping the read if the reader goes away.
+
+Known deviations:
+
+- A search reaching five thousand candidates says it may have missed some;
+  the best of a larger catalog may be among those not handed over.
+
+Spec: [ClickHouse reports, search and export](../../decisions/2026-10-25-clickhouse-reports-design.md)

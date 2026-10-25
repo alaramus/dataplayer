@@ -15,6 +15,7 @@ from typing import assert_never
 from app.adapters.clickhouse.catalog import is_system_database
 from app.adapters.clickhouse.inspection import RelationFacts, has_finite_rows
 from app.adapters.clickhouse.relation import ClickhouseRelation
+from app.adapters.clickhouse.reports import SystemReport, in_section, report_for
 from app.adapters.clickhouse.rows import (
     RowShape,
     comparable_type,
@@ -25,8 +26,14 @@ from app.adapters.clickhouse.rows import (
 )
 from app.adapters.clickhouse.session import BAD_QUERY_PARAMETER, ClickhouseSession
 from app.adapters.clickhouse.sql import SQL, Composable, Composed, Identifier, Params
-from app.adapters.clickhouse.types import read_cell, type_name, unwrapped
+from app.adapters.clickhouse.types import (
+    build_column_type,
+    read_cell,
+    type_name,
+    unwrapped,
+)
 from app.adapters.fetch import (
+    PAGE_COMMANDS,
     FetchColumn,
     FetchRequest,
     FetchResult,
@@ -134,8 +141,16 @@ def _order(facts: RelationFacts, columns: list[FetchColumn]) -> list[str]:
 
 @dataclass(frozen=True)
 class PreparedRead:
-    facts: RelationFacts
+    """One validated read, shared by a page and an export.
+
+    `source` is what the statement selects from: a relation, or a report's
+    own statement as a subquery (D55).
+    """
+
+    source: Composable
     shape: RowShape
+    facts: RelationFacts | None
+    report: SystemReport | None
     request: FetchRequest
 
     @property
@@ -144,15 +159,17 @@ class PreparedRead:
 
     @property
     def order(self) -> list[str]:
-        return _order(self.facts, self.columns)
+        if self.facts is not None:
+            return _order(self.facts, self.columns)
+        return list(self.report.stable_order) if self.report is not None else []
 
-    def statement(self, params: Params) -> Composed:
+    def statement(self, params: Params, columns: list[FetchColumn] | None = None) -> Composed:
         """SELECT, WHERE and ORDER BY, without a page."""
         known = {column.name: column for column in self.columns}
         conditions = [_condition(filter_, known, params) for filter_ in self.request.filters]
         statement: Composed = SQL("SELECT {} FROM {}").format(
-            SQL(", ").join(Identifier(column.name) for column in self.columns),
-            Identifier(self.facts.schema, self.facts.name),
+            SQL(", ").join(Identifier(column.name) for column in (columns or self.columns)),
+            self.source,
         )
         if conditions:
             statement += SQL(" WHERE ") + SQL(" AND ").join(conditions)
@@ -229,8 +246,22 @@ class ClickhouseFetch:
         self._relation = relation
 
     async def prepare(self, request: FetchRequest) -> PreparedRead:
-        facts = await self._relation.facts(request.node_id, structure=False)
-        prepared = PreparedRead(facts=facts, shape=shape_of(facts), request=request)
+        report = report_for(request.node_id)
+        if report is not None:
+            prepared = await self._report(report, request)
+        elif in_section(request.node_id):
+            raise ValueError(
+                say('"{node_id}" is not a report of this source', node_id=request.node_id)
+            )
+        else:
+            facts = await self._relation.facts(request.node_id, structure=False)
+            prepared = PreparedRead(
+                source=Identifier(facts.schema, facts.name),
+                shape=shape_of(facts),
+                facts=facts,
+                report=None,
+                request=request,
+            )
         known = {column.name: column for column in prepared.columns}
         for used in [item.column for item in request.filters] + [item.column for item in request.sort]:
             if used not in known:
@@ -242,6 +273,28 @@ class ClickhouseFetch:
         # anything is asked of the server.
         prepared.statement(Params())
         return prepared
+
+    async def _report(self, report: SystemReport, request: FetchRequest) -> PreparedRead:
+        """A report's columns as the server describes them; nothing is written through it."""
+        source = SQL("(" + report.statement + ") AS report")
+        described = await self._session.answer(
+            (SQL("DESCRIBE TABLE ") + SQL("(" + report.statement + ")")).text()
+        )
+        columns: list[FetchColumn] = []
+        for row in described.rows:
+            type_ = build_column_type(str(row[1]))
+            sortable, operators = column_capabilities(type_)
+            columns.append(
+                FetchColumn(name=str(row[0]), type=type_, sortable=sortable, filter_operators=operators)
+            )
+        refused = say('"{title}" is a report and holds no rows of its own', title=say(report.title))
+        return PreparedRead(
+            source=source,
+            shape=RowShape(columns=columns, matched=[], update_reason=refused, insert_reason=refused),
+            facts=None,
+            report=report,
+            request=request,
+        )
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         prepared = await self.prepare(request)
@@ -258,6 +311,7 @@ class ClickhouseFetch:
         )
         rows = [[read_cell(value) for value in row] for row in answer.rows[: request.limit]]
         shape = prepared.shape
+        report = prepared.report
         return FetchResult(
             columns=shape.columns,
             rows=rows,
@@ -269,6 +323,15 @@ class ClickhouseFetch:
             insert_reason=shape.insert_reason,
             delete_supported=shape.update_supported,
             delete_reason=shape.update_reason,
+            # A row of a report is a line of an answer, not a thing (D111).
+            record_supported=report is None,
+            record_reason=None if report is None else shape.update_reason,
+            refresh_seconds=None if report is None else report.refresh_seconds,
+            # A report is the server describing itself, and a table made of it
+            # would be a copy of a moment nobody can refresh (D72).
+            page_commands=list(PAGE_COMMANDS)
+            if report is None
+            else [command for command in PAGE_COMMANDS if command != "create_relation"],
         )
 
 

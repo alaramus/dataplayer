@@ -5,7 +5,10 @@ MySQL's reason: the engine, its settings, codecs and TTLs are in the server's
 own text, and it is what a person pastes into another ClickHouse.
 """
 
+import textwrap
+
 from app.adapters.clickhouse.relation import ClickhouseRelation
+from app.adapters.clickhouse.reports import report_for
 from app.adapters.clickhouse.session import ClickhouseSession
 from app.adapters.clickhouse.sql import SQL, Identifier
 from app.adapters.content import ContentRequest, ContentResult, SqlContent
@@ -27,6 +30,11 @@ class ClickhouseContent:
                     representation=request.representation,
                 )
             )
+        report = report_for(request.node_id)
+        if report is not None:
+            # What the report runs, as it is written here, without the
+            # indentation of the Python file it lives in.
+            return SqlContent(text=textwrap.dedent(report.statement).strip())
         # Confirms the relation is there, and says so as a missing node.
         facts = await self._relation.facts(request.node_id, structure=False)
         statement = SQL("SHOW CREATE TABLE {}").format(Identifier(facts.schema, facts.name))

@@ -342,12 +342,16 @@ class ClickhouseSession:
 
     def _request_params(
         self,
-        params: Mapping[str, str],
         settings: Mapping[str, str],
         *,
         read: bool,
         query_id: str | None,
     ) -> dict[str, str]:
+        """The settings a request carries in its address, and nothing else.
+
+        The address is what a client library logs and a proxy keeps; the
+        statement and the values bound in it travel in the body (`_form`).
+        """
         sent: dict[str, str] = {**_OUTPUT, **(_READ if read else {})}
         if self._options.database:
             sent["database"] = self._options.database
@@ -355,9 +359,20 @@ class ClickhouseSession:
         sent.update(settings)
         if query_id is not None:
             sent["query_id"] = query_id
-        for name, value in params.items():
-            sent[f"param_{name}"] = value if isinstance(value, Encoded) else escaped(value)
         return sent
+
+    @staticmethod
+    def _form(sql: str, params: Mapping[str, str]) -> list[tuple[str, tuple[None, str]]]:
+        """The statement and its parameters as the fields of a multipart body.
+
+        In the body rather than the address, which httpx writes into its log
+        at INFO: a filter's value and a search's words stay out of every log.
+        """
+        fields: list[tuple[str, tuple[None, str]]] = [("query", (None, sql))]
+        for name, value in params.items():
+            text = value if isinstance(value, Encoded) else escaped(value)
+            fields.append((f"param_{name}", (None, text)))
+        return fields
 
     async def _send(
         self,
@@ -371,8 +386,8 @@ class ClickhouseSession:
     ) -> str:
         response = await client.post(
             self._base_url(),
-            params=self._request_params(params, settings, read=read, query_id=query_id),
-            content=sql.encode(),
+            params=self._request_params(settings, read=read, query_id=query_id),
+            files=self._form(sql, params),
             auth=httpx.BasicAuth(self._options.user, self._password()),
         )
         body = response.text
@@ -424,6 +439,7 @@ class ClickhouseSession:
         settings: Mapping[str, str] | None = None,
         refusals: Mapping[int, str] | None = None,
         server_errors: bool = False,
+        read: bool = True,
     ) -> Answer:
         """Run a read and hand back its whole answer.
 
@@ -431,7 +447,8 @@ class ClickhouseSession:
         the text as the server's own parameters: a value is never in the
         statement. The answer is buffered by the server, so a failure halfway
         is a refusal rather than half a page. `server_errors` hands the
-        server's refusal back as it is, for a caller that shows its sentence.
+        server's refusal back as it is, for a caller that shows its sentence;
+        `read` off is for a statement that acts and answers, as KILL does.
         """
         try:
             async with self._client() as client:
@@ -440,7 +457,7 @@ class ClickhouseSession:
                     sql,
                     params or {},
                     {"wait_end_of_query": "1", **(settings or {})},
-                    read=True,
+                    read=read,
                     query_id=str(uuid.uuid4()),
                 )
         except httpx.PoolTimeout:
@@ -510,8 +527,8 @@ class ClickhouseSession:
             async with client.stream(
                 "POST",
                 self._base_url(),
-                params=self._request_params(params, sent, read=read, query_id=query_id),
-                content=sql.encode(),
+                params=self._request_params(sent, read=read, query_id=query_id),
+                files=self._form(sql, params),
                 auth=httpx.BasicAuth(self._options.user, self._password()),
             ) as response:
                 if response.status_code != 200:
@@ -563,17 +580,27 @@ class ClickhouseSession:
         another way to do the same.
         """
         sent = {"wait_end_of_query": "1", **(settings or {})}
-        query = self._request_params(params, sent, read=False, query_id=str(uuid.uuid4()))
-        if data is not None:
-            query["query"] = sql
+        query = self._request_params(sent, read=False, query_id=str(uuid.uuid4()))
         try:
             async with self._client() as client:
-                response = await client.post(
-                    self._base_url(),
-                    params=query,
-                    content=data if data is not None else sql.encode(),
-                    auth=httpx.BasicAuth(self._options.user, self._password()),
-                )
+                if data is None:
+                    response = await client.post(
+                        self._base_url(),
+                        params=query,
+                        files=self._form(sql, params),
+                        auth=httpx.BasicAuth(self._options.user, self._password()),
+                    )
+                else:
+                    # The rows are the body, so the statement is in the
+                    # address: names only, as an INSERT here binds nothing.
+                    if params:
+                        raise ValueError("An insert with rows binds no parameters")
+                    response = await client.post(
+                        self._base_url(),
+                        params={**query, "query": sql},
+                        content=data,
+                        auth=httpx.BasicAuth(self._options.user, self._password()),
+                    )
                 if response.status_code != 200:
                     raise _server_error(response.status_code, response.headers, response.text)
                 return _written_rows(response.headers.get("x-clickhouse-summary"))
@@ -585,6 +612,55 @@ class ClickhouseSession:
             raise AdapterError("unknown", say("All connections to this source are busy")) from None
         except (httpx.TransportError, OSError) as exc:
             error_kind, message = classify(exc, fallback_message=N_("Update failed"))
+            raise AdapterError(error_kind, message) from None
+
+    async def stream(
+        self, sql: str, params: Mapping[str, str], *, batch_size: int
+    ) -> AsyncIterator[list[list[Any]]]:
+        """Every row of a read, a batch at a time, never held whole.
+
+        The answer is not buffered by the server: it arrives as it is read, and
+        a reader that stops early closes the request, which stops the read on
+        the server. An exception halfway arrives as its text (D268).
+        """
+        try:
+            async with self._client() as client:
+                async with client.stream(
+                    "POST",
+                    self._base_url(),
+                    params=self._request_params({}, read=True, query_id=str(uuid.uuid4())),
+                    files=self._form(sql, params),
+                    auth=httpx.BasicAuth(self._options.user, self._password()),
+                ) as response:
+                    if response.status_code != 200:
+                        body = (await response.aread()).decode(errors="replace")
+                        raise _server_error(response.status_code, response.headers, body)
+                    seen = 0
+                    batch: list[list[Any]] = []
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            decoded = decode_line(line)
+                        except ValueError:
+                            rest = line + (await response.aread()).decode(errors="replace")
+                            raise _server_error(500, {}, rest) from None
+                        seen += 1
+                        # The names and the types come first.
+                        if seen <= 2:
+                            continue
+                        batch.append(decoded)
+                        if len(batch) >= batch_size:
+                            yield batch
+                            batch = []
+                    if batch:
+                        yield batch
+        except httpx.PoolTimeout:
+            raise AdapterError("unknown", say("All connections to this source are busy")) from None
+        except AdapterError:
+            raise
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message=N_("Export failed"))
             raise AdapterError(error_kind, message) from None
 
     async def kill_query(self, query_id: str) -> None:

@@ -535,3 +535,21 @@ async def test_the_ddl_is_the_server_s_own() -> None:
     assert content.text.startswith("CREATE TABLE")
     assert "ENGINE = MergeTree" in content.text
     assert content.text.endswith(";")
+
+
+@pytest.mark.usefixtures("server")
+async def test_a_value_bound_in_a_statement_reaches_no_log_line(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The statement and its values travel in the body; httpx logs the address."""
+    caplog.set_level("DEBUG")
+
+    await adapter().fetch(
+        FetchRequest(
+            node_id=ITEMS,
+            filters=[ScalarFilter(column="label", op="eq", value="a-secret-filter-word")],
+        )
+    )
+
+    assert "a-secret-filter-word" not in caplog.text
+    assert "label" not in caplog.text

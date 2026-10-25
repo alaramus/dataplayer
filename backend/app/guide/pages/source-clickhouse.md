@@ -13,6 +13,8 @@ How connections work in general is on the [Connections](connections.md) page.
 - A relation's DDL, as the server writes it
 - How big a table is, how it is partitioned and when it was last written to
 - The results of SQL you write, and the server's plan for a query
+- Every matching row, downloaded as a file
+- The server's queries, mutations, merges, table sizes, disks and settings
 
 ## What you can change
 
@@ -137,6 +139,30 @@ which such a user may not.
   object that asks for one.
 - A table made from rows of a page is a MergeTree whose columns may all be
   empty. If its rows are refused, the table is not left behind.
+
+## The System section
+
+- After the databases, **System** holds what the server says about itself:
+  **Processes**, **Mutations**, **Merges**, **Table sizes**, **Disks**,
+  **Changed settings**, **Metrics** and **Users**. They sort, filter and page
+  like a table; Processes, Mutations, Merges and Metrics read themselves again
+  every few seconds.
+- In **Processes**, pick queries and **Cancel query** to stop them. What a
+  query already wrote stays written.
+- In **Mutations**, **Stop mutation** ends a change that is rewriting a
+  table's parts. A mutation that keeps failing holds up every later change of
+  its table; its failure is in the last column, and stopping it lets the table
+  change again.
+- The whole `system` database is in the catalog too, for anything these
+  reports leave out.
+
+## Search and download
+
+- The search field finds databases and tables by name, and tables by a
+  column's name, a column's comment or their own comment. `%` and `_` are
+  ordinary characters.
+- Download takes every row that matches a page's filters and sort, not just
+  the page.
 
 ## SQL console
 

@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
@@ -10,6 +10,7 @@ from app.adapters.clickhouse.columns import ClickhouseColumns
 from app.adapters.clickhouse.content import ClickhouseContent
 from app.adapters.clickhouse.design import ClickhouseTableDesign
 from app.adapters.clickhouse.explain import ClickhouseExplain
+from app.adapters.clickhouse.export import ClickhouseExport
 from app.adapters.clickhouse.features import ClickhouseFeatures
 from app.adapters.clickhouse.fetch import ClickhouseFetch
 from app.adapters.clickhouse.indexes import ClickhouseIndexes
@@ -18,6 +19,8 @@ from app.adapters.clickhouse.options import ClickhouseOptions
 from app.adapters.clickhouse.query import ClickhouseExecution, ClickhouseQuery
 from app.adapters.clickhouse.relation import ClickhouseRelation
 from app.adapters.clickhouse.relation_changes import ClickhouseRelationChanges
+from app.adapters.clickhouse.row_commands import ClickhouseRowCommands
+from app.adapters.clickhouse.search import ClickhouseSearch
 from app.adapters.clickhouse.session import (
     ClickhouseSession,
     compose_url,
@@ -39,6 +42,7 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
@@ -67,6 +71,16 @@ from app.adapters.relation_changes import (
     NewRelationOptions,
 )
 from app.adapters.resources import Pooling
+from app.adapters.row_commands import RowCommand, RowCommandResult
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
 from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.update import (
@@ -121,6 +135,9 @@ class ClickhouseAdapter:
         self._design = ClickhouseTableDesign(self._session, self._catalog)
         self._relations = ClickhouseRelationChanges(self._session, self._catalog, self._update)
         self._actions = ClickhouseActions(self._session, self._catalog)
+        self._export = ClickhouseExport(self._session, self._fetch)
+        self._row_commands = ClickhouseRowCommands(self._session)
+        self._search = ClickhouseSearch(self._session)
         self._explain = ClickhouseExplain(self._session)
         self._metadata = ClickhouseMetadata(self._session)
         self._generation = ClickhouseGeneration(self._session)
@@ -181,6 +198,36 @@ class ClickhouseAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        return self._export.export_rows(request)
+
+    def row_commands(self, node_id: str) -> list[RowCommand]:
+        return self._row_commands.for_node(node_id)
+
+    async def run_row_command(
+        self, node_id: str, name: str, keys: Sequence[str]
+    ) -> RowCommandResult:
+        """Stop a query or a mutation from its report (D275)."""
+        return await self._row_commands.run(node_id, name, keys)
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    async def search_columns(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_columns(request, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names are one query of the catalog; columns read every column (D200)."""
+        return "cheap" if field == "names" else "costly"
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)
