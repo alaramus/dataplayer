@@ -99,8 +99,8 @@ its own node class.
 The union reaches OpenAPI as discriminated, so the frontend gets a real tagged
 union: TypeScript narrows the type by `kind`.
 
-A new node kind is a new class in the union. The friction is intentional: a
-field can be added to a shared dictionary silently, a class cannot.
+A new node kind is a new class in the union. The friction is intentional: 
+a field can be added to a shared dictionary silently, a class cannot.
 
 `row_count_estimate` is named honestly, instead of the old pair `row_count`
 and `row_precise: "raw"`.
