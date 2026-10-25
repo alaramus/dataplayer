@@ -1,10 +1,12 @@
 from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
 from app.adapters.clickhouse.actions import CLICKHOUSE_ACTION_TYPES, ClickhouseActions
+from app.adapters.clickhouse.backup import ClickhouseBackup
 from app.adapters.clickhouse.catalog import ClickhouseCatalog
 from app.adapters.clickhouse.columns import ClickhouseColumns
 from app.adapters.clickhouse.content import ClickhouseContent
@@ -15,6 +17,8 @@ from app.adapters.clickhouse.features import ClickhouseFeatures
 from app.adapters.clickhouse.fetch import ClickhouseFetch
 from app.adapters.clickhouse.indexes import ClickhouseIndexes
 from app.adapters.clickhouse.metadata import ClickhouseGeneration, ClickhouseMetadata
+from app.adapters.clickhouse.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.clickhouse.metrics import ClickhouseMetrics
 from app.adapters.clickhouse.options import ClickhouseOptions
 from app.adapters.clickhouse.query import ClickhouseExecution, ClickhouseQuery
 from app.adapters.clickhouse.relation import ClickhouseRelation
@@ -29,6 +33,7 @@ from app.adapters.clickhouse.session import (
 )
 from app.adapters.clickhouse.statements import format_text
 from app.adapters.clickhouse.summary import ClickhouseSummaries
+from app.adapters.clickhouse.table_copy import DIALECT, ClickhouseTableCopy
 from app.adapters.clickhouse.update import ClickhouseUpdate
 from app.adapters.column_changes import (
     AddColumnRequest,
@@ -51,7 +56,12 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
-from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.metrics import MetricPreset, MetricSample
+from app.adapters.protocol import (
+    BackupAvailability,
+    BackupProgram,
+    ConnectionCheckResult,
+)
 from app.adapters.query import (
     ExplainRequest,
     ExplainResult,
@@ -82,6 +92,14 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.summary import NodeSummary
+from app.adapters.table_copy import (
+    Arrived,
+    CopiedTable,
+    RowsOf,
+    TableCopyPlan,
+    TableCopyRequest,
+    TableRows,
+)
 from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -134,6 +152,7 @@ class ClickhouseAdapter:
         self._indexes = ClickhouseIndexes(self._session, self._relation)
         self._design = ClickhouseTableDesign(self._session, self._catalog)
         self._relations = ClickhouseRelationChanges(self._session, self._catalog, self._update)
+        self._table_copy = ClickhouseTableCopy(self._session, self._relations)
         self._actions = ClickhouseActions(self._session, self._catalog)
         self._export = ClickhouseExport(self._session, self._fetch)
         self._row_commands = ClickhouseRowCommands(self._session)
@@ -141,6 +160,59 @@ class ClickhouseAdapter:
         self._explain = ClickhouseExplain(self._session)
         self._metadata = ClickhouseMetadata(self._session)
         self._generation = ClickhouseGeneration(self._session)
+        self._backup = ClickhouseBackup(self._session, options)
+        self._metrics = ClickhouseMetrics(self._session)
+
+    table_copy_dialect = DIALECT
+
+    @property
+    def table_copy_database(self) -> str:
+        return self._table_copy.table_copy_database
+
+    async def describe_for_copy(self, node_ids: list[str]) -> list[CopiedTable]:
+        return await self._table_copy.describe_for_copy(node_ids)
+
+    async def free_table_names(self, place_node_id: str, wanted: list[str]) -> list[str]:
+        return await self._table_copy.free_table_names(place_node_id, wanted)
+
+    async def plan_table_copy(self, request: TableCopyRequest) -> TableCopyPlan:
+        return await self._table_copy.plan_table_copy(request)
+
+    def reading_tables(self) -> AbstractAsyncContextManager[TableRows]:
+        return self._table_copy.reading_tables()
+
+    async def carry_table_copy(
+        self, request: TableCopyRequest, rows_of: RowsOf, arrived: Arrived
+    ) -> None:
+        """Tables made, rows streamed in, everything made dropped on failure (D277)."""
+        await self._table_copy.carry_table_copy(request, rows_of, arrived)
+
+    async def metric_samples(self) -> list[MetricSample]:
+        """The server's counters, and the database's size and parts, per poll (D279)."""
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    async def backup_availability(self) -> BackupAvailability:
+        return await self._backup.backup_availability()
+
+    async def backup_program(self, *, into: str) -> BackupProgram:
+        """A script over the HTTP interface, writing one text file (D278)."""
+        return await self._backup.backup_program(into=into)
+
+    async def restore_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_program(from_file=from_file)
+
+    async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_inventory_program(from_file=from_file)
+
+    def validate_restore_inventory(self, lines: Sequence[str]) -> None:
+        self._backup.validate_restore_inventory(lines)
+
+    def restore_archive_reason(self, head: bytes) -> str | None:
+        return self._backup.restore_archive_reason(head)
 
     @classmethod
     def cache_ttl(cls, area: CacheArea) -> float:

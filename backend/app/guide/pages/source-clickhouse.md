@@ -15,6 +15,7 @@ How connections work in general is on the [Connections](connections.md) page.
 - The results of SQL you write, and the server's plan for a query
 - Every matching row, downloaded as a file
 - The server's queries, mutations, merges, table sizes, disks and settings
+- The server's counters, on a dashboard
 
 ## What you can change
 
@@ -23,6 +24,8 @@ How connections work in general is on the [Connections](connections.md) page.
 - New tables, designed object by object or made from rows
 - Databases: create and drop them
 - Tables and views: rename, move to another database, drop
+- Tables copied with their structure into another ClickHouse connection
+- The connection's database: backed up to a file and restored from one
 - Data and structure, through SQL in the console, one change at a time
 
 ## Connecting
@@ -180,6 +183,47 @@ which such a user may not.
 - The server refuses to drop a table larger than its own limit, 50 GB unless
   its administrator changed it, and says so.
 - Nothing here can be undone: ClickHouse keeps each change at once.
+
+## Copying tables
+
+**Copy** tables in the catalog and **Paste** them into a database of another
+ClickHouse connection, or of this one. They arrive with their columns and
+their defaults, computed columns, codecs and comments, skipping indexes,
+checks, engine, keys and settings; the window asks the same things as on
+PostgreSQL, shows every statement and runs nothing before **Copy**.
+
+- Tables of the MergeTree family and the Log and Memory engines are copied.
+  Replicated tables, views, and tables over a file, a URL, a stream or another
+  server are not; the window says why.
+- Materialized views reading a copied table stay behind, named in the window.
+- The tables are made first and the rows arrive afterwards. If the copy fails
+  or is stopped, the tables it made are dropped again.
+- Nothing holds the tables still while they are read: rows written meanwhile
+  may or may not arrive.
+
+Rows pasted into another kind of connection go the way rows of any table do.
+
+## Backups
+
+**Backups**, in the catalog's actions menu, works as on PostgreSQL, for the
+database the connection names. A connection that names no database is not
+offered one.
+
+- The backup is one text file: the statement that makes each table, view and
+  materialized view, and every table's rows. Tables of other engines, such as
+  replicated ones, are named in the file as left out.
+- The tables are read one after another, not at one moment.
+- **Restore** drops and makes again every table and view the backup holds;
+  what the database holds that the backup does not stays. A backup is
+  restored only into a database of the same name, and only into the same
+  release of ClickHouse or a newer one.
+
+## Dashboards
+
+A ClickHouse connection can report to dashboards. The layout is **ClickHouse
+server**: connections and running queries, queries per second, rows read,
+inserted and merged, memory, network traffic, active parts, failed queries and
+the size of the connection's database. The counters are the whole server's.
 
 ## SQL console
 

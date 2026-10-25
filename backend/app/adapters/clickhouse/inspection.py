@@ -19,8 +19,9 @@ from app.adapters.clickhouse.types import (
 from app.adapters.relation import ColumnType
 
 _RELATIONS = """
-SELECT name, engine, total_rows, total_bytes, comment, sorting_key, primary_key,
-       partition_key, create_table_query
+SELECT name, engine, engine_full, total_rows, total_bytes, comment, sorting_key,
+       primary_key, partition_key, create_table_query, dependencies_database,
+       dependencies_table
 FROM system.tables
 WHERE database = {database:String} AND name IN {names:Array(String)} AND NOT is_temporary
 """
@@ -34,7 +35,7 @@ ORDER BY table, position
 """
 
 _SKIPPING_INDEXES = """
-SELECT table, name, type, expr, granularity
+SELECT table, name, type, type_full, expr, granularity
 FROM system.data_skipping_indices
 WHERE database = {database:String} AND table IN {names:Array(String)}
 ORDER BY table, name
@@ -100,6 +101,8 @@ class SkippingIndexFacts:
     type: str
     expression: str
     granularity: int
+    # With its arguments, `bloom_filter(0.01)`, as a copy writes it.
+    type_full: str = ""
 
 
 @dataclass(frozen=True)
@@ -116,6 +119,10 @@ class RelationFacts:
     columns: list[ColumnFacts]
     checks: list[CheckFacts] = field(default_factory=list)
     indexes: list[SkippingIndexFacts] = field(default_factory=list)
+    # The engine with its keys and settings, as CREATE TABLE writes it.
+    engine_full: str = ""
+    # Materialized views fed by this table, as `database.name`.
+    dependents: list[str] = field(default_factory=list)
 
     @property
     def is_view(self) -> bool:
@@ -331,10 +338,18 @@ def _facts(
         partition_key=_text(relation["partition_key"]),
         columns=[_column(row) for row in column_rows],
         checks=read_checks(str(relation["create_table_query"] or "")) if structure else [],
+        engine_full=str(relation["engine_full"] or ""),
+        dependents=[
+            f"{database}.{table}"
+            for database, table in zip(
+                relation["dependencies_database"], relation["dependencies_table"], strict=False
+            )
+        ],
         indexes=[
             SkippingIndexFacts(
                 name=str(row["name"]),
                 type=str(row["type"]),
+                type_full=str(row["type_full"]),
                 expression=str(row["expr"]),
                 granularity=int(row["granularity"]),
             )

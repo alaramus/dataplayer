@@ -83,6 +83,11 @@ class ServerError(Exception):
 
 _CODE = re.compile(r"Code: (\d+)\.")
 
+# How an exception halfway through an answer is set apart from the rows, and
+# how much of the end of an answer is held back to look for it.
+_EXCEPTION_MARK = b"\n__exception__\n"
+HELD_BYTES = 64 * 1024
+
 
 def _server_error(status: int, headers: Mapping[str, str], body: str) -> ServerError:
     code_text = headers.get("x-clickhouse-exception-code")
@@ -568,7 +573,7 @@ class ClickhouseSession:
         *,
         settings: Mapping[str, str] | None = None,
         refusals: Mapping[int, str] | None = None,
-        data: bytes | None = None,
+        data: bytes | AsyncIterator[bytes] | None = None,
         passing: frozenset[int] = frozenset(),
     ) -> int | None:
         """Run a change and answer how many rows it wrote, where the server says.
@@ -661,6 +666,54 @@ class ClickhouseSession:
             raise
         except Exception as exc:
             error_kind, message = classify(exc, fallback_message=N_("Export failed"))
+            raise AdapterError(error_kind, message) from None
+
+    async def stream_bytes(
+        self, sql: str, params: Mapping[str, str], settings: Mapping[str, str]
+    ) -> AsyncIterator[bytes]:
+        """A read's answer as the bytes the server writes, in its own format.
+
+        A failure halfway arrives inside the answer, after a line saying
+        `__exception__`; so the last `HELD_BYTES` are held back until the
+        answer ends, and an answer ending in an exception is a failure rather
+        than rows. Nothing held back has been handed on.
+        """
+        held = b""
+        try:
+            async with self._client() as client:
+                async with client.stream(
+                    "POST",
+                    self._base_url(),
+                    params=self._request_params(settings, read=True, query_id=str(uuid.uuid4())),
+                    files=self._form(sql, params),
+                    auth=httpx.BasicAuth(self._options.user, self._password()),
+                ) as response:
+                    if response.status_code != 200:
+                        body = (await response.aread()).decode(errors="replace")
+                        raise _server_error(response.status_code, response.headers, body)
+                    async for chunk in response.aiter_bytes():
+                        held += chunk
+                        if len(held) > HELD_BYTES:
+                            cut = len(held) - HELD_BYTES
+                            yield held[:cut]
+                            held = held[cut:]
+            # The line break before the mark may have gone with the rows
+            # already handed on, or be the answer's very start.
+            framed = b"\n" + held
+            marker = framed.rfind(_EXCEPTION_MARK)
+            if marker >= 0 and _CODE.search(framed[marker:].decode(errors="replace")):
+                raise _server_error(500, {}, framed[marker + len(_EXCEPTION_MARK) :].decode(errors="replace"))
+            if held:
+                yield held
+        except httpx.PoolTimeout:
+            raise AdapterError("unknown", say("All connections to this source are busy")) from None
+        except AdapterError:
+            raise
+        except ServerError as exc:
+            error_kind, message = classify(exc, fallback_message=N_("The rows could not be read"))
+            raise AdapterError(error_kind, message) from None
+        except (httpx.TransportError, OSError) as exc:
+            error_kind, message = classify(exc, fallback_message=N_("The rows could not be read"))
             raise AdapterError(error_kind, message) from None
 
     async def kill_query(self, query_id: str) -> None:

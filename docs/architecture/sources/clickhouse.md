@@ -3,13 +3,13 @@
 What a ClickHouse source is, how it reaches the server, what its catalog shows,
 how its values and pages cross to the grid and are changed there, how its
 structure is changed and a table designed, its reports, search, export and
-catalog actions,
+catalog actions, how its tables are copied, backed up and measured,
 and how its SQL console differs from PostgreSQL's. The contract every source type
 follows is in [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `clickhouse`
 adapter.
 
-Decisions here: D267, D268, D269, D270, D271, D272, D273, D274, D275, D276.
+Decisions here: D267, D268, D269, D270, D271, D272, D273, D274, D275, D276, D277, D278, D279.
 
 ## D267. A ClickHouse source speaks HTTP, with the application's own client
 
@@ -332,3 +332,78 @@ Known deviations:
   server keeps no list of what a view reads.
 
 Spec: [ClickHouse catalog actions](../../decisions/2026-10-25-clickhouse-actions-design.md)
+
+## D277. A table is copied from its catalog parts; its rows travel as TabSeparated
+
+Copying tables with their structure (D182) between ClickHouse connections, or
+within one. The source describes each table from `system.columns`,
+`system.tables` and `system.data_skipping_indices`: a column's type with its
+DEFAULT, MATERIALIZED, ALIAS or EPHEMERAL expression, comment and codec; the
+skipping indexes and checks; the engine with its keys and settings as
+`engine_full` writes them. The destination composes its own CREATE TABLE after
+checking each part stands alone — one part of a statement, its quotes closed by
+ClickHouse's rules, which escape with a backslash as well as by doubling.
+
+Only tables whose rows are their own are copied: the MergeTree family that is
+not replicated or shared, and the Log engines and Memory. A replicated table's
+path in the coordinator would be shared by its copy. A view or a table of
+another engine is refused with a reason; the materialized views reading a
+copied table stay where they are, and the plan says so.
+
+The rows are read and written as TabSeparated, the server's own text, which it
+reads back exactly, one streamed INSERT a table. A computed column takes no
+value. Nothing holds the source still while it is read, and a failure drops
+every table the copy made. An exception the server writes partway through an
+answer is told from rows by holding back the answer's last 64 KB until it ends.
+
+Known deviations:
+
+- The tables are read one after another, not at one moment: ClickHouse has no
+  snapshot to read them in.
+
+Spec: [ClickHouse copies, backups and metrics](../../decisions/2026-10-25-clickhouse-copy-design.md)
+
+## D278. A backup is a script over the HTTP interface, writing one text file
+
+Backup and restore (D87) run a short script in `python:3.14-slim`, the image
+SQLite's backup runs in, talking to the HTTP interface the connection uses.
+`clickhouse-client` speaks the native protocol, on a port the connection does
+not know and a server need not publish, and `BACKUP` writes where the server
+is rather than into the owner's storage. The password travels in the
+environment.
+
+One database: the one the connection names; a connection naming none is not
+offered a backup. The file is text: a heading line; one JSON line each for the
+server's release, the database and every object with the statement that makes
+it, as the server wrote it; each table's rows as TabSeparated ending in a line
+`\.`, which no row can be; and a last line saying the file is whole. Tables
+of the engines D277 copies, views and materialized views are carried; anything
+else is named in the file as left out. A materialized view keeping its own rows
+has them carried like a table's.
+
+A restore drops every object the backup holds and makes it again: tables, then
+their rows, then views, so a materialized view is not fed the rows a second
+time; a view that reads another waits for it. What the database holds that the
+backup does not is left alone. Before anything is dropped the inventory says
+the file is whole, of a database of this connection's name, by this release or
+an older one.
+
+Known deviations:
+
+- The statements name the database they were made in, so a backup is restored
+  only into a database of the same name.
+- Tables are read one after another, not at one moment.
+
+Spec: [ClickHouse copies, backups and metrics](../../decisions/2026-10-25-clickhouse-copy-design.md)
+
+## D279. Metrics read the system tables in one request
+
+`system.metrics` for connections, running queries and memory;
+`system.events` for queries, rows read, inserted and merged, network and
+failed queries, counted as rates; `system.parts` for the size and active parts
+of the connection's database, or of every database but the server's own when it
+names none. A counter `system.events` does not list has not happened yet and
+is read as nought. One preset, ClickHouse server.
+
+Spec: [ClickHouse copies, backups and metrics](../../decisions/2026-10-25-clickhouse-copy-design.md)
+
