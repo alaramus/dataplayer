@@ -21,6 +21,8 @@ How connections work in general is on the [Connections](connections.md) page.
 - Table data: edit cells, paste blocks, insert and delete rows
 - Columns and skipping indexes of MergeTree tables
 - New tables, designed object by object or made from rows
+- Databases: create and drop them
+- Tables and views: rename, move to another database, drop
 - Data and structure, through SQL in the console, one change at a time
 
 ## Connecting
@@ -163,6 +165,21 @@ which such a user may not.
   ordinary characters.
 - Download takes every row that matches a page's filters and sort, not just
   the page.
+
+## Catalog actions
+
+- **New database** at the top of the connection.
+- On a database: **Create table**, **Load from CSV**, **Drop database** and
+  **Model as code**. A database is dropped only once you have seen what it
+  holds and ticked to drop everything in it.
+- On a table or a view: **Rename**, **Move to database**, **Drop** and
+  **Model as code**. Before a drop, the materialized views that read the table
+  and would stop working are named. A plain view that reads it is not: the
+  server keeps no list of what a view reads.
+- A CSV file becomes a table whose columns are all text and may be empty.
+- The server refuses to drop a table larger than its own limit, 50 GB unless
+  its administrator changed it, and says so.
+- Nothing here can be undone: ClickHouse keeps each change at once.
 
 ## SQL console
 

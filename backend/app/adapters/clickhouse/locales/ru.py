@@ -93,4 +93,12 @@ MESSAGES: dict[str, str] = {
     '{done} of {asked} mutations stopped': 'Остановлено мутаций: {done} из {asked}',
     '{done} of {asked} queries stopped': 'Остановлено запросов: {done} из {asked}',
     '{done} queries stopped': 'Остановлено запросов: {done}',
+    # Catalog actions.
+    'Materialized view {view} reads {name} and will stop working': 'Материализованное представление {view} читает {name} и перестанет работать',
+    'Other tables or views depend on it': 'От этого зависят другие таблицы или представления',
+    'That database is not there': 'Такой базы данных нет',
+    'That relation is not there': 'Такого отношения нет',
+    'The server refuses to drop a table this large; its administrator can raise the limit': 'Сервер отказывается удалять такую большую таблицу; администратор может поднять предел',
+    'This connection may not change that': 'Этому подключению нельзя это менять',
+    '{count} dictionaries': 'Словарей: {count}',
 }

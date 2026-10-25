@@ -94,4 +94,12 @@ MESSAGES: dict[str, str] = {
     '{done} of {asked} mutations stopped': '已停止 {asked} 个变更中的 {done} 个',
     '{done} of {asked} queries stopped': '已停止 {asked} 个查询中的 {done} 个',
     '{done} queries stopped': '已停止 {done} 个查询',
+    # Catalog actions.
+    'Materialized view {view} reads {name} and will stop working': '物化视图 {view} 读取 {name}，将无法再工作',
+    'Other tables or views depend on it': '有其他表或视图依赖于它',
+    'That database is not there': '没有这个数据库',
+    'That relation is not there': '没有这个关系',
+    'The server refuses to drop a table this large; its administrator can raise the limit': '服务器拒绝删除这么大的表；管理员可以提高限制',
+    'This connection may not change that': '此连接无权更改它',
+    '{count} dictionaries': '{count} 个字典',
 }

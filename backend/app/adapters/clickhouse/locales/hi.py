@@ -94,4 +94,12 @@ MESSAGES: dict[str, str] = {
     '{done} of {asked} mutations stopped': '{asked} में से {done} म्यूटेशन रोके गए',
     '{done} of {asked} queries stopped': '{asked} में से {done} क्वेरी रोकी गईं',
     '{done} queries stopped': '{done} क्वेरी रोकी गईं',
+    # Catalog actions.
+    'Materialized view {view} reads {name} and will stop working': 'मटीरियलाइज़्ड व्यू {view} {name} को पढ़ता है और काम करना बंद कर देगा',
+    'Other tables or views depend on it': 'अन्य तालिकाएँ या व्यू इस पर निर्भर हैं',
+    'That database is not there': 'ऐसा कोई डेटाबेस नहीं है',
+    'That relation is not there': 'ऐसा कोई संबंध नहीं है',
+    'The server refuses to drop a table this large; its administrator can raise the limit': 'सर्वर इतनी बड़ी तालिका हटाने से मना करता है; उसका व्यवस्थापक सीमा बढ़ा सकता है',
+    'This connection may not change that': 'यह कनेक्शन इसे नहीं बदल सकता',
+    '{count} dictionaries': '{count} शब्दकोश',
 }

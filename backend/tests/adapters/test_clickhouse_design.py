@@ -85,8 +85,8 @@ async def test_a_database_offers_the_designer_and_the_server_s_own_do_not() -> N
     assert not any(option.identity_supported for option in offered.types)
     assert not offered.reference_actions and not offered.hypertable.offered
     assert not refused.supported and refused.reason
-    assert [action.name for action in await source.available(NODE)] == ["create_table"]
-    assert await source.available(database_id("system")) == []
+    assert "create_table" in [action.name for action in await source.available(NODE)]
+    assert "create_table" not in [action.name for action in await source.available(database_id("system"))]
 
 
 @pytest.mark.usefixtures("server")

@@ -94,4 +94,12 @@ MESSAGES: dict[str, str] = {
     '{done} of {asked} mutations stopped': '{done} de {asked} mutaciones detenidas',
     '{done} of {asked} queries stopped': '{done} de {asked} consultas detenidas',
     '{done} queries stopped': '{done} consultas detenidas',
+    # Catalog actions.
+    'Materialized view {view} reads {name} and will stop working': 'La vista materializada {view} lee {name} y dejará de funcionar',
+    'Other tables or views depend on it': 'Otras tablas o vistas dependen de esto',
+    'That database is not there': 'Esa base de datos no existe',
+    'That relation is not there': 'Esa relación no existe',
+    'The server refuses to drop a table this large; its administrator can raise the limit': 'El servidor se niega a eliminar una tabla tan grande; su administrador puede subir el límite',
+    'This connection may not change that': 'Esta conexión no puede cambiar eso',
+    '{count} dictionaries': '{count} diccionarios',
 }

@@ -2,13 +2,14 @@
 
 What a ClickHouse source is, how it reaches the server, what its catalog shows,
 how its values and pages cross to the grid and are changed there, how its
-structure is changed and a table designed, its reports, search and export,
+structure is changed and a table designed, its reports, search, export and
+catalog actions,
 and how its SQL console differs from PostgreSQL's. The contract every source type
 follows is in [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `clickhouse`
 adapter.
 
-Decisions here: D267, D268, D269, D270, D271, D272, D273, D274, D275.
+Decisions here: D267, D268, D269, D270, D271, D272, D273, D274, D275, D276.
 
 ## D267. A ClickHouse source speaks HTTP, with the application's own client
 
@@ -303,3 +304,31 @@ Known deviations:
   the best of a larger catalog may be among those not handed over.
 
 Spec: [ClickHouse reports, search and export](../../decisions/2026-10-25-clickhouse-reports-design.md)
+
+## D276. Catalog actions preview from the system tables; nothing is rehearsed
+
+New database at the top of the connection; on a database Create table (D274),
+Load from CSV, Drop database and Model as code; on a table or a view Rename,
+Move to database, Drop and Model as code. The server's own databases offer
+Model as code alone. Every statement is waited for (`alter_sync`).
+
+ClickHouse keeps every structure change at once (D271), so nothing is
+rehearsed; a preview reads the `system` tables instead. No foreign key stops a
+drop, so what a preview names is what would stop working: the materialized
+views fed by a table being dropped, which `system.tables` records as its
+dependencies. Plain views are not recorded and are not named. A database is
+dropped only when the preview has said what it holds — tables, views,
+dictionaries — and the person ticked to drop it all. Views are dropped before
+tables in a set, so a materialized view goes before the table it reads.
+
+Rename and Move are `RENAME TABLE`, for tables and views alike. A table loaded
+from a CSV file is a MergeTree of `Nullable(String)` columns made as a table
+from rows is (D274). The server's own limit on dropping a large table
+(`max_table_size_to_drop`) is passed on as a sentence.
+
+Known deviations:
+
+- A plain view that reads a dropped table is not named in the preview: the
+  server keeps no list of what a view reads.
+
+Spec: [ClickHouse catalog actions](../../decisions/2026-10-25-clickhouse-actions-design.md)
