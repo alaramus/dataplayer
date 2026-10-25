@@ -452,6 +452,9 @@ Known deviations:
 - **A MySQL source rehearses nothing, and runs a structure change alone.** MySQL
   commits DDL at once, so it can be neither undone nor held in a transaction;
   the console says so in its question instead (D233).
+- **A ClickHouse source holds no transaction and rehearses nothing.** Every
+  change is kept at once, so a run that changes anything holds one statement
+  and there is no manual mode (D271).
 - **`DROP INDEX s.i` widens the invalidation to the whole connection.** The
   statement names the index and not the relation it was on, so nothing can name a
   node the source did not say. The same is true of any statement the dialect

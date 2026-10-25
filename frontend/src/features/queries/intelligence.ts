@@ -35,11 +35,25 @@ function relationKind(kind: RelationSummary["kind"]): string {
   return t(`queries.relation_kind.${kind}`)
 }
 
-/** How this source spells a named parameter, taken from what it said. */
+/**
+ * How this source starts a named parameter, taken from what it said.
+ * ClickHouse's `{name:Type}` is offered as far as its name: the type is the
+ * author's to write.
+ */
 export function parameterPrefix(
   syntax: QueryProfile["parameter_syntax"] | undefined
 ): string {
-  return syntax === "named_dollar" ? "$" : ":"
+  if (syntax === "named_dollar") return "$"
+  if (syntax === "named_braces") return "{"
+  return ":"
+}
+
+/** A parameter's name as this source writes it, for the form that asks for it. */
+export function parameterLabel(
+  syntax: QueryProfile["parameter_syntax"] | undefined,
+  name: string
+): string {
+  return syntax === "named_braces" ? `{${name}}` : `${parameterPrefix(syntax)}${name}`
 }
 
 /**

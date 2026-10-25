@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import type { QueryProfile } from "@/client"
 import type { ParameterEntry } from "@/features/queries/console"
+import { parameterLabel } from "@/features/queries/intelligence"
 import { t } from "@/shared/i18n"
 import { AppCheckbox, AppInput } from "@/shared/ui"
 
@@ -11,7 +13,10 @@ import { AppCheckbox, AppInput } from "@/shared/ui"
  * remembered anywhere.
  */
 
-const props = defineProps<{ entries: ParameterEntry[] }>()
+const props = defineProps<{
+  entries: ParameterEntry[]
+  syntax?: QueryProfile["parameter_syntax"]
+}>()
 const emit = defineEmits<{ "update:entries": [entries: ParameterEntry[]] }>()
 
 function change(name: string, patch: Partial<ParameterEntry>) {
@@ -35,7 +40,7 @@ function change(name: string, patch: Partial<ParameterEntry>) {
       class="parameters__row"
       :data-testid="`parameter-${entry.name}`"
     >
-      <span class="parameters__name">:{{ entry.name }}</span>
+      <span class="parameters__name">{{ parameterLabel(syntax, entry.name) }}</span>
       <AppInput
         :model-value="entry.value"
         :type="entry.secret ? 'password' : 'text'"

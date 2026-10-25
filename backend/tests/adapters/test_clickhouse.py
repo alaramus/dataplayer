@@ -81,9 +81,9 @@ def test_it_claims_only_what_it_does() -> None:
         SupportsContent,
     ):
         assert isinstance(source, capability)
-    # Not yet: rows are read, and nothing writes or runs a console.
+    assert isinstance(source, SupportsQuery)
+    # Not yet: rows are read and not written.
     assert not isinstance(source, SupportsUpdate)
-    assert not isinstance(source, SupportsQuery)
 
 
 def test_a_server_is_read_as_its_number() -> None:

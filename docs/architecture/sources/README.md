@@ -19,7 +19,7 @@ file holds which decision.
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
-| [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, or how its values and pages are read |
+| [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read, or its console |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
 ## Seven source types
@@ -122,7 +122,10 @@ materialized views with the counts MergeTree keeps, a relation's columns, keys,
 skipping indexes and checks, its summary and the server's own DDL, and rows
 paged, sorted and filtered on the server with every number as the server wrote
 it and every moment in UTC (D268). No key is unique, so a page is ordered by
-the sorting key and then the whole row (D269). Read only for now.
+the sorting key and then the whole row (D269). An SQL console read by sqlglot's
+ClickHouse dialect with the server's own `{name:Type}` parameters (D270), in
+Read and Auto-commit only, where a change runs alone because ClickHouse keeps it
+at once (D271).
 
 ## Where the code is
 
@@ -206,7 +209,9 @@ backend/app/adapters/
 │                       parameters), inspection.py (system.tables, once),
 │                       catalog.py, relation.py, fetch.py, types.py (types
 │                       read from their text, values as written), content.py
-│                       (SHOW CREATE), summary.py, features.py, adapter.py
+│                       (SHOW CREATE), summary.py, features.py, statements.py
+│                       (classing SQL), query.py (runs, KILL QUERY),
+│                       explain.py, metadata.py, adapter.py
 ├── database_ids.py     a database and a relation as one node id (D229)
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

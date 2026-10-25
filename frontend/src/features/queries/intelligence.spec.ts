@@ -5,6 +5,7 @@ import type { PreparedScript, QueryMetadata } from "@/client"
 import {
   marks,
   metadataStatus,
+  parameterLabel,
   parameterPrefix,
   relationsInUse,
   suggestions,
@@ -208,6 +209,16 @@ describe("the spelling of a parameter", () => {
 
   it("is the dollar DuckDB takes", () => {
     expect(parameterPrefix("named_dollar")).toBe("$")
+  })
+
+  it("is the brace ClickHouse opens one with", () => {
+    expect(parameterPrefix("named_braces")).toBe("{")
+  })
+
+  it("is shown whole in the form that asks for it", () => {
+    expect(parameterLabel("named_colon", "id")).toBe(":id")
+    expect(parameterLabel("named_dollar", "id")).toBe("$id")
+    expect(parameterLabel("named_braces", "id")).toBe("{id}")
   })
 
   it("is a colon while the source has not answered", () => {

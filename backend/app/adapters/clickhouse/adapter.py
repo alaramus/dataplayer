@@ -5,9 +5,12 @@ from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
 from app.adapters.clickhouse.catalog import ClickhouseCatalog
 from app.adapters.clickhouse.content import ClickhouseContent
+from app.adapters.clickhouse.explain import ClickhouseExplain
 from app.adapters.clickhouse.features import ClickhouseFeatures
 from app.adapters.clickhouse.fetch import ClickhouseFetch
+from app.adapters.clickhouse.metadata import ClickhouseGeneration, ClickhouseMetadata
 from app.adapters.clickhouse.options import ClickhouseOptions
+from app.adapters.clickhouse.query import ClickhouseExecution, ClickhouseQuery
 from app.adapters.clickhouse.relation import ClickhouseRelation
 from app.adapters.clickhouse.session import (
     ClickhouseSession,
@@ -15,11 +18,23 @@ from app.adapters.clickhouse.session import (
     compose_url_with_password,
     options_from_url,
 )
+from app.adapters.clickhouse.statements import format_text
 from app.adapters.clickhouse.summary import ClickhouseSummaries
 from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.query import (
+    ExplainRequest,
+    ExplainResult,
+    GeneratedQuery,
+    GenerateQueryRequest,
+    PreparedScript,
+    QueryMetadata,
+    QueryMetadataRequest,
+    QueryProfile,
+    QueryRequest,
+)
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.resources import Pooling
@@ -57,6 +72,10 @@ class ClickhouseAdapter:
         self._fetch = ClickhouseFetch(self._session, self._relation)
         self._content = ClickhouseContent(self._session, self._relation)
         self._summaries = ClickhouseSummaries(self._session, self._relation)
+        self._query = ClickhouseQuery(self._session)
+        self._explain = ClickhouseExplain(self._session)
+        self._metadata = ClickhouseMetadata(self._session)
+        self._generation = ClickhouseGeneration(self._session)
 
     @classmethod
     def cache_ttl(cls, area: CacheArea) -> float:
@@ -129,6 +148,28 @@ class ClickhouseAdapter:
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
 
+    def query_profile(self) -> QueryProfile:
+        """What this source accepts as a complete statement (D62, D270)."""
+        return self._query.profile()
+
+    def prepare_query(self, text: str) -> PreparedScript:
+        return self._query.prepare(text)
+
+    def open_query(self, request: QueryRequest) -> ClickhouseExecution:
+        return self._query.open(request)
+
+    async def explain_query(self, request: ExplainRequest) -> ExplainResult:
+        return await self._explain.explain(request)
+
+    async def query_metadata(self, request: QueryMetadataRequest) -> QueryMetadata:
+        return await self._metadata.metadata(request)
+
+    def format_query(self, text: str) -> str:
+        return format_text(text)
+
+    async def generate_query(self, request: GenerateQueryRequest) -> GeneratedQuery:
+        return await self._generation.generate(request)
+
 
 @register(
     name="clickhouse",
@@ -136,8 +177,8 @@ class ClickhouseAdapter:
     category="sql",
     description=N_(
         "A ClickHouse server, over its HTTP interface. Browse databases, tables "
-        "and views, and read rows a page at a time with sorting and filtering "
-        "done by the server."
+        "and views, read rows a page at a time with sorting and filtering "
+        "done by the server, and run SQL."
     ),
     options_schema=ClickhouseOptions,
     adapter_class=ClickhouseAdapter,

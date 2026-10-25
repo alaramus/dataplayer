@@ -1,8 +1,8 @@
 # ClickHouse
 
 A ClickHouse server, reached over its HTTP interface. You browse its
-databases, read tables and views a page at a time, see how a table is built
-and read the server's own DDL for it.
+databases, read tables and views a page at a time, see how a table is built,
+read the server's own DDL for it and run SQL in a console.
 How connections work in general is on the [Connections](connections.md) page.
 
 ## What you can see
@@ -12,10 +12,11 @@ How connections work in general is on the [Connections](connections.md) page.
 - A table's columns, its primary and sorting key, skipping indexes and checks
 - A relation's DDL, as the server writes it
 - How big a table is, how it is partitioned and when it was last written to
+- The results of SQL you write, and the server's plan for a query
 
 ## What you can change
 
-- Nothing yet: this source reads
+- Data and structure, through SQL in the console, one change at a time
 
 ## Connecting
 
@@ -65,3 +66,33 @@ which such a user may not.
   last one. A table whose engine reads from outside — a URL, a file, a stream —
   or that never ends, such as `system.numbers`, is read in the order the
   engine gives.
+
+## SQL console
+
+**New query** under **Queries** on the left rail starts one on the connection,
+and **Open as a query** above a table starts one on that table. It works as
+the PostgreSQL console does — reads, changes, **Explain**, completion and
+formatting — with these differences:
+
+- The database chosen above the editor is the default one; one database at a
+  time.
+- There is no **Manual** transaction, and nothing is tried out first:
+  ClickHouse keeps every change the moment it is made and cannot take it back.
+  For the same reason a statement that inserts, deletes, alters or creates
+  anything runs on its own. Run a script of changes a statement at a time;
+  reads can run together.
+- A read runs with the server's `readonly` setting, so the server itself
+  refuses anything that would write.
+- `ALTER TABLE … DELETE` and `UPDATE` finish before the statement does, so the
+  next read already sees the rows changed.
+- Parameters are written as ClickHouse writes them, `{name:Type}`. The server
+  reads the value as that type and refuses one that does not fit; **SQL null**
+  sends NULL to a `Nullable` type.
+- `INSERT INTO t FORMAT JSONEachRow` followed by its rows works, as do `SHOW`,
+  `DESCRIBE`, `EXISTS`, `CHECK TABLE`, and `EXPLAIN AST`, `SYNTAX`, `PIPELINE`
+  and `ESTIMATE`. A plain `EXPLAIN` is **Explain**.
+- Not run from here: `SET` and `USE` — put `SETTINGS` on the statement and
+  choose the database above the editor instead — `SYSTEM`, `DETACH` and
+  `ATTACH`, users, roles, grants, functions, and a `FORMAT` on a `SELECT`, since
+  the console shows the result itself.
+- **Stop** and the time limit end a statement with `KILL QUERY`.

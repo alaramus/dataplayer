@@ -1,12 +1,13 @@
 # ClickHouse
 
 What a ClickHouse source is, how it reaches the server, what its catalog shows,
-and how its values and pages cross to the grid. The contract every source type
+how its values and pages cross to the grid, and how its SQL console differs
+from PostgreSQL's. The contract every source type
 follows is in [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `clickhouse`
 adapter.
 
-Decisions here: D267, D268, D269.
+Decisions here: D267, D268, D269, D270, D271.
 
 ## D267. A ClickHouse source speaks HTTP, with the application's own client
 
@@ -94,3 +95,59 @@ Known deviations:
   pages.
 
 Spec: [A ClickHouse source](../../decisions/2026-10-25-clickhouse-source-design.md)
+
+## D270. Statements are read by sqlglot's ClickHouse dialect; a parameter is `{name:Type}`
+
+Statements are split by sqlglot's ClickHouse tokenizer and classed by its
+parser, as MySQL's are (D232). What the parser keeps as a bare command is
+classed only by the keyword it kept: `SHOW` is a read, `OPTIMIZE` and `SYSTEM`
+maintenance, `ALTER`, `CREATE`, `DROP`, `RENAME`, `EXCHANGE` and `ATTACH`
+structure, `ALTER … UPDATE` a change of rows. Three shapes the parser refuses
+are read off the tokens: `EXISTS` and `CHECK TABLE` are reads, and `INSERT …
+FORMAT` with its rows after it is a change of rows. A mutation, `ALTER TABLE …
+DELETE` or `UPDATE`, is a change of rows rather than of structure. `EXPLAIN`
+is Explain, a command of its own beside Run (D65); `EXPLAIN AST`, `SYNTAX`,
+`QUERY TREE`, `PIPELINE`, `ESTIMATE` and `TABLE OVERRIDE` answer about the
+statement and are reads.
+
+The vocabulary of structure changes is databases, tables, views and
+dictionaries. Users, roles, row policies, quotas, settings profiles, functions
+and named collections are refused by name, and so are `SYSTEM`, `DETACH` and
+`ATTACH`, `GRANT` and `REVOKE`, and a `SELECT … FORMAT`, whose answer the
+console could not read.
+
+A parameter is the server's own `{name:Type}`: its value travels as
+`param_<name>` and the server parses it as the type the statement names, a
+NULL as `\N`. `QueryProfile.parameter_syntax` is `named_braces`, and the
+editor offers a known parameter as far as its name.
+
+Spec: [The ClickHouse console](../../decisions/2026-10-25-clickhouse-console-design.md)
+
+## D271. Every change is kept at once, so a change runs alone
+
+ClickHouse has no transaction a client can hold or roll back: an insert, a
+mutation and a structure change are kept the moment they end. The console
+therefore offers Read and Auto-commit only, never a manual transaction and
+never a rehearsal, and a run that changes anything holds that one statement,
+so Auto-commit's promise — a change is kept when its run succeeds — holds
+(the rule D233 makes for MySQL's structure changes, for every change here).
+A read carries `readonly=2`, which the server enforces under the class. A
+mutation is waited for (`mutations_sync=1`), so its statement ends when the
+rows have changed.
+
+A statement's limit is the server's `max_execution_time`, with the adapter's
+own clock five seconds behind it; when that runs out, or Stop is pressed, the
+statement is killed by its query id from a request of its own. A result is
+read a line at a time and the request closed once the row ceiling is passed,
+which stops a read on the server; anything else that was cut short is killed.
+The server's sentence of a failure is shown without its error name and
+version, with the position of a syntax error.
+
+Known deviations:
+
+- A script that changes several things is run a statement at a time.
+- `SET` and `USE` are not run: each statement is a request of its own, so a
+  setting would last for that statement alone. `SETTINGS` on the statement
+  and the document's database do the same work.
+
+Spec: [The ClickHouse console](../../decisions/2026-10-25-clickhouse-console-design.md)

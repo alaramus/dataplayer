@@ -9868,7 +9868,7 @@ export type QueryProfile = {
   /**
    * Parameter Syntax
    */
-  parameter_syntax: "named_colon" | "named_dollar"
+  parameter_syntax: "named_colon" | "named_dollar" | "named_braces"
   /**
    * Statement Modes
    */

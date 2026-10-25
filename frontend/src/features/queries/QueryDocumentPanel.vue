@@ -1161,6 +1161,7 @@ onBeforeUnmount(() => {
     <ParameterForm
       v-if="parameters.length > 0"
       :entries="parameters"
+      :syntax="profile.data.value?.parameter_syntax"
       class="query-panel__parameters"
       @update:entries="parameters = $event"
     />

@@ -6,6 +6,7 @@ on it.
 """
 
 import asyncio
+import json
 import logging
 import re
 import time
@@ -328,9 +329,11 @@ class ClickhouseSession:
         read: bool,
         query_id: str | None,
     ) -> dict[str, str]:
-        sent: dict[str, str] = {**_OUTPUT, **(_READ if read else {}), **settings}
+        sent: dict[str, str] = {**_OUTPUT, **(_READ if read else {})}
         if self._options.database:
             sent["database"] = self._options.database
+        # After the connection's database, so a run may name another (D270).
+        sent.update(settings)
         if query_id is not None:
             sent["query_id"] = query_id
         for name, value in params.items():
@@ -401,13 +404,15 @@ class ClickhouseSession:
         *,
         settings: Mapping[str, str] | None = None,
         refusals: Mapping[int, str] | None = None,
+        server_errors: bool = False,
     ) -> Answer:
         """Run a read and hand back its whole answer.
 
         `params` are the statement's `{name:Type}` parameters, sent apart from
         the text as the server's own parameters: a value is never in the
         statement. The answer is buffered by the server, so a failure halfway
-        is a refusal rather than half a page.
+        is a refusal rather than half a page. `server_errors` hands the
+        server's refusal back as it is, for a caller that shows its sentence.
         """
         try:
             async with self._client() as client:
@@ -424,6 +429,8 @@ class ClickhouseSession:
                 "unknown", say("All connections to this source are busy")
             ) from None
         except Exception as exc:
+            if server_errors and isinstance(exc, ServerError):
+                raise
             named = named_refusal(exc, refusals)
             if named is not None:
                 raise ValueError(named) from None
@@ -459,3 +466,100 @@ class ClickhouseSession:
         except TimeoutError:
             raise AdapterError("timeout", say("The server did not answer in time")) from None
 
+
+    async def run_statement(
+        self,
+        sql: str,
+        params: Mapping[str, str],
+        settings: Mapping[str, str],
+        *,
+        read: bool,
+        query_id: str,
+        row_limit: int,
+    ) -> Ran:
+        """One statement somebody wrote, its answer read a line at a time.
+
+        At most `row_limit` rows are kept and one more says there were more;
+        the request is then closed, which stops a read on the server. A change
+        waits for its end on the server, so its count of written rows is the
+        whole count.
+        """
+        sent = dict(settings)
+        if not read:
+            sent["wait_end_of_query"] = "1"
+        async with self._client() as client:
+            async with client.stream(
+                "POST",
+                self._base_url(),
+                params=self._request_params(params, sent, read=read, query_id=query_id),
+                content=sql.encode(),
+                auth=httpx.BasicAuth(self._options.user, self._password()),
+            ) as response:
+                if response.status_code != 200:
+                    body = (await response.aread()).decode(errors="replace")
+                    raise _server_error(response.status_code, response.headers, body)
+                written = _written_rows(response.headers.get("x-clickhouse-summary"))
+                lines: list[Any] = []
+                more = False
+                async for line in response.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        decoded = decode_line(line)
+                    except ValueError:
+                        # An exception halfway through an answer arrives as
+                        # its text, which no line of JSON is (D268).
+                        rest = line + (await response.aread()).decode(errors="replace")
+                        raise _server_error(500, {}, rest) from None
+                    if len(lines) >= row_limit + 2:
+                        more = True
+                        break
+                    lines.append(decoded)
+        if not lines:
+            return Ran(names=[], types=[], rows=[], truncated=False, written_rows=written)
+        return Ran(
+            names=[str(name) for name in lines[0]],
+            types=[str(type_) for type_ in lines[1]] if len(lines) > 1 else [],
+            rows=lines[2:],
+            truncated=more,
+            written_rows=written,
+        )
+
+    async def kill_query(self, query_id: str) -> None:
+        """Stop one statement, from a request of its own.
+
+        Failing to kill is not reported: the statement then ends by itself,
+        and its own outcome says so.
+        """
+        try:
+            async with self._client() as client:
+                await self._send(
+                    client,
+                    "KILL QUERY WHERE query_id = {id:String} ASYNC",
+                    {"id": query_id},
+                    {},
+                    read=False,
+                )
+        except Exception:
+            # The statement may have finished first, which is the outcome anyway.
+            pass
+
+
+@dataclass(frozen=True)
+class Ran:
+    """What one statement of the console answered."""
+
+    names: list[str]
+    types: list[str]
+    rows: list[list[Any]]
+    truncated: bool
+    written_rows: int | None
+
+
+def _written_rows(summary: str | None) -> int | None:
+    if not summary:
+        return None
+    try:
+        return int(json.loads(summary)["written_rows"])
+    except (ValueError, KeyError, TypeError):
+        return None
