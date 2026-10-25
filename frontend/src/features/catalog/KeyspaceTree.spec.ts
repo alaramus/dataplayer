@@ -83,7 +83,7 @@ describe("clicking a row of the key space", () => {
       .find((row) => row.attributes("data-testid") === "keyspace-row-\\system")
 
     expect(systemRow?.text()).toContain("System")
-    expect(wrapper.get('[data-testid="keyspace-row-f0:cache:"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="keyspace-row-f0:cache:"]').exists()).toBe(true)
   })
 
   it("marks what the actions would be done to", async () => {

@@ -6,6 +6,7 @@ from app.adapters.fetch import (
     FetchRequest,
     FetchResult,
     Filter,
+    FilterOp,
     InFilter,
     NullFilter,
     PageCommand,
@@ -15,7 +16,7 @@ from app.adapters.fetch import (
 from app.adapters.relation import ColumnType
 from app.core.translation import say
 
-_FILTER_OPERATORS = [
+_FILTER_OPERATORS: list[FilterOp] = [
     "eq",
     "ne",
     "contains",
@@ -44,7 +45,12 @@ def selected_rows(
         if position is None:
             raise ValueError(say("This report cannot be filtered that way"))
 
-        def matches(row: tuple[str, str]) -> bool:
+        def matches(
+            row: tuple[str, str],
+            *,
+            position: int = position,
+            filter_: Filter = filter_,
+        ) -> bool:
             value = row[position].casefold()
             if isinstance(filter_, NullFilter):
                 return filter_.op == "is_not_null"
@@ -131,7 +137,7 @@ def export(
     *,
     name_column: str,
     value_column: str,
-) -> list[list[str]]:
+) -> list[list[str | None]]:
     selected = selected_rows(
         rows,
         name_column=name_column,
@@ -144,4 +150,10 @@ def export(
     if unknown:
         raise ValueError(say("Unknown column: {column}", column=unknown[0]))
     order = [positions[name] for name in request.columns]
-    return [[row[index] for index in order] for row in selected]
+    exported: list[list[str | None]] = []
+    for row in selected:
+        cells: list[str | None] = []
+        for index in order:
+            cells.append(row[index])
+        exported.append(cells)
+    return exported

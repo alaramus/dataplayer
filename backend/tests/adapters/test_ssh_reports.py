@@ -75,7 +75,7 @@ def _reports(session: _Session) -> SshReports:
 
 async def test_connection_report_shows_public_protocol_facts_but_no_credentials() -> None:
     page = await _reports(_Session()).fetch(FetchRequest(node_id=REPORTS[0].node_id))
-    rows = {name: value for name, value in page.rows}
+    rows = dict(page.rows)
 
     assert rows["Host"] == "example.org"
     assert rows["Folder"] == "/srv/app"
@@ -90,7 +90,7 @@ async def test_connection_report_shows_public_protocol_facts_but_no_credentials(
 
 async def test_filesystem_report_uses_sftp_capacity_and_inode_counts() -> None:
     page = await _reports(_Session()).fetch(FetchRequest(node_id=REPORTS[1].node_id))
-    rows = {name: value for name, value in page.rows}
+    rows = dict(page.rows)
 
     assert rows["Filesystem total bytes"] == "20480"
     assert rows["Filesystem free bytes"] == "5120"

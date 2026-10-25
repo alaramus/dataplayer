@@ -37,11 +37,23 @@ from app.adapters.redis.model import RedisModel
 from app.adapters.redis.options import RedisOptions
 from app.adapters.redis.reports import (
     REPORTS as SYSTEM_REPORTS,
+)
+from app.adapters.redis.reports import (
     RedisReports,
+)
+from app.adapters.redis.reports import (
     in_section as is_system_report,
+)
+from app.adapters.redis.reports import (
     is_section as is_system_section,
+)
+from app.adapters.redis.reports import (
     report_for as system_report_for,
+)
+from app.adapters.redis.reports import (
     report_node as system_report_node,
+)
+from app.adapters.redis.reports import (
     section_node as system_section_node,
 )
 from app.adapters.redis.samples import RedisSamples

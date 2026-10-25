@@ -30,11 +30,23 @@ from app.adapters.ssh import keys
 from app.adapters.ssh.options import SshOptions
 from app.adapters.ssh.reports import (
     REPORTS as SYSTEM_REPORTS,
+)
+from app.adapters.ssh.reports import (
     SshReports,
+)
+from app.adapters.ssh.reports import (
     in_section as is_system_report,
+)
+from app.adapters.ssh.reports import (
     is_section as is_system_section,
+)
+from app.adapters.ssh.reports import (
     report_for as system_report_for,
+)
+from app.adapters.ssh.reports import (
     report_node as system_report_node,
+)
+from app.adapters.ssh.reports import (
     section_node as system_section_node,
 )
 from app.adapters.ssh.session import SshSession, identity_of, server_key
