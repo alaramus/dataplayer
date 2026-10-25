@@ -33,7 +33,7 @@ documentation.
 | SQL over files, the DuckDB sandbox behind it | [sources/file-sql.md](docs/architecture/sources/file-sql.md) |
 | MySQL and MariaDB, their catalog, values, pages, row and structure edits, console, reports, search, catalog actions, copying tables, backups, metrics | [sources/mysql.md](docs/architecture/sources/mysql.md) |
 | SQLite, the file it opens and how, its catalog, what is read from a table's text, values, pages, row edits, structure changes, the table designer, reports, search, catalog actions and console | [sources/sqlite.md](docs/architecture/sources/sqlite.md) |
-| ClickHouse, its HTTP interface, its catalog, values, pages, row edits, structure changes and console | [sources/clickhouse.md](docs/architecture/sources/clickhouse.md) |
+| ClickHouse, its HTTP interface, its catalog, values, pages, row edits, structure changes, the table designer and console | [sources/clickhouse.md](docs/architecture/sources/clickhouse.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
 | A source action too long for a request: its plan, review and outcomes | [sources/operations.md](docs/architecture/sources/operations.md) |
@@ -121,7 +121,7 @@ file; `D247–D262` is every number between, all in that file.
 | [localization](docs/architecture/localization.md) | D224–D227 |
 | [sources/mysql](docs/architecture/sources/mysql.md) | D228–D245 |
 | [sources/sqlite](docs/architecture/sources/sqlite.md) | D247–D263 |
-| [sources/clickhouse](docs/architecture/sources/clickhouse.md) | D267–D273 |
+| [sources/clickhouse](docs/architecture/sources/clickhouse.md) | D267–D274 |
 
 ## Working rules
 

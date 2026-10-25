@@ -2,12 +2,13 @@
 
 What a ClickHouse source is, how it reaches the server, what its catalog shows,
 how its values and pages cross to the grid and are changed there, how its
-structure is changed, and how its SQL console differs from PostgreSQL's. The contract every source type
+structure is changed and a table designed, and how its SQL console differs
+from PostgreSQL's. The contract every source type
 follows is in [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). Read this before changing the `clickhouse`
 adapter.
 
-Decisions here: D267, D268, D269, D270, D271, D272, D273.
+Decisions here: D267, D268, D269, D270, D271, D272, D273, D274.
 
 ## D267. A ClickHouse source speaks HTTP, with the application's own client
 
@@ -235,3 +236,33 @@ Known deviations:
 - A type change rewrites every part of the table, however few rows it has.
 
 Spec: [Changing ClickHouse structure](../../decisions/2026-10-25-clickhouse-structure-design.md)
+
+## D274. A designed table is one CREATE TABLE of a MergeTree
+
+The table designer plans one `CREATE TABLE … ENGINE = MergeTree`, the
+statement the person reviews and the one that runs composed by the same code,
+as MySQL's is (D236). The primary key becomes `ORDER BY`, and the plan warns
+that it orders and finds rows without stopping two from sharing it (D269); its
+columns must require a value, since a key cannot be `Nullable`. No primary key
+is `ORDER BY tuple()`.
+
+A column that may be empty is `Nullable`, `LowCardinality` kept outside it; an
+array and JSON cannot be, and the plan says such a column will always have a
+value. A literal default is a string literal the server converts to the
+column's type; an expression default and a computed column (`MATERIALIZED`)
+use the published functions — `now()`, `today()` and `generateUUIDv4()` fill a
+default or a computed column only. A check is `CONSTRAINT … CHECK`, a
+skipping index is written inside the table with the methods of D273, and every
+name is derived from the table when none is given.
+
+A unique key, a foreign key, an identity column, a collation, an index with an
+order, extra columns or a predicate, a partition by range, list or hash, an
+unlogged table and a hypertable are each a problem on the object that asks for
+it. Create table is the source's catalog action on a database the server does
+not own.
+
+A table made from rows is a MergeTree with `ORDER BY tuple()` and every column
+`Nullable`; every value is tried before the table is made, and the table is
+dropped again if its rows are refused once it exists.
+
+Spec: [Designing ClickHouse tables](../../decisions/2026-10-25-clickhouse-design-design.md)

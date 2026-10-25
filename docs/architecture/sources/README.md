@@ -19,7 +19,7 @@ file holds which decision.
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
-| [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed, or its console |
+| [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, or its console |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
 ## Seven source types
@@ -128,7 +128,8 @@ Read and Auto-commit only, where a change runs alone because ClickHouse keeps it
 at once (D271). Rows are edited, inserted and deleted in the grid, a row named by its
 whole row and rows alike changed together (D272). Columns and skipping indexes of
 MergeTree tables are changed, a conversion counted before the mutation that
-would break the table (D273).
+would break the table (D273). A designed table is one CREATE TABLE of a MergeTree, its primary key
+the sorting key (D274).
 
 ## Where the code is
 
@@ -216,7 +217,9 @@ backend/app/adapters/
 │                       (classing SQL), query.py (runs, KILL QUERY),
 │                       explain.py, metadata.py, rows.py (a row by its
 │                       values, written back), update.py, columns.py +
-│                       indexes.py (structure), vocabulary.py, adapter.py
+│                       indexes.py (structure), vocabulary.py, design.py
+│                       (the designer), relation_changes.py, actions.py,
+│                       adapter.py
 ├── database_ids.py     a database and a relation as one node id (D229)
 ├── row_handles.py      a handle of values and a digest of the row (D234, D272)
 ├── redis/              session.py (reaching the server, and reducing its

@@ -18,6 +18,7 @@ How connections work in general is on the [Connections](connections.md) page.
 
 - Table data: edit cells, paste blocks, insert and delete rows
 - Columns and skipping indexes of MergeTree tables
+- New tables, designed object by object or made from rows
 - Data and structure, through SQL in the console, one change at a time
 
 ## Connecting
@@ -119,6 +120,23 @@ which such a user may not.
   filter, over the columns you pick. It is built over the rows already there
   as well. None is unique, and the primary key cannot be dropped.
 - There are no unique keys and no foreign keys in ClickHouse to make.
+
+## Creating a table
+
+- **Create table** on a database opens the table designer. The plan is one
+  `CREATE TABLE` of a MergeTree table, shown before it runs.
+- The primary key becomes the table's sorting key: ClickHouse keeps rows in
+  its order and finds them by it, but does not stop two rows from sharing it.
+  Its columns must have a value. Without one, rows are kept in the order they
+  arrive.
+- A column that may be empty is `Nullable`; an array or JSON column always has
+  a value. A computed column is computed when the row is written.
+- Now, today and a random UUID can fill a default or a computed column.
+- Unique keys, foreign keys, identity columns, collations and partitions by
+  range, list or hash are not in ClickHouse; the designer says so on the
+  object that asks for one.
+- A table made from rows of a page is a MergeTree whose columns may all be
+  empty. If its rows are refused, the table is not left behind.
 
 ## SQL console
 

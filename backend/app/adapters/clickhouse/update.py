@@ -96,6 +96,36 @@ def _json_value(value: str | None, column: FetchColumn) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+async def insert_json(
+    session: ClickhouseSession,
+    schema: str,
+    name: str,
+    targets: list[FetchColumn],
+    rows: list[list[str | None]],
+) -> None:
+    """Rows as one JSONEachRow statement; a column left out takes its default."""
+    lines = [
+        "{"
+        + ",".join(
+            f"{json.dumps(column.name, ensure_ascii=False)}:{_json_value(value, column)}"
+            for column, value in zip(targets, row, strict=True)
+        )
+        + "}"
+        for row in rows
+    ]
+    table = Identifier(schema, name)
+    statement = (
+        SQL("INSERT INTO {} ({}) FORMAT JSONEachRow").format(
+            table, SQL(", ").join(Identifier(column.name) for column in targets)
+        )
+        if targets
+        else SQL("INSERT INTO {} FORMAT JSONEachRow").format(table)
+    )
+    await session.command(
+        statement.text(), {}, settings=_WRITING, refusals=REFUSALS, data="\n".join(lines).encode()
+    )
+
+
 class ClickhouseUpdate:
     def __init__(self, session: ClickhouseSession, relation: ClickhouseRelation) -> None:
         self._session = session
@@ -307,31 +337,7 @@ class ClickhouseUpdate:
     async def _insert(
         self, facts: RelationFacts, targets: list[FetchColumn], rows: list[list[str | None]]
     ) -> None:
-        lines = [
-            "{"
-            + ",".join(
-                f"{json.dumps(column.name, ensure_ascii=False)}:{_json_value(value, column)}"
-                for column, value in zip(targets, row, strict=True)
-            )
-            + "}"
-            for row in rows
-        ]
-        table = Identifier(facts.schema, facts.name)
-        # With no column named, every column takes its default.
-        statement = (
-            SQL("INSERT INTO {} ({}) FORMAT JSONEachRow").format(
-                table, SQL(", ").join(Identifier(column.name) for column in targets)
-            )
-            if targets
-            else SQL("INSERT INTO {} FORMAT JSONEachRow").format(table)
-        )
-        await self._session.command(
-            statement.text(),
-            {},
-            settings=_WRITING,
-            refusals=REFUSALS,
-            data="\n".join(lines).encode(),
-        )
+        await insert_json(self._session, facts.schema, facts.name, targets, rows)
 
     async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
         facts, shape = await self._shape(request.node_id)

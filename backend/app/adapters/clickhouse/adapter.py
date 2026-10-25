@@ -1,11 +1,14 @@
 from collections.abc import Mapping
 from typing import Any
 
+from app.adapters.actions import Action, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
+from app.adapters.clickhouse.actions import CLICKHOUSE_ACTION_TYPES, ClickhouseActions
 from app.adapters.clickhouse.catalog import ClickhouseCatalog
 from app.adapters.clickhouse.columns import ClickhouseColumns
 from app.adapters.clickhouse.content import ClickhouseContent
+from app.adapters.clickhouse.design import ClickhouseTableDesign
 from app.adapters.clickhouse.explain import ClickhouseExplain
 from app.adapters.clickhouse.features import ClickhouseFeatures
 from app.adapters.clickhouse.fetch import ClickhouseFetch
@@ -14,6 +17,7 @@ from app.adapters.clickhouse.metadata import ClickhouseGeneration, ClickhouseMet
 from app.adapters.clickhouse.options import ClickhouseOptions
 from app.adapters.clickhouse.query import ClickhouseExecution, ClickhouseQuery
 from app.adapters.clickhouse.relation import ClickhouseRelation
+from app.adapters.clickhouse.relation_changes import ClickhouseRelationChanges
 from app.adapters.clickhouse.session import (
     ClickhouseSession,
     compose_url,
@@ -57,8 +61,14 @@ from app.adapters.query import (
 )
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
+from app.adapters.relation_changes import (
+    CreateRelationRequest,
+    CreateRelationResult,
+    NewRelationOptions,
+)
 from app.adapters.resources import Pooling
 from app.adapters.summary import NodeSummary
+from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -108,6 +118,9 @@ class ClickhouseAdapter:
         self._update = ClickhouseUpdate(self._session, self._relation)
         self._columns = ClickhouseColumns(self._session, self._relation)
         self._indexes = ClickhouseIndexes(self._session, self._relation)
+        self._design = ClickhouseTableDesign(self._session, self._catalog)
+        self._relations = ClickhouseRelationChanges(self._session, self._catalog, self._update)
+        self._actions = ClickhouseActions(self._session, self._catalog)
         self._explain = ClickhouseExplain(self._session)
         self._metadata = ClickhouseMetadata(self._session)
         self._generation = ClickhouseGeneration(self._session)
@@ -225,6 +238,32 @@ class ClickhouseAdapter:
 
     async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
         return await self._indexes.drop_index(request)
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return CLICKHOUSE_ACTION_TYPES
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return await self._actions.available(node_id)
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.action(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return await self._actions.all_actions()
+
+    async def table_design_options(self, node_id: str) -> TableDesignOptions:
+        """What a database will accept a designed table with (D117, D274)."""
+        return await self._design.table_design_options(node_id)
+
+    async def plan_table(self, request: TablePlanRequest) -> TablePlan:
+        return await self._design.plan_table(request)
+
+    async def new_relation_options(self, parent_node_id: str) -> NewRelationOptions:
+        return await self._relations.new_relation_options(parent_node_id)
+
+    async def create_relation(self, request: CreateRelationRequest) -> CreateRelationResult:
+        return await self._relations.create_relation(request)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62, D270)."""
