@@ -18,6 +18,7 @@ nothing in this repository depends on either.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-10-25 | [A ClickHouse source](2026-10-25-clickhouse-source-design.md) | D267, D268, D269: the HTTP interface through httpx, values as the server's own parameters and reads readonly=2; databases as schemas with MySQL's ids, inner tables of materialized views hidden; answers as typed JSON with numbers kept as written and moments in UTC with Z; no unique key, so the primary key is an index and a page is ordered by the sorting key and then every sortable column, for engines with finite rows. On the branch `clickhouse-adapter` |
 | 2026-10-25 | [Redis system reports](2026-10-25-redis-system-reports-design.md) | D265: the catalog starts with read-only Server and Settings reports; `INFO` is field-allowlisted, `CONFIG GET` uses a fixed non-secret allowlist, and both reports are exportable |
 | 2026-10-25 | [SSH system reports](2026-10-25-ssh-system-reports-design.md) | D266: the catalog starts with read-only Connection and Filesystem reports from the authenticated SSH/SFTP session; optional `statvfs` facts, no shell commands or credentials |
 | 2026-10-25 | [A source type shown as a card per product](2026-10-25-catalog-faces-design.md) | D264: a type declares faces, the catalog's cards for it; `mysql` shows MySQL and MariaDB, each with its own logo, name and server, both opening the one form of `mysql`; categories count cards, search matches a card's title |

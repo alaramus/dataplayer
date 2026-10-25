@@ -95,6 +95,20 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+      # The ClickHouse the ClickHouse source tests read, over HTTP (D267).
+      clickhouse:
+        image: clickhouse/clickhouse-server:25.8
+        env:
+          CLICKHOUSE_PASSWORD: dataplayer
+          CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+        ports:
+          - 8124:8123
+        options: >-
+          --ulimit nofile=262144:262144
+          --health-cmd "wget -qO- http://127.0.0.1:8123/ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
       PROJECT_NAME: DataPlayer
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
@@ -121,6 +135,7 @@ jobs:
       # The MySQL and MariaDB services above, signing in as root.
       TEST_MYSQL_URL: mysql://root:dataplayer@127.0.0.1:3307
       TEST_MARIADB_URL: mysql://root:dataplayer@127.0.0.1:3308
+      TEST_CLICKHOUSE_URL: clickhouse://default:dataplayer@127.0.0.1:8124
       # backend/scripts/test.sh runs the suite this way, and the private routes
       # exist only in development: without it their tests get a 404.
       FASTAPI_ENV: development

@@ -136,6 +136,7 @@ source_modules =
     app.adapters.postgres
     app.adapters.redis
     app.adapters.ssh
+    app.adapters.clickhouse
 forbidden_modules =
     aiomysql
     pymysql
@@ -189,6 +190,7 @@ source_modules =
     app.adapters.explorer
     app.adapters.postgres
     app.adapters.mysql
+    app.adapters.clickhouse
     app.adapters.redis
     app.adapters.ssh
 forbidden_modules =
@@ -210,6 +212,27 @@ forbidden_modules =
     asyncssh
     app.adapters.postgres
     app.adapters.mysql
+
+# ClickHouse is spoken to over HTTP with the client the application already
+# has (D267), so it has no driver of its own to contain; no other source's
+# driver reaches it either.
+[importlinter:contract:other-drivers-stay-out-of-clickhouse]
+name = the clickhouse adapter imports no other source's driver
+type = forbidden
+source_modules =
+    app.adapters.clickhouse
+forbidden_modules =
+    psycopg
+    psycopg_pool
+    pglast
+    aiomysql
+    pymysql
+    sqlite3
+    redis
+    asyncssh
+    app.adapters.postgres
+    app.adapters.mysql
+    app.adapters.sqlite
 
 # The same rule as the psycopg one, for the three libraries the file explorer
 # reads with: a format's library belongs to the module that owns the format, so
@@ -249,6 +272,7 @@ source_modules =
     app.adapters.resources
     app.adapters.postgres
     app.adapters.mysql
+    app.adapters.clickhouse
 forbidden_modules =
     pyarrow
     openpyxl
@@ -288,6 +312,7 @@ source_modules =
     app.adapters.explorer
     app.adapters.postgres
     app.adapters.mysql
+    app.adapters.clickhouse
 forbidden_modules =
     redis
 
@@ -414,5 +439,6 @@ source_modules =
     app.adapters.postgres
     app.adapters.redis
     app.adapters.mysql
+    app.adapters.clickhouse
 forbidden_modules =
     asyncssh

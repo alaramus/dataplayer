@@ -14,6 +14,7 @@ const ICONS: Record<string, string> = {
   // A card of the `mysql` type rather than a type of its own (D264).
   mariadb: "img:/icons/services/mariadb.svg",
   sqlite: "img:/icons/services/sqlite.svg",
+  clickhouse: "img:/icons/services/clickhouse.svg",
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",

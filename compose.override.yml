@@ -114,6 +114,24 @@ services:
     ports:
       - "127.0.0.1:3308:3306"
 
+  # A ClickHouse for the backend suite and for a person to point a ClickHouse
+  # connection at: user `default`, password `dataplayer`, host `clickhouse`
+  # port 8123 from the backend, 127.0.0.1:8124 from this machine. Published on
+  # the loopback only, because that password is in this file. Behind the
+  # `tools` profile.
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    profiles: ["tools"]
+    environment:
+      CLICKHOUSE_PASSWORD: dataplayer
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    ports:
+      - "127.0.0.1:8124:8123"
+
   # dataplayer-monitor-agent reporting the machine Docker runs on to the
   # metrics process, started with
   # `docker compose --profile monitor-agent up -d monitor-agent`. It signs

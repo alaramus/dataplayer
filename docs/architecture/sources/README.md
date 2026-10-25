@@ -1,6 +1,6 @@
 # Data sources
 
-What the six existing source types do, where their code sits, and which
+What the seven existing source types do, where their code sits, and which
 file holds which decision.
 
 | File | Open it to |
@@ -19,9 +19,10 @@ file holds which decision.
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
+| [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, or how its values and pages are read |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
-## Six source types
+## Seven source types
 
 **PostgreSQL** — schemas and relations, safe schema create/rename/drop and
 relation moves, bounded relation DDL, server-side paging and sorting, streaming
@@ -114,6 +115,15 @@ the catalog is searched by name and column, and every matching row is
 exported (D257). Relations are renamed and dropped — a drop rehearsed first —
 and a CSV file loaded (D258).
 
+**ClickHouse** — a server reached over its HTTP interface with the
+application's own client, every value one of the server's parameters and every
+read `readonly=2` (D267): databases as schemas, their tables, views and
+materialized views with the counts MergeTree keeps, a relation's columns, keys,
+skipping indexes and checks, its summary and the server's own DDL, and rows
+paged, sorted and filtered on the server with every number as the server wrote
+it and every moment in UTC (D268). No key is unique, so a page is ordered by
+the sorting key and then the whole row (D269). Read only for now.
+
 ## Where the code is
 
 ```
@@ -191,6 +201,13 @@ backend/app/adapters/
 │                       export.py, table_copy.py, backup.py, samples.py +
 │                       sample_data/ (the lab, a file),
 │                       adapter.py
+├── clickhouse/         session.py (the HTTP interface, its errors, addresses)
+│                       and pool.py (a kept client), sql.py (names and
+│                       parameters), inspection.py (system.tables, once),
+│                       catalog.py, relation.py, fetch.py, types.py (types
+│                       read from their text, values as written), content.py
+│                       (SHOW CREATE), summary.py, features.py, adapter.py
+├── database_ids.py     a database and a relation as one node id (D229)
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and
 │                       what a key is), fetch.py (a key read as rows),

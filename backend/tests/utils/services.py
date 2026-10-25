@@ -53,6 +53,8 @@ _PROTOCOLS = {
     # MySQL and MariaDB speak first as well, with a handshake whose first byte
     # is its length: any byte at all is the server, and a closed socket is not.
     "mysql": _Protocol(3306, b"", (b"",)),
+    # ClickHouse is spoken to over HTTP, and answers a ping without a password.
+    "clickhouse": _Protocol(8123, b"GET /ping HTTP/1.0\r\n\r\n", (b"H",)),
 }
 
 _required = False
@@ -154,7 +156,18 @@ MARIADB = Server(
     ),
 )
 
-SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH, MYSQL, MARIADB)
+# The development ClickHouse (`clickhouse` in compose.override.yml), signing
+# in as `default`, over the HTTP interface (D267).
+CLICKHOUSE = Server(
+    name="ClickHouse",
+    variable="TEST_CLICKHOUSE_URL",
+    start="docker compose up -d clickhouse",
+    read=lambda: os.environ.get(
+        "TEST_CLICKHOUSE_URL", "clickhouse://default:dataplayer@127.0.0.1:8124"
+    ),
+)
+
+SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH, MYSQL, MARIADB, CLICKHOUSE)
 
 
 def require_all() -> None:
