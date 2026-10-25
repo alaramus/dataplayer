@@ -57,9 +57,18 @@ async function load(refresh = false) {
   loading.value = true
   error.value = ""
   try {
-    rows.value = toTreeRows(
-      toListNodes((await loadChildren(props.connectorId, props.rootId, refresh)).nodes)
-    )
+    const rootId = props.rootId
+    const [page, top] = await Promise.all([
+      loadChildren(props.connectorId, rootId, refresh),
+      rootId === null ? Promise.resolve(null) : loadChildren(props.connectorId, null, refresh),
+    ])
+    const reportSections = top === null
+      ? []
+      : toListNodes(top.nodes).filter((node) => node.kind === "report" && node.holdsNodes)
+    rows.value = [
+      ...toTreeRows(reportSections),
+      ...toTreeRows(toListNodes(page.nodes)),
+    ]
     // What was open was open about the last reading; a branch that is gone
     // would keep an arrow pointing at nothing.
     expanded.value = []

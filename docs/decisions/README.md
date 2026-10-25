@@ -18,6 +18,8 @@ nothing in this repository depends on either.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-10-25 | [Redis system reports](2026-10-25-redis-system-reports-design.md) | D265: the catalog starts with read-only Server and Settings reports; `INFO` is field-allowlisted, `CONFIG GET` uses a fixed non-secret allowlist, and both reports are exportable |
+| 2026-10-25 | [SSH system reports](2026-10-25-ssh-system-reports-design.md) | D266: the catalog starts with read-only Connection and Filesystem reports from the authenticated SSH/SFTP session; optional `statvfs` facts, no shell commands or credentials |
 | 2026-10-25 | [A source type shown as a card per product](2026-10-25-catalog-faces-design.md) | D264: a type declares faces, the catalog's cards for it; `mysql` shows MySQL and MariaDB, each with its own logo, name and server, both opening the one form of `mysql`; categories count cards, search matches a card's title |
 | 2026-10-24 | [A SQLite database made here](2026-10-24-sqlite-made-here-design.md) | D263: Create SQLite here makes `databases/<name>.db` in the person's storage, empty or the lab, and saves its connection in one request; numbered rather than overwritten, removed if the connection is not saved; a `MakesSourceHere` capability, not a managed service |
 | 2026-10-24 | [A SQLite file seen from a file source, and connected from it](2026-10-24-sqlite-in-files-design.md) | D262: a `.db`, `.db3`, `.sqlite` or `.sqlite3` in a file source opens as its tables, views and virtual tables with ANALYZE's counts, read only under D247's guard; no rows; the driver reached through a reader the SQLite package registers; Connect as SQLite drafts a connection to a file of personal storage and is drawn off with the reason elsewhere |

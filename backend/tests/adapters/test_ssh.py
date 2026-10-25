@@ -7,6 +7,7 @@ import pytest
 
 from app.adapters import options as adapter_options
 from app.adapters import registry
+from app.adapters.catalog import CatalogNode, ReportNode
 from app.adapters.protocol import (
     ParsesConnectionString,
     SupportsCatalog,
@@ -130,19 +131,55 @@ async def test_asking_for_a_server_key_needs_an_address() -> None:
         await SshAdapter.presented_server_key({"host": " "})
 
 
-@pytest.mark.parametrize("node_id", ["..", "../etc", "a/../..", "/etc", "a//b", "C:"])
+@pytest.mark.parametrize(
+    "node_id", ["..", "../etc", "a/../..", "/etc", "/system", "a//b", "C:"]
+)
 def test_a_node_id_never_leaves_the_folder_it_is_below(node_id: str) -> None:
-    remote = Remote(sftp=None, root="/home/somebody")  # type: ignore[arg-type]  # only the path rule is asked
+    remote = Remote(
+        sftp=None,  # type: ignore[arg-type]
+        root="/home/somebody",
+        connection=None,  # type: ignore[arg-type]
+    )
 
     with pytest.raises(ValueError):
         remote.path_of(node_id)
 
 
 def test_a_node_id_is_the_path_below_the_root() -> None:
-    remote = Remote(sftp=None, root="/home/somebody")  # type: ignore[arg-type]  # only the path rule is asked
+    remote = Remote(
+        sftp=None,  # type: ignore[arg-type]
+        root="/home/somebody",
+        connection=None,  # type: ignore[arg-type]
+    )
 
     assert remote.path_of(None) == "/home/somebody"
     assert remote.path_of("logs/today.log") == "/home/somebody/logs/today.log"
+
+
+async def test_system_reports_are_first_in_the_catalog_and_have_no_actions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = _adapter(_password())
+
+    async def no_remote_children(node_id: str | None) -> list[CatalogNode]:
+        assert node_id is None
+        return []
+
+    monkeypatch.setattr(adapter._catalog, "list_children", no_remote_children)
+
+    root = await adapter.list_children(None)
+    section = root[0]
+    reports = await adapter.list_children(section.id)
+
+    assert isinstance(section, ReportNode)
+    assert section.name == "System"
+    assert [node.name for node in reports] == ["Connection", "Filesystem"]
+    assert [node.name for node in await adapter.path_to(reports[0].id)] == [
+        "System",
+        "Connection",
+    ]
+    assert await adapter.available(reports[0].id) == []
+    assert (await adapter.action_offers(reports[0].id)).actions == []
 
 
 @pytest.mark.parametrize(

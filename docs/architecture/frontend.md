@@ -34,8 +34,8 @@ frontend/src/
     ├── admin/           the administration page; users.ts is the account form
     ├── auth/
     ├── preferences/     what an account chose; checks.ts words a server-owned set
-    ├── catalog/         the list of one level and the menu of what ticked nodes
-    │                    admit; nodes.ts says what a kind of node does
+    ├── catalog/         the level list and key-space tree; nodes.ts maps each
+    │                    catalog kind, the menu says what selected nodes admit
     ├── charts/          line, bar and pie views over one bounded page
     ├── content/         source editing, rendered documents, verified viewers
     ├── grid/            the data explorer — see grid.md

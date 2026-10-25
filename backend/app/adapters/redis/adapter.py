@@ -26,7 +26,7 @@ from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.metrics import MetricPreset, MetricSample
-from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.redis.actions import REDIS_ACTION_TYPES
 from app.adapters.redis.export import RedisExport
 from app.adapters.redis.fetch import RedisFetch
@@ -35,6 +35,15 @@ from app.adapters.redis.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.redis.metrics import RedisMetrics
 from app.adapters.redis.model import RedisModel
 from app.adapters.redis.options import RedisOptions
+from app.adapters.redis.reports import (
+    REPORTS as SYSTEM_REPORTS,
+    RedisReports,
+    in_section as is_system_report,
+    is_section as is_system_section,
+    report_for as system_report_for,
+    report_node as system_report_node,
+    section_node as system_section_node,
+)
 from app.adapters.redis.samples import RedisSamples
 from app.adapters.redis.search import RedisSearch
 from app.adapters.redis.session import RedisSession
@@ -90,6 +99,7 @@ class RedisAdapter:
         self._update = RedisUpdate(self._session, self._keyspace)
         self._samples = RedisSamples(self._session)
         self._metrics = RedisMetrics(self._session)
+        self._reports = RedisReports(self._session)
         self._actions = ActionSet(
             [action_type(self._session, self._keyspace) for action_type in REDIS_ACTION_TYPES]
         )
@@ -168,7 +178,14 @@ class RedisAdapter:
         return await self._samples.install_sample_data()
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
-        return await self._keyspace.list_children(node_id)
+        if is_system_section(node_id):
+            return [system_report_node(report) for report in SYSTEM_REPORTS]
+        if is_system_report(node_id):
+            if system_report_for(node_id) is None:
+                raise NodeNotFound(node_id or "")
+            return []
+        children = await self._keyspace.list_children(node_id)
+        return [system_section_node(), *children] if node_id is None else children
 
     # --- found from the search field and the tree's filter (D91) -----------
 
@@ -193,6 +210,8 @@ class RedisAdapter:
         return "cheap" if last.extent <= settings.SEARCH_CHEAP_KEYS else "costly"
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
+        if is_system_report(request.node_id):
+            return await self._reports.fetch(request)
         return await self._fetch.fetch(request)
 
     # --- what a node is, where it lies, and all of it -----------------------
@@ -201,6 +220,8 @@ class RedisAdapter:
         return await self._model.relation_model(node_id)
 
     def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        if is_system_report(request.node_id):
+            return self._reports.export_rows(request)
         return self._export.export_rows(request)
 
     # --- writing what a key holds, one element at a time -------------------
@@ -248,6 +269,8 @@ class RedisAdapter:
         without a round trip; an id naming a key that has since expired is
         refused by the action itself.
         """
+        if is_system_section(node_id) or is_system_report(node_id):
+            return []
         if is_key(node_id):
             return self._actions.for_kind("key")
         if is_database(node_id):

@@ -65,11 +65,11 @@ PREFERRED_HOST_KEY_ALGORITHMS = (
 
 @dataclass(frozen=True)
 class Remote:
-    """A live SFTP client and the folder the catalog stands in, as the server
-    spells it."""
+    """A live SSH/SFTP session and the folder the catalog stands in."""
 
     sftp: asyncssh.SFTPClient
     root: str
+    connection: asyncssh.SSHClientConnection
 
     def path_of(self, node_id: str | None) -> str:
         """The remote path of a node, which is always inside the root.
@@ -115,7 +115,7 @@ class SshLink:
                 connection.close()
                 raise
             self._connection = connection
-            self._remote = Remote(sftp=sftp, root=root)
+            self._remote = Remote(sftp=sftp, root=root, connection=connection)
             return self._remote
 
     async def close(self) -> None:

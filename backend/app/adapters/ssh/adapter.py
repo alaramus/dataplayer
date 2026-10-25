@@ -14,6 +14,8 @@ from collections.abc import Mapping
 from typing import Any, ClassVar
 from urllib.parse import quote, unquote, urlsplit
 
+from app.adapters.actions import Action, ActionOffers
+from app.adapters.catalog import CatalogNode
 from app.adapters.credentials import ServerKey
 from app.adapters.explorer.actions import (
     EXPLORER_ACTION_TYPES,
@@ -21,10 +23,20 @@ from app.adapters.explorer.actions import (
     ExplorerActionType,
 )
 from app.adapters.explorer.explorer import Explorer
-from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, register
 from app.adapters.ssh import keys
 from app.adapters.ssh.options import SshOptions
+from app.adapters.ssh.reports import (
+    REPORTS as SYSTEM_REPORTS,
+    SshReports,
+    in_section as is_system_report,
+    is_section as is_system_section,
+    report_for as system_report_for,
+    report_node as system_report_node,
+    section_node as system_section_node,
+)
 from app.adapters.ssh.session import SshSession, identity_of, server_key
 from app.adapters.ssh.storage import SftpStorage
 from app.adapters.ssh.terminal import SshTerminal
@@ -47,6 +59,7 @@ class SshAdapter(Explorer):
 
     def __init__(self, options: SshOptions, context: AdapterContext) -> None:
         self._session = SshSession(options, context)
+        self._reports = SshReports(self._session)
         super().__init__(SftpStorage(self._session, owner=identity_of(options)))
 
     def connection_string(self) -> str:
@@ -57,6 +70,41 @@ class SshAdapter(Explorer):
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
+
+    async def list_children(self, node_id: str | None) -> list[CatalogNode]:
+        if is_system_section(node_id):
+            return [system_report_node(report) for report in SYSTEM_REPORTS]
+        if is_system_report(node_id):
+            if system_report_for(node_id) is None:
+                raise NodeNotFound(node_id or "")
+            return []
+        children = await super().list_children(node_id)
+        return [system_section_node(), *children] if node_id is None else children
+
+    async def path_to(self, node_id: str) -> list[CatalogNode]:
+        if is_system_section(node_id):
+            return [system_section_node()]
+        if is_system_report(node_id):
+            report = system_report_for(node_id)
+            if report is None:
+                raise NodeNotFound(node_id)
+            return [system_section_node(), system_report_node(report)]
+        return await super().path_to(node_id)
+
+    async def fetch(self, request: FetchRequest) -> FetchResult:
+        if is_system_section(request.node_id) or is_system_report(request.node_id):
+            return await self._reports.fetch(request)
+        return await super().fetch(request)
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        if is_system_section(node_id) or is_system_report(node_id):
+            return []
+        return await super().available(node_id)
+
+    async def action_offers(self, node_id: str | None) -> ActionOffers:
+        if is_system_section(node_id) or is_system_report(node_id):
+            return ActionOffers(actions=[])
+        return await super().action_offers(node_id)
 
     async def open_terminal(self, size: TerminalSize) -> Terminal:
         return await SshTerminal.open(self._session, size)

@@ -125,4 +125,17 @@ MESSAGES: dict[str, str] = {
     # Der gemeinsame Lesecache.
     "Shared Redis cache is reachable": "Der gemeinsame Redis-Cache ist erreichbar",
     "Shared Redis cache is unavailable; source reads are direct": "Der gemeinsame Redis-Cache ist nicht verfügbar; Quellen werden direkt gelesen",
+    "System": "System",
+    "What this server says about itself": "Was dieser Server über sich selbst aussagt",
+    "Server": "Server",
+    "Version, uptime, clients, memory, persistence and replication": "Version, Laufzeit, Clients, Speicher, Persistenz und Replikation",
+    "Settings": "Einstellungen",
+    "Selected non-secret configuration values reported by Redis": "Ausgewählte nicht geheime Konfigurationswerte, die Redis meldet",
+    "Setting": "Einstellung",
+    "View as table": "Als Tabelle anzeigen",
+    '"{title}" is a report and holds no rows of its own': "„{title}“ ist ein Bericht und enthält keine eigenen Zeilen",
+    "This report cannot be filtered that way": "Dieser Bericht lässt sich nicht so filtern",
+    "This report cannot be sorted that way": "Dieser Bericht lässt sich nicht so sortieren",
+    "INFO is unavailable for this Redis user": "INFO ist für diesen Redis-Benutzer nicht verfügbar",
+    "Configuration commands are unavailable on this server": "Konfigurationsbefehle sind auf diesem Server nicht verfügbar",
 }

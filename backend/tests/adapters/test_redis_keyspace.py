@@ -10,7 +10,7 @@ import pytest
 import redis.asyncio as redis
 
 from app.adapters.actions import SupportsActions
-from app.adapters.catalog import DatabaseNode, KeyNode
+from app.adapters.catalog import DatabaseNode, KeyNode, ReportNode
 from app.adapters.fetch import FetchRequest
 from app.adapters.protocol import (
     DataAdapter,
@@ -77,11 +77,24 @@ async def test_the_root_is_the_databases_the_server_has(
 
     root = await adapter.list_children(None)
 
-    assert all(isinstance(node, DatabaseNode) for node in root)
-    assert len(root) >= 16
+    databases = [node for node in root if isinstance(node, DatabaseNode)]
+    assert len(databases) >= 16
+    assert isinstance(root[0], ReportNode)
+    assert root[0].name == "System"
     named = [node for node in root if isinstance(node, DatabaseNode) and node.preferred]
     assert [node.id for node in named] == [HERE]
     assert next(node for node in named).keys == 1
+
+
+async def test_system_lists_read_only_server_reports(adapter: RedisAdapter) -> None:
+    section = next(
+        node for node in await adapter.list_children(None) if isinstance(node, ReportNode)
+    )
+
+    reports = await adapter.list_children(section.id)
+
+    assert [node.name for node in reports] == ["Server", "Settings"]
+    assert all(isinstance(node, ReportNode) and not node.has_children for node in reports)
 
 
 async def test_a_database_says_how_full_it_is(adapter: RedisAdapter) -> None:

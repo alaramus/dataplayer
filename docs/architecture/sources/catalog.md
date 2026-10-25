@@ -5,7 +5,7 @@ names are a catalog only once they are grouped. What every source must answer is
 in [contract.md](contract.md); how the tree behaves on screen is in
 [../workspace.md](../workspace.md).
 
-Decisions here: D75, D76, D91.
+Decisions here: D75, D76, D91, D265.
 
 ## D75. A node describes itself, and that is neither a viewer nor an action
 
@@ -383,3 +383,25 @@ Known deviations:
   holds.
 
 Spec: [A key space, walked and written](../../decisions/2026-09-03-redis-keyspace-design.md)
+
+## D265. Redis reports a fixed view of its server in the catalog
+
+The Redis catalog begins with a `System` section, followed by its databases.
+The tree opens at the connection's preferred database, but keeps root-level
+report sections visible above that database's key space. The section contains
+two read-only reports:
+
+- **Server** reads selected fields from Redis `INFO` sections for version,
+  uptime, clients, memory, persistence, replication and counters. It refreshes
+  every ten seconds.
+- **Settings** reads only a fixed allowlist through `CONFIG GET`, including
+  database count, timeouts, client limits, memory policy and persistence
+  settings. Credentials, ACL data, configuration paths and other unlisted
+  values are never requested.
+
+Each report is a bounded two-column page with ordinary filtering and sorting;
+both are exportable. Redis remains read-only here: the reports do not add
+commands to change configuration or keys. They describe the server rather
+than the selected database, so switching databases does not change them.
+
+Spec: [Redis system reports](../../decisions/2026-10-25-redis-system-reports-design.md)

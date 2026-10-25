@@ -97,7 +97,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/downloads](docs/architecture/sources/downloads.md) | D49, D55, D73 |
 | [sharing](docs/architecture/sharing.md) | D58–D61 |
 | [querying](docs/architecture/querying.md) | D62–D66, D160, D206 |
-| [sources/catalog](docs/architecture/sources/catalog.md) | D75, D76, D91 |
+| [sources/catalog](docs/architecture/sources/catalog.md) | D75, D76, D91, D265 |
 | [sources/file-sql](docs/architecture/sources/file-sql.md) | D77, D78, D96 |
 | [services](docs/architecture/services.md) | D80, D83–D85, D88–D90 |
 | [jobs](docs/architecture/jobs.md) | D81, D95 |
@@ -111,7 +111,7 @@ file; `D247–D262` is every number between, all in that file.
 | [dashboards](docs/architecture/dashboards.md) | D125–D130 |
 | [ai](docs/architecture/ai.md) | D133–D139, D141, D142, D158, D159, D223 |
 | [ai-models](docs/architecture/ai-models.md) | D140, D156, D157 |
-| [sources/ssh](docs/architecture/sources/ssh.md) | D144–D147, D153, D154 |
+| [sources/ssh](docs/architecture/sources/ssh.md) | D144–D147, D153, D154, D266 |
 | [terminals](docs/architecture/terminals.md) | D148, D149 |
 | [sources/explorer](docs/architecture/sources/explorer.md) | D150–D152 |
 | [pipelines](docs/architecture/pipelines.md) | D174–D180 |

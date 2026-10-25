@@ -23,10 +23,29 @@ const FOLDER = {
   representations: [],
 }
 
-function mountTree() {
-  vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({
-    data: [FOLDER, KEY],
-  } as never)
+const SYSTEM = {
+  kind: "report",
+  id: "\\system",
+  name: "System",
+  has_children: true,
+  representations: [],
+}
+
+const DATABASE = {
+  kind: "database",
+  id: "d0",
+  name: "db0",
+  preferred: true,
+  has_children: true,
+  representations: [],
+}
+
+function mountTree(readCatalog?: (nodeId: string | null) => unknown[]) {
+  vi.spyOn(ConnectorsService, "readCatalog").mockImplementation((async ({ query }: {
+    query?: { node_id?: string | null }
+  }) => ({
+    data: readCatalog?.(query?.node_id ?? null) ?? [FOLDER, KEY],
+  })) as never)
   return mount(KeyspaceTree, {
     props: { connectorId: "c1", rootId: "d0" },
     global: {
@@ -53,6 +72,20 @@ function mountTree() {
  * ten-pixel arrow to see what is in a namespace is what made this feel stiff.
  */
 describe("clicking a row of the key space", () => {
+  it("keeps root report sections visible above the selected database tree", async () => {
+    const wrapper = mountTree((nodeId) =>
+      nodeId === null ? [SYSTEM, DATABASE] : [FOLDER, KEY]
+    )
+    await flushPromises()
+
+    const systemRow = wrapper
+      .findAll('[data-testid^="keyspace-row-"]')
+      .find((row) => row.attributes("data-testid") === "keyspace-row-\\system")
+
+    expect(systemRow?.text()).toContain("System")
+    expect(wrapper.get('[data-testid="keyspace-row-f0:cache:"]').exists()).toBe(true)
+  })
+
   it("marks what the actions would be done to", async () => {
     const wrapper = mountTree()
     await flushPromises()

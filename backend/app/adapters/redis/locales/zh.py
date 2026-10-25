@@ -124,4 +124,17 @@ MESSAGES: dict[str, str] = {
     # 共享读取缓存。
     "Shared Redis cache is reachable": "共享 Redis 缓存可访问",
     "Shared Redis cache is unavailable; source reads are direct": "共享 Redis 缓存不可用；数据源将直接读取",
+    "System": "系统",
+    "What this server says about itself": "此服务器对自身的说明",
+    "Server": "服务器",
+    "Version, uptime, clients, memory, persistence and replication": "版本、运行时间、客户端、内存、持久化和复制状态",
+    "Settings": "设置",
+    "Selected non-secret configuration values reported by Redis": "Redis 报告的选定非敏感配置值",
+    "Setting": "设置项",
+    "View as table": "以表格查看",
+    '"{title}" is a report and holds no rows of its own': '“{title}”是报告，本身不含任何行',
+    "This report cannot be filtered that way": "无法使用此条件筛选报告",
+    "This report cannot be sorted that way": "无法使用此条件排序报告",
+    "INFO is unavailable for this Redis user": "此 Redis 用户无法使用 INFO",
+    "Configuration commands are unavailable on this server": "此服务器不允许使用配置读取命令",
 }

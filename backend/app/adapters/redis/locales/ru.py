@@ -124,4 +124,17 @@ MESSAGES: dict[str, str] = {
     # The shared read cache.
     "Shared Redis cache is reachable": "Общий кеш Redis доступен",
     "Shared Redis cache is unavailable; source reads are direct": "Общий кеш Redis недоступен; источники читаются напрямую",
+    "System": "Система",
+    "What this server says about itself": "Что сервер сообщает о себе",
+    "Server": "Сервер",
+    "Version, uptime, clients, memory, persistence and replication": "Версия, время работы, клиенты, память, хранение данных и репликация",
+    "Settings": "Параметры",
+    "Selected non-secret configuration values reported by Redis": "Выбранные несекретные параметры конфигурации, сообщённые Redis",
+    "Setting": "Параметр",
+    "View as table": "Открыть как таблицу",
+    '"{title}" is a report and holds no rows of its own': '«{title}» — отчёт, собственных строк у него нет',
+    "This report cannot be filtered that way": "Этот отчёт нельзя так фильтровать",
+    "This report cannot be sorted that way": "Этот отчёт нельзя так сортировать",
+    "INFO is unavailable for this Redis user": "Команда INFO недоступна этому пользователю Redis",
+    "Configuration commands are unavailable on this server": "На этом сервере недоступны команды чтения конфигурации",
 }

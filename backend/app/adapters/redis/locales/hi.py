@@ -124,4 +124,17 @@ MESSAGES: dict[str, str] = {
     # The shared read cache.
     "Shared Redis cache is reachable": "साझा Redis कैश उपलब्ध है",
     "Shared Redis cache is unavailable; source reads are direct": "साझा Redis कैश उपलब्ध नहीं है; स्रोत सीधे पढ़े जाते हैं",
+    "System": "सिस्टम",
+    "What this server says about itself": "यह सर्वर अपने बारे में क्या बताता है",
+    "Server": "सर्वर",
+    "Version, uptime, clients, memory, persistence and replication": "संस्करण, चालू रहने का समय, क्लाइंट, मेमोरी, परसिस्टेंस और रेप्लिकेशन",
+    "Settings": "सेटिंग्स",
+    "Selected non-secret configuration values reported by Redis": "Redis द्वारा बताई गई चुनी हुई गैर-गुप्त कॉन्फ़िगरेशन सेटिंग्स",
+    "Setting": "सेटिंग",
+    "View as table": "टेबल के रूप में देखें",
+    '"{title}" is a report and holds no rows of its own': '“{title}” एक रिपोर्ट है और इसकी अपनी कोई पंक्ति नहीं है',
+    "This report cannot be filtered that way": "इस रिपोर्ट को इस तरह फ़िल्टर नहीं किया जा सकता",
+    "This report cannot be sorted that way": "इस रिपोर्ट को इस तरह सॉर्ट नहीं किया जा सकता",
+    "INFO is unavailable for this Redis user": "इस Redis उपयोगकर्ता के लिए INFO उपलब्ध नहीं है",
+    "Configuration commands are unavailable on this server": "इस सर्वर पर कॉन्फ़िगरेशन कमांड उपलब्ध नहीं हैं",
 }

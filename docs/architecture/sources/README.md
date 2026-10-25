@@ -19,7 +19,7 @@ file holds which decision.
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
-| [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, or where SSH keys and passphrases are kept |
+| [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
 ## Six source types
 
@@ -57,7 +57,9 @@ is standing and with an optional expiry, then delete, set an expiry and take
 one off. An address is composed and parsed the way PostgreSQL's is. No sorting
 and no filtering, because Redis has no index over values, and no query
 console, because Redis has commands rather than statements. Everything scans;
-nothing runs `KEYS`.
+nothing runs `KEYS`. A System section leads the catalog with read-only Server
+and Settings reports: a fixed selection from `INFO` and a safe allowlist of
+`CONFIG GET` values (D265).
 
 **SSH** — a server's folders over SFTP, from the folder the connection names or
 the user's home: text files read a page at a time and Markdown as a document,
@@ -65,6 +67,11 @@ and five actions — a new folder, upload, download of one file, rename and
 delete. Nothing runs a command on the server. It signs in with a password or
 one of its owner's SSH keys, and only to the server whose key a person
 confirmed when the connection was made (D145, D146).
+
+The System section leads the catalog with a Connection report of saved options
+and negotiated protocol details, plus a Filesystem report when the server's
+SFTP implementation provides capacity statistics. These reports make no
+remote shell calls (D266).
 
 **MySQL** — MySQL and MariaDB through one type that reads which server it is
 (D228): databases as schemas, their tables and views with the server's row
@@ -192,7 +199,7 @@ backend/app/adapters/
 │                       actions.py (six ways to write one, three after),
 │                       url.py (the address, both ways), samples.py (the
 │                       demonstration key space), options.py (a union by
-│                       auth_method), adapter.py (facade),
+│                       auth_method), reports.py (System), adapter.py (facade),
 ├── explorer/           a tree of files wherever it is kept (explorer.md):
 │                       storage.py (the contract a source brings),
 │                       explorer.py (facade), catalog.py, formats.py,
@@ -204,5 +211,5 @@ backend/app/adapters/
 │                       actions.py
 ├── file/               storage.py (the local disk: root and containment),
 │                       options.py, adapter.py (the explorer over it)
-└── ssh/                see ssh.md
+└── ssh/                see ssh.md; reports.py (System, over SSH and SFTP only)
 ```

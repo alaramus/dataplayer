@@ -4,7 +4,7 @@ A server reached over SSH as a source, the server key a connection trusts,
 and the SSH keys a person signs in with. Read this before changing how an SSH
 connection signs in, what it trusts, or where a private key is kept.
 
-Decisions here: D144, D145, D146, D147, D153, D154.
+Decisions here: D144, D145, D146, D147, D153, D154, D266.
 
 ```
 backend/app/adapters/
@@ -13,6 +13,7 @@ backend/app/adapters/
     ├── keys.py         the one place asyncssh reads a key: make, import, describe
     ├── options.py      password or key, the folder, the pinned server key
     ├── session.py      signing in, the kept connection, the library's failures
+    ├── reports.py      read-only System reports from the authenticated session
     ├── storage.py      SftpStorage: the server's files for the explorer (explorer.md)
     ├── terminal.py     the login shell in a pty (D149, ../terminals.md)
     └── adapter.py      SshAdapter(Explorer), the terminal, registration
@@ -275,3 +276,22 @@ Known deviations:
   databases keep their passwords.
 
 Spec: [An SSH server this application starts](../../decisions/2026-09-19-ssh-service-design.md)
+
+## D266. SSH reports connection and filesystem facts without running commands
+
+The catalog starts with a `System` section and two read-only reports:
+
+- **Connection** shows the saved host, port, user, authentication method and
+  folder, the pinned server key's algorithm and fingerprint, the SSH server
+  banner, and negotiated SSH algorithms plus SFTP version and remote-copy
+  support when the library reports them. It never displays passwords, private
+  keys or the public key material itself.
+- **Filesystem** asks SFTP for `statvfs` at the configured browsing root and
+  shows capacity, available space and inode counts. If the server does not
+  provide these statistics, the report says so.
+
+Both reports use the already authenticated SSH/SFTP session. They issue no
+remote shell commands, preserving D144's boundary that only a person-typed
+terminal opens a shell.
+
+Spec: [SSH system reports](../../decisions/2026-10-25-ssh-system-reports-design.md)
