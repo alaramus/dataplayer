@@ -155,7 +155,10 @@ async def test_a_folder_is_walked_one_level_at_a_time(adapter: SshAdapter) -> No
     inside = await adapter.list_children("logs")
     path = await adapter.path_to("logs/today.log")
 
-    assert [(node.kind, node.name) for node in top] == [("directory", "logs")]
+    assert [(node.kind, node.name) for node in top] == [
+        ("report", "System"),
+        ("directory", "logs"),
+    ]
     assert [(node.kind, node.id) for node in inside] == [("file", "logs/today.log")]
     assert [node.name for node in path] == ["logs", "today.log"]
     with pytest.raises(NodeNotFound):
@@ -201,7 +204,9 @@ async def test_an_upload_to_a_name_that_is_taken_is_refused_or_numbered(
     await upload.perform_with_file(None, {"conflict": "rename"}, _Payload("a.txt", b"3"))
     await upload.perform_with_file(None, {"conflict": "replace"}, _Payload("a.txt", b"4"))
 
-    names = sorted(node.name for node in await adapter.list_children(None))
+    names = sorted(
+        node.name for node in await adapter.list_children(None) if node.kind != "report"
+    )
     assert names == ["a (1).txt", "a.txt"]
     replaced = await adapter.read_content(ContentRequest(node_id="a.txt", representation="text"))
     assert replaced.text == "4"  # type: ignore[union-attr]  # a text file answers text
@@ -213,9 +218,11 @@ async def test_a_node_is_renamed_and_deleted_but_the_folder_it_stands_in_is_not(
     await adapter.action("create_folder").perform(None, {"name": "old"})
 
     await adapter.action("rename").perform("old", {"new_name": "new"})
-    assert [node.name for node in await adapter.list_children(None)] == ["new"]
+    root = await adapter.list_children(None)
+    assert [node.name for node in root if node.kind != "report"] == ["new"]
     await adapter.action("delete").perform("new", {})
-    assert await adapter.list_children(None) == []
+    root = await adapter.list_children(None)
+    assert [(node.kind, node.name) for node in root] == [("report", "System")]
 
     with pytest.raises(ActionRefused):
         await adapter.action("delete").perform(None, {})

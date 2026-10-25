@@ -124,33 +124,33 @@ class SshReports:
         options = self._session.options
         facts = keys.host_key_facts(options.host_key)
         rows = [
-            (say(N_("Host")), options.host),
-            (say(N_("Port")), str(options.port)),
-            (say(N_("User")), options.username),
+            (say("Host"), options.host),
+            (say("Port"), str(options.port)),
+            (say("User"), options.username),
             (
-                say(N_("Authentication")),
+                say("Authentication"),
                 say("Key") if options.auth_method == "key" else say("Password"),
             ),
-            (say(N_("Folder")), remote.root),
-            (say(N_("Server key algorithm")), facts.algorithm),
-            (say(N_("Server key fingerprint")), facts.fingerprint),
-            (say(N_("SFTP version")), str(remote.sftp.version)),
-            (say(N_("Remote copy")), str(remote.sftp.supports_remote_copy).lower()),
+            (say("Folder"), remote.root),
+            (say("Server key algorithm"), facts.algorithm),
+            (say("Server key fingerprint"), facts.fingerprint),
+            (say("SFTP version"), str(remote.sftp.version)),
+            (say("Remote copy"), str(remote.sftp.supports_remote_copy).lower()),
         ]
         banner = _extra_info(remote, "server_version")
         if banner is not None:
-            rows.append((say(N_("Server banner")), banner))
+            rows.append((say("Server banner"), banner))
         for key, label in (
-            ("send_cipher", "Cipher (client to server)"),
-            ("recv_cipher", "Cipher (server to client)"),
-            ("send_mac", "MAC (client to server)"),
-            ("recv_mac", "MAC (server to client)"),
-            ("send_compression", "Compression (client to server)"),
-            ("recv_compression", "Compression (server to client)"),
+            ("send_cipher", N_("Cipher (client to server)")),
+            ("recv_cipher", N_("Cipher (server to client)")),
+            ("send_mac", N_("MAC (client to server)")),
+            ("recv_mac", N_("MAC (server to client)")),
+            ("send_compression", N_("Compression (client to server)")),
+            ("recv_compression", N_("Compression (server to client)")),
         ):
             value = _extra_info(remote, key)
             if value is not None:
-                rows.append((say(N_(label)), value))
+                rows.append((say(label), value))
         return rows
 
     async def _filesystem_rows(self, remote: Remote) -> list[tuple[str, str]]:
@@ -162,18 +162,18 @@ class SshReports:
         if block_size <= 0:
             return self._filesystem_unavailable()
         return [
-            (say(N_("Filesystem block size bytes")), str(block_size)),
-            (say(N_("Filesystem total bytes")), str(block_size * attrs.blocks)),
-            (say(N_("Filesystem free bytes")), str(block_size * attrs.bfree)),
-            (say(N_("Filesystem available bytes")), str(block_size * attrs.bavail)),
-            (say(N_("Filesystem total inodes")), str(attrs.files)),
-            (say(N_("Filesystem free inodes")), str(attrs.ffree)),
-            (say(N_("Filesystem available inodes")), str(attrs.favail)),
+            (say("Filesystem block size bytes"), str(block_size)),
+            (say("Filesystem total bytes"), str(block_size * attrs.blocks)),
+            (say("Filesystem free bytes"), str(block_size * attrs.bfree)),
+            (say("Filesystem available bytes"), str(block_size * attrs.bavail)),
+            (say("Filesystem total inodes"), str(attrs.files)),
+            (say("Filesystem free inodes"), str(attrs.ffree)),
+            (say("Filesystem available inodes"), str(attrs.favail)),
         ]
 
     @staticmethod
     def _filesystem_unavailable() -> list[tuple[str, str]]:
-        return [(say(N_("Filesystem statistics")), say("Not reported through SFTP"))]
+        return [(say("Filesystem statistics"), say("Not reported through SFTP"))]
 
 
 def _extra_info(remote: Remote, name: str) -> str | None:

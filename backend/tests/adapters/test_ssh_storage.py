@@ -166,7 +166,9 @@ async def test_a_file_is_copied_and_moved_on_the_server(adapter: SshAdapter) -> 
         "kept", {"sources": ["notes.txt"], "mode": "move", "conflict": "rename"}
     )
 
-    top = sorted(node.name for node in await adapter.list_children(None))
+    top = sorted(
+        node.name for node in await adapter.list_children(None) if node.kind != "report"
+    )
     inside = sorted(node.name for node in await adapter.list_children("kept"))
     assert top == ["kept"]
     assert inside == ["notes.txt", "notes.txt (1)"]
