@@ -371,8 +371,11 @@ functions, schemas, relations, columns, aliases, CTEs and parameters; minimal
 qualification is used unless ambiguity requires more. Syntax errors are local
 errors, unresolved objects are warnings only with complete metadata, limited
 metadata produces a status rather than false red underlines, and a change the
-connection would run as a change is not marked as unrunnable. Browser analysis
-never blocks Run.
+connection would run as a change is not marked as unrunnable. The bar of the
+console announces a read only before the connection's first answer: naming
+another relation starts a request of its own, and the answer already in hand is
+kept rather than replaced by that note, which moved the row it sits in on every
+pause in typing. Browser analysis never blocks Run.
 
 Queries are user objects rather than catalog nodes. A Queries navigation panel
 lists open, draft, named and recent documents with connector filtering and

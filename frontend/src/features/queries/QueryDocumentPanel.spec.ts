@@ -174,6 +174,53 @@ describe("one console", () => {
     expect(wrapper.find('[data-testid="query-state"]').exists()).toBe(false)
   })
 
+  it("says it is reading only until the connection first answers", async () => {
+    vi.spyOn(QueriesService, "readDocument").mockResolvedValue({ data: document() } as never)
+    vi.spyOn(QueriesService, "updateDocument").mockResolvedValue({ data: document() } as never)
+    // The source finds the statement, and whatever follows `from` is the
+    // relation the console asks about next.
+    vi.spyOn(QueriesService, "prepareText").mockImplementation(async ({ body }) => {
+      const target = /from\s+([\w.]+)/.exec(body.text)?.[1]
+      return {
+        data: {
+          statements: [
+            {
+              ordinal: 1,
+              start: 0,
+              end: body.text.length,
+              text: body.text,
+              kind: "read",
+              targets: target === undefined ? [] : [target],
+            },
+          ],
+        },
+      } as never
+    })
+    let finish: ((value: never) => void) | undefined
+    const readMetadata = vi
+      .spyOn(QueriesService, "readMetadata")
+      .mockReturnValueOnce(new Promise<never>((resolve) => { finish = resolve }))
+      // Nothing answers the requests the text goes on to start, which is the
+      // moment the bar used to say it was reading again.
+      .mockReturnValue(new Promise<never>(() => {}))
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="query-knowledge"]').text()).toContain("Reading")
+    finish?.({ data: { schemas: ["public"], relations: [], complete: true } } as never)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="query-knowledge"]').exists()).toBe(false)
+
+    await type(wrapper, "select * from demo_lab.events")
+
+    expect(readMetadata).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ relations: ["demo_lab.events"] }),
+      })
+    )
+    expect(wrapper.find('[data-testid="query-knowledge"]').exists()).toBe(false)
+  })
+
   it("offers three answers when the document changed elsewhere, and takes the remote text", async () => {
     const read = vi.spyOn(QueriesService, "readDocument")
     read.mockResolvedValueOnce({ data: document() } as never)

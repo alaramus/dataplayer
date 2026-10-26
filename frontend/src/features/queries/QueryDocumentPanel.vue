@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from "vue"
 
-import type { ExplainResult, PreparedScript, StatementPublic } from "@/client"
+import type { ExplainResult, PreparedScript, QueryMetadata, StatementPublic } from "@/client"
 import { connectorNameOf, useConnectors } from "@/features/connectors/api"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import {
@@ -220,9 +220,30 @@ const offered = computed(() =>
     parameterPrefix(profile.data.value?.parameter_syntax)
   )
 )
-const knowledge = computed(() =>
-  connectorId.value === null ? "" : metadataStatus(metadata.data.value)
+/**
+ * The last answer the connection gave about what it holds, kept while the next
+ * one is on its way.
+ *
+ * Naming another relation starts a request of its own (D65), and that request
+ * has no answer yet while the previous one still does. Saying the connection is
+ * being read again on every pause in typing moved the row that note sits in; it
+ * is now said only before the first answer, when there is nothing to keep.
+ */
+const known = shallowRef<{ connector: string; metadata: QueryMetadata } | null>(null)
+watch(
+  [connectorId, () => metadata.data.value] as const,
+  ([connector, answer]) => {
+    if (connector !== null && answer !== undefined) {
+      known.value = { connector, metadata: answer }
+    }
+  },
+  { immediate: true }
 )
+const knowledge = computed(() => {
+  const kept = known.value
+  if (connectorId.value === null) return ""
+  return metadataStatus(kept?.connector === connectorId.value ? kept.metadata : undefined)
+})
 const run = useRun(runId)
 const kept = useRun(keptRunId)
 /**
