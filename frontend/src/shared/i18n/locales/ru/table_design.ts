@@ -125,7 +125,7 @@ export const table_design: Messages["table_design"] = {
     remove_check: "Удалить проверку",
     nulls_not_distinct: "NULL не различаются",
     deferrability: "Откладывание проверки",
-    check: "CHECK",
+    check: "Проверка",
     key_order: "Первичный ключ · порядок столбцов",
   },
   foreign: {

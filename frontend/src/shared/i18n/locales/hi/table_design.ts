@@ -126,7 +126,7 @@ export const table_design: Messages["table_design"] = {
     remove_check: "जाँच हटाएँ",
     nulls_not_distinct: "NULL भिन्न नहीं",
     deferrability: "स्थगनशीलता",
-    check: "CHECK",
+    check: "जाँच",
     key_order: "प्राथमिक कुंजी · कॉलम क्रम",
   },
   foreign: {

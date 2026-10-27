@@ -127,7 +127,7 @@ export const table_design: Messages["table_design"] = {
     remove_check: "Prüfung entfernen",
     nulls_not_distinct: "NULL-Werte nicht verschieden",
     deferrability: "Aufschiebbarkeit",
-    check: "CHECK",
+    check: "Prüfung",
     key_order: "Primärschlüssel · Spaltenreihenfolge",
   },
   foreign: {

@@ -126,7 +126,7 @@ export const table_design: Messages["table_design"] = {
     remove_check: "移除检查",
     nulls_not_distinct: "NULL 不区分",
     deferrability: "可延迟性",
-    check: "CHECK",
+    check: "检查",
     key_order: "主键 · 列顺序",
   },
   foreign: {

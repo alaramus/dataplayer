@@ -40,11 +40,11 @@ export const structure = {
       keys: "Keys",
     },
     constraint_kind: {
-      primary_key: "primary_key",
+      primary_key: "primary key",
       unique: "unique",
       check: "check",
       exclude: "exclude",
-      foreign_key: "foreign_key",
+      foreign_key: "foreign key",
     },
     generated_type: "A generated column takes its type from its expression",
     generated_default: "A generated column cannot have a default",

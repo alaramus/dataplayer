@@ -126,7 +126,7 @@ export const table_design: Messages["table_design"] = {
     remove_check: "Supprimer la vérification",
     nulls_not_distinct: "NULL non distincts",
     deferrability: "Différabilité",
-    check: "CHECK",
+    check: "Vérification",
     key_order: "Clé primaire · ordre des colonnes",
   },
   foreign: {

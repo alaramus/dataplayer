@@ -124,7 +124,7 @@ export const table_design = {
     remove_check: "Remove check",
     nulls_not_distinct: "Nulls not distinct",
     deferrability: "Deferrability",
-    check: "CHECK",
+    check: "Check",
     key_order: "Primary key · column order",
   },
   foreign: {
