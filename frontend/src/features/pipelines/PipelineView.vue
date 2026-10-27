@@ -748,6 +748,7 @@ defineExpose({ place })
         <AppIconButton
           :icon="appIcons.delete"
           :tooltip="t('pipelines.view.delete_tooltip')"
+          variant="danger-quiet"
           data-testid="pipeline-delete"
           @click="removePipeline"
         />

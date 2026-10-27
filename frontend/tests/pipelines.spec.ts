@@ -106,6 +106,10 @@ test("lays connections out as cards of what was ticked in them, and keeps them",
   await removed
   await expect(cards(page, files)).toHaveCount(0)
 
+  // Neutral at rest and red under the pointer, as every destructive command in
+  // a toolbar is (D186).
+  await expect(page.getByTestId("pipeline-delete")).toHaveClass(/app-icon-button--danger/)
+
   await page.getByTestId("pipeline-delete").click()
   await page.getByTestId("confirm-accept").click()
   await expect(page.getByTestId("pipeline-view").or(page.getByTestId("pipeline-create-first"))).toBeVisible()
@@ -193,6 +197,9 @@ test("joins two rows by a link, runs the pipeline from its head, and hints the o
   await expect(panel.getByTestId("link-panel-sentence")).toHaveText(
     `Save as CSV: ${database} · pipeline → ${files} (top)`
   )
+  // Neutral at rest and red under the pointer, as every destructive command in
+  // a row is (D186).
+  await expect(panel.getByTestId("link-panel-remove")).toHaveClass(/app-icon-button--danger/)
   await panel.getByTestId("link-panel-remove").click()
   await page.getByTestId("confirm-accept").click()
   await expect(panel).toHaveCount(0)

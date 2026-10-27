@@ -33,6 +33,10 @@ test("a key is made on the Preferences page, and only its public half is shown",
   // The private half never came back from the server, so it cannot be here.
   await expect(page.getByTestId("ssh-keys")).not.toContainText("PRIVATE KEY")
 
+  // Neutral at rest and red under the pointer, as every destructive command in
+  // a row is (D186).
+  await expect(page.getByTestId(`ssh-key-delete-${name}`)).toHaveClass(/app-icon-button--danger/)
+
   await page.getByTestId(`ssh-key-delete-${name}`).click()
   await page.getByTestId("confirm-accept").click()
   await expect(row).toHaveCount(0)

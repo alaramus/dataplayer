@@ -167,6 +167,7 @@ async function remove(key: SshKeyPublic) {
       <AppIconButton
         :icon="appIcons.deleteSshKey"
         :tooltip="key.used_by.length ? t('ssh_keys.section.delete_used') : t('ssh_keys.section.delete_key')"
+        variant="danger-quiet"
         :disable="key.used_by.length > 0"
         :data-testid="`ssh-key-delete-${key.name}`"
         @click="remove(key)"

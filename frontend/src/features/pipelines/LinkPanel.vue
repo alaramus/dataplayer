@@ -147,6 +147,7 @@ const columnsWord = computed(() => {
       <AppIconButton
         :icon="appIcons.delete"
         :tooltip="t('pipelines.link_panel.remove')"
+        variant="danger-quiet"
         data-testid="link-panel-remove"
         @click="emit('remove')"
       />
