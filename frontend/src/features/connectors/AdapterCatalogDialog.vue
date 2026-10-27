@@ -215,7 +215,6 @@ function start(template: ServiceTemplateInfo) {
   min-height: 0;
   height: 100%;
   border-top: 1px solid var(--dp-border);
-  border-bottom: 1px solid var(--dp-border);
 }
 .adapter-catalog__sidebar {
   flex: 0 1 auto;
