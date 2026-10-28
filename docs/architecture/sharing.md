@@ -29,6 +29,12 @@ These explanations appear only after the directory and grants load successfully.
 A failed read instead offers Retry and disables giving access until both reads
 are available again.
 
+The two places that draw a connection's grants share one cache entry, keyed by
+the connection (D33). The entry outlives whichever of them filed it, so the read
+it performs names the connection it was filed under rather than the one the
+caller holds at that moment: a refetch asked for by a closed dialog used to name
+no connection at all and was refused, leaving the list on screen unchanged.
+
 Opening a link signs the reader in if needed, then reveals the node in the
 catalog and opens the tab with the filters, sorting, column layout and page
 size the sender saw. A reader without a grant gets a card naming who shared
