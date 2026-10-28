@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file -- test harness components, not application screens. */
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query"
 import { flushPromises, mount } from "@vue/test-utils"
 import { Dialog, Notify, Quasar } from "quasar"
