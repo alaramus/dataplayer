@@ -1,0 +1,48 @@
+/** الإدارة (features/admin). */
+import type { Messages } from "../en"
+
+export const admin: Messages["admin"] = {
+  title: "الإدارة",
+  only_admin: "لا يدير هذا التثبيت إلا مسؤول",
+  sections: {
+    users: "المستخدمون",
+    users_summary: "من لديه حساب، ومن يدير هذا التثبيت",
+  },
+  users: {
+    new_user: "مستخدم جديد",
+    only_admin: "لا يدير الحسابات إلا مسؤول",
+    empty: "لا توجد حسابات بعد",
+    columns: {
+      email: "البريد الإلكتروني",
+      name: "الاسم",
+      role: "الدور",
+      state: "الحالة",
+    },
+    administrator: "مسؤول",
+    user: "مستخدم",
+    active: "نشط",
+    switched_off: "معطل",
+    edit: "تعديل هذا الحساب",
+    delete: "حذف هذا الحساب وكل ما يملكه",
+    cannot_delete_self: "لا يمكنك حذف حسابك الخاص",
+    created: "تم إنشاء الحساب",
+    updated: "تم تحديث الحساب",
+    save_failed: "تعذّر حفظ ذلك الحساب",
+    delete_title: "حذف الحساب",
+    delete_message: "ستتم إزالة {email} وكل ما يملكه - اتصالاته وملفاته. لا يمكن التراجع عن هذا.",
+    delete_confirm: "حذف",
+    deleted: "تم حذف الحساب",
+    delete_failed: "تعذّر حذف ذلك الحساب",
+    edit_title: "تعديل المستخدم - {email}",
+    email: "البريد الإلكتروني",
+    name: "الاسم",
+    password: "كلمة المرور",
+    new_password: "كلمة مرور جديدة",
+    keep_password: "اتركه فارغًا للاحتفاظ بكلمة المرور الحالية",
+    can_sign_in: "يمكن تسجيل الدخول",
+    superuser: "مسؤول: يدير الحسابات، لا بيانات الآخرين",
+    email_invalid: "يلزم بريد إلكتروني صالح",
+    password_required: "يلزم إدخال كلمة مرور",
+    password_short: "لا يلزم أي حرف | على الأقل حرف واحد | على الأقل حرفان | على الأقل {n} أحرف | على الأقل {n} حرفًا | على الأقل {n} حرف",
+  },
+}

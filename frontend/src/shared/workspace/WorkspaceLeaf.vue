@@ -542,8 +542,8 @@ const overlayStyle = computed((): CSSProperties => {
    strip's side padding would push it past the edge. */
 .workspace-leaf__strip--collapsed {
   justify-content: center;
-  padding-right: 0;
-  padding-left: 0;
+  padding-inline-end: 0;
+  padding-inline-start: 0;
 }
 /* Tabs wrap onto a second line rather than running off the end of the strip:
    a tab that cannot be seen cannot be reached, and a section is only ever as

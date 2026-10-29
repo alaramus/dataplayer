@@ -222,7 +222,7 @@ function start(template: ServiceTemplateInfo) {
   width: clamp(150px, 22%, 220px);
   min-height: 0;
   overflow-y: auto;
-  border-right: 1px solid var(--dp-border);
+  border-inline-end: 1px solid var(--dp-border);
 }
 .adapter-catalog__category {
   display: flex;

@@ -50,4 +50,14 @@ describe("format", () => {
     expect(formatFixed(4.2, 1)).toBe("4,2")
     expect(formatFixed(12345.678, 2)).toBe("12345,68")
   })
+
+  it("writes dates and numbers in Arabic when the interface speaks it", async () => {
+    await applyLanguage("ar")
+    // Western digits are the interface's convention, as the glossary says; the
+    // order, the separators and the day period are Arabic's.
+    expect(formatNumber(4211.5)).toBe("4,211.5")
+    expect(formatFixed(4.2, 1)).toBe("4.2")
+    expect(formatDate(MOMENT, UTC)).toMatch(/^17.*10.*2026$/u)
+    expect(formatTime(MOMENT, UTC)).toContain("م")
+  })
 })

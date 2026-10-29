@@ -26,6 +26,7 @@ const NAMES: Record<Language, string> = {
   zh: "中文",
   hi: "हिन्दी",
   es: "Español",
+  ar: "العربية",
 }
 
 export const LANGUAGES: readonly Language[] = Object.keys(NAMES) as Language[]
@@ -90,6 +91,13 @@ const LOADERS: Record<Language, () => Promise<Bundle>> = {
     ])
     return { messages: own.messages, problems: own.problems, quasar: quasar.default }
   },
+  ar: async () => {
+    const [own, quasar] = await Promise.all([
+      import("./locales/ar"),
+      import("quasar/lang/ar.js"),
+    ])
+    return { messages: own.messages, problems: own.problems, quasar: quasar.default }
+  },
 }
 
 /**
@@ -103,6 +111,18 @@ const PLURAL_FORMS: Partial<Record<Language, readonly Intl.LDMLPluralRule[]>> = 
   zh: ["other"],
   hi: ["one", "other"],
   es: ["one", "other"],
+  ar: ["zero", "one", "two", "few", "many", "other"],
+}
+
+/**
+ * The languages a page reads right to left. Arabic is the only one so far, and
+ * its direction is the page's, not a screen's: `dir` on the document turns the
+ * text, the scrollbars and what CSS lays out with logical properties with it.
+ */
+const RIGHT_TO_LEFT: ReadonlySet<Language> = new Set<Language>(["ar"])
+
+export function isRightToLeft(language: Language): boolean {
+  return RIGHT_TO_LEFT.has(language)
 }
 
 function pluralRule(language: string, forms: readonly Intl.LDMLPluralRule[]) {
@@ -219,6 +239,7 @@ export async function applyLanguage(chosen: Language | null): Promise<void> {
   const changed = i18n.global.locale.value !== language
   i18n.global.locale.value = language
   document.documentElement.lang = language
+  document.documentElement.dir = isRightToLeft(language) ? "rtl" : "ltr"
   if (changed) for (const listener of listeners) listener(language)
 }
 

@@ -8983,7 +8983,7 @@ export type PreferencesPublic = {
   /**
    * Language
    */
-  language: "en" | "ru" | "de" | "fr" | "zh" | "hi" | "es" | null
+  language: "en" | "ru" | "de" | "fr" | "zh" | "hi" | "es" | "ar" | null
   /**
    * Theme
    */
@@ -9019,7 +9019,7 @@ export type PreferencesUpdate = {
   /**
    * Language
    */
-  language?: "en" | "ru" | "de" | "fr" | "zh" | "hi" | "es" | null
+  language?: "en" | "ru" | "de" | "fr" | "zh" | "hi" | "es" | "ar" | null
   /**
    * Theme
    */

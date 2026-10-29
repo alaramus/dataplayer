@@ -393,7 +393,7 @@ function setChanged(value: unknown) {
   align-items: center;
   gap: var(--dp-space-1);
   max-width: 50%;
-  padding-left: var(--dp-space-2);
+  padding-inline-start: var(--dp-space-2);
   border-radius: var(--dp-radius-pill);
   background: var(--dp-selected-quiet);
   font-size: var(--dp-font-size-sm);

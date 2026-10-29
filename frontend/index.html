@@ -8,6 +8,17 @@
   </head>
   <body>
     <script>
+      // The direction before the first paint: the language this browser
+      // remembers, when it is one read from the right, so an Arabic reader is
+      // not shown a left-to-right page that jumps once it loads (D281).
+      try {
+        if (localStorage.getItem("dataplayer-language") === "ar") {
+          document.documentElement.lang = "ar"
+          document.documentElement.dir = "rtl"
+        }
+      } catch (error) {
+        // No storage: the language applies once the account is read.
+      }
       // The theme before the first paint (D196): the bundle that applies it
       // arrives later, and until then a dark choice opened on a white page.
       // The ids and polarities repeat THEMES in src/stores/theme.ts, which

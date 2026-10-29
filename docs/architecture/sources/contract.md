@@ -101,8 +101,8 @@ Known deviations:
   cannot drift, and the guide can.
 - **Only connections and source types have pages.** The workspace, dashboards,
   pipelines and the agent are not described yet.
-- **Translated pages lag behind English.** Russian, German, French, Chinese, Hindi and
-  Spanish pages exist (D227); a page a language lacks, or a new one, is shown in
+- **Translated pages lag behind English.** Russian, German, French, Chinese, Hindi,
+  Spanish and Arabic pages exist (D227); a page a language lacks, or a new one, is shown in
   English.
 
 Spec: [A user's guide, and the catalog's short lists](../../decisions/2026-09-28-user-guide-design.md)

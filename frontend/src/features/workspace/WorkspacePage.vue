@@ -1450,7 +1450,7 @@ onBeforeUnmount(unregisterSearch)
   align-items: center;
   justify-content: center;
   width: 36px;
-  margin-left: calc(-1 * var(--dp-space-2));
+  margin-inline-start: calc(-1 * var(--dp-space-2));
 }
 .workspace-footer-server :deep(.q-btn) {
   min-width: 32px;
@@ -1468,7 +1468,7 @@ onBeforeUnmount(unregisterSearch)
   align-items: center;
   justify-content: center;
   width: 36px;
-  margin-left: calc(-1 * var(--dp-space-3));
+  margin-inline-start: calc(-1 * var(--dp-space-3));
 }
 .workspace-header-collapse :deep(.q-btn) {
   min-width: 32px;
@@ -1480,7 +1480,7 @@ onBeforeUnmount(unregisterSearch)
 .workspace-footer-end {
   display: flex;
   align-items: center;
-  padding-right: var(--dp-space-half);
-  margin-right: calc(-1 * var(--dp-space-2));
+  padding-inline-end: var(--dp-space-half);
+  margin-inline-end: calc(-1 * var(--dp-space-2));
 }
 </style>

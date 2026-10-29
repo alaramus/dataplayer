@@ -218,13 +218,13 @@ function add() {
 }
 
 .add-widgets__unit {
-  margin-left: var(--dp-space-2);
+  margin-inline-start: var(--dp-space-2);
   color: var(--dp-text-muted);
 }
 
 .add-widgets__summary {
-  margin-right: auto;
-  padding-left: var(--dp-space-2);
+  margin-inline-end: auto;
+  padding-inline-start: var(--dp-space-2);
   color: var(--dp-text-muted);
 }
 </style>

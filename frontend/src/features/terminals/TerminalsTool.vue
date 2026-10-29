@@ -140,7 +140,7 @@ function unlocked() {
 .terminals__choice {
   display: flex;
   flex-direction: column;
-  padding-right: var(--dp-space-2);
+  padding-inline-end: var(--dp-space-2);
   gap: var(--dp-space-2);
 }
 .terminals__candidates {

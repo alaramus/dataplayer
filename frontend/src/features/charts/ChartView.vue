@@ -208,7 +208,7 @@ function chooseSuggestion(value: unknown): void {
   min-height: 0;
   padding: var(--dp-space-3) var(--dp-space-2);
   overflow-y: auto;
-  border-right: 1px solid var(--dp-border);
+  border-inline-end: 1px solid var(--dp-border);
 }
 
 /* A command under the choices starts where they do; stretched across the
@@ -243,7 +243,7 @@ function chooseSuggestion(value: unknown): void {
   }
 
   .chart-view__controls {
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--dp-border);
   }
 

@@ -398,7 +398,7 @@ const summary = computed(() => {
   padding-bottom: 0;
 }
 .app-select__inline-label {
-  padding-right: var(--dp-space-2);
+  padding-inline-end: var(--dp-space-2);
   font-size: var(--dp-font-size);
   color: var(--dp-text-muted);
 }

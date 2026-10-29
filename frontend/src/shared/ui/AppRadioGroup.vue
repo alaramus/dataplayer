@@ -133,7 +133,7 @@ function choose(value: unknown) {
 }
 .app-radio-group__option :deep(.q-radio__bg) {
   top: 1px;
-  left: 1px;
+  inset-inline-start: 1px;
   width: calc(100% - 2px);
   height: calc(100% - 2px);
   box-sizing: border-box;
@@ -156,7 +156,7 @@ body.desktop .app-radio-group__option:not(.disabled) :deep(.q-radio__inner)::bef
   outline-offset: var(--dp-space-half);
 }
 .app-radio-group__option :deep(.q-radio__label) {
-  padding-left: var(--dp-space-2);
+  padding-inline-start: var(--dp-space-2);
 }
 .app-radio-group__text {
   display: flex;
@@ -188,7 +188,7 @@ body.desktop .app-radio-group__option:not(.disabled) :deep(.q-radio__inner)::bef
   align-items: start;
 }
 .app-radio-group--form .app-radio-group__label {
-  padding-right: var(--dp-space-3);
+  padding-inline-end: var(--dp-space-3);
 }
 .app-form--labels-above .app-radio-group--form,
 .app-form--grid .app-radio-group--form {

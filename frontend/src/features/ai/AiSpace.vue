@@ -786,7 +786,7 @@ onScopeDispose(stop)
 .ai-window__rail-foot :deep(.q-btn[aria-pressed="true"]) { background: var(--dp-active); }
 /* The collapsed rail takes the same forty pixels a collapsed workspace column
    or the dashboards rail does; the wide rail's padding would push past it. */
-.ai-window__rail--collapsed .ai-window__rail-foot { align-items: center; padding-right: 0; padding-left: 0; }
+.ai-window__rail--collapsed .ai-window__rail-foot { align-items: center; padding-inline-end: 0; padding-inline-start: 0; }
 .ai-window__history { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-1) 0; }
 /* The history's own top padding makes up the rest of the space-2 that connections and dashboards leave above their empty line. */
 .ai-window__empty { padding: var(--dp-space-1) var(--dp-space-2); }

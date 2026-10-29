@@ -49,7 +49,8 @@ function mount() {
         EditorView.lineWrapping,
         syntaxHighlighting(syntaxColours, { fallback: true }),
         languageSlot.of([]),
-        EditorView.contentAttributes.of({ "aria-label": t("content.markdown.code.aria"), spellcheck: "false" }),
+        // Code is read left to right in every language (D281).
+        EditorView.contentAttributes.of({ "aria-label": t("content.markdown.code.aria"), spellcheck: "false", dir: "ltr" }),
         EditorView.theme({
           "&": {
             color: "var(--dp-text)",

@@ -1041,9 +1041,9 @@ defineExpose({
   min-width: 0;
   max-width: none;
   padding: var(--dp-space-half) var(--dp-space-2);
-  border-right: 1px solid var(--dp-border-faint);
+  border-inline-end: 1px solid var(--dp-border-faint);
   border-bottom: 1px solid var(--dp-border-faint);
-  text-align: left;
+  text-align: start;
   white-space: nowrap;
   line-height: var(--dp-line-height);
 }
@@ -1124,7 +1124,7 @@ defineExpose({
   z-index: var(--dp-layer-sticky);
   /* The one cell with a line on its left: nothing is drawn to the left of it
      to own that edge. */
-  border-left: 1px solid var(--dp-border-faint);
+  border-inline-start: 1px solid var(--dp-border-faint);
 }
 
 /* The two corners: the selector and any pinned column's name are stuck in

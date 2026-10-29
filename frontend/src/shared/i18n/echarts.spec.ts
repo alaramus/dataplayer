@@ -18,5 +18,8 @@ describe("the language a chart starts in", () => {
 
     await applyLanguage("de")
     expect(chartLocale()).toBe("DE")
+
+    await applyLanguage("ar")
+    expect(chartLocale()).toBe("AR")
   })
 })

@@ -203,8 +203,8 @@ function onRailDrop(event: DragEvent) {
    stand in a vertical icon column. */
 .tool-rail__content :deep(.space-switch) {
   flex-direction: column;
-  padding-right: 0;
-  border-right: none;
+  padding-inline-end: 0;
+  border-inline-end: none;
   gap: var(--dp-space-half);
 }
 .tool-rail__content :deep(.queries-command),

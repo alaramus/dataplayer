@@ -899,7 +899,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
 }
 .structure-view :deep(.structure-view__actions) {
   position: sticky;
-  right: 0;
+  inset-inline-end: 0;
   z-index: var(--dp-layer-sticky);
   background: var(--dp-surface);
   box-shadow: -1px 0 0 var(--dp-border-faint);

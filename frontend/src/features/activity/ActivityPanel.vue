@@ -265,7 +265,7 @@ function follow(run: () => void) {
 
 .sheet {
   top: calc(var(--dp-header-height) + var(--dp-space-1));
-  right: var(--dp-space-1);
+  inset-inline-end: var(--dp-space-1);
   width: 380px;
   max-width: calc(100vw - var(--dp-space-2));
   display: flex;
@@ -312,7 +312,7 @@ function follow(run: () => void) {
 
 /* The count belongs beside the name of the section; the commands go to the
    far end together, so the first of them is what takes up the slack. */
-.sheet__heading > button:first-of-type { margin-left: auto; }
+.sheet__heading > button:first-of-type { margin-inline-start: auto; }
 /* A command in a heading is a command, not part of the overline's grey. */
 .sheet__heading > .q-btn { color: var(--dp-text); letter-spacing: normal; text-transform: none; }
 

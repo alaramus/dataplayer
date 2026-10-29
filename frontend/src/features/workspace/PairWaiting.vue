@@ -74,7 +74,7 @@ function choose(connectorId: string) {
   min-width: 0;
   align-items: center;
   gap: var(--dp-space-2);
-  margin-left: var(--dp-space-3);
+  margin-inline-start: var(--dp-space-3);
   padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);

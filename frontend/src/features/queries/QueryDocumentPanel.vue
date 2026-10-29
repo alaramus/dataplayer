@@ -1363,7 +1363,7 @@ onBeforeUnmount(() => {
    .dp-panel-scroll. Reached into because the grid keeps its pager in the same
    box. */
 .query-panel__results :deep(.data-grid__scroll) {
-  margin-right: calc(-1 * var(--dp-space-1));
+  margin-inline-end: calc(-1 * var(--dp-space-1));
 }
 .query-panel__code {
   flex: 1;

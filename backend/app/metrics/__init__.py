@@ -1,6 +1,7 @@
 """Metrics: agents, the installation's store, collection and history (D125-D130)."""
 
 from app.core.translation import register
+from app.metrics.locales.ar import MESSAGES as AR
 from app.metrics.locales.de import MESSAGES as DE
 from app.metrics.locales.es import MESSAGES as ES
 from app.metrics.locales.fr import MESSAGES as FR
@@ -14,3 +15,4 @@ register("de", DE)
 register("zh", ZH)
 register("hi", HI)
 register("es", ES)
+register("ar", AR)

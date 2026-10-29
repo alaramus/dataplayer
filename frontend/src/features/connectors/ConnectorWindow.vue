@@ -1177,7 +1177,7 @@ async function parseTyped(text: string) {
 .connector-window__end {
   display: flex;
   gap: var(--dp-space-2);
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .connector-window__check-anchor {
   display: inline-flex;

@@ -118,7 +118,7 @@ const groups = computed(() => [
   overflow-y: auto;
   padding: var(--dp-space-2);
   background: var(--dp-chrome-raised);
-  border-right: 1px solid var(--dp-border);
+  border-inline-end: 1px solid var(--dp-border);
 }
 /* Trap: `font: inherit` here undid the overline it carries — the headings
    stood at the body's 13px and 400 in capitals, an overline of their own. */
@@ -145,7 +145,7 @@ const groups = computed(() => [
   background: transparent;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .navigation__row span {
@@ -177,7 +177,7 @@ const groups = computed(() => [
     display: flex;
     flex-wrap: wrap;
     gap: var(--dp-space-1);
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--dp-border);
   }
   .navigation__group {

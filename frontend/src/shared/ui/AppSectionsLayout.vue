@@ -76,7 +76,7 @@ const emit = defineEmits<{ select: [id: string] }>()
   background: transparent;
   color: var(--dp-text);
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .app-sections__entry:hover {

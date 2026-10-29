@@ -47,7 +47,7 @@ provide(formLayoutKey, true)
 .app-form :deep(.app-form-field .q-field__before) {
   width: var(--dp-form-label-width);
   flex: none;
-  padding-right: var(--dp-space-3);
+  padding-inline-end: var(--dp-space-3);
   font-size: var(--dp-font-size);
   color: inherit;
 }
@@ -102,11 +102,11 @@ provide(formLayoutKey, true)
   height: var(--dp-form-control-height);
 }
 .app-form :deep(.app-form-checkbox) {
-  margin-left: var(--dp-form-label-width);
+  margin-inline-start: var(--dp-form-label-width);
   min-height: var(--dp-form-control-height);
 }
 .app-form--grid :deep(.app-form-checkbox) {
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 .app-form--grid :deep(.app-form-field) {
   display: grid;
@@ -129,7 +129,7 @@ provide(formLayoutKey, true)
    container query cannot be switched on by a class. Changing one means
    changing the other. */
 .app-form--labels-above :deep(.app-form-checkbox) {
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 .app-form--labels-above :deep(.app-form-field > .q-field__inner > .q-field__control),
 .app-form--labels-above :deep(.app-form-field > .q-field__control) {
@@ -154,7 +154,7 @@ provide(formLayoutKey, true)
 }
 @container app-form (max-width: 480px) {
   .app-form :deep(.app-form-checkbox) {
-    margin-left: 0;
+    margin-inline-start: 0;
   }
   .app-form :deep(.app-form-field > .q-field__inner > .q-field__control),
   .app-form :deep(.app-form-field > .q-field__control) {

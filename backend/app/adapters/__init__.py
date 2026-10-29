@@ -8,6 +8,7 @@ from app.adapters import (  # noqa: F401
     sqlite,
     ssh,
 )
+from app.adapters.locales.ar import MESSAGES as AR
 from app.adapters.locales.de import MESSAGES as DE
 from app.adapters.locales.es import MESSAGES as ES
 from app.adapters.locales.fr import MESSAGES as FR
@@ -22,3 +23,4 @@ register("de", DE)
 register("zh", ZH)
 register("hi", HI)
 register("es", ES)
+register("ar", AR)

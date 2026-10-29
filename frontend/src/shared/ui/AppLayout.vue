@@ -241,7 +241,7 @@ async function logout() {
   align-items: center;
   justify-content: center;
   width: 36px;
-  margin-right: calc(-1 * var(--dp-space-2));
+  margin-inline-end: calc(-1 * var(--dp-space-2));
 }
 
 .app-layout__title {
@@ -287,10 +287,10 @@ async function logout() {
   font-size: var(--dp-font-size-sm);
 }
 
-/* margin-left keeps it at the end on a screen with no taskbar to take the
-   space between. */
+/* The inline start margin keeps it at the end on a screen with no taskbar to
+   take the space between. */
 .app-layout__status-end {
-  margin-left: auto;
+  margin-inline-start: auto;
   flex: none;
   display: flex;
   align-items: center;

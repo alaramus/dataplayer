@@ -142,5 +142,5 @@ body {
    down the card's edge as everywhere else; the commands above it and the
    pager below stay inside the padding. */
 .dp-panel-scroll {
-  margin-right: calc(-1 * var(--dp-space-1));
+  margin-inline-end: calc(-1 * var(--dp-space-1));
 }

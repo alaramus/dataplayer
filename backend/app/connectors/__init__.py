@@ -1,3 +1,4 @@
+from app.connectors.locales.ar import MESSAGES as AR
 from app.connectors.locales.de import MESSAGES as DE
 from app.connectors.locales.es import MESSAGES as ES
 from app.connectors.locales.fr import MESSAGES as FR
@@ -12,3 +13,4 @@ register("de", DE)
 register("zh", ZH)
 register("hi", HI)
 register("es", ES)
+register("ar", AR)

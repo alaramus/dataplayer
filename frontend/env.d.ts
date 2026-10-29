@@ -42,3 +42,8 @@ declare module "echarts/lib/i18n/langZH.js" {
   const locale: Parameters<typeof import("echarts/core").registerLocale>[1]
   export default locale
 }
+
+declare module "echarts/lib/i18n/langAR.js" {
+  const locale: Parameters<typeof import("echarts/core").registerLocale>[1]
+  export default locale
+}

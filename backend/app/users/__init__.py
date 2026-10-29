@@ -1,4 +1,5 @@
 from app.core.translation import register
+from app.users.locales.ar import MESSAGES as AR
 from app.users.locales.de import MESSAGES as DE
 from app.users.locales.es import MESSAGES as ES
 from app.users.locales.fr import MESSAGES as FR
@@ -12,3 +13,4 @@ register("de", DE)
 register("zh", ZH)
 register("hi", HI)
 register("es", ES)
+register("ar", AR)

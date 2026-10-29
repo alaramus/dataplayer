@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: var(--dp-space-1);
   height: var(--dp-toolbar-height);
-  padding-right: var(--dp-space-2);
+  padding-inline-end: var(--dp-space-2);
   background: var(--dp-surface-raised);
 }
 .service-logs__text {

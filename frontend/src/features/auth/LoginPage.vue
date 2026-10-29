@@ -155,7 +155,7 @@ async function submit() {
 
 <style scoped>
 .login-page { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: var(--dp-surface); }
-.login-welcome { display: grid; place-items: center; padding: var(--dp-space-5); background: linear-gradient(160deg, var(--dp-chrome) 0%, var(--dp-chrome-raised) 100%); border-right: 1px solid var(--dp-border); }
+.login-welcome { display: grid; place-items: center; padding: var(--dp-space-5); background: linear-gradient(160deg, var(--dp-chrome) 0%, var(--dp-chrome-raised) 100%); border-inline-end: 1px solid var(--dp-border); }
 .login-welcome-body { display: flex; flex-direction: column; align-items: center; gap: var(--dp-space-3); max-width: var(--dp-width-text); text-align: center; }
 .login-logo { width: var(--dp-width-name); max-width: 50%; height: auto; margin-bottom: var(--dp-space-3); }
 .login-product { font-size: var(--dp-font-size-display); font-weight: 600; color: var(--dp-text); }

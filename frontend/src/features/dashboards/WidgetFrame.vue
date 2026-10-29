@@ -161,7 +161,7 @@ function onHeaderPointerDown(event: PointerEvent) {
 
 .widget-frame__resize {
   position: absolute;
-  right: 0;
+  inset-inline-end: 0;
   bottom: 0;
   width: 14px;
   height: 14px;

@@ -70,10 +70,12 @@ watch(
 
 <template>
   <!-- Every key is the shell's (D148): the application's shortcuts let it
-       alone, and Ctrl+K is readline's kill-line here. -->
+       alone, and Ctrl+K is readline's kill-line here. The output is read left
+       to right in every language (D281). -->
   <div
     ref="host"
     class="terminal-view"
+    dir="ltr"
     data-testid="terminal-screen"
     data-owns-keys
   />
@@ -95,7 +97,7 @@ watch(
   width: var(--dp-scrollbar-size) !important;
 }
 .terminal-view :deep(.xterm-scrollable-element > .scrollbar.vertical > .slider) {
-  left: 0 !important;
+  inset-inline-start: 0 !important;
   width: 100% !important;
   border-radius: var(--dp-radius-control);
   background: var(--dp-scrollbar-thumb) !important;

@@ -343,8 +343,8 @@ const resizeEdges: ResizeEdge[] = [
    edge keeps the press. */
 .app-window__resize--top,
 .app-window__resize--bottom {
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   height: 8px;
   cursor: ns-resize;
 }

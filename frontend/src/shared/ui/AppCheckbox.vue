@@ -80,7 +80,7 @@ body.desktop .q-checkbox:not(.disabled) :deep(.q-checkbox__inner)::before {
   outline-offset: var(--dp-space-half);
 }
 .q-checkbox :deep(.q-checkbox__label) {
-  padding-left: var(--dp-space-2);
+  padding-inline-start: var(--dp-space-2);
 }
 /* Undense, Quasar's box stood in a 40px square for its halo; now it stands
    as tall as the buttons beside it. */

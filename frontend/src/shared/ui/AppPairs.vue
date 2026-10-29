@@ -75,7 +75,7 @@ provide(pairsArrowKey, computed(() => props.arrow))
 }
 /* A count, not a heading: in the legend's case it would read as one. */
 .app-pairs__aside {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;

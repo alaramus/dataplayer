@@ -431,7 +431,7 @@ async function deleteQuery(documentId: string) {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding-right: var(--dp-space-2);
+  padding-inline-end: var(--dp-space-2);
 }
 .queries-tool__history-bar {
   display: flex;

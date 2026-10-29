@@ -37,7 +37,7 @@
    while it is shown. Native overflow areas use the same theme thumb. */
 .app-scroll-area :deep(.q-scrollarea__thumb--v) {
   width: var(--dp-scrollbar-size);
-  right: 1px;
+  inset-inline-end: 1px;
   border-radius: var(--dp-radius-control);
   background: var(--dp-scrollbar-thumb);
   opacity: 1;

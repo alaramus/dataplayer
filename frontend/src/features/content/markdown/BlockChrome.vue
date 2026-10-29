@@ -71,7 +71,7 @@ withDefaults(
 }
 .block-chrome--accented {
   border-color: color-mix(in srgb, var(--block-accent) 34%, var(--dp-border-faint));
-  border-left: 3px solid var(--block-accent);
+  border-inline-start: 3px solid var(--block-accent);
 }
 .block-chrome--accented .block-chrome__head {
   border-bottom-color: color-mix(in srgb, var(--block-accent) 24%, var(--dp-border-faint));

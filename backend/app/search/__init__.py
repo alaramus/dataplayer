@@ -6,6 +6,7 @@ connection — and never a source type directly. See
 """
 
 from app.core.translation import register
+from app.search.locales.ar import MESSAGES as AR
 from app.search.locales.de import MESSAGES as DE
 from app.search.locales.es import MESSAGES as ES
 from app.search.locales.fr import MESSAGES as FR
@@ -19,3 +20,4 @@ register("de", DE)
 register("zh", ZH)
 register("hi", HI)
 register("es", ES)
+register("ar", AR)

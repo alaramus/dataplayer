@@ -774,11 +774,11 @@ onBeforeUnmount(() => {
 .markdown-panel__search {
   width: min(220px, 30vw);
   min-width: 120px;
-  margin-left: var(--dp-space-1);
+  margin-inline-start: var(--dp-space-1);
 }
 .markdown-panel__actions {
   flex: none;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .markdown-panel__search-position {
   min-width: 36px;
@@ -820,7 +820,7 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow: hidden;
   padding: var(--dp-space-3) var(--dp-space-2);
-  border-right: 1px solid var(--dp-border-faint);
+  border-inline-end: 1px solid var(--dp-border-faint);
 }
 .markdown-panel__outline-list {
   flex: 1;
@@ -835,13 +835,13 @@ onBeforeUnmount(() => {
   width: 100%;
   justify-content: flex-start;
   color: var(--dp-text-muted);
-  text-align: left;
+  text-align: start;
 }
 .markdown-panel__outline-entry--2 {
-  padding-left: var(--dp-space-3);
+  padding-inline-start: var(--dp-space-3);
 }
 .markdown-panel__outline-entry--3 {
-  padding-left: calc(2 * var(--dp-space-3));
+  padding-inline-start: calc(2 * var(--dp-space-3));
   font-size: var(--dp-font-size-xs);
 }
 /* The section on screen, drawn as a current tab is (D186): in blue it read

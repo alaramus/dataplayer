@@ -1,6 +1,7 @@
 from app.adapters.content import register_database_reader
 from app.adapters.sqlite import adapter  # noqa: F401
 from app.adapters.sqlite.file_tables import tables_of
+from app.adapters.sqlite.locales.ar import MESSAGES as AR
 from app.adapters.sqlite.locales.de import MESSAGES as DE
 from app.adapters.sqlite.locales.es import MESSAGES as ES
 from app.adapters.sqlite.locales.fr import MESSAGES as FR
@@ -15,4 +16,5 @@ register("de", DE)
 register("zh", ZH)
 register("hi", HI)
 register("es", ES)
+register("ar", AR)
 register_database_reader("sqlite", tables_of)

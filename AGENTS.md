@@ -54,7 +54,7 @@ documentation.
 | Long work the server owns, its progress, its recovery | [jobs.md](docs/architecture/jobs.md) |
 | Backend modules, routes, migrations, secrets, database, the server's log | [backend.md](docs/architecture/backend.md) |
 | Screens, where state lives, Markdown rendering | [frontend.md](docs/architecture/frontend.md) |
-| Any text a person reads, a language, a refusal a route sends | [localization.md](docs/architecture/localization.md) |
+| Any text a person reads, a language, the way it reads, a refusal a route sends | [localization.md](docs/architecture/localization.md) |
 | The component kit, colours, layers, a size of text, a weight, a height, an icon size, a theme | [design-system.md](docs/architecture/design-system.md) |
 | A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
 | Layout, tabs, dragging, the bar and card at the foot | [workspace.md](docs/architecture/workspace.md) |
@@ -118,7 +118,7 @@ file; `D247–D262` is every number between, all in that file.
 | [pipelines](docs/architecture/pipelines.md) | D174–D180 |
 | [search](docs/architecture/search.md) | D197–D205 |
 | [search-kept](docs/architecture/search-kept.md) | D212–D222 |
-| [localization](docs/architecture/localization.md) | D224–D227 |
+| [localization](docs/architecture/localization.md) | D224–D227, D281 |
 | [sources/mysql](docs/architecture/sources/mysql.md) | D228–D245 |
 | [sources/sqlite](docs/architecture/sources/sqlite.md) | D247–D263 |
 | [sources/clickhouse](docs/architecture/sources/clickhouse.md) | D267–D280 |

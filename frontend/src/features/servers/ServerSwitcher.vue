@@ -289,7 +289,7 @@ function remove(profile: ServerProfile) {
 .server-switcher__away { left: 0; right: 0; }
 .server-switcher__panel {
   top: calc(var(--dp-header-height) + var(--dp-space-1));
-  left: var(--dp-space-1);
+  inset-inline-start: var(--dp-space-1);
   width: 420px;
   max-width: calc(100vw - var(--dp-space-2));
   display: flex;

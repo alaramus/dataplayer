@@ -150,10 +150,10 @@ const PRODUCT = "DataPlayer"
 /* The browser indents a <dd> by 40px, which stood the action that far from
    its keys. Keys to the right of their column, action to the left: a pair. */
 .scene__keys dt {
-  text-align: right;
+  text-align: end;
 }
 .scene__keys dd {
   margin: 0;
-  text-align: left;
+  text-align: start;
 }
 </style>

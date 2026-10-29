@@ -942,7 +942,7 @@ async function runReviewed(value: {
 
 .action-dialog__consequences {
   margin: var(--dp-space-1) 0 0;
-  padding-left: var(--dp-space-5);
+  padding-inline-start: var(--dp-space-5);
   max-height: 180px;
   overflow: auto;
 }

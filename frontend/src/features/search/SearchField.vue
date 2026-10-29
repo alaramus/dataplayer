@@ -297,7 +297,7 @@ defineExpose({ show })
 .search-field {
   position: fixed;
   top: calc((var(--dp-header-height) - var(--dp-control-height)) / 2);
-  left: 50%;
+  left: 50%; /* centred: a physical property, both ways */
   z-index: var(--dp-layer-search);
   width: min(640px, calc(100vw - 2 * var(--dp-space-4)));
   transform: translateX(-50%);

@@ -239,7 +239,7 @@ function removeFilter(index: number) {
 }
 
 .filter-editor__condition {
-  padding-left: var(--dp-space-2);
+  padding-inline-start: var(--dp-space-2);
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);
 }

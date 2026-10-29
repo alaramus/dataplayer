@@ -7,6 +7,7 @@ import emails
 from jinja2 import Template
 
 from app.core.config import settings
+from app.core.locales.ar import MESSAGES as AR
 from app.core.locales.de import MESSAGES as DE
 from app.core.locales.es import MESSAGES as ES
 from app.core.locales.fr import MESSAGES as FR
@@ -28,6 +29,7 @@ register("es", ES)
 register("fr", FR)
 register("zh", ZH)
 register("hi", HI)
+register("ar", AR)
 
 TEST_SUBJECT = N_("{project} - Test email")
 RESET_SUBJECT = N_("{project} - Password recovery for user {email}")

@@ -51,6 +51,7 @@ LANGUAGE_NAMES: dict[Language, str] = {
     "zh": "Chinese",
     "hi": "Hindi",
     "es": "Spanish",
+    "ar": "Arabic",
 }
 
 

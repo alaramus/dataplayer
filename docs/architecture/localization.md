@@ -4,7 +4,7 @@ The language the interface speaks, and how what the server refuses with reaches
 the reader in it. Read this before writing any text a person sees, adding a
 language, or adding a refusal to a route.
 
-Decisions here: D224, D225, D226, D227.
+Decisions here: D224, D225, D226, D227, D281.
 
 ```
 frontend/src/shared/i18n/
@@ -18,7 +18,8 @@ frontend/src/shared/i18n/
     ├── fr/           the same areas in French, the server's refusals, and glossary.md
     ├── zh/           the same areas in Chinese, the server's refusals, and glossary.md
     ├── hi/           the same areas in Hindi, the server's refusals, and glossary.md
-    └── es/           the same areas in Spanish, the server's refusals, and glossary.md
+    ├── es/           the same areas in Spanish, the server's refusals, and glossary.md
+    └── ar/           the same areas in Arabic, the server's refusals, and glossary.md
 
 frontend/src/features/preferences/
 ├── GeneralSection.vue   the Language choice
@@ -26,11 +27,11 @@ frontend/src/features/preferences/
 
 backend/app/core/problems.py   every refusal code and its English
 backend/app/core/translation.py   the request's language; say, N_, say_schema
-backend/app/<package>/locales/ru.py   a package's own words in Russian (de.py in German, fr.py in French, zh.py in Chinese, hi.py in Hindi, es.py in Spanish)
+backend/app/<package>/locales/ru.py   a package's own words in Russian (de.py in German, fr.py in French, zh.py in Chinese, hi.py in Hindi, es.py in Spanish, ar.py in Arabic)
 backend/app/users/preferences.py   `language` on the account
 ```
 
-English, Russian, German, French, Chinese, Hindi and Spanish today.
+English, Russian, German, French, Chinese, Hindi, Spanish and Arabic today.
 
 ## D224. The interface speaks the account's language, from typed dictionaries
 
@@ -66,7 +67,8 @@ plural forms, `@` and `$` must not appear bare. The order of plural forms in a
 language other than English is in `PLURAL_FORMS`, judged by the browser's
 `Intl.PluralRules`: Russian lists `one | few | many | other`, French
 `one | other`, Chinese has a single form, `other`, and Hindi and
-Spanish `one | other`. A unit test runs every
+Spanish `one | other`. Arabic keeps its six forms,
+`zero | one | two | few | many | other`. A unit test runs every
 message of every language through vue-i18n's compiler.
 
 ESLint's `no-raw-text` fails on text written into a template, or into an
@@ -84,7 +86,7 @@ by it and rest on review.
   language: it comes from the adapters, which have no dictionaries.
 - Dates and numbers are formatted by the browser's locale, not by the chosen
   language.
-- The user's guide (D183) has Russian, German, French, Chinese, Hindi and Spanish pages; a page
+- The user's guide (D183) has Russian, German, French, Chinese, Hindi, Spanish and Arabic pages; a page
   a language lacks is shown in English (D227).
 - The agent answers in whatever language it is written to; it is not told the
   account's.
@@ -218,11 +220,45 @@ templates and fails on a sentence typed into the markup.
 
 - A chart takes ECharts' locale when it is drawn (`shared/i18n/echarts.ts`);
   one already on screen keeps its axis words until it is drawn again. ECharts
-  has no Hindi pack, so its own words stay English there; its Spanish pack is
-  used.
+  has no Hindi pack, so its own words stay English there; its Spanish and
+  Arabic packs are used.
 - A grid cell is data and is shown as the source sent it, not reformatted.
-- Russian, German, French, Chinese, Hindi and Spanish pages exist (D227); a language without
+- Russian, German, French, Chinese, Hindi, Spanish and Arabic pages exist (D227); a language without
   a page shows the English.
 
 Spec: [Words a source writes](../decisions/2026-10-17-source-words-design.md)
+
+## D281. Arabic sets the page right to left, and the page is laid out for it
+
+Arabic is the first language read right to left, so direction belongs to the
+document rather than to a screen. `dir` and `lang` sit on `<html>`:
+`index.html` sets them before the first paint from the language the browser
+remembers, and `applyLanguage` sets them again when the account's language is
+read, chosen or changed. Quasar's `ar` pack carries `rtl: true` and its
+`Lang.set` would set the same attributes; the document is the one place
+direction is decided, and the only elements that set `dir` themselves are the
+code surfaces below, which pin it left to right.
+
+Everything under `frontend/src` is written for either direction. Spacing and
+alignment use logical properties — `margin-inline-*`, `padding-inline-*`,
+`border-inline-*`, `inset-inline-*`, `text-align: start` and `end` — and a
+physical `left` or `right` is kept only where direction must not follow the
+text, as a centred overlay's `left: 50%` beside `translateX(-50%)`. The layout
+is one arrangement: a flex row and a logical margin put the sidebar and every
+gap on the other side without a second set of rules.
+
+Numbers keep the Western digits `0`–`9` that the data itself uses; what follows
+the locale is a date's order, separators and day period, and a number's
+grouping. `Intl` under `ar` already does this, so `format.ts` needs no table per
+language.
+
+Code is not Arabic text, and mirroring it moves a path's punctuation to the
+wrong end. The editor and a Markdown code fence set `dir: "ltr"` on
+CodeMirror's content attributes, and a terminal's screen carries `dir="ltr"`
+(D149). A screen added later with another such surface does the same.
+
+`i18n.spec.ts` pins both halves: an Arabic browser ends with `lang="ar"` and
+`dir="rtl"`, and English leaves `dir="ltr"`.
+
+Spec: [Arabic direction](../decisions/2026-10-29-arabic-direction-design.md)
 

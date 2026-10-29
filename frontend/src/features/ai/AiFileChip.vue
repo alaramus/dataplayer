@@ -90,7 +90,7 @@ const emit = defineEmits<{ open: []; remove: [] }>()
   border: 0;
   background: transparent;
   color: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .ai-file-chip__thumbnail {

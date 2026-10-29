@@ -1,4 +1,5 @@
 from app.adapters.postgres import adapter  # noqa: F401
+from app.adapters.postgres.locales.ar import MESSAGES as AR
 from app.adapters.postgres.locales.de import MESSAGES as DE
 from app.adapters.postgres.locales.es import MESSAGES as ES
 from app.adapters.postgres.locales.fr import MESSAGES as FR
@@ -13,3 +14,4 @@ register("fr", FR)
 register("zh", ZH)
 register("hi", HI)
 register("es", ES)
+register("ar", AR)

@@ -93,7 +93,7 @@ function open(connectorId: string) {
   align-items: center;
   gap: var(--dp-space-1);
   min-width: 0;
-  margin-left: var(--dp-space-2);
+  margin-inline-start: var(--dp-space-2);
 }
 .terminals-head__new {
   display: flex;

@@ -166,7 +166,7 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
 }
 .app-menu__icon {
   min-width: 28px;
-  padding-right: 0;
+  padding-inline-end: 0;
 }
 
 /* A disabled item is inert, so a tooltip hung on it never opens. The label

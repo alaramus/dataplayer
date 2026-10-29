@@ -133,7 +133,7 @@ defineExpose({ setExpanded, isExpanded })
 
 <style scoped>
 .app-tree__tick {
-  margin-right: var(--dp-space-1);
+  margin-inline-end: var(--dp-space-1);
 }
 .app-tree :deep(.q-tree__node--selected) {
   background: var(--dp-selected);

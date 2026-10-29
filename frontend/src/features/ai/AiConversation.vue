@@ -889,7 +889,7 @@ onBeforeUnmount(() => {
    A stacking context of its own, so nothing raised inside an answer is
    painted over the composer it passes under. */
 .ai-conversation__transcript { flex: 1 0 auto; padding: var(--dp-space-5) var(--dp-space-4) 0; isolation: isolate; }
-.ai-conversation__transcript > .ai-message, .ai-conversation__transcript > .app-banner { max-width: var(--dp-page-max-width); margin-left: auto; margin-right: auto; }
+.ai-conversation__transcript > .ai-message, .ai-conversation__transcript > .app-banner { max-width: var(--dp-page-max-width); margin-inline-start: auto; margin-inline-end: auto; }
 .ai-outline { flex: none; display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-1); padding: var(--dp-space-2) var(--dp-space-1); overflow: hidden; }
 /* The mark is two pixels of ink in a target a finger can hit. */
 .ai-outline__mark { display: grid; place-items: center; width: 20px; height: 12px; border: 0; padding: 0; background: transparent; cursor: pointer; }
@@ -940,7 +940,7 @@ onBeforeUnmount(() => {
 /* Wide enough for the name beside the value as well as the value. */
 .ai-conversation__model, .ai-conversation__policy { flex: 0 1 260px; min-width: 120px; }
 .ai-conversation__policy { flex-basis: 304px; }
-.ai-context-chip { display: inline-flex; align-items: center; max-width: 100%; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text); }
+.ai-context-chip { display: inline-flex; align-items: center; max-width: 100%; gap: var(--dp-space-1); padding-inline-start: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text); }
 .ai-context-chip__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The box is one line until there is more to hold, and stops at eight of them
    rather than pushing the transcript off the card. A grown field scrolls; the

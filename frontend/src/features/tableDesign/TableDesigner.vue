@@ -706,14 +706,14 @@ function moveColumn(by: number): void {
   border-top: 1px solid var(--dp-border);
 }
 .designer__object-actions--column > :last-child {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .designer__sql {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   background: var(--dp-chrome-raised);
-  border-left: 1px solid var(--dp-border);
+  border-inline-start: 1px solid var(--dp-border);
 }
 .designer__sql-head {
   display: flex;
@@ -736,10 +736,10 @@ function moveColumn(by: number): void {
 }
 .designer__problems ul {
   margin: 0;
-  padding-left: var(--dp-space-4);
+  padding-inline-start: var(--dp-space-4);
 }
 .designer__status {
-  margin-right: auto;
+  margin-inline-end: auto;
   color: var(--dp-text-muted);
 }
 .designer__review {
@@ -765,7 +765,7 @@ function moveColumn(by: number): void {
   }
   .designer__sql {
     grid-column: 1 / -1;
-    border-left: 0;
+    border-inline-start: 0;
     border-top: 1px solid var(--dp-border);
   }
 }

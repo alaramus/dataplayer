@@ -68,8 +68,8 @@ const choices = computed<{ value: Space; label: string; icon: string; tooltip: s
   display: flex;
   align-items: center;
   flex: none;
-  padding-right: var(--dp-space-2);
-  border-right: 1px solid var(--dp-separator);
+  padding-inline-end: var(--dp-space-2);
+  border-inline-end: 1px solid var(--dp-separator);
 }
 
 .space-switch__slot {

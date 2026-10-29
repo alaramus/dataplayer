@@ -282,7 +282,7 @@ function run() {
 /* The type of the column being filled, because what may fill it is the
    question this dialog asks and the answer depends on it. */
 .import__type {
-  margin-left: var(--dp-space-2);
+  margin-inline-start: var(--dp-space-2);
   font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
 }

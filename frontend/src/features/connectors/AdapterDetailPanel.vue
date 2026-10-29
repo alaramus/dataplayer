@@ -197,7 +197,7 @@ const groups = computed(() =>
   min-width: 0;
   width: clamp(240px, 32%, 320px);
   flex: 0 1 auto;
-  border-left: 1px solid var(--dp-border);
+  border-inline-start: 1px solid var(--dp-border);
 }
 .adapter-panel__start {
   display: flex;
@@ -262,7 +262,7 @@ const groups = computed(() =>
   flex-direction: column;
   gap: var(--dp-space-1);
   margin: 0;
-  padding-left: var(--dp-space-4);
+  padding-inline-start: var(--dp-space-4);
   line-height: var(--dp-line-height);
 }
 .adapter-panel__commands {

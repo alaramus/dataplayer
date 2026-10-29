@@ -84,7 +84,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
    as well — see the layer's own note. */
 .toasts {
   position: fixed;
-  right: var(--dp-space-3);
+  inset-inline-end: var(--dp-space-3);
   z-index: var(--dp-layer-toast);
   display: flex;
   flex-direction: column;

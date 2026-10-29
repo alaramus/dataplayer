@@ -75,7 +75,7 @@ const explained = computed(
    in the same place so that collapsing moves nothing. */
 .connector-icon__dot {
   position: absolute;
-  right: 1px;
+  inset-inline-end: 1px;
   bottom: 1px;
   border: 1px solid var(--dp-surface);
   pointer-events: none;

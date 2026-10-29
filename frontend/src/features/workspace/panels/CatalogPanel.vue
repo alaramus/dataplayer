@@ -1368,7 +1368,7 @@ async function afterAction(outcome: ActionOutcome) {
   align-self: stretch;
   gap: var(--dp-space-1);
   flex: none;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 /* The row already gaps its children, so the line stands on that gap rather
    than keeping margins of its own: two lines with margins cost the choice of

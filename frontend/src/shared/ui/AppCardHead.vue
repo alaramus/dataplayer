@@ -58,7 +58,7 @@ defineProps<{ title?: string }>()
   display: flex;
   align-items: center;
   gap: var(--dp-space-1);
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 /* Trap: a dense Quasar field's control is 40px, taller than the head, and it
    spilt over the line under it. A field here takes the room inside the head,

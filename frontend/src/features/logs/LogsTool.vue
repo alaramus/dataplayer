@@ -257,7 +257,7 @@ async function copy(entry: LogEntry) {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding-right: var(--dp-space-2);
+  padding-inline-end: var(--dp-space-2);
   overscroll-behavior: contain;
   font-family: var(--dp-font-mono);
   font-size: var(--dp-font-size-mono);
@@ -277,7 +277,7 @@ async function copy(entry: LogEntry) {
   background: none;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .logs-tool__line:hover {

@@ -248,10 +248,10 @@ function handleNativePaste(event: ClipboardEvent) {
   min-width: 0;
   max-width: none;
   padding: var(--dp-space-half) var(--dp-space-1);
-  border-right: 1px solid var(--dp-border-faint);
+  border-inline-end: 1px solid var(--dp-border-faint);
   border-bottom: 1px solid var(--dp-border-faint);
   background: var(--dp-selected-quiet);
-  text-align: left;
+  text-align: start;
   white-space: nowrap;
 }
 

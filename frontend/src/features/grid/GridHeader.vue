@@ -202,7 +202,7 @@ const groups = TOOLBAR_GROUPS
 }
 
 .grid-header__label {
-  padding-left: var(--dp-space-2);
+  padding-inline-start: var(--dp-space-2);
   font-size: var(--dp-font-size);
   font-weight: 600;
   line-height: var(--dp-line-height);

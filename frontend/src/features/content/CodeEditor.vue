@@ -227,6 +227,8 @@ onMounted(() => {
         EditorView.contentAttributes.of({
           "aria-label": t("content.editor.source_aria", { name: props.filename }),
           spellcheck: "false",
+          // Code is read left to right in every language (D281).
+          dir: "ltr",
         }),
         // Above basicSetup: Mod-Enter is `insertBlankLine` in the default
         // keymap, and a command bound below it would never be reached.

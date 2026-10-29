@@ -870,20 +870,20 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
   overflow-y: auto;
   padding: var(--dp-space-3);
   background: var(--dp-chrome-raised);
-  border-left: 1px solid var(--dp-border);
+  border-inline-start: 1px solid var(--dp-border);
 }
 .settings__plan p {
   margin: var(--dp-space-2) 0;
 }
 .settings__steps {
   margin: 0;
-  padding-left: var(--dp-space-4);
+  padding-inline-start: var(--dp-space-4);
 }
 .settings__failure {
   color: var(--dp-content-error);
 }
 .settings__status {
-  margin-right: auto;
+  margin-inline-end: auto;
   color: var(--dp-text-muted);
 }
 </style>

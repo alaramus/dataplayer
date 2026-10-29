@@ -62,7 +62,7 @@ useReloadable(() => props.panelId, async () => {
 .structure-panel__title {
   flex: 1;
   min-width: 0;
-  padding-left: var(--dp-space-2);
+  padding-inline-start: var(--dp-space-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

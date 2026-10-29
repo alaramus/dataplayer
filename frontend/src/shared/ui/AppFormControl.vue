@@ -28,14 +28,14 @@ const formLayout = inject(formLayoutKey, false)
   min-width: 0;
 }
 .app-form-control--form {
-  margin-left: var(--dp-form-label-width);
+  margin-inline-start: var(--dp-form-label-width);
 }
 .app-form--labels-above .app-form-control--form {
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 @container app-form (max-width: 480px) {
   .app-form-control--form {
-    margin-left: 0;
+    margin-inline-start: 0;
   }
 }
 </style>

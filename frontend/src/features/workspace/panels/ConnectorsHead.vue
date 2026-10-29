@@ -93,7 +93,7 @@ function closeFilter() {
 .connectors-head__filter {
   flex: 1;
   min-width: 0;
-  margin-right: var(--dp-space-1);
+  margin-inline-end: var(--dp-space-1);
   --dp-field-height: calc(var(--dp-tab-strip-height) - 1px);
 }
 /* Takes the room left and shortens with an ellipsis like every other head,
@@ -105,7 +105,7 @@ function closeFilter() {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
-  margin-right: var(--dp-space-half);
+  margin-inline-end: var(--dp-space-half);
 }
 .connectors-head__commands {
   display: flex;

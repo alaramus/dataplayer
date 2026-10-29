@@ -39,7 +39,7 @@ const fill = computed(() => (props.corner ? toneFill(props.tone) : toneWash(prop
 .app-badge--corner {
   position: absolute;
   top: 1px;
-  right: 0;
+  inset-inline-end: 0;
   min-width: 16px;
   padding: 1px var(--dp-space-1);
   font-size: var(--dp-font-size-xs);

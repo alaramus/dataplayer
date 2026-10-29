@@ -38,6 +38,7 @@ describe("which language the interface opens in", () => {
     expect(browserLanguage(["ja", "zh"])).toBe("zh")
     expect(browserLanguage(["ja", "hi"])).toBe("hi")
     expect(browserLanguage(["ja", "es"])).toBe("es")
+    expect(browserLanguage(["ar-EG"])).toBe("ar")
     expect(browserLanguage(["ja", "ko"])).toBe("en")
     expect(browserLanguage([])).toBe("en")
   })
@@ -60,6 +61,15 @@ describe("which language the interface opens in", () => {
     await applyLanguage(null)
     expect(localStorage.getItem(LANGUAGE_KEY)).toBeNull()
     expect(currentLanguage()).toBe(browserLanguage())
+  })
+
+  it("reads Arabic from the right and the others from the left", async () => {
+    await applyLanguage("ar")
+    expect(document.documentElement.lang).toBe("ar")
+    expect(document.documentElement.dir).toBe("rtl")
+
+    await applyLanguage("es")
+    expect(document.documentElement.dir).toBe("ltr")
   })
 })
 

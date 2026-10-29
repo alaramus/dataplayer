@@ -140,7 +140,7 @@ function remove(index: number) {
 }
 
 .sort-editor__item {
-  padding-left: var(--dp-space-2);
+  padding-inline-start: var(--dp-space-2);
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);
 }

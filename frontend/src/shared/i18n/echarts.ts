@@ -1,6 +1,8 @@
 import { registerLocale } from "echarts/core"
 // ECharts writes month and day names and its own few words itself; its
-// Russian, German, French and Chinese are modules of their own, registered once.
+// Russian, German, French, Chinese, Spanish and Arabic are modules of their
+// own, registered once.
+import langAR from "echarts/lib/i18n/langAR.js"
 import langDE from "echarts/lib/i18n/langDE.js"
 import langES from "echarts/lib/i18n/langES.js"
 import langFR from "echarts/lib/i18n/langFR.js"
@@ -15,12 +17,13 @@ registerLocale("DE", langDE)
 registerLocale("FR", langFR)
 registerLocale("ZH", langZH)
 registerLocale("ES", langES)
+registerLocale("AR", langAR)
 
 /**
  * ECharts' own name for the interface's language (D227). ECharts ships no
  * Hindi pack, so its own words stay English there.
  */
-const LOCALES: Record<Language, string> = { en: "EN", ru: "RU", de: "DE", fr: "FR", zh: "ZH", hi: "EN", es: "ES" }
+const LOCALES: Record<Language, string> = { en: "EN", ru: "RU", de: "DE", fr: "FR", zh: "ZH", hi: "EN", es: "ES", ar: "AR" }
 
 /**
  * The locale to start a chart in. Read when a chart is made: one drawn before

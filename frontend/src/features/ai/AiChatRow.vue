@@ -140,7 +140,7 @@ function pick(name: string) {
   flex: none;
   width: 8px;
   height: 8px;
-  margin-right: var(--dp-space-2);
+  margin-inline-end: var(--dp-space-2);
   border-radius: 50%;
   box-sizing: border-box;
 }

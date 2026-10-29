@@ -48,7 +48,7 @@ defineProps<{ html: string }>()
 }
 .prose-block :deep(ul),
 .prose-block :deep(ol) {
-  padding-left: var(--dp-space-5);
+  padding-inline-start: var(--dp-space-5);
 }
 /* A task's tick box is its marker: with the list's bullet as well, every
    task started with two. */
@@ -60,7 +60,7 @@ defineProps<{ html: string }>()
 }
 .prose-block :deep(blockquote) {
   padding: var(--dp-space-half) var(--dp-space-3);
-  border-left: 3px solid var(--dp-border-faint);
+  border-inline-start: 3px solid var(--dp-border-faint);
   color: var(--dp-text-muted);
 }
 .prose-block :deep(code) {
@@ -83,7 +83,7 @@ defineProps<{ html: string }>()
 .prose-block :deep(td) {
   padding: var(--dp-space-1) var(--dp-space-2);
   border: 1px solid var(--dp-border-faint);
-  text-align: left;
+  text-align: start;
 }
 .prose-block :deep(th) {
   background: var(--dp-chrome-raised);

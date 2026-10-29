@@ -6,6 +6,7 @@ from app.core.email import (
     generate_reset_password_email,
     generate_test_email,
 )
+from app.core.translation import LANGUAGES
 
 
 def test_an_email_in_english_reads_as_it_always_did() -> None:
@@ -44,7 +45,7 @@ def test_an_email_in_german_is_german_throughout() -> None:
 
 
 def test_every_email_renders_in_every_language() -> None:
-    for language in ("en", "ru", "de", "fr", "zh", "hi", "es"):
+    for language in LANGUAGES:
         for email in (
             generate_test_email("c@example.com", language=language),
             generate_reset_password_email("c@example.com", "c@example.com", "t", language=language),

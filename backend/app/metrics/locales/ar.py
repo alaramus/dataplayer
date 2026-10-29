@@ -1,0 +1,48 @@
+"""ما تقوله لوحات المعلومات ومخزن المقاييس بالعربية (D226). المصطلحات تتبع معجم الشاشات."""
+
+MESSAGES: dict[str, str] = {
+    # الإعداد المسبق الذي يملؤه مضيف الوكيل.
+    "Linux host": "مضيف Linux",
+    "CPU, memory, network, disks, file systems, connections, containers and the busiest processes of one machine.": "المعالج والذاكرة والشبكة والأقراص وأنظمة الملفات والاتصالات والحاويات وأكثر العمليات انشغالًا في جهاز واحد.",
+    "CPU by mode": "المعالج حسب النمط",
+    "CPU per core": "المعالج لكل نواة",
+    "Uptime": "مدة التشغيل",
+    "Memory": "الذاكرة",
+    "Load average": "متوسط الحِمل",
+    "Memory in use": "الذاكرة المستخدمة",
+    "Network": "الشبكة",
+    "Disk I/O": "إدخال/إخراج القرص",
+    "File systems in use": "استخدام أنظمة الملفات",
+    "TCP connections by state": "اتصالات TCP حسب الحالة",
+    "Containers: CPU": "الحاويات: المعالج",
+    "Containers: memory": "الحاويات: الذاكرة",
+    "Top processes": "أكثر العمليات انشغالًا",
+    # إعداد المخزن.
+    "clearing an earlier attempt": "تنظيف محاولة سابقة",
+    "pulling the image": "سحب الصورة",
+    "creating the container": "إنشاء الحاوية",
+    "starting the container": "بدء الحاوية",
+    "waiting for it to answer": "انتظار استجابته",
+    "saving the metrics store": "حفظ مخزن المقاييس",
+    "The metrics store is not answering": "مخزن المقاييس لا يستجيب",
+    "Dashboards are not set up yet": "لم تُعدّ لوحات المعلومات بعد",
+    "Dashboards are already set up": "لوحات المعلومات مُعدّة بالفعل",
+    "This server cannot run services": "هذا الخادم لا يستطيع تشغيل الخدمات",
+    "TimescaleDB cannot be used there": "لا يمكن استخدام TimescaleDB هناك",
+    "TimescaleDB could not be prepared in that database: it is not installed there, or this role may not create it": "تعذّر إعداد TimescaleDB في قاعدة البيانات تلك: إنه غير مثبّت فيها، أو أن هذا الدور لا يملك صلاحية إنشائه",
+    "The metrics store is being removed with every sample in it": "يجري إزالة مخزن المقاييس مع كل عيّنة فيه",
+    "Dashboards no longer use that database. It did not answer, so the tables they kept there are still in it": "لم تعد لوحات المعلومات تستخدم قاعدة البيانات تلك. لم تستجب، لذا ما زالت الجداول التي حفظتها فيها",
+    "Dashboards no longer use that database, and the tables they kept there were dropped": "لم تعد لوحات المعلومات تستخدم قاعدة البيانات تلك، وأُسقطت الجداول التي حفظتها فيها",
+    # الوكلاء والعيّنات ولوحات المعلومات.
+    "{name} was removed": "أُزيل {name}",
+    "The samples of {name} were deleted": "حُذفت عيّنات {name}",
+    "You already own this dashboard": "أنت مالك لوحة المعلومات هذه بالفعل",
+    "No such user": "لا يوجد مستخدم بهذا الاسم",
+    "Access revoked": "سُحب الوصول",
+    "A range is at least {count} seconds": "يجب ألا يقل النطاق عن {count} ثانية",
+    "A range is at most a year": "يجب ألا يتجاوز النطاق سنة",
+    # البحث.
+    "Dashboards": "لوحات المعلومات",
+    "Dashboard": "لوحة معلومات",
+    "Dashboard · shared by {owner}": "لوحة معلومات · شاركها {owner}",
+}
