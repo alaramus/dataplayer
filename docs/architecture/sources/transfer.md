@@ -393,8 +393,11 @@ asking one to read another would be the first crack in that.
   worse than none. One row read past the ceiling decides which, so nothing is
   counted. Paste and the grid's two forms decide alike: `/import` and
   `/relations/from-source` live in `app/transfers` beside `/paste`, where a
-  job can be started, and answer `started` with it. A folder still takes at
-  most 5000 rows as a file.
+  job can be started, and answer `started` with it. A folder takes the rows
+  as a file written by a job of `rows_new_file`: the columns its window chose
+  and named, written where the file is going as they arrive and published
+  only whole, as D165 writes a table, so a Stop or a failure leaves no file.
+  Paste never offers that kind; only this route starts it.
 - Columns are paired explicitly, source column to target column, and both sides
   are validated against what each says it has before anything is read. Matching
   by position or by equal names would turn a wrong import into one that looks
@@ -461,8 +464,7 @@ own, so nothing on the screen learned anything about PostgreSQL.
   table taken back if it cannot be filled. The file is removed when the job
   ends, whatever the end. A new schema asked for is made through
   `SupportsCreateGrouping` once the file is in hand and readable, so a file
-  refused before that leaves nothing behind; a folder still takes at most
-  5000 rows.
+  refused before that leaves nothing behind.
 - The schema being looked at is the initial destination, not a hidden constraint;
   the workflow can request a new one, and PostgreSQL may refuse for privilege.
   The table name starts as the filename without its extension, and columns may

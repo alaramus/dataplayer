@@ -19,10 +19,11 @@ from app.adapters.protocol import (
     DataAdapter,
     NodeNotFound,
     SupportsExport,
+    SupportsFetch,
     SupportsRelationModel,
 )
 from app.adapters.relation import RelationModel
-from app.connectors import downloads
+from app.connectors import downloads, imports
 from app.connectors.paste.files import (
     MAX_TRANSFER_BYTES,
     TransfersFiles,
@@ -461,3 +462,129 @@ async def _saved(
     item.published_id = node_id_of(target)
     item.arrived = 1
     item.outcome = "done"
+
+
+class RowsNewFile(RelationCsv):
+    """Rows of any source saved as a CSV file in a folder, by a job (D45).
+
+    What Save as a file asks for past one request's ceiling: the columns
+    chosen and named in its window, written into the file where it is going
+    as they arrive and published only whole, as D165 writes a table. Started
+    by that route alone: Paste offers D165 for a table and never this.
+    """
+
+    name: PasteKindName = "rows_new_file"
+    title = N_("Save as a file")
+    needs = N_("Tick a file or a table readable as rows")
+    can_replace = False
+    pipelines = False
+
+    def takes_from(self, source: DataAdapter) -> bool:
+        return isinstance(source, SupportsFetch)
+
+    def serves(self, source: DataAdapter, destination: DataAdapter) -> bool:
+        return self.takes_from(source) and isinstance(destination, TransfersFiles)
+
+    async def plan(
+        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
+    ) -> TransferPlan:
+        if not isinstance(source, SupportsFetch) or len(request.source_node_ids) != 1:
+            raise ActionRefused("not_applicable", say("Save one table at a time"))
+        if request.name is None or not request.columns:
+            raise ActionRefused("not_applicable", say("Name the file and choose its columns"))
+        name = csv_name(request.name)
+        try:
+            await imports.paired_columns(source, request.source_node_ids[0], _pairs(request.columns))
+        except NodeNotFound:
+            raise ActionRefused("not_applicable", say(GONE)) from None
+        storage = storage_of(destination)
+        try:
+            folder = await to_thread.run_sync(
+                _checked, storage, request.destination_node_id, [name], "refuse"
+            )
+        except FileExistsError:
+            raise ActionRefused("conflict", say("{name} is already there", name=name)) from None
+        except (OSError, ValueError):
+            raise ActionRefused("not_applicable", say("The destination is unavailable")) from None
+        return TransferPlan(
+            items=[TransferItem(node_id=request.source_node_ids[0], name=name)],
+            bytes_total=None,
+            place=folder.name,
+            name=name,
+            columns=request.columns,
+        )
+
+    async def transfer(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+    ) -> None:
+        item = transfer.items[0]
+        item.outcome = "running"
+        transfer.current = item.name
+        await report.progressed()
+        try:
+            await _rows_saved(source, storage_of(destination), transfer, item, report)
+        except asyncio.CancelledError:
+            item.outcome = "stopped"
+            raise
+        except TransferStopped:
+            item.outcome, item.failed = "failed", 1
+            raise
+        except (ActionRefused, AdapterError, NodeNotFound, FileExistsError, OSError, ValueError) as failure:
+            item.outcome, item.failed = "failed", 1
+            reason = (
+                failure.message
+                if isinstance(failure, (ActionRefused, AdapterError))
+                else say("The file could not be written")
+            )
+            item.message = _about(transfer, item, reason)
+        transfer.current = None
+
+
+def _pairs(columns: list[PasteColumn] | None) -> list[imports.ColumnPair]:
+    return [imports.ColumnPair(source=c.source, target=c.target) for c in columns or []]
+
+
+async def _rows_saved(
+    source: DataAdapter,
+    storage: Storage,
+    transfer: Transfer,
+    item: TransferItem,
+    report: TransferReport,
+) -> None:
+    """Rows through their pairing into the file where it is going; published
+    only whole, so a Stop or a failure leaves no file."""
+    if not isinstance(source, SupportsFetch):
+        raise ActionRefused("not_applicable", say("This cannot be read as rows"))
+    pairs = _pairs(transfer.columns)
+    columns = await imports.paired_columns(source, item.node_id, pairs)
+    target = await report.in_thread(
+        partial(_target, storage, transfer.destination_node_id, item.name, "refuse", set())
+    )
+    batches = imports.paired_batches(source, item.node_id, pairs)
+    pieces = downloads.csv_pieces(columns, batches)
+    stack = ExitStack()
+    try:
+        arriving = await report.in_thread(partial(stack.enter_context, storage.incoming(target)))
+        rows = 0
+        async for piece, count in pieces:
+            if transfer.bytes_done + len(piece) > MAX_TRANSFER_BYTES:
+                raise TransferStopped(say("The file would exceed 10 GB"))
+            await report.in_thread(partial(arriving.write, piece))
+            transfer.bytes_done += len(piece)
+            rows += count
+            item.rows = rows
+            await report.progressed()
+        await report.in_thread(partial(arriving.publish, target, replace=False))
+    finally:
+        await downloads.close_pieces(pieces, batches)
+        await report.in_thread(stack.close)
+    transfer.published += 1
+    item.published_as = target.name
+    item.published_id = node_id_of(target)
+    item.arrived = 1
+    item.outcome = "done"
+

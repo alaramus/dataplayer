@@ -3199,7 +3199,7 @@ export class ConnectorsService {
    * Create and fill one relation from any readable source.
    *
    * Past one request's ceiling the relation is made and filled by a job, as
-   * Paste fills it (D43); a folder still takes at most that many as a file.
+   * Paste fills it (D43), and a folder's file is written by one (D45).
    */
   public static createRelationFromSource<ThrowOnError extends boolean = true>(
     options: Options<connectorsCreateRelationFromSourceData, ThrowOnError>

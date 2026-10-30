@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from collections.abc import AsyncGenerator
 from pathlib import Path
@@ -201,6 +202,41 @@ async def test_a_folder_accepts_a_new_relation_and_keeps_it_as_a_file(
         "source_id",
     ]
     assert rows.json()["rows"] == [["US", "7"], ["AP", "8"]]
+
+
+async def test_a_folder_takes_a_large_source_as_a_file_written_by_a_job(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+) -> None:
+    """Past one request's ceiling the file is written as the rows arrive (D45)."""
+    files = await _files(client, normal_user_token_headers)
+    node = _csv(home, "id,code\n" + "".join(f"{n},C{n}\n" for n in range(6000)))
+    folder = f"made-{uuid.uuid4()}"
+    (home / folder).mkdir()
+
+    started = await client.post(
+        f"{BASE}/{files}/relations/from-source",
+        headers=normal_user_token_headers,
+        json=_create(folder, files, node, "codes", [("code", "region_code", "text")]),
+    )
+
+    assert started.status_code == 200, started.text
+    job = started.json()["job"]
+    assert job["parameters"]["kind"] == "rows_new_file"
+    for _ in range(100):
+        state = await client.get(
+            f"{settings.API_V1_STR}/jobs/{job['id']}", headers=normal_user_token_headers
+        )
+        if state.json()["finished_at"] is not None:
+            break
+        await asyncio.sleep(0.1)
+    assert state.json()["state"] == "succeeded", state.json()["message"]
+    lines = (home / folder / "codes.csv").read_text(encoding="utf-8-sig").splitlines()
+    # Quoted as every CSV a transfer writes is (D165).
+    assert lines[0] == '"region_code"'
+    assert lines[1:3] == ['"C0"', '"C1"']
+    assert len(lines) == 6001
 
 
 async def test_a_file_is_not_a_container_for_a_new_relation(

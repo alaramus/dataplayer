@@ -5,12 +5,13 @@ rather than in an adapter on purpose: an adapter knows itself and nothing else,
 and asking one to read another would be the first crack in that (D43).
 """
 
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.catalog import CatalogNode
+from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch
 from app.adapters.fetch import MAX_LIMIT, FetchColumn, FetchRequest
 from app.adapters.protocol import SupportsCreateRelation, SupportsFetch, SupportsInsert
 from app.adapters.relation_changes import (
@@ -363,4 +364,30 @@ class NewRelationBlocks:
             return made
         self.node = made.node
         return RowsInserted(inserted=made.inserted)
+
+
+async def paired_columns(source: SupportsFetch, node_id: str, pairs: list[ColumnPair]) -> list[str]:
+    """The target names of a pairing, once the source has every column it names."""
+    page = await source.fetch(FetchRequest(node_id=node_id, limit=1))
+    targets, _ = _pick(pairs, page.columns)
+    return targets
+
+
+async def paired_batches(
+    source: SupportsFetch, node_id: str, pairs: list[ColumnPair]
+) -> AsyncIterator[ExportBatch]:
+    """Every row of a source through a pairing, a page at a time, for a file
+    written as the rows arrive (D45)."""
+    offset = 0
+    indexes: list[int] | None = None
+    while True:
+        page = await source.fetch(FetchRequest(node_id=node_id, limit=MAX_LIMIT, offset=offset))
+        if indexes is None:
+            _, indexes = _pick(pairs, page.columns)
+        mapped = [[row[index] for index in indexes] for row in page.rows]
+        for start in range(0, len(mapped), EXPORT_BATCH_SIZE):
+            yield ExportBatch(rows=mapped[start : start + EXPORT_BATCH_SIZE])
+        if not page.has_more or not page.rows:
+            return
+        offset += len(page.rows)
 

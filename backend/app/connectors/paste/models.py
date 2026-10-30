@@ -17,6 +17,7 @@ PasteKindName = Literal[
     "relation_csv",
     "rows_new_relation",
     "rows_into_relation",
+    "rows_new_file",
     "tables_copy",
 ]
 ClipboardMode = Literal["copy", "move"]

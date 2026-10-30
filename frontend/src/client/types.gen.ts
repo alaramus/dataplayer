@@ -7116,6 +7116,7 @@ export type Link = {
     | "relation_csv"
     | "rows_new_relation"
     | "rows_into_relation"
+    | "rows_new_file"
     | "tables_copy"
   /**
    * Title
@@ -8638,6 +8639,7 @@ export type PasteOffer = {
     | "relation_csv"
     | "rows_new_relation"
     | "rows_into_relation"
+    | "rows_new_file"
     | "tables_copy"
   /**
    * Title
@@ -8750,6 +8752,7 @@ export type PasteResult = {
     | "relation_csv"
     | "rows_new_relation"
     | "rows_into_relation"
+    | "rows_new_file"
     | "tables_copy"
   /**
    * Message
@@ -8812,6 +8815,7 @@ export type PasteRun = {
     | "relation_csv"
     | "rows_new_relation"
     | "rows_into_relation"
+    | "rows_new_file"
     | "tables_copy"
   /**
    * Conflict

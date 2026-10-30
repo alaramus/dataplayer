@@ -30,6 +30,7 @@ from app.connectors.access import adapter_for
 from app.connectors.action_lookup import perform
 from app.connectors.names import NamesChangedDep
 from app.connectors.paste.models import PasteColumn, PasteResult, PasteRun
+from app.connectors.paste.relation_csv import RowsNewFile
 from app.connectors.paste.rows import RowsNewRelation
 from app.connectors.routes import import_sides, shape_change
 from app.core.db import SessionDep
@@ -67,6 +68,7 @@ async def paste(
 
 
 NEW_RELATION = RowsNewRelation()
+NEW_FILE = RowsNewFile()
 
 
 @router.post("/{connector_id}/import", response_model=imports.RowsMoved | PasteStarted)
@@ -149,7 +151,7 @@ async def create_relation_from_source(
     """Create and fill one relation from any readable source.
 
     Past one request's ceiling the relation is made and filled by a job, as
-    Paste fills it (D43); a folder still takes at most that many as a file.
+    Paste fills it (D43), and a folder's file is written by one (D45).
     """
     try:
         source_id = uuid.UUID(request.source_connector_id)
@@ -174,15 +176,19 @@ async def create_relation_from_source(
         raise Problem(501, "connectors.no_relation_create", error_kind="config")
     if not isinstance(source, SupportsFetch):
         raise Problem(501, "connectors.source_not_rows", error_kind="config")
-    if await shape_change(
+    # A folder takes the rows as a file, written as they arrive (D45).
+    making = next(
+        (kind for kind in (NEW_RELATION, NEW_FILE) if kind.serves(source, target)), None
+    )
+    if making is not None and await shape_change(
         lambda: imports.exceeds_ceiling(source, request.source_node_id)
-    ) and NEW_RELATION.serves(source, target):
+    ):
         carrying = Carrying(session, current_user, resources, data_cache, runner, topics)
         return await run_paste(
             carrying,
             connector_id,
             PasteRun(
-                kind=NEW_RELATION.name,
+                kind=making.name,
                 mode="copy",
                 source_connector_id=source_id,
                 source_node_ids=[request.source_node_id],

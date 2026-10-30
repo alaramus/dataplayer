@@ -4,7 +4,7 @@ from app.adapters.protocol import DataAdapter
 from app.connectors.paste.files import FileCopy, FileMove
 from app.connectors.paste.kinds import PasteKind, refused
 from app.connectors.paste.models import PasteKindName, PasteOffer
-from app.connectors.paste.relation_csv import RelationCsv
+from app.connectors.paste.relation_csv import RelationCsv, RowsNewFile
 from app.connectors.paste.rows import RowsIntoRelation, RowsNewRelation
 from app.connectors.paste.tables import TablesCopy
 from app.core.access import Access, at_least
@@ -35,8 +35,13 @@ KINDS: tuple[PasteKind, ...] = (
 )
 
 
+# Kinds a route starts and Paste never offers: Save as a file past one
+# request's ceiling (D45).
+STARTED_ONLY: tuple[PasteKind, ...] = (RowsNewFile(),)
+
+
 def kind_named(name: PasteKindName) -> PasteKind:
-    return next(kind for kind in KINDS if kind.name == name)
+    return next(kind for kind in (*KINDS, *STARTED_ONLY) if kind.name == name)
 
 
 def outranked(offers: list[PasteOffer]) -> list[PasteOffer]:

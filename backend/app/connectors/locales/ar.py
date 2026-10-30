@@ -197,4 +197,9 @@ MESSAGES: dict[str, str] = {
     "{count} rows added to {name}": "أُضيف {count} صفًا إلى {name}",
     "{count} rows added to {name}, then: {reason}": "أُضيف {count} صفًا إلى {name}، ثم: {reason}",
     "{name} was not created: {reason}": "لم يُنشأ {name}: {reason}",
+    # Rows saved as a file by a job (D45).
+    "Name the file and choose its columns": "سمِّ الملف واختر أعمدته",
+    "Save as a file": "حفظ كملف",
+    "Save one table at a time": "احفظ جدولًا واحدًا في كل مرة",
+    "The file would exceed 10 GB": "سيتجاوز الملف 10 غيغابايت",
 }

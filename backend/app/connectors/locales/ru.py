@@ -201,4 +201,9 @@ MESSAGES: dict[str, str] = {
     "{count} rows added to {name}": "В {name} добавлено строк: {count}",
     "{count} rows added to {name}, then: {reason}": "В {name} добавлено строк: {count}, затем: {reason}",
     "{name} was not created: {reason}": "{name} не создана: {reason}",
+    # Rows saved as a file by a job (D45).
+    "Name the file and choose its columns": "Назовите файл и выберите столбцы",
+    "Save as a file": "Сохранить как файл",
+    "Save one table at a time": "Сохраняйте по одной таблице",
+    "The file would exceed 10 GB": "Файл превысил бы 10 ГБ",
 }

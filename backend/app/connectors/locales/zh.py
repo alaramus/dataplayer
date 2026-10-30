@@ -200,4 +200,9 @@ MESSAGES: dict[str, str] = {
     "{count} rows added to {name}": "已向 {name} 添加 {count} 行",
     "{count} rows added to {name}, then: {reason}": "已向 {name} 添加 {count} 行，随后：{reason}",
     "{name} was not created: {reason}": "{name} 未创建：{reason}",
+    # Rows saved as a file by a job (D45).
+    "Name the file and choose its columns": "为文件命名并选择列",
+    "Save as a file": "另存为文件",
+    "Save one table at a time": "一次保存一个表",
+    "The file would exceed 10 GB": "文件将超过 10 GB",
 }
