@@ -517,12 +517,15 @@ def ask_password() -> str | None:
     )
     if choice == "generate":
         return None
+    # A terminal shows nothing of a password, not even dots, which looks
+    # like a hang to somebody who has never met it.
+    print(dim("Nothing appears on screen while you type the password; press Enter when done."))
     while True:
-        first = ask_secret("password: ")
+        first = ask_secret("password (hidden): ")
         problem = password_problem(first)
         if problem is not None:
             print(red(problem))
-        elif ask_secret("again: ") != first:
+        elif ask_secret("again (hidden): ") != first:
             print(red("the two do not match."))
         else:
             return first

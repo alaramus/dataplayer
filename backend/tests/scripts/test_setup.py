@@ -384,6 +384,8 @@ def test_the_wizard_asks_and_writes_after_a_yes(
     # Listed before it is written, the secrets by name alone.
     output = capsys.readouterr().out
     assert "FRONTEND_HOST" in output and "a long secret" not in output
+    # Nothing echoes while a password is typed, so the wizard says so first.
+    assert "Nothing appears on screen while you type the password" in output
 
 
 def test_declining_writes_nothing(
