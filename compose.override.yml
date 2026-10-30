@@ -3,6 +3,11 @@ services:
   db:
     ports:
       - "5432:5432"
+    # Development's connections point at this same server, so their pools
+    # (POOL_MAX_POOLS × POOL_MAX_SIZE, alive POOL_MAX_IDLE_SECONDS after a
+    # connector is deleted) alone reach the default 100, and a full E2E run
+    # was refused with "too many clients" beside the application's own.
+    command: ["postgres", "-c", "max_connections=300"]
 
   adminer:
     ports:
