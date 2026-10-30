@@ -244,7 +244,9 @@ def generate_password() -> str:
 class Choices:
     mode: str
     preset: str
-    services: bool
+    # None: neither a flag nor an earlier run decided, and nothing is allowed
+    # unless the wizard is answered.
+    services: bool | None
     email: str | None = None
     password: str | None = None
     host: str | None = None
@@ -271,8 +273,22 @@ def current_preset(env: EnvFile) -> str | None:
     return "standard" if "cache" in names else "minimal"
 
 
-def current_services(env: EnvFile) -> bool:
-    return SERVICES_FILE in (env.get("COMPOSE_FILE") or "")
+def current_services(env: EnvFile) -> bool | None:
+    """What an earlier run chose; None when no run of a running installation did."""
+    if SERVICES_FILE in (env.get("COMPOSE_FILE") or ""):
+        return True
+    return False if current_mode(env) == "prod" else None
+
+
+def is_local(host: str) -> bool:
+    """Whether the address is this machine itself."""
+    return urlsplit(host).hostname in LOCAL_HOSTS
+
+
+def default_services(decided: bool | None, host: str) -> bool:
+    # An address on this machine is an installation for the person at it, who
+    # risks nothing new; elsewhere they stay off until somebody says otherwise.
+    return decided if decided is not None else is_local(host)
 
 
 def own_compose_files(env: EnvFile) -> list[str]:
@@ -426,13 +442,32 @@ def warnings(changed: list[Change], existed: bool) -> list[str]:
 # --- Questions ---------------------------------------------------------------
 
 
+def printable(text: str) -> str:
+    """What the screen showed: a half-erased character dropped.
+
+    The container's terminal has no IUTF8, so Backspace after a letter typed
+    in another layout removes one byte of it; the byte left reaches Python as
+    a lone surrogate the screen does not show, and `y` stops being `y`.
+    """
+    return "".join(char for char in text if char.isprintable())
+
+
+def ask_line(prompt: str) -> str:
+    return printable(input(prompt)).strip()
+
+
+def ask_secret(prompt: str) -> str:
+    # Not stripped: a space is a character of a password.
+    return printable(getpass.getpass(prompt))
+
+
 def ask_choice(prompt: str, options: tuple[str, ...], default: str, notes: dict[str, str]) -> str:
     print(bold(prompt))
     for number, option in enumerate(options, start=1):
         print(f"  {number}) {option:<9} {dim(notes.get(option, ''))}")
     default_number = options.index(default) + 1
     while True:
-        answer = input(f"number [{default_number}]: ").strip()
+        answer = ask_line(f"number [{default_number}]: ")
         if not answer:
             return default
         if answer.isdigit() and 1 <= int(answer) <= len(options):
@@ -441,13 +476,13 @@ def ask_choice(prompt: str, options: tuple[str, ...], default: str, notes: dict[
 
 
 def ask_text(prompt: str, default: str) -> str:
-    return input(f"{bold(prompt)} [{default}]: ").strip() or default
+    return ask_line(f"{bold(prompt)} [{default}]: ") or default
 
 
 def ask_confirm(prompt: str, default_yes: bool = True) -> bool:
     hint = "Y/n" if default_yes else "y/N"
     while True:
-        answer = input(f"{bold(prompt)} [{hint}]: ").strip().lower()
+        answer = ask_line(f"{bold(prompt)} [{hint}]: ").lower()
         if not answer:
             return default_yes
         if answer in {"y", "yes", "n", "no"}:
@@ -483,11 +518,11 @@ def ask_password() -> str | None:
     if choice == "generate":
         return None
     while True:
-        first = getpass.getpass("password: ")
+        first = ask_secret("password: ")
         problem = password_problem(first)
         if problem is not None:
             print(red(problem))
-        elif getpass.getpass("again: ") != first:
+        elif ask_secret("again: ") != first:
             print(red("the two do not match."))
         else:
             return first
@@ -529,7 +564,9 @@ def run_wizard(env: EnvFile, defaults: Choices) -> Choices:
             )
         print(dim("Managed services let the server start databases in containers of its own."))
         print(dim("Whatever reaches the container runtime reaches the whole host."))
-        services = ask_confirm("allow managed services", default_yes=defaults.services)
+        services = ask_confirm(
+            "allow managed services", default_yes=default_services(defaults.services, host)
+        )
     return Choices(
         mode, preset, services, email=email, password=password, host=host, front=front
     )
@@ -566,7 +603,9 @@ def defaults_from(env: EnvFile | None, args: argparse.Namespace) -> Choices:
     """What the flags say, then what `.env` already says, then the defaults."""
     mode = args.mode or (env and current_mode(env)) or "prod"
     preset = args.preset or (env and current_preset(env)) or default_preset(mode)
-    services = args.services if args.services is not None else bool(env and current_services(env))
+    services = args.services if args.services is not None else (
+        current_services(env) if env else None
+    )
     front = args.front or (env and current_front(env)) or None
     return Choices(mode, preset, services, email=args.superuser, front=front)
 

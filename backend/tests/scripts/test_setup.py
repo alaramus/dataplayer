@@ -34,7 +34,12 @@ def example(setup: ModuleType) -> object:
 
 def answer(monkeypatch: pytest.MonkeyPatch, *answers: str) -> None:
     given = iter(answers)
-    monkeypatch.setattr("builtins.input", lambda _prompt="": next(given))
+
+    def typed(prompt: str = "") -> str:
+        sys.stdout.write(prompt + "\n")  # what a terminal shows, for the output to be read
+        return next(given)
+
+    monkeypatch.setattr("builtins.input", typed)
 
 
 def run(setup: ModuleType, tmp_path: Path, *argv: str) -> int:
@@ -231,6 +236,49 @@ def test_the_wizard_does_not_ask_about_https_for_a_local_address(
     assert "who serves HTTPS" not in capsys.readouterr().out
 
 
+def test_the_wizard_allows_services_by_default_on_this_machine_alone(
+    setup: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    # mode prod, preset minimal, email, generated password, address, services
+    # by Enter, write.
+    answer(monkeypatch, "1", "1", "owner@example.com", "1", "http://localhost:8000", "", "y")
+    assert run(setup, tmp_path) == 0
+    assert setup.EnvFile.load(tmp_path / ".env").get("SERVICES_ENABLED") == "true"
+    assert "allow managed services [Y/n]" in capsys.readouterr().out
+
+    remote = tmp_path / "remote"
+    remote.mkdir()
+    answer(monkeypatch, "1", "1", "owner@example.com", "1", "http://192.168.1.10:8000", "", "y")
+    assert run(setup, remote) == 0
+    assert setup.EnvFile.load(remote / ".env").get("SERVICES_ENABLED") == "false"
+    assert "allow managed services [y/N]" in capsys.readouterr().out
+
+
+def test_an_earlier_no_to_services_is_kept_on_this_machine(
+    setup: ModuleType, example: object
+) -> None:
+    assert setup.defaults_from(None, setup.parse_args([])).services is None
+    # A copied example is development, which decided nothing about them.
+    assert setup.defaults_from(example, setup.parse_args([])).services is None
+    setup.configure(example, setup.Choices("prod", "minimal", False))
+    decided = setup.defaults_from(example, setup.parse_args([])).services
+    assert decided is False
+    assert setup.default_services(decided, "http://localhost:8000") is False
+    assert setup.default_services(None, "http://127.0.0.1:8000") is True
+    assert setup.default_services(None, "https://data.example.com") is False
+
+
+def test_an_unattended_first_run_allows_no_services(setup: ModuleType, tmp_path: Path) -> None:
+    assert run(setup, tmp_path, "--mode", "prod", "--yes") == 0
+    env = setup.EnvFile.load(tmp_path / ".env")
+    assert env.get("SERVICES_ENABLED") == "false"
+    assert env.get("COMPOSE_FILE") == "compose.yml,compose.prod.yml"
+
+
 def test_the_https_flag_chooses_without_asking(setup: ModuleType, tmp_path: Path) -> None:
     (tmp_path / ".env").write_text(
         EXAMPLE.read_text(encoding="utf-8").replace(
@@ -348,6 +396,31 @@ def test_declining_writes_nothing(
     answer(monkeypatch, "", "", "", "", "n")
     assert run(setup, tmp_path) == 1
     assert (tmp_path / ".env").read_bytes() == before
+
+
+def test_a_half_erased_letter_does_not_spoil_an_answer(
+    setup: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # "н", Backspace, "y" on a terminal without IUTF8: one byte of the "н"
+    # stays and arrives as a surrogate the screen never showed.
+    answer(monkeypatch, "\udcd0y", "\udcd0n", "\udcd02", "\udcd0owner@example.com")
+    assert setup.ask_confirm("allow managed services", default_yes=False) is True
+    assert setup.ask_confirm("allow managed services") is False
+    assert setup.ask_choice("preset", setup.PRESETS, "minimal", {}) == "standard"
+    assert setup.ask_text("superuser email", "admin@example.com") == "owner@example.com"
+    assert "answer y or n" not in capsys.readouterr().out
+
+
+def test_a_half_erased_letter_does_not_reach_a_password(
+    setup: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    typed = iter(["2", ""])
+    monkeypatch.setattr("builtins.input", lambda _prompt="": next(typed))
+    secrets = iter(["a long\udcd1 secret ", "a long secret "])
+    monkeypatch.setattr(setup.getpass, "getpass", lambda _prompt="": next(secrets))
+    assert setup.ask_password() == "a long secret "
 
 
 def test_a_choice_takes_numbers_alone(

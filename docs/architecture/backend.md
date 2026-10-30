@@ -107,7 +107,11 @@ starts nothing; `docker compose up -d --build` follows.
 
 Managed services belong to no preset (D82, D86). Development mounts the socket
 in the override; a running installation has `compose.services.yml` added to
-`COMPOSE_FILE` by `--enable-services`.
+`COMPOSE_FILE` by `--enable-services`. The setup's question defaults to yes
+when the address people open is `localhost` or `127.0.0.1`, an installation
+meant for the person at this machine, and to no for any other
+address; an earlier answer of a running installation is kept as the default,
+and an unattended run allows them only with the flag.
 
 What development adds lives only in the override; `compose.prod.yml` adds
 what running needs rather than undoing anything. `FRONTEND_HOST` reaches every
