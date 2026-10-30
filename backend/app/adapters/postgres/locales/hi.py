@@ -580,4 +580,6 @@ MESSAGES: dict[str, str] = {
     "partitions are not copied yet": "पार्टीशन अभी कॉपी नहीं होते",
     "only tables are copied with their structure": "संरचना के साथ केवल टेबल ही कॉपी होती हैं",
     "a temporary table lives only in its own session": "अस्थायी टेबल केवल अपने सत्र में रहती है",
+    # The table designer's engine.
+    'A PostgreSQL table is kept one way here; there is no engine to choose': 'यहाँ PostgreSQL तालिका एक ही तरह रखी जाती है; चुनने को कोई इंजन नहीं',
 }

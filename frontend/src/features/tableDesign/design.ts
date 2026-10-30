@@ -3,6 +3,7 @@ import type { ComputedRef } from "vue"
 import type {
   DesignAbilities,
   DesignTypeOption,
+  EngineOption,
   FunctionOption,
   TableDesignOptions,
 } from "@/client"
@@ -28,6 +29,14 @@ export interface DesignContext {
   options: ComputedRef<TableDesignOptions | null>
   /** What the source has at all; a panel leaves out what it lacks. */
   abilities: ComputedRef<DesignAbilities>
+  /** The engine the draft will be kept by, where the source offers a choice. */
+  engine: ComputedRef<EngineOption | null>
+  /**
+   * Whether the table may have a primary key and indexes: always, except under
+   * an engine that keeps rows as they arrive. A section that still holds
+   * something stays, so what the plan refuses can be removed.
+   */
+  sorted: ComputedRef<boolean>
   /** Every column of the draft as a choice, in the order they are declared. */
   columnChoices: ComputedRef<SelectOption[]>
   typeChoices: ComputedRef<SelectOption[]>

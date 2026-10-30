@@ -180,6 +180,37 @@ class HypertableOffer(BaseModel):
     uuid_time: bool = False
 
 
+class EngineParameter(BaseModel):
+    """A column an engine is given, and which types that column may have."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    title: str
+    # One column or several.
+    many: bool = False
+    required: bool = False
+    # Type codes a column given here may have, so a form offers only those.
+    type_codes: list[str] = Field(default_factory=list)
+
+
+class EngineOption(BaseModel):
+    """One way a table may be kept, where the source has more than one."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    title: str
+    description: str | None = None
+    # Whether rows are kept in the order of a key. A primary key and an index
+    # belong to such an engine only, and the editor leaves both out elsewhere.
+    sorted: bool = True
+    # Whether rows sharing the primary key are merged into one, which makes
+    # the key required: a table without one would be merged into one row.
+    merges_by_key: bool = False
+    parameters: list[EngineParameter] = Field(default_factory=list)
+
+
 class DesignAbilities(BaseModel):
     """Which parts of a definition this source has at all.
 
@@ -237,6 +268,8 @@ class TableDesignOptions(BaseModel):
     # a form that offered it everywhere would be offering a syntax error.
     nulls_not_distinct_supported: bool = False
     hypertable: HypertableOffer = Field(default_factory=HypertableOffer)
+    # Empty where the source keeps every table one way; the first is the usual.
+    engines: list[EngineOption] = Field(default_factory=list)
     abilities: DesignAbilities = Field(default_factory=DesignAbilities)
     limits: DesignLimits = Field(default_factory=DesignLimits)
 
@@ -469,6 +502,24 @@ class TableHypertable(BaseModel):
     compaction_policy: bool = False
 
 
+class EngineArgument(BaseModel):
+    """The columns given to one parameter of the chosen engine."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(min_length=1, max_length=64)
+    column_ids: list[DraftId] = Field(min_length=1, max_length=MAX_KEY_COLUMNS)
+
+
+class DesignEngine(BaseModel):
+    """A published engine, by code, with the columns its parameters name."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(min_length=1, max_length=64)
+    arguments: list[EngineArgument] = Field(default_factory=list, max_length=8)
+
+
 class TableDefinition(BaseModel):
     """Everything about a table that does not exist yet.
 
@@ -493,6 +544,9 @@ class TableDefinition(BaseModel):
     indexes: list[DesignIndex] = Field(default_factory=list, max_length=MAX_INDEXES)
     partition: DesignPartition | None = None
     hypertable: TableHypertable | None = None
+    # None is the source's usual engine; only a source that publishes engines
+    # accepts one.
+    engine: DesignEngine | None = None
 
     @model_validator(mode="before")
     @classmethod

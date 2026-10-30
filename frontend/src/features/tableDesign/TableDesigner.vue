@@ -121,10 +121,16 @@ const typeChoices = computed(() =>
  * the draft up (see `design.ts`).
  */
 const designId = newDesignId()
+const engine = computed(() => {
+  const engines = options.data.value?.engines ?? []
+  return engines.find((option) => option.code === draft.engine) ?? engines[0] ?? null
+})
 registerDesign(designId, {
   draft,
   options: computed(() => options.data.value ?? null),
   abilities: computed(() => options.data.value?.abilities ?? {}),
+  engine,
+  sorted: computed(() => engine.value?.sorted !== false),
   columnChoices,
   typeChoices,
   types,

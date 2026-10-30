@@ -3,13 +3,14 @@ import { Quasar } from "quasar"
 import { afterEach, describe, expect, it } from "vitest"
 import { computed, reactive } from "vue"
 
-import type { DesignAbilities, TableDesignOptions } from "@/client"
+import type { DesignAbilities, EngineOption, TableDesignOptions } from "@/client"
 
 import ConstraintInspector from "./ConstraintInspector.vue"
 import DesignNavigation from "./DesignNavigation.vue"
 import { forgetDesign, registerDesign } from "./design"
 import { emptyDraft, newIndex } from "./draft"
 import IndexInspector from "./IndexInspector.vue"
+import TableOptionsInspector from "./TableOptionsInspector.vue"
 
 const ID = "abilities-test"
 
@@ -35,6 +36,8 @@ function design(abilities: DesignAbilities, options: Partial<TableDesignOptions>
     draft,
     options: computed(() => ({ abilities, ...options })),
     abilities: computed(() => abilities),
+    engine: computed(() => options.engines?.[0] ?? null),
+    sorted: computed(() => options.engines?.[0]?.sorted !== false),
     columnChoices: computed(() => draft.columns.map((column) => ({ label: column.name, value: column.id }))),
     typeChoices: computed(() => []),
     types: computed(() => []),
@@ -93,5 +96,41 @@ describe("a designer shows only what the source has", () => {
     const wrapper = mount(IndexInspector, { ...plugins, props: { designId: ID, indexId } })
 
     expect(wrapper.find('[data-testid="index-predicate-field"]').exists()).toBe(true)
+  })
+
+  it("offers the engines a source keeps tables by, and the columns each takes", () => {
+    const engines: EngineOption[] = [
+      { code: "MergeTree", title: "MergeTree", description: "The usual choice" },
+      {
+        code: "CollapsingMergeTree",
+        title: "CollapsingMergeTree",
+        merges_by_key: true,
+        parameters: [{ code: "sign", title: "Sign column", required: true, type_codes: ["text"] }],
+      },
+    ]
+    design({ comments: true }, { engines })
+    const navigation = mount(DesignNavigation, {
+      ...plugins,
+      props: { designId: ID, section: "columns", selected: "", problems: [] },
+    })
+    const options = mount(TableOptionsInspector, { ...plugins, props: { designId: ID } })
+
+    expect(navigation.find('[data-testid="object-options"]').exists()).toBe(true)
+    expect(options.find('[data-testid="table-engine"]').exists()).toBe(true)
+    expect(options.text()).toContain("The usual choice")
+  })
+
+  it("leaves indexes out under an engine that keeps rows as they arrive", () => {
+    const { draft } = design(
+      { comments: true },
+      { engines: [{ code: "Log", title: "Log", sorted: false }, { code: "MergeTree", title: "MergeTree" }] }
+    )
+    draft.indexes.splice(0)
+    const wrapper = mount(DesignNavigation, {
+      ...plugins,
+      props: { designId: ID, section: "columns", selected: "", problems: [] },
+    })
+
+    expect(wrapper.find('[data-testid="section-indexes"]').exists()).toBe(false)
   })
 })

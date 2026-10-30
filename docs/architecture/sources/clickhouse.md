@@ -241,14 +241,26 @@ Known deviations:
 
 Spec: [Changing ClickHouse structure](../../decisions/2026-10-25-clickhouse-structure-design.md)
 
-## D274. A designed table is one CREATE TABLE of a MergeTree
+## D274. A designed table is one CREATE TABLE of the engine chosen
 
-The table designer plans one `CREATE TABLE … ENGINE = MergeTree`, the
-statement the person reviews and the one that runs composed by the same code,
-as MySQL's is (D236). The primary key becomes `ORDER BY`, and the plan warns
-that it orders and finds rows without stopping two from sharing it (D269); its
-columns must require a value, since a key cannot be `Nullable`. No primary key
-is `ORDER BY tuple()`.
+The table designer plans one `CREATE TABLE … ENGINE = …`, the statement the
+person reviews and the one that runs composed by the same code, as MySQL's is
+(D236). The engine is MergeTree unless another is chosen. The primary key
+becomes `ORDER BY`, and the plan warns that it orders and finds rows without
+stopping two from sharing it (D269); its columns must require a value, since a
+key cannot be `Nullable`. No primary key is `ORDER BY tuple()`.
+
+The engines offered are the MergeTree family — Replacing (an optional version
+column), Summing (optional columns to add up, never ones in the key),
+Collapsing (an `Int8` sign) and VersionedCollapsing (a sign and an unsigned
+version) — and Log, StripeLog, TinyLog and Memory. Each is published with the
+columns it takes and the types each may have, so the designer offers only
+columns that fit. An engine that merges rows sharing the key needs a primary
+key, or every row would merge into one. An engine that keeps rows as they
+arrive has no `ORDER BY`, no primary key and no index, and the designer leaves
+those out. Replicated and distributed engines are not offered: each names a
+cluster or a coordination path, which is the server's configuration rather
+than the table's. Other sources publish no engines and refuse one if sent.
 
 A column that may be empty is `Nullable`, `LowCardinality` kept outside it; an
 array and JSON cannot be, and the plan says such a column will always have a

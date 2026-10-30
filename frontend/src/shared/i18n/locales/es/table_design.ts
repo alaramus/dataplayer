@@ -24,6 +24,7 @@ export const table_design: Messages["table_design"] = {
     foreign_key: "{n} clave externa | {n} claves externas",
   },
   dependents: {
+    engine: "el motor de la tabla",
     hypertable: "la hipertabla",
     primary_key: "la clave primaria",
     unique: "una restricción única",
@@ -210,7 +211,8 @@ export const table_design: Messages["table_design"] = {
     tablespace_later: "La creación de tablas aún no admite la selección de tablestaca.",
     owner: "Propietario · opcional",
     owner_later: "La creación de tablas aún no admite la selección de propietario.",
-    partition_by: "Participar por",
+    engine: "Motor",
+    partition_by: "Particionar por",
     partition_columns: "Columnas de partición",
     partitioned: "Esto crea el padre. Las filas van a sus particiones, que se crean por separado, y cada clave de la tabla debe incluir sus columnas de partición.",
   },

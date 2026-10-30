@@ -168,6 +168,7 @@ function changeDefault(value: string): void {
         data-testid="column-not-null"
       />
       <AppCheckbox
+        v-if="design.sorted.value || inKey"
         :model-value="inKey"
         :label="t('table_design.primary_key')"
         dense

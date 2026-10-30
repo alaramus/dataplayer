@@ -159,6 +159,10 @@ export interface Draft {
   indexes: DraftIndex[]
   partitionStrategy: "" | "range" | "list" | "hash"
   partitionColumnIds: string[]
+  /** A published engine's code, or "" for the source's usual one. */
+  engine: string
+  /** The columns each of the engine's parameters names, by parameter code. */
+  engineArguments: Record<string, string[]>
   /** Null for an ordinary table; set, the table is created as a hypertable (D207). */
   hypertable: DraftHypertable | null
 }
@@ -459,6 +463,8 @@ export function emptyDraft(typeCode: string): Draft {
     indexes: [],
     partitionStrategy: "",
     partitionColumnIds: [],
+    engine: "",
+    engineArguments: {},
     hypertable: null,
   }
 }
@@ -494,6 +500,9 @@ export function dependents(draft: Draft, columnId: string): string[] {
     if (check.predicate.terms.some((term) => term.columnId === columnId)) {
       named.push(check.name || t("table_design.dependents.check"))
     }
+  }
+  if (Object.values(draft.engineArguments).some((ids) => ids.includes(columnId))) {
+    named.push(t("table_design.dependents.engine"))
   }
   for (const column of draft.columns) {
     if (column.generation.kind === "generated" && column.generation.columnId === columnId) {
@@ -566,6 +575,9 @@ export function withoutColumn(draft: Draft, columnId: string): Draft {
       },
     })),
     partitionColumnIds: draft.partitionColumnIds.filter((id) => id !== columnId),
+    engineArguments: Object.fromEntries(
+      Object.entries(draft.engineArguments).map(([code, ids]) => [code, ids.filter((id) => id !== columnId)])
+    ),
   }
 }
 
@@ -780,6 +792,15 @@ export function toDefinition(draft: Draft, types: DesignTypeOption[]): TableDefi
             column_ids: draft.partitionColumnIds,
           },
     hypertable: hypertableDefinition(draft.hypertable),
+    engine:
+      draft.engine === ""
+        ? null
+        : {
+            code: draft.engine,
+            arguments: Object.entries(draft.engineArguments)
+              .filter(([, ids]) => ids.length > 0)
+              .map(([code, ids]) => ({ code, column_ids: ids })),
+          },
   }
 }
 

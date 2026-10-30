@@ -580,4 +580,6 @@ MESSAGES: dict[str, str] = {
     "partitions are not copied yet": "尚不复制分区",
     "only tables are copied with their structure": "只有表会连同结构一起复制",
     "a temporary table lives only in its own session": "临时表仅存在于其自身的会话中",
+    # The table designer's engine.
+    'A PostgreSQL table is kept one way here; there is no engine to choose': '此处的 PostgreSQL 表只有一种存储方式，无需选择引擎',
 }

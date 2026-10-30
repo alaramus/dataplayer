@@ -580,4 +580,6 @@ MESSAGES: dict[str, str] = {
     "partitions are not copied yet": "الأقسام لا تُنسخ بعد",
     "only tables are copied with their structure": "لا تُنسخ مع بنيتها إلا الجداول",
     "a temporary table lives only in its own session": "الجدول المؤقت يعيش في جلسته فقط",
+    # The table designer's engine.
+    'A PostgreSQL table is kept one way here; there is no engine to choose': 'يُحفظ جدول PostgreSQL هنا بطريقة واحدة؛ ولا يوجد محرك للاختيار',
 }

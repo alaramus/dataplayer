@@ -19,6 +19,8 @@ describe("compact predicate field", () => {
       draft,
       options: computed(() => null),
       abilities: computed(() => ({})),
+      engine: computed(() => null),
+      sorted: computed(() => true),
       columnChoices: computed(() =>
         draft.columns.map((column) => ({ label: column.name, value: column.id }))
       ),

@@ -457,6 +457,10 @@ class MysqlTableDesign:
             draft.problems.append(
                 PlanProblem(field="partition", message=say("A MySQL table is not partitioned here"))
             )
+        if definition.engine is not None:
+            draft.problems.append(
+                PlanProblem(field="engine", message=say("A MySQL table is made with the server's usual engine here"))
+            )
         if definition.hypertable is not None:
             draft.problems.append(
                 PlanProblem(field="hypertable", message=say("A hypertable is TimescaleDB's, not MySQL's"))

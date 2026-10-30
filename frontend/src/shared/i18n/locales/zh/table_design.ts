@@ -24,6 +24,7 @@ export const table_design: Messages["table_design"] = {
     foreign_key: "{n} 个外键",
   },
   dependents: {
+    engine: "表引擎",
     hypertable: "超表",
     primary_key: "主键",
     unique: "唯一约束",
@@ -210,6 +211,7 @@ export const table_design: Messages["table_design"] = {
     tablespace_later: "表创建尚不支持选择表空间。",
     owner: "所有者 · 可选",
     owner_later: "表创建尚不支持选择所有者。",
+    engine: "引擎",
     partition_by: "分区依据",
     partition_columns: "分区列",
     partitioned: "这会创建父表。行会进入单独创建的分区，且表的每个键都必须包含其分区列。",

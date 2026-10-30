@@ -24,6 +24,7 @@ export const table_design: Messages["table_design"] = {
     foreign_key: "{n} फ़ॉरेन की | {n} फ़ॉरेन की",
   },
   dependents: {
+    engine: "तालिका इंजन",
     hypertable: "हाइपरटेबल",
     primary_key: "प्राथमिक कुंजी",
     unique: "एक अद्वितीय कंस्ट्रेंट",
@@ -210,6 +211,7 @@ export const table_design: Messages["table_design"] = {
     tablespace_later: "टेबल निर्माण अभी टेबलस्पेस चुनने का समर्थन नहीं करता।",
     owner: "स्वामी · वैकल्पिक",
     owner_later: "टेबल निर्माण अभी स्वामी चुनने का समर्थन नहीं करता।",
+    engine: "इंजन",
     partition_by: "इसके द्वारा विभाजित करें",
     partition_columns: "विभाजन कॉलम",
     partitioned: "यह मूल टेबल बनाता है। पंक्तियाँ इसके विभाजनों में जाती हैं, जो अलग से बनाए जाते हैं, और टेबल की हर कुंजी में उसके विभाजन कॉलम होने चाहिए।",

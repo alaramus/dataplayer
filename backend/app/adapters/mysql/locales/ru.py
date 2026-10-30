@@ -443,4 +443,6 @@ MESSAGES: dict[str, str] = {
     'Where the account may connect from; % is anywhere': 'Откуда учётная запись может подключаться; % — откуда угодно',
     # Sample data.
     '{schema}: {tables} tables': '{schema}: таблиц — {tables}',
+    # The table designer's engine.
+    "A MySQL table is made with the server's usual engine here": 'Таблица MySQL создаётся здесь с обычным движком сервера',
 }

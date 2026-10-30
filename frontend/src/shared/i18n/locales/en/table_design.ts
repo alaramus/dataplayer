@@ -22,6 +22,7 @@ export const table_design = {
     foreign_key: "{n} foreign key | {n} foreign keys",
   },
   dependents: {
+    engine: "the table engine",
     hypertable: "the hypertable",
     primary_key: "the primary key",
     unique: "a unique constraint",
@@ -208,6 +209,7 @@ export const table_design = {
     tablespace_later: "Tablespace selection is not supported by table creation yet.",
     owner: "Owner · optional",
     owner_later: "Owner selection is not supported by table creation yet.",
+    engine: "Engine",
     partition_by: "Partition by",
     partition_columns: "Partition columns",
     partitioned: "This creates the parent. Rows go into partitions of it, which are made separately, and every key of the table must hold its partition columns.",

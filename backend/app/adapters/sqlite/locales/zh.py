@@ -92,4 +92,6 @@ MESSAGES: dict[str, str] = {
     'This file is not a SQLite backup': '此文件不是 SQLite 备份',
     # A database made here (D263).
     '{folder} is a file, not a folder': '{folder} 是文件，不是文件夹',
+    # The table designer's engine.
+    'SQLite keeps every table one way': 'SQLite 以同一种方式保存所有表',
 }

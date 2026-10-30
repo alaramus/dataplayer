@@ -192,3 +192,88 @@ async def test_a_table_is_made_from_rows_or_not_at_all() -> None:
     assert isinstance(made, RelationCreated) and made.inserted == 2
     page = await source.fetch(FetchRequest(node_id=relation_id(DATABASE, name)))
     assert sorted(page.rows, key=lambda row: row[1] or "") == [["1", "a"], [None, "b"]]
+
+
+def _engine_definition(name: str, engine: str, arguments: dict[str, list[str]], *, keyed: bool) -> TableDefinition:
+    """Columns every engine here can be given: a key, a version, a sign and an amount."""
+    return TableDefinition.model_validate({
+        "name": name,
+        "columns": [
+            {"id": "c1", "name": "id", "type": {"code": "uint64"}, "not_null": True},
+            {"id": "c2", "name": "ver", "type": {"code": "uint64"}, "not_null": True},
+            {"id": "c3", "name": "sign", "type": {"code": "int8"}, "not_null": True},
+            {"id": "c4", "name": "amount", "type": {"code": "int64"}, "not_null": True},
+        ],
+        "primary_key": {"column_ids": ["c1"]} if keyed else None,
+        "engine": {
+            "code": engine,
+            "arguments": [{"code": code, "column_ids": ids} for code, ids in arguments.items()],
+        },
+    })
+
+
+@pytest.mark.usefixtures("server")
+@pytest.mark.parametrize(
+    ("engine", "arguments", "keyed"),
+    [
+        ("MergeTree", {}, True),
+        ("ReplacingMergeTree", {"version": ["c2"]}, True),
+        ("SummingMergeTree", {"columns": ["c4"]}, True),
+        ("CollapsingMergeTree", {"sign": ["c3"]}, True),
+        ("VersionedCollapsingMergeTree", {"sign": ["c3"], "version": ["c2"]}, True),
+        ("Log", {}, False),
+        ("StripeLog", {}, False),
+        ("TinyLog", {}, False),
+        ("Memory", {}, False),
+    ],
+)
+async def test_every_offered_engine_is_created_as_planned(
+    engine: str, arguments: dict[str, list[str]], keyed: bool
+) -> None:
+    source = adapter()
+    offered = {option.code for option in (await source.table_design_options(NODE)).engines}
+    assert engine in offered
+    name = _name()
+    definition = _engine_definition(name, engine, arguments, keyed=keyed)
+
+    plan = await source.plan_table(TablePlanRequest(node_id=NODE, definition=definition))
+
+    assert plan.problems == []
+    assert ("ORDER BY" in plan.statements[0].sql) is keyed
+    await _create(source, definition, plan.fingerprint)
+    rows = await source._session.query(  # noqa: SLF001 — the engine the server reports
+        "SELECT engine FROM system.tables WHERE database = {database:String} AND name = {name:String}",
+        {"database": DATABASE, "name": name},
+    )
+    assert rows == [{"engine": engine}]
+
+
+@pytest.mark.usefixtures("server")
+async def test_an_engine_states_what_it_needs_on_what_lacks_it() -> None:
+    source = adapter()
+
+    async def problems(definition: TableDefinition) -> list[tuple[str | None, str | None]]:
+        plan = await source.plan_table(TablePlanRequest(node_id=NODE, definition=definition))
+        return [(problem.object_id, problem.field) for problem in plan.problems]
+
+    # Merging rows that share a key needs the key.
+    assert await problems(_engine_definition(_name(), "ReplacingMergeTree", {}, keyed=False)) == [
+        (None, "engine")
+    ]
+    # A sign is required, and is an Int8.
+    assert await problems(_engine_definition(_name(), "CollapsingMergeTree", {}, keyed=True)) == [
+        (None, "engine")
+    ]
+    assert await problems(
+        _engine_definition(_name(), "CollapsingMergeTree", {"sign": ["c4"]}, keyed=True)
+    ) == [("c4", "type")]
+    # A summed column in the key is not summed.
+    assert await problems(
+        _engine_definition(_name(), "SummingMergeTree", {"columns": ["c1"]}, keyed=True)
+    ) == [("c1", None)]
+    # A table kept as rows arrive has no key and no index.
+    logged = _engine_definition(_name(), "Log", {}, keyed=True).model_copy(
+        update={"indexes": _definition("x").indexes}
+    )
+    assert await problems(logged) == [(None, "primary_key"), ("i1", None)]
+    assert await problems(_engine_definition(_name(), "Kafka", {}, keyed=True)) == [(None, "engine")]

@@ -25,6 +25,7 @@ export const table_design: Messages["table_design"] = {
       "لا مفاتيح أجنبية | مفتاح أجنبي واحد | مفتاحان أجنبيان | {n} مفاتيح أجنبية | {n} مفتاحًا أجنبيًا | {n} مفتاح أجنبي",
   },
   dependents: {
+    engine: "محرك الجدول",
     hypertable: "الجدول الفائق",
     primary_key: "المفتاح الأساسي",
     unique: "قيد فريد",
@@ -211,6 +212,7 @@ export const table_design: Messages["table_design"] = {
     tablespace_later: "اختيار مساحة الجدول غير مدعوم في إنشاء الجداول بعد.",
     owner: "المالك · اختياري",
     owner_later: "اختيار المالك غير مدعوم في إنشاء الجداول بعد.",
+    engine: "المحرك",
     partition_by: "التقسيم حسب",
     partition_columns: "أعمدة التقسيم",
     partitioned:

@@ -1,8 +1,9 @@
 """Planning and creating one designed ClickHouse table (D117, D274).
 
 The plan a person reviews and the statement that runs come from one composer,
-as PostgreSQL's and MySQL's do, and the plan is one `CREATE TABLE … ENGINE =
-MergeTree`: ClickHouse has no transaction to make several statements one.
+as PostgreSQL's and MySQL's do, and the plan is one `CREATE TABLE … ENGINE`,
+MergeTree unless another engine was chosen: ClickHouse has no transaction to
+make several statements one.
 
 What ClickHouse has not got is a problem next to the object that asks for it
 rather than a statement the server refuses after the review: a unique key, a
@@ -21,6 +22,7 @@ from typing import Literal
 from app.adapters.catalog import CatalogNode, SchemaNode
 from app.adapters.clickhouse.catalog import ClickhouseCatalog
 from app.adapters.clickhouse.columns import ALTERING
+from app.adapters.clickhouse.engines import DEFAULT_ENGINE, ENGINES, Engine
 from app.adapters.clickhouse.session import ClickhouseSession, quoted_name
 from app.adapters.clickhouse.sql import text_literal
 from app.adapters.clickhouse.vocabulary import CLICKHOUSE_INDEX_METHODS
@@ -319,6 +321,7 @@ class ClickhouseTableDesign:
             index_methods=worded_titles(CLICKHOUSE_INDEX_METHODS),
             functions=worded_titles(item.option for item in DESIGN_FUNCTIONS.values()),
             hypertable=HypertableOffer(offered=False),
+            engines=[engine.worded() for engine in ENGINES.values()],
             abilities=DesignAbilities(comments=True),
             limits=DesignLimits(name_bytes=NAME_LIMIT),
         )
@@ -390,15 +393,17 @@ def _statements(draft: _Draft) -> list[PlannedStatement]:
         )
     _check_column_names(draft)
     lines = _column_lines(draft)
-    lines += _index_lines(draft)
+    engine = _chosen_engine(draft)
+    if engine is not None and engine.option.sorted:
+        lines += _index_lines(draft)
     lines += _check_lines(draft)
-    order = _order_by(draft)
+    storage = _storage(draft, engine) if engine is not None else ""
     if draft.problems:
         return []
     statement = (
         f"CREATE TABLE {quoted_name(draft.schema, definition.name)} (\n    "
         + ",\n    ".join(lines)
-        + f"\n)\nENGINE = MergeTree\nORDER BY {order}"
+        + f"\n)\n{storage}"
     )
     if definition.comment:
         statement += f"\nCOMMENT {text_literal(definition.comment)}"
@@ -410,6 +415,99 @@ _OUTSIDE = {
     "partition": N_("A ClickHouse table is not partitioned by range, list or hash here"),
     "hypertable": N_("A hypertable is TimescaleDB's, not ClickHouse's"),
 }
+
+
+def _chosen_engine(draft: _Draft) -> Engine | None:
+    asked = draft.definition.engine
+    code = asked.code if asked is not None else DEFAULT_ENGINE
+    engine = ENGINES.get(code)
+    if engine is None:
+        draft.problems.append(
+            PlanProblem(field="engine", message=say('ClickHouse does not offer "{engine}" here', engine=code))
+        )
+    return engine
+
+
+def _storage(draft: _Draft, engine: Engine) -> str:
+    """`ENGINE = …` with its arguments, and the sorting key of an engine that has one."""
+    code = engine.option.code
+    clause = f"ENGINE = {code}"
+    arguments = _engine_arguments(draft, engine)
+    if arguments:
+        clause += "(" + ", ".join(arguments) + ")"
+    key = draft.definition.primary_key
+    if engine.option.sorted:
+        if engine.option.merges_by_key and key is None:
+            draft.problems.append(
+                PlanProblem(
+                    field="engine",
+                    message=say("{engine} merges rows that share the primary key, so it needs one", engine=code),
+                )
+            )
+        return f"{clause}\nORDER BY {_order_by(draft)}"
+    if key is not None:
+        draft.problems.append(
+            PlanProblem(
+                field="primary_key",
+                message=say("{engine} keeps rows as they arrive; it has no primary key", engine=code),
+            )
+        )
+    for index in draft.definition.indexes:
+        draft.problems.append(PlanProblem(object_id=index.id, message=say("{engine} keeps no indexes", engine=code)))
+    return clause
+
+
+def _engine_arguments(draft: _Draft, engine: Engine) -> list[str]:
+    """The columns each parameter names, in the order the engine takes them."""
+    asked = draft.definition.engine
+    given = {argument.code: argument.column_ids for argument in (asked.arguments if asked else [])}
+    parameters = {parameter.code: parameter for parameter in engine.option.parameters}
+    for code in given:
+        if code not in parameters:
+            draft.problems.append(
+                PlanProblem(
+                    field="engine",
+                    message=say('{engine} takes nothing called "{parameter}"', engine=engine.option.code, parameter=code),
+                )
+            )
+    key = draft.definition.primary_key
+    keyed = set(key.column_ids) if key is not None else set()
+    arguments: list[str] = []
+    for code in engine.order:
+        parameter = parameters[code]
+        title = say(parameter.title)
+        ids = given.get(code, [])
+        if not ids:
+            if parameter.required:
+                draft.problems.append(
+                    PlanProblem(
+                        field="engine",
+                        message=say("{engine} needs a {parameter}", engine=engine.option.code, parameter=title),
+                    )
+                )
+            continue
+        if not parameter.many and len(ids) > 1:
+            draft.problems.append(PlanProblem(field="engine", message=say("{parameter} is one column", parameter=title)))
+            continue
+        names: list[str] = []
+        for column_id in ids:
+            column = draft.columns.get(column_id)
+            if column is None:
+                draft.problems.append(PlanProblem(field="engine", message=say("That names a column which is not there")))
+                continue
+            if column.type.code not in parameter.type_codes or column.type.dimensions:
+                message = say('"{name}" has a type {parameter} cannot take', name=column.name, parameter=title)
+                draft.problems.append(PlanProblem(object_id=column.id, field="type", message=message))
+            elif not parameter.many and not column.not_null:
+                message = say('"{name}" is the {parameter}, so it must have a value', name=column.name, parameter=title)
+                draft.problems.append(PlanProblem(object_id=column.id, field="not_null", message=message))
+            elif parameter.many and column_id in keyed:
+                message = say('"{name}" is in the primary key, so it is not added up', name=column.name)
+                draft.problems.append(PlanProblem(object_id=column.id, message=message))
+            names.append(quoted_name(column.name))
+        if names:
+            arguments.append(names[0] if len(names) == 1 else "(" + ", ".join(names) + ")")
+    return arguments
 
 
 def _check_name(draft: _Draft, name: str, object_id: str | None) -> None:

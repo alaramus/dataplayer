@@ -25,6 +25,7 @@ export const table_design: Messages["table_design"] = {
     foreign_key: "{n} Fremdschlüssel | {n} Fremdschlüssel",
   },
   dependents: {
+    engine: "die Tabellen-Engine",
     hypertable: "die Hypertabelle",
     primary_key: "der Primärschlüssel",
     unique: "eine Eindeutigkeits-Einschränkung",
@@ -211,6 +212,7 @@ export const table_design: Messages["table_design"] = {
     tablespace_later: "Die Auswahl eines Tablespace wird bei der Tabellenerstellung noch nicht unterstützt.",
     owner: "Eigentümer · optional",
     owner_later: "Die Auswahl eines Eigentümers wird bei der Tabellenerstellung noch nicht unterstützt.",
+    engine: "Engine",
     partition_by: "Partitionieren nach",
     partition_columns: "Partitionsspalten",
     partitioned: "Dies erstellt die übergeordnete Tabelle. Zeilen gelangen in deren Partitionen, die separat erstellt werden, und jeder Schlüssel der Tabelle muss die Partitionsspalten umfassen.",

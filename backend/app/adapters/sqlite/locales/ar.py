@@ -92,4 +92,6 @@ MESSAGES: dict[str, str] = {
     'This file is not a SQLite backup': 'هذا الملف ليس نسخة احتياطية من SQLite',
     # قاعدة بيانات تُنشأ هنا (D263).
     '{folder} is a file, not a folder': '{folder} ملف وليس مجلدًا',
+    # The table designer's engine.
+    'SQLite keeps every table one way': 'يحفظ SQLite كل الجداول بالطريقة نفسها',
 }

@@ -424,4 +424,6 @@ MESSAGES: dict[str, str] = {
     'User {name} created, and may read {database}': '已创建用户 {name}，可读取 {database}',
     'Where the account may connect from; % is anywhere': '账户可从哪里连接；% 表示任何地方',
     '{schema}: {tables} tables': '{schema}：{tables} 个表',
+    # The table designer's engine.
+    "A MySQL table is made with the server's usual engine here": '此处的 MySQL 表使用服务器的常用引擎创建',
 }

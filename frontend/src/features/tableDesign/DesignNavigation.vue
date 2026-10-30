@@ -15,12 +15,13 @@ const props = defineProps<{
   problems: PlanProblem[]
 }>()
 const emit = defineEmits<{ select: [section: DraftSection, objectId: string] }>()
-const { draft, options, abilities } = useDesign(props.designId)
+const { draft, options, abilities, sorted } = useDesign(props.designId)
 /** Whether the storage page would hold anything to choose. */
 const storageOffered = computed(
   () =>
     (options.value?.persistence_options?.length ?? 0) > 1 ||
     (options.value?.partition_strategies?.length ?? 0) > 0 ||
+    (options.value?.engines?.length ?? 0) > 1 ||
     abilities.value.tablespaces === true
 )
 const troubled = computed(() => new Set(props.problems.map((problem) => problem.object_id)))
@@ -73,11 +74,12 @@ const groups = computed(() => [
         : [{ id: "hypertable", label: draft.hypertable ? t("table_design.navigation.hypertable") : t("table_design.navigation.hypertable_off") }]),
     ],
   },
-// What the source lacks has no section: foreign keys, or options with nothing
-// to choose.
+// What the source lacks has no section: foreign keys, indexes under an engine
+// that keeps none, or options with nothing to choose.
 ].filter(
   (group) =>
     (group.section !== "foreign-keys" || abilities.value.foreign_keys === true) &&
+    (group.section !== "indexes" || sorted.value || draft.indexes.length > 0) &&
     (group.section !== "options" || group.rows.length > 0)
 ))
 </script>

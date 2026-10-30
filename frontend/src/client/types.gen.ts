@@ -3888,6 +3888,22 @@ export type DesignDuration = {
 }
 
 /**
+ * DesignEngine
+ *
+ * A published engine, by code, with the columns its parameters name.
+ */
+export type DesignEngine = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Arguments
+   */
+  arguments?: Array<EngineArgument>
+}
+
+/**
  * DesignForeignKey
  */
 export type DesignForeignKey = {
@@ -4422,6 +4438,82 @@ export type EndLine = {
    * Superseded
    */
   superseded: boolean
+}
+
+/**
+ * EngineArgument
+ *
+ * The columns given to one parameter of the chosen engine.
+ */
+export type EngineArgument = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Column Ids
+   */
+  column_ids: Array<string>
+}
+
+/**
+ * EngineOption
+ *
+ * One way a table may be kept, where the source has more than one.
+ */
+export type EngineOption = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Description
+   */
+  description?: string | null
+  /**
+   * Sorted
+   */
+  sorted?: boolean
+  /**
+   * Merges By Key
+   */
+  merges_by_key?: boolean
+  /**
+   * Parameters
+   */
+  parameters?: Array<EngineParameter>
+}
+
+/**
+ * EngineParameter
+ *
+ * A column an engine is given, and which types that column may have.
+ */
+export type EngineParameter = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Many
+   */
+  many?: boolean
+  /**
+   * Required
+   */
+  required?: boolean
+  /**
+   * Type Codes
+   */
+  type_codes?: Array<string>
 }
 
 /**
@@ -13100,6 +13192,7 @@ export type TableDefinition = {
   indexes?: Array<DesignIndex>
   partition?: DesignPartition | null
   hypertable?: TableHypertable | null
+  engine?: DesignEngine | null
 }
 
 /**
@@ -13165,6 +13258,10 @@ export type TableDesignOptions = {
    */
   nulls_not_distinct_supported?: boolean
   hypertable?: HypertableOffer
+  /**
+   * Engines
+   */
+  engines?: Array<EngineOption>
   abilities?: DesignAbilities
   limits?: DesignLimits
 }

@@ -92,4 +92,6 @@ MESSAGES: dict[str, str] = {
     'This file is not a SQLite backup': 'Этот файл не является резервной копией SQLite',
     # A database made here (D263).
     '{folder} is a file, not a folder': '{folder} — это файл, а не папка',
+    # The table designer's engine.
+    'SQLite keeps every table one way': 'SQLite хранит все таблицы одним способом',
 }

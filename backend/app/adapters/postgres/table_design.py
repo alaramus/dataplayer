@@ -444,6 +444,12 @@ class PostgresTableDesign:
                 field_name="name",
                 kind="conflict",
             )
+        if definition.engine is not None:
+            draft.note(
+                say("A PostgreSQL table is kept one way here; there is no engine to choose"),
+                object_id=None,
+                field_name="engine",
+            )
         _check_columns(draft)
         columns = _column_clauses(draft)
         constraints = await self._constraint_clauses(draft)

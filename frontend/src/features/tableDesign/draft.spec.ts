@@ -71,6 +71,30 @@ describe("what crosses to the server", () => {
     })
   })
 
+  it("sends no engine for the usual one, and a chosen one with its columns", () => {
+    const draft = draftWith()
+    expect(toDefinition(draft, types).engine).toBeNull()
+
+    const sign = draft.columns[0]!.id
+    draft.engine = "CollapsingMergeTree"
+    draft.engineArguments = { sign: [sign], version: [] }
+
+    expect(toDefinition(draft, types).engine).toEqual({
+      code: "CollapsingMergeTree",
+      arguments: [{ code: "sign", column_ids: [sign] }],
+    })
+  })
+
+  it("names the engine among what a column takes with it", () => {
+    const draft = draftWith()
+    const column = draft.columns[0]!
+    draft.engine = "ReplacingMergeTree"
+    draft.engineArguments = { version: [column.id] }
+
+    expect(dependents(draft, column.id)).toContain("the table engine")
+    expect(withoutColumn(draft, column.id).engineArguments).toEqual({ version: [] })
+  })
+
   it("leaves out an index whose key names nothing yet", () => {
     const draft = draftWith()
     const index = newIndex("btree", "")

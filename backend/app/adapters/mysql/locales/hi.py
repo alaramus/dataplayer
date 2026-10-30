@@ -424,4 +424,6 @@ MESSAGES: dict[str, str] = {
     'User {name} created, and may read {database}': 'उपयोगकर्ता {name} बनाया गया, और वह {database} पढ़ सकता है',
     'Where the account may connect from; % is anywhere': 'खाता कहाँ से कनेक्ट कर सकता है; % का अर्थ है कहीं से भी',
     '{schema}: {tables} tables': '{schema}: {tables} टेबल',
+    # The table designer's engine.
+    "A MySQL table is made with the server's usual engine here": 'यहाँ MySQL तालिका सर्वर के सामान्य इंजन से बनाई जाती है',
 }

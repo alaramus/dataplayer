@@ -580,4 +580,6 @@ MESSAGES: dict[str, str] = {
     "partitions are not copied yet": "секции пока не копируются",
     "only tables are copied with their structure": "со структурой копируются только таблицы",
     "a temporary table lives only in its own session": "временная таблица живёт только в своём сеансе",
+    # The table designer's engine.
+    'A PostgreSQL table is kept one way here; there is no engine to choose': 'Таблица PostgreSQL хранится здесь одним способом; движок выбрать нельзя',
 }

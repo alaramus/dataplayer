@@ -24,6 +24,7 @@ export const table_design: Messages["table_design"] = {
     foreign_key: "{n} clé étrangère | {n} clés étrangères",
   },
   dependents: {
+    engine: "le moteur de la table",
     hypertable: "l'hypertable",
     primary_key: "la clé primaire",
     unique: "une contrainte unique",
@@ -210,6 +211,7 @@ export const table_design: Messages["table_design"] = {
     tablespace_later: "La sélection d'un espace de tables n'est pas encore prise en charge par la création de table.",
     owner: "Propriétaire · facultatif",
     owner_later: "La sélection d'un propriétaire n'est pas encore prise en charge par la création de table.",
+    engine: "Moteur",
     partition_by: "Partitionner par",
     partition_columns: "Colonnes de partition",
     partitioned: "Cela crée la table parente. Les lignes vont dans ses partitions, qui sont créées séparément, et chaque clé de la table doit contenir les colonnes de partition.",

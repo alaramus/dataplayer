@@ -378,6 +378,8 @@ class SqliteTableDesign:
             draft.problems.append(PlanProblem(field="persistence", message=say("SQLite has no unlogged tables")))
         if definition.partition is not None:
             draft.problems.append(PlanProblem(field="partition", message=say("SQLite has no partitioned tables")))
+        if definition.engine is not None:
+            draft.problems.append(PlanProblem(field="engine", message=say("SQLite keeps every table one way")))
         if definition.hypertable is not None:
             draft.problems.append(
                 PlanProblem(field="hypertable", message=say("A hypertable is TimescaleDB's, not SQLite's"))

@@ -190,3 +190,13 @@ async def test_a_table_is_made_from_rows_in_one_transaction(adapter: SqliteAdapt
         await adapter.create_relation(
             CreateRelationRequest(parent_node_id="main", name="fresh", columns=columns, rows=[])
         )
+
+
+async def test_an_engine_is_refused_where_there_is_none_to_choose(adapter: SqliteAdapter) -> None:
+    offered = await adapter.table_design_options("main")
+    definition = _definition(engine={"code": "MergeTree"})
+
+    plan = await adapter.plan_table(TablePlanRequest(node_id="main", definition=definition))
+
+    assert offered.engines == []
+    assert [problem.field for problem in plan.problems] == ["engine"]

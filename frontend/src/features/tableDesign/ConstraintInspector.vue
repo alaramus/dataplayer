@@ -31,7 +31,7 @@ function addUnique(): void {
     class="constraints"
     data-testid="constraints-inspector"
   >
-    <section>
+    <section v-if="design.sorted.value || draft.primaryKey.length > 0">
       <h3 class="dp-overline">
         {{ t('table_design.primary_key') }}
       </h3>
@@ -142,7 +142,10 @@ function addUnique(): void {
         />
       </div>
     </section>
-    <details class="constraints__advanced dp-disclosure">
+    <details
+      v-if="design.sorted.value || draft.primaryKey.length > 0"
+      class="constraints__advanced dp-disclosure"
+    >
       <summary>{{ t('table_design.constraints.key_order') }}</summary>
       <AppSelect
         v-model="draft.primaryKey"
