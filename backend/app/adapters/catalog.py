@@ -55,6 +55,9 @@ class SchemaNode(BaseNode):
 
 class TableNode(BaseNode):
     kind: Literal["table"] = "table"
+    # What the source calls it, where that is not a table: a MongoDB
+    # collection is a table to everything else here (D283).
+    term: Literal["table", "collection"] = "table"
     # Estimated on purpose: an exact count costs a full scan. The name says so
     # instead of pairing a count with a separate precision flag.
     row_count_estimate: int | None = None

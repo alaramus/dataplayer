@@ -15,6 +15,7 @@ const ICONS: Record<string, string> = {
   mariadb: "img:/icons/services/mariadb.svg",
   sqlite: "img:/icons/services/sqlite.svg",
   clickhouse: "img:/icons/services/clickhouse.svg",
+  mongodb: "img:/icons/services/mongodb.svg",
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",
@@ -36,6 +37,7 @@ export function adapterIcon(adapterType: string): string {
  */
 const CATEGORY_ICONS: Record<string, string> = {
   sql: "table_chart",
+  document: "data_object",
   keyvalue: "key",
   files: "folder",
 }

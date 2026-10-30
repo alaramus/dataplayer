@@ -7,6 +7,7 @@ MESSAGES: dict[str, str] = {
     # Ce qu'un type de source peut faire, tel que le catalogue des types l'énumère.
     "SQL Databases": "Bases de données SQL",
     "Key-Value Stores": "Magasins clé-valeur",
+    "Document Databases": "Bases de données documentaires",
     "Files & Storage": "Fichiers et stockage",
     "Browse the catalog": "Parcourir le catalogue",
     "Locate a node": "Localiser un nœud",

@@ -4,7 +4,7 @@ import { adapterIcon, categoryIcon, UNKNOWN_CATEGORY_ICON, UNKNOWN_ADAPTER_ICON 
 
 describe("the icon of a source type", () => {
   it("tells the types apart", () => {
-    const drawn = ["postgres", "redis", "file", "ssh"].map(adapterIcon)
+    const drawn = ["postgres", "mongodb", "redis", "file", "ssh"].map(adapterIcon)
     expect(new Set(drawn).size).toBe(drawn.length)
   })
 
@@ -24,7 +24,7 @@ describe("the icon of a source type", () => {
 
 describe("the glyph of a category", () => {
   it("gives each group its own", () => {
-    const drawn = ["sql", "keyvalue", "files"].map(categoryIcon)
+    const drawn = ["sql", "document", "keyvalue", "files"].map(categoryIcon)
     expect(new Set(drawn).size).toBe(drawn.length)
   })
 

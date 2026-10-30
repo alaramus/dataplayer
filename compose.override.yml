@@ -141,6 +141,20 @@ services:
     ports:
       - "127.0.0.1:8124:8123"
 
+  # A MongoDB for the backend suite and for a person to point a MongoDB
+  # connection at: user `root`, password `dataplayer`, authentication database
+  # `admin`, host `mongodb` port 27017 from the backend, 127.0.0.1:27018 from
+  # this machine. Published on the loopback only, because that password is in
+  # this file. Behind the `tools` profile.
+  mongodb:
+    image: mongo:8.0
+    profiles: ["tools"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: dataplayer
+    ports:
+      - "127.0.0.1:27018:27017"
+
   # dataplayer-monitor-agent reporting the machine Docker runs on to the
   # metrics process, started with
   # `docker compose --profile monitor-agent up -d monitor-agent`. It signs

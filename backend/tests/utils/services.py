@@ -21,6 +21,7 @@ from functools import cache
 from typing import NoReturn
 from urllib.parse import urlsplit
 
+import bson
 import pytest
 
 from app.core.config import settings
@@ -28,6 +29,12 @@ from app.core.config import settings
 # Long enough for a service container on a CI network, short enough that a
 # refused port on Windows — which retries before it gives up — costs a second.
 PROBE_SECONDS = 1.0
+
+
+def _mongodb_hello() -> bytes:
+    """An OP_MSG asking `hello`, which a server answers before authentication."""
+    body = struct.pack("<I", 0) + b"\x00" + bson.encode({"hello": 1, "$db": "admin"})
+    return struct.pack("<iiii", 16 + len(body), 1, 0, 2013) + body
 
 
 @dataclass(frozen=True)
@@ -55,6 +62,8 @@ _PROTOCOLS = {
     "mysql": _Protocol(3306, b"", (b"",)),
     # ClickHouse is spoken to over HTTP, and answers a ping without a password.
     "clickhouse": _Protocol(8123, b"GET /ping HTTP/1.0\r\n\r\n", (b"H",)),
+    # MongoDB waits to be asked; its reply starts with its length.
+    "mongodb": _Protocol(27017, _mongodb_hello(), (b"",)),
 }
 
 _required = False
@@ -167,7 +176,18 @@ CLICKHOUSE = Server(
     ),
 )
 
-SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH, MYSQL, MARIADB, CLICKHOUSE)
+# The development MongoDB (`mongodb` in compose.override.yml), signing in as
+# root (D283).
+MONGODB = Server(
+    name="MongoDB",
+    variable="TEST_MONGODB_URL",
+    start="docker compose up -d mongodb",
+    read=lambda: os.environ.get(
+        "TEST_MONGODB_URL", "mongodb://root:dataplayer@127.0.0.1:27018/?authSource=admin"
+    ),
+)
+
+SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH, MYSQL, MARIADB, CLICKHOUSE, MONGODB)
 
 
 def require_all() -> None:

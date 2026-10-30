@@ -5,9 +5,11 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.adapters import jsontext
 
 RepresentationKind = Literal[
     "table",
@@ -154,6 +156,28 @@ JsonValue = Annotated[
     JsonScalar | JsonArray | JsonObject,
     Field(discriminator="kind"),
 ]
+
+
+def json_tree(value: Any) -> JsonValue:
+    """A value read by `jsontext.load` as the tree a JSON viewer draws."""
+    if value is None:
+        return JsonScalar(kind="null", value=None)
+    if isinstance(value, jsontext.JsonNumber):
+        return JsonScalar(kind="number", value=value.text)
+    if isinstance(value, bool):
+        return JsonScalar(kind="boolean", value="true" if value else "false")
+    if isinstance(value, str):
+        return JsonScalar(kind="string", value=value)
+    if isinstance(value, list):
+        return JsonArray(items=[json_tree(item) for item in value])
+    if isinstance(value, dict):
+        return JsonObject(
+            entries=[
+                JsonObjectEntry(name=name, value=json_tree(item))
+                for name, item in value.items()
+            ]
+        )
+    raise TypeError("Not a JSON value")
 
 
 class TextContent(BaseModel):

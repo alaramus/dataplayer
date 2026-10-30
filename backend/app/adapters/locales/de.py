@@ -7,6 +7,7 @@ MESSAGES: dict[str, str] = {
     # Was ein Quellentyp kann, wie ihn der Katalog der Typen auflistet.
     "SQL Databases": "SQL-Datenbanken",
     "Key-Value Stores": "Schlüssel-Wert-Speicher",
+    "Document Databases": "Dokumentdatenbanken",
     "Files & Storage": "Dateien und Speicher",
     "Browse the catalog": "Den Katalog durchsuchen",
     "Locate a node": "Einen Knoten finden",

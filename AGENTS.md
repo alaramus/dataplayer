@@ -34,6 +34,7 @@ documentation.
 | MySQL and MariaDB, their catalog, values, pages, row and structure edits, console, reports, search, catalog actions, copying tables, backups, metrics | [sources/mysql.md](docs/architecture/sources/mysql.md) |
 | SQLite, the file it opens and how, its catalog, what is read from a table's text, values, pages, row edits, structure changes, the table designer, reports, search, catalog actions and console | [sources/sqlite.md](docs/architecture/sources/sqlite.md) |
 | ClickHouse, its HTTP interface, its catalog, values, pages, row edits, structure changes, the table designer, reports, search, export, catalog actions and console | [sources/clickhouse.md](docs/architecture/sources/clickhouse.md) |
+| MongoDB, the server it reaches, its catalog, how a collection becomes columns, how documents are read | [sources/mongodb.md](docs/architecture/sources/mongodb.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
 | A source action too long for a request: its plan, review and outcomes | [sources/operations.md](docs/architecture/sources/operations.md) |
@@ -122,6 +123,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/mysql](docs/architecture/sources/mysql.md) | D228–D245 |
 | [sources/sqlite](docs/architecture/sources/sqlite.md) | D247–D263 |
 | [sources/clickhouse](docs/architecture/sources/clickhouse.md) | D267–D280 |
+| [sources/mongodb](docs/architecture/sources/mongodb.md) | D283–D285 |
 
 ## Working rules
 
@@ -182,7 +184,7 @@ piece, and a test whose server does not answer is skipped with the command that
 starts it. `pytest --require-services` stops the run instead, as CI does. Redis
 is `docker compose up -d redis` — not `redis-cache`, which publishes no port;
 MySQL and MariaDB are `docker compose up -d mysql mariadb`, ClickHouse is
-`docker compose up -d clickhouse`.
+`docker compose up -d clickhouse`, MongoDB is `docker compose up -d mongodb`.
 The scenario that provisions the Timescale
 `docker compose -f backend/compatibility/timescale/compose.yml up -d v2_30_pg18`
 See [backend.md](docs/architecture/backend.md#tests-and-the-servers-they-need).

@@ -109,6 +109,19 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+      # The MongoDB the MongoDB source tests read (D283).
+      mongodb:
+        image: mongo:8.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: dataplayer
+        ports:
+          - 27018:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping: 1}).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
       PROJECT_NAME: DataPlayer
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
@@ -136,6 +149,7 @@ jobs:
       TEST_MYSQL_URL: mysql://root:dataplayer@127.0.0.1:3307
       TEST_MARIADB_URL: mysql://root:dataplayer@127.0.0.1:3308
       TEST_CLICKHOUSE_URL: clickhouse://default:dataplayer@127.0.0.1:8124
+      TEST_MONGODB_URL: mongodb://root:dataplayer@127.0.0.1:27018/?authSource=admin
       # backend/scripts/test.sh runs the suite this way, and the private routes
       # exist only in development: without it their tests get a 404.
       FASTAPI_ENV: development

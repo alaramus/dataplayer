@@ -20,9 +20,10 @@ file holds which decision.
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
+| [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
-## Seven source types
+## Eight source types
 
 **PostgreSQL** — schemas and relations, safe schema create/rename/drop and
 relation moves, bounded relation DDL, server-side paging and sorting, streaming
@@ -135,6 +136,14 @@ by column, and every matching row is exported (D275). Databases are created and 
 relations renamed, moved and dropped with previews from the system tables, and
 a CSV file loaded (D276).
 
+**MongoDB** — one server through pymongo's asynchronous client, spoken to
+directly (D283): databases as schemas, their collections as tables named as
+collections and their views, a collection's definition as JSON, and its
+documents as rows whose columns are the fields its validator declares and its
+documents at both ends hold, every value as text and nested ones as relaxed
+Extended JSON (D284), paged, sorted and filtered by a query document built
+from the closed predicates (D285).
+
 ## Where the code is
 
 ```
@@ -225,6 +234,11 @@ backend/app/adapters/
 │                       (the designer), relation_changes.py, actions.py,
 │                       reports.py + row_commands.py (System), search.py,
 │                       export.py, adapter.py
+├── mongodb/            session.py (pymongo's client, its errors, addresses),
+│                       values.py (BSON as text, fields from documents),
+│                       inspection.py (a collection, its sample), catalog.py,
+│                       relation.py, fetch.py, content.py (the definition),
+│                       summary.py, adapter.py
 ├── database_ids.py     a database and a relation as one node id (D229)
 ├── row_handles.py      a handle of values and a digest of the row (D234, D272)
 ├── redis/              session.py (reaching the server, and reducing its

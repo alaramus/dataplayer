@@ -7,6 +7,7 @@ MESSAGES: dict[str, str] = {
     # Lo que puede hacer un tipo de fuente, tal como lo enumera el catálogo de tipos.
     "SQL Databases": "Bases de datos SQL",
     "Key-Value Stores": "Almacenes clave-valor",
+    "Document Databases": "Bases de datos documentales",
     "Files & Storage": "Archivos y almacenamiento",
     "Browse the catalog": "Explorar el catálogo",
     "Locate a node": "Localizar un nodo",

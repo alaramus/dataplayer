@@ -4,6 +4,7 @@ MESSAGES: dict[str, str] = {
     # ما يمكن أن يفعله نوع مصدر، كما يعدده كتالوج الأنواع.
     "SQL Databases": "قواعد بيانات SQL",
     "Key-Value Stores": "مخازن المفتاح والقيمة",
+    "Document Databases": "قواعد بيانات المستندات",
     "Files & Storage": "الملفات والتخزين",
     "Browse the catalog": "تصفح الكتالوج",
     "Locate a node": "تحديد موقع عقدة",

@@ -7,6 +7,7 @@ MESSAGES: dict[str, str] = {
     # What a source type can do, as the catalog of types lists it.
     "SQL Databases": "SQL डेटाबेस",
     "Key-Value Stores": "कुंजी-मान भंडार",
+    "Document Databases": "दस्तावेज़ डेटाबेस",
     "Files & Storage": "फ़ाइलें और संग्रहण",
     "Browse the catalog": "कैटलॉग ब्राउज़ करें",
     "Locate a node": "नोड ढूँढें",

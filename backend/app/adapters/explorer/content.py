@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from functools import partial
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, BinaryIO, assert_never
+from typing import BinaryIO, assert_never
 
 from anyio import to_thread
 from PIL import Image, UnidentifiedImageError
@@ -34,20 +34,16 @@ from app.adapters.content import (
     EditorValidationKind,
     ImageContent,
     ImageMediaType,
-    JsonArray,
     JsonContent,
     JsonLine,
     JsonLinesContent,
-    JsonObject,
-    JsonObjectEntry,
-    JsonScalar,
-    JsonValue,
     MarkdownContent,
     PdfContent,
     TextContent,
     UpdateContentRequest,
     VideoContent,
     database_reader,
+    json_tree,
 )
 from app.adapters.explorer import archive
 from app.adapters.explorer.binary import bytes_look_binary
@@ -659,7 +655,7 @@ def _read_json(source: _Source) -> JsonContent:
             notice=say("This file is not valid JSON ({problem}).", problem=exc),
         )
     try:
-        return JsonContent(value=_json_value(parsed))
+        return JsonContent(value=json_tree(parsed))
     except RecursionError:
         return JsonContent(
             source_text=text,
@@ -715,7 +711,7 @@ def _json_line(line_number: int, raw: bytes, truncated: bool) -> JsonLine:
             ),
         )
     try:
-        return JsonLine(line_number=line_number, value=_json_value(jsontext.load(text)))
+        return JsonLine(line_number=line_number, value=json_tree(jsontext.load(text)))
     except JSONDecodeError as exc:
         return JsonLine(
             line_number=line_number,
@@ -855,24 +851,3 @@ def _validate_replacement(name: str, text: str) -> None:
                         problem=exc,
                     )
                 ) from None
-
-
-def _json_value(value: Any) -> JsonValue:
-    if value is None:
-        return JsonScalar(kind="null", value=None)
-    if isinstance(value, jsontext.JsonNumber):
-        return JsonScalar(kind="number", value=value.text)
-    if isinstance(value, bool):
-        return JsonScalar(kind="boolean", value="true" if value else "false")
-    if isinstance(value, str):
-        return JsonScalar(kind="string", value=value)
-    if isinstance(value, list):
-        return JsonArray(items=[_json_value(item) for item in value])
-    if isinstance(value, dict):
-        return JsonObject(
-            entries=[
-                JsonObjectEntry(name=name, value=_json_value(item))
-                for name, item in value.items()
-            ]
-        )
-    raise TypeError("Not a JSON value")

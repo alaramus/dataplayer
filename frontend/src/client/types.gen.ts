@@ -347,7 +347,7 @@ export type AdapterTypeInfo = {
   /**
    * Category
    */
-  category: "sql" | "keyvalue" | "files"
+  category: "sql" | "document" | "keyvalue" | "files"
   /**
    * Category Title
    */
@@ -13547,6 +13547,10 @@ export type TableNode = {
    * Kind
    */
   kind?: "table"
+  /**
+   * Term
+   */
+  term?: "table" | "collection"
   /**
    * Row Count Estimate
    */
