@@ -8,6 +8,10 @@ from app.adapters.mongodb.catalog import is_system_collection
 from app.adapters.mongodb.inspection import CollectionFacts, read_collection
 from app.adapters.mongodb.session import MongodbSession
 from app.adapters.mongodb.values import column_type, relaxed_json
+from app.adapters.mongodb.vocabulary import (
+    MONGODB_COLUMN_TYPE_OPTIONS,
+    MONGODB_INDEX_METHODS,
+)
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import (
     Column,
@@ -16,6 +20,7 @@ from app.adapters.relation import (
     PrimaryKey,
     RelationModel,
 )
+from app.adapters.words import worded_titles
 from app.core.translation import say
 
 
@@ -60,7 +65,8 @@ def model_of(node_id: str, facts: CollectionFacts) -> RelationModel:
     if facts.type == "collection":
         # The one key every collection has and that nothing can take away.
         constraints.append(PrimaryKey(name="_id_", columns=["_id"]))
-    refused = say("A collection has no columns of its own; every document has its own fields")
+    refused = structure_reason(facts)
+    changeable = refused is None
     return RelationModel(
         node_id=node_id,
         schema_name=facts.database,
@@ -80,8 +86,13 @@ def model_of(node_id: str, facts: CollectionFacts) -> RelationModel:
         ],
         constraints=constraints,
         indexes=[index_of(index) for index in facts.indexes],
+        column_changes_supported=changeable,
         column_changes_reason=refused,
-        index_changes_reason=say("Indexes are not changed here yet"),
+        column_operations=["add", "drop", "rename", "type"] if changeable else [],
+        column_type_options=worded_titles(MONGODB_COLUMN_TYPE_OPTIONS) if changeable else [],
+        index_changes_supported=changeable,
+        index_changes_reason=refused,
+        index_methods=worded_titles(MONGODB_INDEX_METHODS) if changeable else [],
         constraint_changes_reason=say("MongoDB has no constraints but unique indexes"),
     )
 
@@ -90,6 +101,15 @@ def system_reason(facts: CollectionFacts) -> str | None:
     if is_system_collection(facts.database, facts.name):
         return say('"{name}" belongs to the server', name=facts.name)
     return None
+
+
+def structure_reason(facts: CollectionFacts) -> str | None:
+    """Why this collection's fields and indexes cannot be changed, or nothing (D288)."""
+    if facts.is_view:
+        return say("A view's fields are its pipeline's; change the pipeline instead")
+    if facts.type == "timeseries":
+        return say("A time series keeps its fields in buckets and is not restructured here")
+    return system_reason(facts)
 
 
 class MongodbRelation:

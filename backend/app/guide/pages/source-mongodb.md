@@ -18,6 +18,8 @@ documents. How connections work in general is on the
 ## What you can change
 
 - Documents: edit fields, paste blocks, add and delete documents
+- A field in every document: add, drop, rename, convert to another type
+- Indexes: ascending, descending, hashed, text and geospatial; unique or not
 - Anything mongosh can change, typed into its terminal
 
 ## Connecting
@@ -89,6 +91,22 @@ connection is checked, with its version named.
 - A view, a time series and the server's own collections are not changed
   here; a time series takes new documents.
 - **View as documents** shows every document whole, every level of it.
+
+## Structure
+
+A collection's columns are its documents' fields, so the structure screen
+changes every document at once:
+
+- **Add** sets the new field to null in every document that lacks it.
+- **Drop** removes the field from every document; **rename** renames it in
+  each.
+- **Change type** converts every value with the server's own conversion. If
+  any value would not convert, you are told how many and nothing changes.
+  Empty values stay empty.
+- A unique index is not made when documents repeat its values; you are told
+  how many values repeat.
+- A view, a time series and the server's own collections keep their
+  structure. A validator is changed in mongosh.
 
 ## mongosh
 

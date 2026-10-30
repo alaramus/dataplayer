@@ -400,7 +400,6 @@ async def test_the_model_is_the_fields_the_documents_have() -> None:
     assert named["_id_"].primary
     assert named["people_name"].unique
     assert named["people_name"].columns == ["name"]
-    assert not model.column_changes_supported
 
 
 @pytest.mark.usefixtures("server")

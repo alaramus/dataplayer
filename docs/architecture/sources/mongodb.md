@@ -2,14 +2,15 @@
 
 What a MongoDB source is, how it reaches the server, what its catalog shows,
 how a collection becomes columns, how its documents cross to the grid and
-how they are changed there. Its
+how they are changed there, and how a collection's fields and indexes are
+changed. Its
 console is `mongosh` in a terminal, run in a container (D286, in
 [terminals.md](../terminals.md)). The
 contract every source type follows is in [contract.md](contract.md); reading a
 relation in general is in [relations.md](relations.md). Read this before
 changing the `mongodb` adapter.
 
-Decisions here: D283, D284, D285, D287.
+Decisions here: D283, D284, D285, D287, D288.
 
 ## D283. A MongoDB source speaks to one server through pymongo
 
@@ -155,3 +156,37 @@ Known deviations:
   null rather than removing the field.
 
 Spec: [MongoDB documents](../../decisions/2026-10-31-mongodb-documents-design.md)
+
+## D288. A field is changed in every document, and an index is MongoDB's own
+
+A collection has no columns, so a column's change is a change to every
+document that has the field, made by the server with one `updateMany`: added
+as null where it is missing (a new field is nullable, and its type is only
+what it will hold), dropped with `$unset`, renamed with `$rename`, converted
+with `$convert` in a pipeline update. A conversion first counts the documents
+whose value would not convert, up to ten thousand, and changes nothing when
+there are any (`ColumnTypeBlocked`); null and missing stay as they are. `_id`
+is never changed, and a new name must be one a query can address and not one
+already there. The types offered are those `$convert` reaches: text, 32- and
+64-bit integers, double, decimal, truth, date and ObjectId.
+
+Indexes are made with `createIndex` on the fields chosen, in their order, of
+one kind for all of them: ascending, descending, hashed (one field, not
+unique), text and 2dsphere (not unique). A unique index first counts the
+groups of documents that share their values — missing counts as null, as the
+index would see it — and is not made when there are any (`IndexBlocked`). The
+server names an index as it does (`n_-1_label_-1`); `_id_` cannot be dropped.
+
+A view's fields are its pipeline's and a time series keeps its fields in
+buckets: neither is restructured here, and neither are the server's own
+collections.
+
+Known deviations:
+
+- A change to every document is not atomic: a server that stops halfway
+  leaves some documents changed. A conversion's count makes the refusal that
+  matters happen before anything is written.
+- No unique and foreign keys beyond unique indexes, and no validator editing:
+  a collection's `$jsonSchema` is changed in `mongosh` (D286).
+
+Spec: [MongoDB structure](../../decisions/2026-10-31-mongodb-structure-design.md)
