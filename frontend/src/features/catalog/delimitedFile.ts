@@ -72,9 +72,27 @@ export function parseDelimited(text: string, name: string, previewRows = 20): De
   }
 }
 
+/** How much of a file the form reads: its header and first rows are in there. */
+const PREVIEW_BYTES = 1024 * 1024
+
+/**
+ * The columns and first rows of a file, read from its beginning only.
+ *
+ * Never the whole file: how large one may be is the server's to say, and a
+ * file too large for one request is loaded by a job (D45). A row cut off at
+ * the end of what was read is past the rows a preview shows.
+ */
 export async function readDelimited(file: File): Promise<DelimitedFile> {
-  if (file.size > 16 * 1024 * 1024) throw new Error(t("catalog.file.too_large"))
-  return parseDelimited(await file.text(), file.name)
+  return parseDelimited(await textOf(file.slice(0, PREVIEW_BYTES)), file.name)
+}
+
+function textOf(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ""))
+    reader.onerror = () => reject(reader.error ?? new Error("unreadable"))
+    reader.readAsText(blob)
+  })
 }
 
 export function filenameStem(name: string): string {

@@ -199,6 +199,8 @@ export const problems: Record<ProblemCode, string> = {
   "transfers.not_possible": "Вставка этого вида невозможна между этими подключениями",
   "transfers.cannot_run": "Вставку этого вида нельзя выполнить",
   "transfers.too_many_running": "Переносов уже выполняется: {count}. Дождитесь окончания одного из них",
+  "transfers.upload_too_large": "Загружаемый так файл должен быть меньше {size} МБ",
+  "transfers.create_schema_first": "Сначала создайте схему, затем загрузите в неё такой большой файл",
   "jobs.not_found": "Задача не найдена",
   "jobs.elsewhere": "Эту задачу выполняет другой сервер",
   "actions.not_a_job": "{action}: не выполняется как задача",

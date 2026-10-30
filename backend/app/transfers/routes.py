@@ -6,17 +6,28 @@ request's ceiling each becomes the same job a Paste of rows does (D43).
 """
 
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from pydantic import ValidationError
 
 from app.adapters.cache import DataCacheDep
-from app.adapters.protocol import SupportsCreateRelation, SupportsFetch, SupportsInsert
+from app.adapters.csv_load import LoadCsvColumn, LoadCsvParams, stem
+from app.adapters.fetch import FetchRequest
+from app.adapters.protocol import (
+    SupportsCatalog,
+    SupportsCreateGrouping,
+    SupportsCreateRelation,
+    SupportsDropCreated,
+    SupportsFetch,
+    SupportsInsert,
+)
 from app.adapters.relation_changes import RelationCreated
 from app.adapters.resources import ResourcesDep
 from app.adapters.update import RowsInserted
 from app.connectors import imports
 from app.connectors.access import adapter_for
+from app.connectors.action_lookup import perform
 from app.connectors.names import NamesChangedDep
 from app.connectors.paste.models import PasteColumn, PasteResult, PasteRun
 from app.connectors.paste.rows import RowsNewRelation
@@ -26,7 +37,15 @@ from app.core.problems import Problem
 from app.core.translation import say
 from app.jobs.runner import JobRunnerDep
 from app.realtime.topics import TopicsDep
-from app.transfers.run import Carrying, PasteAnswer, PasteStarted, run_paste
+from app.transfers import uploads
+from app.transfers.run import (
+    Carrying,
+    PasteAnswer,
+    PasteStarted,
+    planned,
+    run_paste,
+    started,
+)
 from app.users.deps import CurrentUser
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
@@ -200,3 +219,118 @@ async def create_relation_from_source(
     await data_cache.invalidate_connector(connector_id)
     await names(connector_id)
     return result
+
+
+@router.post("/{connector_id}/load-csv-job", response_model=PasteStarted)
+async def load_csv_job(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    runner: JobRunnerDep,
+    topics: TopicsDep,
+    connector_id: uuid.UUID,
+    file: Annotated[UploadFile, File()],
+    node_id: Annotated[str, Form()],
+    params: Annotated[str, Form()] = "{}",
+) -> Any:
+    """
+    Load a delimited file too large for one request as a new table, by a job.
+
+    The same form as the catalog's Load from CSV, for the file that action
+    refused as too large (D45): it is kept in its owner's storage while the
+    job reads it a page at a time and writes the table a block at a time,
+    every column text, and removed when the job ends.
+    """
+    try:
+        loaded = LoadCsvParams.model_validate_json(params)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body", "params"], "msg": str(exc), "type": "value_error"}],
+        ) from None
+    destination = await adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
+    if not (
+        isinstance(destination, SupportsCreateRelation)
+        and isinstance(destination, SupportsInsert)
+        and isinstance(destination, SupportsDropCreated)
+    ):
+        raise Problem(501, "connectors.no_relation_create", error_kind="config")
+    if loaded.create_schema and not isinstance(destination, SupportsCreateGrouping):
+        raise Problem(422, "transfers.create_schema_first")
+    name = (loaded.name or stem(file.filename or "")).strip()
+    if name == "":
+        raise HTTPException(
+            status_code=422, detail={"message": say("The file has no name to use; type one")}
+        )
+    place = loaded.schema_name or node_id
+    # A new schema is made last, once the file is in hand and readable: one
+    # refused before that leaves nothing behind.
+    if not loaded.create_schema:
+        await _takes_table(destination, place, name)
+
+    upload = await uploads.receive(file, current_user.id)
+    try:
+        source = uploads.reader(current_user.id)
+        if not isinstance(source, SupportsFetch):
+            raise Problem(501, "connectors.source_not_rows", error_kind="config")
+        page = await shape_change(lambda: source.fetch(FetchRequest(node_id=upload, limit=1)))
+        found = [column.name for column in page.columns]
+        if not found:
+            raise HTTPException(
+                status_code=422,
+                detail={"message": say("That file has no first line to name columns")},
+            )
+        if loaded.create_schema and isinstance(destination, SupportsCreateGrouping):
+            place = await perform(lambda: destination.create_grouping(loaded.schema_name))
+        text_type = await _takes_table(destination, place, name)
+        chosen = loaded.columns or [LoadCsvColumn(source=column, target=column) for column in found]
+        for column in chosen:
+            if column.source not in found:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"message": say('The file has no column "{column}"', column=column.source)},
+                )
+        request = PasteRun(
+            kind=NEW_RELATION.name,
+            mode="copy",
+            # An upload has no connection: the destination stands in (see
+            # `Transfer.source_upload`).
+            source_connector_id=connector_id,
+            source_node_ids=[upload],
+            destination_node_id=place,
+            name=name,
+            columns=[
+                PasteColumn(source=column.source, target=column.target, type_code=text_type)
+                for column in chosen
+            ],
+        )
+        transfer = await planned(session, NEW_RELATION, source, destination, connector_id, request)
+        transfer.source_upload = upload
+        transfer.source_label = file.filename or upload
+        carrying = Carrying(session, current_user, resources, data_cache, runner, topics)
+        return await started(carrying, transfer, connector_id)
+    except BaseException:
+        await uploads.discard(current_user.id, upload)
+        raise
+
+
+async def _takes_table(destination: SupportsCreateRelation, place: str, name: str) -> str:
+    """The text type a file's columns take there, once the place takes a new
+    table of this name."""
+    options = await shape_change(lambda: destination.new_relation_options(place))
+    if not options.supported or options.text_type is None:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": options.reason or say("This place cannot take a new table")},
+        )
+    if isinstance(destination, SupportsCatalog):
+        taken = await shape_change(lambda: destination.list_children(place))
+        if name in {node.name for node in taken}:
+            raise HTTPException(
+                status_code=409, detail={"message": say("{name} is already there", name=name)}
+            )
+    return options.text_type
+

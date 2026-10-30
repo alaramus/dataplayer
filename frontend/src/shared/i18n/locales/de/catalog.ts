@@ -146,7 +146,6 @@ export const catalog: Messages["catalog"] = {
   file: {
     unclosed_quote: "Die Datei endet innerhalb eines in Anführungszeichen gesetzten Wertes",
     no_header: "Die Datei hat keine Kopfzeile",
-    too_large: "Die Datei muss kleiner als 16 MB sein",
     unnamed: "Davon benötigt {n} einen Namen | Davon benötigen {n} einen Namen",
     none_of: "keine von {total}",
     all_of: "alle {total}",

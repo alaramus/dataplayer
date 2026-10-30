@@ -146,7 +146,6 @@ export const catalog: Messages["catalog"] = {
   file: {
     unclosed_quote: "Le fichier se termine à l'intérieur d'une valeur entre guillemets",
     no_header: "Le fichier n'a pas de ligne d'en-tête",
-    too_large: "Le fichier doit faire moins de 16 Mo",
     unnamed: "{n} d'entre eux a besoin d'un nom | {n} d'entre eux ont besoin d'un nom",
     none_of: "aucun sur {total}",
     all_of: "tous les {total}",

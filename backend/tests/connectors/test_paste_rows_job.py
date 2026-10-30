@@ -166,3 +166,40 @@ async def test_a_new_table_that_cannot_be_filled_is_taken_back(schema: str) -> N
 
     names = [node.name for node in await _adapter().list_children(schema)]
     assert "half" not in names
+
+
+async def test_an_uploaded_file_is_read_in_place_of_a_connection(
+    schema: str, db: Any, normal_user_token_headers: dict[str, str]
+) -> None:
+    del normal_user_token_headers  # makes the test user
+    from app.core.config import settings
+    from app.transfers import uploads
+    from app.users import crud as user_crud
+    from app.users import storage
+
+    user = await user_crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
+    assert user is not None
+    folder = storage.create_home(user.id) / uploads.FOLDER
+    folder.mkdir(exist_ok=True)
+    name = f"{uuid.uuid4().hex}.csv"
+    (folder / name).write_bytes(
+        ("id,label\n" + "".join(f"{n},row {n}\n" for n in range(1, 7001))).encode()
+    )
+    kind = RowsNewRelation()
+    transfer = _transfer(
+        kind,
+        items=[{"node_id": name, "name": "loaded"}],
+        name="loaded",
+        destination_node_id=schema,
+        columns=[
+            PasteColumn(source="id", target="id", type_code="text"),
+            PasteColumn(source="label", target="label", type_code="text"),
+        ],
+        source_upload=name,
+    )
+
+    await kind.transfer(uploads.reader(user.id), _adapter(), transfer, Report())
+    await uploads.discard(user.id, name)
+
+    assert transfer.items[0].rows == 7000
+    assert not (folder / name).exists()

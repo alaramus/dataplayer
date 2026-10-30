@@ -1172,6 +1172,24 @@ export type Body_ai_send_message = {
 }
 
 /**
+ * Body_connectors-load_csv_job
+ */
+export type Body_connectors_load_csv_job = {
+  /**
+   * File
+   */
+  file: Blob | File
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Params
+   */
+  params?: string
+}
+
+/**
  * Body_connectors-run_action_with_file
  */
 export type Body_connectors_run_action_with_file = {
@@ -7626,6 +7644,10 @@ export type NewRelationOptions = {
    * Column Type Options
    */
   column_type_options?: Array<ColumnTypeOption>
+  /**
+   * Text Type
+   */
+  text_type?: string | null
 }
 
 /**
@@ -9618,6 +9640,8 @@ export type ProblemDetail = {
     | "transfers.not_possible"
     | "transfers.cannot_run"
     | "transfers.too_many_running"
+    | "transfers.upload_too_large"
+    | "transfers.create_schema_first"
     | "jobs.not_found"
     | "jobs.elsewhere"
     | "actions.not_a_job"
@@ -19210,6 +19234,37 @@ export type connectorsCreateRelationFromSourceResponses = {
 
 export type connectorsCreateRelationFromSourceResponse =
   connectorsCreateRelationFromSourceResponses[keyof connectorsCreateRelationFromSourceResponses]
+
+export type connectorsLoadCsvJobData = {
+  body: Body_connectors_load_csv_job
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/load-csv-job"
+}
+
+export type connectorsLoadCsvJobErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsLoadCsvJobError = connectorsLoadCsvJobErrors[keyof connectorsLoadCsvJobErrors]
+
+export type connectorsLoadCsvJobResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasteStarted
+}
+
+export type connectorsLoadCsvJobResponse =
+  connectorsLoadCsvJobResponses[keyof connectorsLoadCsvJobResponses]
 
 export type pipelinesReadPipelinesData = {
   body?: never

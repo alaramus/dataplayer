@@ -199,6 +199,8 @@ export const problems: Record<ProblemCode, string> = {
   "transfers.not_possible": "Das Einfügen dieser Art ist zwischen diesen Verbindungen nicht möglich",
   "transfers.cannot_run": "Das Einfügen dieser Art kann nicht ausgeführt werden",
   "transfers.too_many_running": "Es laufen bereits {count} Übertragungen. Warten Sie, bis eine beendet ist",
+  "transfers.upload_too_large": "Eine so geladene Datei muss kleiner als {size} MB sein",
+  "transfers.create_schema_first": "Legen Sie zuerst das Schema an und laden Sie dann eine so große Datei hinein",
   "jobs.not_found": "Auftrag nicht gefunden",
   "jobs.elsewhere": "Dieser Auftrag wird von einem anderen Server ausgeführt",
   "actions.not_a_job": "{action}: wird nicht als Auftrag ausgeführt",

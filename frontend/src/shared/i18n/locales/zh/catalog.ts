@@ -145,7 +145,6 @@ export const catalog: Messages["catalog"] = {
   file: {
     unclosed_quote: "文件在引号值内部结束",
     no_header: "文件没有表头行",
-    too_large: "文件必须小于 16 MB",
     unnamed: "其中 {n} 个需要一个名称",
     none_of: "{total} 个中一个也没有",
     all_of: "全部 {total} 个",

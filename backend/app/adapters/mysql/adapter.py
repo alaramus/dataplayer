@@ -33,7 +33,13 @@ from app.adapters.indexes import (
     IndexDropped,
 )
 from app.adapters.metrics import MetricPreset, MetricSample
-from app.adapters.mysql.actions import MYSQL_ACTION_TYPES, DropRelation, MysqlActions
+from app.adapters.mysql import ids as database_ids
+from app.adapters.mysql.actions import (
+    MYSQL_ACTION_TYPES,
+    DropRelation,
+    MysqlActions,
+    create_database,
+)
 from app.adapters.mysql.backup import MysqlBackup
 from app.adapters.mysql.catalog import MysqlCatalog
 from app.adapters.mysql.columns import MysqlColumns
@@ -356,6 +362,10 @@ class MysqlAdapter:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
+
+    async def create_grouping(self, name: str) -> str:
+        await create_database(self._session, name)
+        return database_ids.database_id(name)
 
     async def drop_created(self, node_id: str) -> None:
         drop = self._actions.action(DropRelation.name)

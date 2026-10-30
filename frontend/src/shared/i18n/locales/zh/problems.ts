@@ -199,6 +199,8 @@ export const problems: Record<ProblemCode, string> = {
   "transfers.not_possible": "此类粘贴在这两个连接之间不可行",
   "transfers.cannot_run": "此类粘贴无法执行",
   "transfers.too_many_running": "已有 {count} 个传输正在进行；请等待其中一个结束",
+  "transfers.upload_too_large": "以此方式加载的文件必须小于 {size} MB",
+  "transfers.create_schema_first": "请先创建该模式，再向其中加载这么大的文件",
   "jobs.not_found": "找不到任务",
   "jobs.elsewhere": "此任务由另一台服务器执行",
   "actions.not_a_job": "{action}：不作为任务处理",

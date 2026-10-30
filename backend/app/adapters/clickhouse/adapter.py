@@ -9,6 +9,7 @@ from app.adapters.clickhouse.actions import (
     CLICKHOUSE_ACTION_TYPES,
     ClickhouseActions,
     DropRelation,
+    create_database,
 )
 from app.adapters.clickhouse.backup import ClickhouseBackup
 from app.adapters.clickhouse.catalog import ClickhouseCatalog
@@ -52,6 +53,7 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.database_ids import database_id
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
@@ -377,6 +379,10 @@ class ClickhouseAdapter:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
+
+    async def create_grouping(self, name: str) -> str:
+        await create_database(self._session, name)
+        return database_id(name)
 
     async def drop_created(self, node_id: str) -> None:
         drop = self._actions.action(DropRelation.name)

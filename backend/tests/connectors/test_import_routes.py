@@ -296,6 +296,57 @@ async def test_more_rows_than_one_request_carries_start_a_job(
     assert body["job"]["parameters"]["kind"] == "rows_into_relation"
 
 
+@pytest.mark.usefixtures("home")
+async def test_a_file_too_large_for_one_request_is_loaded_by_a_job(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    schema: str,
+) -> None:
+    """The file is kept in its owner's storage while the job reads it (D45)."""
+    target = await _postgres(client, normal_user_token_headers)
+    body = "id,code" + chr(10) + "".join(f"{n},C{n}" + chr(10) for n in range(6000))
+
+    response = await client.post(
+        f"{BASE}/{target}/load-csv-job",
+        headers=normal_user_token_headers,
+        files={"file": ("big.csv", body.encode(), "text/csv")},
+        data={"node_id": schema, "params": "{}"},
+    )
+
+    assert response.status_code == 200, response.text
+    answer = response.json()
+    assert answer["outcome"] == "started"
+    assert answer["job"]["parameters"]["source_upload"].endswith(".csv")
+    assert answer["job"]["parameters"]["name"] == "big"
+
+
+@pytest.mark.usefixtures("home", "schema")
+async def test_a_large_file_makes_the_new_schema_it_asks_for(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    """The schema is made once the file is in hand, then the job fills it (D45)."""
+    target = await _postgres(client, normal_user_token_headers)
+    fresh = f"csv_job_{uuid.uuid4().hex[:8]}"
+    body = "id,code\n" + "".join(f"{n},C{n}\n" for n in range(6000))
+    params = f'{{"schema_name": "{fresh}", "create_schema": true}}'
+
+    try:
+        response = await client.post(
+            f"{BASE}/{target}/load-csv-job",
+            headers=normal_user_token_headers,
+            files={"file": ("big.csv", body.encode(), "text/csv")},
+            data={"node_id": "public", "params": params},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["job"]["parameters"]["destination_node_id"] == fresh
+        schemas = await client.get(f"{BASE}/{target}/catalog", headers=normal_user_token_headers)
+        assert fresh in {node["id"] for node in schemas.json()}
+    finally:
+        await run(f'DROP SCHEMA IF EXISTS "{fresh}" CASCADE')  # noqa: S608 -- generated test name.
+
+
 async def test_a_value_the_target_cannot_read_is_named_and_nothing_is_written(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

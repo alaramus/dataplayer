@@ -33,6 +33,7 @@ from app.core.db import async_session_maker
 from app.core.translation import N_, say
 from app.jobs.models import TERMINAL, Job, JobKind
 from app.jobs.runner import JobFailed, JobHandler, Progress
+from app.transfers import uploads
 from app.users.models import User
 
 KIND: JobKind = "paste.transfer"
@@ -83,10 +84,17 @@ class RunTransfer:
         transfer = _loaded(job)
         kind = _kind(transfer)
         keeper = _OwnJob(job, transfer, progress)
-        async with self.slot(keeper) as threads:
-            await progress.reached(CHECKING)
-            source, destination = await self._ends(job, transfer, kind)
-            stopped = await self.transferred(kind, source, destination, transfer, keeper, threads)
+        try:
+            async with self.slot(keeper) as threads:
+                await progress.reached(CHECKING)
+                source, destination = await self._ends(job, transfer, kind)
+                stopped = await self.transferred(
+                    kind, source, destination, transfer, keeper, threads
+                )
+        finally:
+            # Read once, whatever the end: an upload is never kept for a retry.
+            if transfer.source_upload is not None:
+                await uploads.discard(job.owner_id, transfer.source_upload)
         message = kind.told(transfer, stopped)
         if stopped is not None or any(item.outcome != "done" for item in transfer.items):
             raise JobFailed(message)
@@ -155,12 +163,16 @@ class RunTransfer:
             owner = await session.get(User, job.owner_id)
             if owner is None:
                 raise JobFailed(say("Its owner is no longer here; nothing was transferred"))
-            source = await self._opened(
-                session,
-                owner,
-                transfer.source_connector_id,
-                kind.source_requires,
-                transfer.source_label,
+            source = (
+                uploads.reader(owner.id)
+                if transfer.source_upload is not None
+                else await self._opened(
+                    session,
+                    owner,
+                    transfer.source_connector_id,
+                    kind.source_requires,
+                    transfer.source_label,
+                )
             )
             destination = await self._opened(
                 session,

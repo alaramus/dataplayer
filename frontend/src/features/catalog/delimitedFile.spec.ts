@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { columnTally, filenameStem, parseDelimited } from "./delimitedFile"
+import { columnTally, filenameStem, parseDelimited, readDelimited } from "./delimitedFile"
 
 describe("the delimited-file chooser", () => {
   it("reads quoted separators and line breaks without adding a trailing row", () => {
@@ -45,3 +45,17 @@ describe("what the block of columns says about itself", () => {
     expect(columnTally(5, 5, 2)).toBe("2 of them need a name")
   })
 })
+
+describe("a file larger than one request takes", () => {
+  it("is previewed from its beginning, its size left to the server", async () => {
+    const row = "1,Customer,Moscow\n"
+    const file = new File(["id,name,city\n", row.repeat(1_000_000)], "big.csv")
+
+    const read = await readDelimited(file)
+
+    expect(file.size).toBeGreaterThan(16 * 1024 * 1024)
+    expect(read.columns).toEqual(["id", "name", "city"])
+    expect(read.preview[0]).toEqual(["1", "Customer", "Moscow"])
+  })
+})
+

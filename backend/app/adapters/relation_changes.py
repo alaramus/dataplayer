@@ -110,3 +110,6 @@ class NewRelationOptions(BaseModel):
     supported: bool = False
     reason: str | None = None
     column_type_options: list[ColumnTypeOption] = Field(default_factory=list)
+    # The code a column of a delimited file takes: text of any length, since a
+    # file states no types (D45). None where this container makes no such column.
+    text_type: str | None = None

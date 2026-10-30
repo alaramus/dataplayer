@@ -12,6 +12,7 @@ import type { Operations } from "@/shared/operations"
 import { withWindowHost } from "@/shared/testing/windows"
 
 import ActionDialog from "./ActionDialog.vue"
+import FileToRelationDialog from "./FileToRelationDialog.vue"
 
 const DROP: ActionCommand = {
   name: "drop_relation",
@@ -763,6 +764,33 @@ describe("uploading files", () => {
         params: JSON.stringify({ conflict: "rename" }),
       },
     })
+    wrapper.unmount()
+  })
+})
+
+describe("a file too large for one request", () => {
+  it("is loaded by a job instead, and the window closes", async () => {
+    vi.spyOn(ConnectorsService, "runActionWithFile").mockRejectedValue(refused(413))
+    const job = vi.spyOn(ConnectorsService, "loadCsvJob").mockResolvedValue({
+      data: { outcome: "started", job: { id: "job-9" } },
+    } as never)
+    const wrapper = mountDialog({
+      ...UPLOAD, name: "load_csv", label: "Load from CSV", takesManyFiles: false,
+      workflow: "file-to-relation", fields: [],
+    }, ["demo"])
+    await flushPromises()
+    const file = csv("big.csv")
+
+    wrapper.findComponent(FileToRelationDialog).vm.$emit("run", {
+      nodeId: "demo", file, params: { name: "big" },
+    })
+    await flushPromises()
+
+    expect(job).toHaveBeenCalledWith({
+      path: { connector_id: "c-1" },
+      body: { file, node_id: "demo", params: JSON.stringify({ name: "big" }) },
+    })
+    expect(wrapper.findComponent(ActionDialog).emitted("update:command")?.at(-1)).toEqual([null])
     wrapper.unmount()
   })
 })

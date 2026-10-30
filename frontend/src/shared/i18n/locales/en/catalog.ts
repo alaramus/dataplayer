@@ -143,7 +143,6 @@ export const catalog = {
   file: {
     unclosed_quote: "The file ends inside a quoted value",
     no_header: "The file has no header row",
-    too_large: "The file must be under 16 MB",
     unnamed: "{n} of them needs a name | {n} of them need a name",
     none_of: "none of {total}",
     all_of: "all {total}",

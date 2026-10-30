@@ -88,7 +88,7 @@ async def _database_exists(session: MysqlSession, name: str) -> bool:
     return bool(rows)
 
 
-async def _create_database(session: MysqlSession, name: str) -> None:
+async def create_database(session: MysqlSession, name: str) -> None:
     _name(name)
     if is_system_database(name):
         raise ActionRefused("not_applicable", say("That database name belongs to the server"))
@@ -209,7 +209,7 @@ class CreateDatabase(JsonAction[CreateDatabaseParams]):
             raise ActionRefused(
                 "not_applicable", say("Databases are created at the top of the connection")
             )
-        await _create_database(self._session, params.name)
+        await create_database(self._session, params.name)
         return ActionResult(
             message=say("Database {name} created", name=params.name),
             reload_node_ids=[None, ids.database_id(params.name)],
@@ -614,7 +614,7 @@ class LoadCsv(FileAction[LoadCsvParams]):
         if node_id is None:
             raise ActionRefused("not_applicable", say("Choose a database to load into"))
         if params.create_schema:
-            await _create_database(self._session, params.schema_name)
+            await create_database(self._session, params.schema_name)
             database = ids.database_id(params.schema_name)
         else:
             database = params.schema_name or node_id

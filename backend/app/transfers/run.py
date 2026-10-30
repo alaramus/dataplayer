@@ -78,7 +78,7 @@ async def run_paste(
         raise Problem(501, "transfers.not_possible")
     if isinstance(kind, PastesAsJob) and await as_job(kind, source, request):
         transfer = await planned(session, kind, source, destination, connector_id, request)
-        return await _started(carrying, transfer, connector_id)
+        return await started(carrying, transfer, connector_id)
     if not isinstance(kind, PastesNow):
         raise Problem(501, "transfers.cannot_run")
     return await paste_now(carrying.data_cache, kind, source, destination, connector_id, request)
@@ -146,7 +146,7 @@ async def planned(
     )
 
 
-async def _started(
+async def started(
     carrying: Carrying, transfer: Transfer, connector_id: uuid.UUID
 ) -> PasteStarted:
     """A planned transfer, carried out as a job of its own."""

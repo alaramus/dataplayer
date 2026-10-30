@@ -452,6 +452,17 @@ own, so nothing on the screen learned anything about PostgreSQL.
 - Both ceilings refuse rather than truncate: at most 5000 rows and 16 MB. D43
   truncates because it samples a live source; here the reader handed over a whole
   file, and a part of one arriving would go unnoticed.
+- **A file past either ceiling is loaded by a job.** The form sends the same
+  file and choices to `/load-csv-job` in `app/transfers`, which keeps it in a
+  hidden folder of its owner's storage (`.dataplayer-uploads`, under
+  `MAX_UPLOAD_BYTES`) and starts the rows job of D43 with that file as its
+  source in place of a connection (`Transfer.source_upload`): read a page at a
+  time, written a block at a time, every column the source's `text_type`, the
+  table taken back if it cannot be filled. The file is removed when the job
+  ends, whatever the end. A new schema asked for is made through
+  `SupportsCreateGrouping` once the file is in hand and readable, so a file
+  refused before that leaves nothing behind; a folder still takes at most
+  5000 rows.
 - The schema being looked at is the initial destination, not a hidden constraint;
   the workflow can request a new one, and PostgreSQL may refuse for privilege.
   The table name starts as the filename without its extension, and columns may
@@ -488,6 +499,8 @@ Known deviations:
   through a temporary file is.
 - **The file is held whole in memory** while it is parsed, which is what the
   16 MB ceiling is for.
+- **A crash leaves an upload behind.** A job that dies with the process does
+  not remove its file from `.dataplayer-uploads`; nothing sweeps that folder.
 
 Spec: [Loading a CSV as a new table](../../decisions/2026-08-30-relation-create-design.md)
 

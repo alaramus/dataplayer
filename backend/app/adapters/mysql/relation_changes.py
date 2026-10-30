@@ -66,7 +66,9 @@ class MysqlRelationChanges:
                 supported=False, reason=say('"{schema}" belongs to the server', schema=node.name)
             )
         return NewRelationOptions(
-            supported=True, column_type_options=worded_titles(MYSQL_COLUMN_TYPE_OPTIONS)
+            supported=True,
+            column_type_options=worded_titles(MYSQL_COLUMN_TYPE_OPTIONS),
+            text_type="long_text",
         )
 
     async def create_relation(self, request: CreateRelationRequest) -> CreateRelationResult:

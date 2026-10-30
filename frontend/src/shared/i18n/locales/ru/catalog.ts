@@ -145,7 +145,6 @@ export const catalog: Messages["catalog"] = {
   file: {
     unclosed_quote: "Файл заканчивается внутри значения в кавычках",
     no_header: "В файле нет строки заголовков",
-    too_large: "Файл должен быть меньше 16 МБ",
     unnamed: "без имени: {n}",
     none_of: "ни одного из {total}",
     all_of: "все {total}",

@@ -199,6 +199,8 @@ export const problems: Record<ProblemCode, string> = {
   "transfers.not_possible": "Este tipo de pegado no es posible entre estas dos conexiones",
   "transfers.cannot_run": "Este tipo de pegado no se puede ejecutar",
   "transfers.too_many_running": "Ya hay {count} transferencias en curso; espera a que termine una",
+  "transfers.upload_too_large": "Un archivo cargado así debe pesar menos de {size} MB",
+  "transfers.create_schema_first": "Cree primero el esquema y luego cargue en él un archivo así de grande",
   "jobs.not_found": "No se encontró la tarea",
   "jobs.elsewhere": "Otro servidor está ejecutando esta tarea",
   "actions.not_a_job": "{action}: no se ejecuta como tarea",

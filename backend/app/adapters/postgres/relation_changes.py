@@ -77,6 +77,7 @@ class PostgresRelationChanges:
         return NewRelationOptions(
             supported=True,
             column_type_options=worded_titles(POSTGRES_COLUMN_TYPE_OPTIONS),
+            text_type="text",
         )
 
     async def create_relation(

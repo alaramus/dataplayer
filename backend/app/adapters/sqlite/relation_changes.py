@@ -38,7 +38,9 @@ class SqliteRelationChanges:
         if not isinstance(node, SchemaNode):
             return NewRelationOptions(supported=False, reason=say("A table is created in a schema"))
         return NewRelationOptions(
-            supported=True, column_type_options=worded_titles(SQLITE_COLUMN_TYPE_OPTIONS)
+            supported=True,
+            column_type_options=worded_titles(SQLITE_COLUMN_TYPE_OPTIONS),
+            text_type="text",
         )
 
     async def create_relation(self, request: CreateRelationRequest) -> CreateRelationResult:

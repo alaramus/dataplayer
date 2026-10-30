@@ -145,7 +145,6 @@ export const catalog: Messages["catalog"] = {
   file: {
     unclosed_quote: "फ़ाइल एक उद्धृत मान के भीतर समाप्त होती है",
     no_header: "फ़ाइल में हेडर पंक्ति नहीं है",
-    too_large: "फ़ाइल 16 MB से कम होनी चाहिए",
     unnamed: "इनमें से {n} को नाम चाहिए | इनमें से {n} को नाम चाहिए",
     none_of: "{total} में से कोई नहीं",
     all_of: "सभी {total}",

@@ -2,7 +2,9 @@
 import { appIcons } from "@/shared/ui"
 import { computed, onBeforeUnmount, ref, watch } from "vue"
 
+import { ConnectorsService } from "@/client"
 import type { ActionPreview } from "@/client"
+import { startedInThisTab } from "@/features/activity/transfers"
 import {
   useDownloadAction,
   useFieldHints,
@@ -635,6 +637,27 @@ async function runWorkflow(value: {
     })
     toast.success(summarize(outcome, command.label))
     emit("done", outcome)
+    close()
+  } catch (cause) {
+    // Too large for one request: the same file and form go to a job, which
+    // keeps the file in personal storage while it reads it (D45).
+    if (statusOf(cause) === 413) {
+      await loadAsJob(value)
+      return
+    }
+    failure.value = messageOf(cause, t("catalog.action_dialog.table_failed"))
+  }
+}
+
+/** The file loaded by a job, or the job's own refusal said in the form. */
+async function loadAsJob(value: { nodeId: string; file: File; params: Record<string, unknown> }) {
+  try {
+    const answer = (await ConnectorsService.loadCsvJob({
+      path: { connector_id: props.connectorId },
+      body: { file: value.file, node_id: value.nodeId, params: JSON.stringify(value.params) },
+    })).data
+    startedInThisTab(answer.job.id)
+    toast.info(t("grid.import.background"))
     close()
   } catch (cause) {
     failure.value = messageOf(cause, t("catalog.action_dialog.table_failed"))

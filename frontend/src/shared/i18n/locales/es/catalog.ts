@@ -145,7 +145,6 @@ export const catalog: Messages["catalog"] = {
   file: {
     unclosed_quote: "El archivo termina dentro de un valor entrecomillado",
     no_header: "El archivo no tiene fila de encabezado",
-    too_large: "El archivo debe ocupar menos de 16 MB",
     unnamed: "{n} de ellos necesita un nombre | {n} de ellos necesitan un nombre",
     none_of: "ninguno de {total}",
     all_of: "los {total}",

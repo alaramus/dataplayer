@@ -199,6 +199,8 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "transfers.not_possible": "هذا النوع من اللصق غير ممكن بين هذين الاتصالين",
   "transfers.cannot_run": "هذا النوع من اللصق لا يمكن تشغيله",
   "transfers.too_many_running": "عدد عمليات النقل الجارية {count} — انتظر انتهاء إحداها",
+  "transfers.upload_too_large": "يجب أن يكون الملف المحمَّل بهذه الطريقة أصغر من {size} ميغابايت",
+  "transfers.create_schema_first": "أنشئ المخطط أولًا، ثم حمّل فيه ملفًا بهذا الحجم",
   "jobs.not_found": "لم يتم العثور على المهمة",
   "jobs.elsewhere": "تُنفَّذ هذه المهمة في مكان آخر",
   "actions.not_a_job": "«{action}» لا يُنفَّذ كمهمة",

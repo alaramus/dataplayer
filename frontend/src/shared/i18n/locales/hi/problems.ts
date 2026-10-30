@@ -199,6 +199,8 @@ export const problems: Record<ProblemCode, string> = {
   "transfers.not_possible": "इस प्रकार का चिपकाना इन दो कनेक्शनों के बीच संभव नहीं है",
   "transfers.cannot_run": "इस प्रकार का चिपकाना नहीं चलाया जा सकता",
   "transfers.too_many_running": "पहले से {count} स्थानांतरण चल रहे हैं; किसी एक के पूरा होने की प्रतीक्षा करें",
+  "transfers.upload_too_large": "इस तरह लोड की गई फ़ाइल {size} MB से छोटी होनी चाहिए",
+  "transfers.create_schema_first": "पहले स्कीमा बनाएँ, फिर उसमें इतनी बड़ी फ़ाइल लोड करें",
   "jobs.not_found": "जॉब नहीं मिली",
   "jobs.elsewhere": "यह जॉब किसी दूसरे सर्वर द्वारा चलाई जा रही है",
   "actions.not_a_job": "{action}: जॉब के रूप में नहीं चलाया जाता",

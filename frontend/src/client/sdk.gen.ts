@@ -210,6 +210,9 @@ import type {
   connectorsKeepPageData,
   connectorsKeepPageErrors,
   connectorsKeepPageResponses,
+  connectorsLoadCsvJobData,
+  connectorsLoadCsvJobErrors,
+  connectorsLoadCsvJobResponses,
   connectorsMakeConnectorHereData,
   connectorsMakeConnectorHereErrors,
   connectorsMakeConnectorHereResponses,
@@ -3212,6 +3215,36 @@ export class ConnectorsService {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Load Csv Job
+   *
+   * Load a delimited file too large for one request as a new table, by a job.
+   *
+   * The same form as the catalog's Load from CSV, for the file that action
+   * refused as too large (D45): it is kept in its owner's storage while the
+   * job reads it a page at a time and writes the table a block at a time,
+   * every column text, and removed when the job ends.
+   */
+  public static loadCsvJob<ThrowOnError extends boolean = true>(
+    options: Options<connectorsLoadCsvJobData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsLoadCsvJobResponses,
+      connectorsLoadCsvJobErrors,
+      ThrowOnError
+    >({
+      ...formDataBodySerializer,
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/load-csv-job",
+      ...options,
+      headers: {
+        "Content-Type": null,
         ...options.headers,
       },
     })

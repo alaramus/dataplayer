@@ -121,6 +121,10 @@ class Transfer(BaseModel):
     # What a rows job was planned with (D43, D166).
     columns: list[PasteColumn] | None = Field(default=None, max_length=100)
     target_node_id: str | None = Field(default=None, max_length=4096)
+    # A file uploaded for this job alone, in its owner's storage, read in
+    # place of a connection and removed when the job ends (D45). The source
+    # connection then names the destination: an upload has none.
+    source_upload: str | None = Field(default=None, max_length=255)
     items: list[TransferItem] = Field(min_length=1, max_length=MAX_CLIPBOARD_NODES)
     # Unknown for a table, whose CSV is as long as it turns out to be.
     bytes_total: int | None = None

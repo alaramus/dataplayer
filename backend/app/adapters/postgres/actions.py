@@ -447,6 +447,20 @@ class LoadCsvParams(SharedLoadCsvParams):
         return value if value == "" else _relation_name(value)
 
 
+async def create_schema(
+    session: PostgresSession, catalog: PostgresCatalog, schema: str
+) -> None:
+    """A new schema for a loaded file, refused when the name is taken."""
+    _schema_name(schema)
+    schemas = await catalog.list_children(None)
+    if schema in {node.id for node in schemas if isinstance(node, SchemaNode)}:
+        raise ActionRefused("conflict", say('Schema "{name}" already exists', name=schema))
+    await session.schema_change(
+        sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)).as_string(),
+        refusals={"42501": say("This connection may not create schemas")},
+    )
+
+
 class LoadCsv(FileAction[LoadCsvParams]):
     """A delimited file, uploaded, becomes a table of the schema being read.
 
@@ -481,7 +495,7 @@ class LoadCsv(FileAction[LoadCsvParams]):
             raise ActionRefused("not_applicable", say("Choose a schema to load into"))
         schema = params.schema_name or node_id
         if params.create_schema:
-            await self._create_schema(schema)
+            await create_schema(self._session, self._catalog, schema)
         else:
             schemas = await self._catalog.list_children(None)
             if schema not in {node.id for node in schemas if isinstance(node, SchemaNode)}:
@@ -529,17 +543,6 @@ class LoadCsv(FileAction[LoadCsvParams]):
             reload_node_ids=[None, schema] if params.create_schema else [schema],
         )
 
-    async def _create_schema(self, schema: str) -> None:
-        _schema_name(schema)
-        schemas = await self._catalog.list_children(None)
-        if schema in {node.id for node in schemas if isinstance(node, SchemaNode)}:
-            raise ActionRefused(
-                "conflict", say('Schema "{name}" already exists', name=schema)
-            )
-        await self._session.schema_change(
-            sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)).as_string(),
-            refusals={"42501": say("This connection may not create schemas")},
-        )
 
 
 # What a refused drop means, by SQLSTATE. The code is safe to look at and the

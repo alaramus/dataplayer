@@ -199,6 +199,8 @@ export const problems: Record<ProblemCode, string> = {
   "transfers.not_possible": "Ce type de collage n'est pas possible entre ces connexions",
   "transfers.cannot_run": "Ce type de collage ne peut pas être exécuté",
   "transfers.too_many_running": "{count} transferts sont déjà en cours ; attendez qu'un se termine",
+  "transfers.upload_too_large": "Un fichier chargé ainsi doit faire moins de {size} Mo",
+  "transfers.create_schema_first": "Créez d’abord le schéma, puis chargez-y un fichier aussi volumineux",
   "jobs.not_found": "Tâche introuvable",
   "jobs.elsewhere": "Cette tâche est exécutée par un autre serveur",
   "actions.not_a_job": "{action} : ne fait pas l'objet d'une tâche",

@@ -619,6 +619,21 @@ class SupportsCreateRelation(Protocol):
 
 
 @runtime_checkable
+class SupportsCreateGrouping(Protocol):
+    """A new schema, or database, at the top of a source, made by name.
+
+    What Load from CSV makes before its table when asked to (D45), for the
+    job that loads a file too large for one request and has no action of
+    the source to make it in.
+    """
+
+    async def create_grouping(self, name: str) -> str:
+        """Make it and answer its node id. Raises ActionRefused for a name
+        taken, refused or the server's own, and AdapterError."""
+        ...
+
+
+@runtime_checkable
 class SupportsDropCreated(Protocol):
     """Taking back a relation this application has just made and could not fill.
 

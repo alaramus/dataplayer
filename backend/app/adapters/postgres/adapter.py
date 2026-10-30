@@ -39,6 +39,7 @@ from app.adapters.postgres.actions import (
     POSTGRES_ACTION_TYPES,
     DropRelation,
     PostgresActions,
+    create_schema,
 )
 from app.adapters.postgres.backup import PostgresBackup
 from app.adapters.postgres.catalog import PostgresCatalog
@@ -320,6 +321,10 @@ class PostgresAdapter:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
+
+    async def create_grouping(self, name: str) -> str:
+        await create_schema(self._session, self._catalog, name)
+        return name
 
     async def drop_created(self, node_id: str) -> None:
         drop = self._actions.action(DropRelation.name)
