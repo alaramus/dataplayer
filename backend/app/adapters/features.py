@@ -15,6 +15,7 @@ FeatureCode = Literal["timescaledb"]
 FEATURE_TITLES: dict[FeatureCode, str] = {"timescaledb": "TimescaleDB"}
 FeatureState = Literal["absent", "available", "unsupported", "unavailable"]
 MAX_SOURCE_FEATURES = 32
+MAX_SOURCE_EXTENSIONS = 200
 
 
 class SourceFeature(BaseModel):
@@ -37,6 +38,19 @@ class SourceFeature(BaseModel):
         return self
 
 
+class SourceExtension(BaseModel):
+    """One extension installed in the database, named as the server names it.
+
+    Every one, not only those a screen has a reader for: a feature above is
+    what the application can do with an extension, this is what is there.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=100)
+    version: str = Field(min_length=1, max_length=100)
+
+
 class SourceFeatures(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -46,6 +60,9 @@ class SourceFeatures(BaseModel):
     # the distribution and the compiler. Absent where the source does not say.
     server_version: str | None = Field(default=None, max_length=100)
     features: list[SourceFeature] = Field(max_length=MAX_SOURCE_FEATURES)
+    extensions: list[SourceExtension] = Field(
+        default_factory=list, max_length=MAX_SOURCE_EXTENSIONS
+    )
 
     @model_validator(mode="after")
     def feature_codes_are_unique(self) -> Self:

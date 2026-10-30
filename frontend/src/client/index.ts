@@ -1607,6 +1607,7 @@ export type {
   SnapshotView,
   Sort,
   SourceCacheWindows,
+  SourceExtension,
   SourceFeature,
   SourceFeatures,
   SparseColumns,

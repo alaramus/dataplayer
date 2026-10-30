@@ -33,7 +33,6 @@ export const connectors: Messages["connectors"] = {
     not_checked: "Noch nicht geprüft",
   },
   facts: {
-    absent: "Nicht installiert",
     unsupported: "Nicht unterstützte Prüfungs-API",
     unavailable: "Prüfung nicht verfügbar",
   },

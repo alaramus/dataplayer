@@ -33,7 +33,6 @@ export const connectors: Messages["connectors"] = {
     not_checked: "لم يُفحص بعد",
   },
   facts: {
-    absent: "غير مثبّت",
     unsupported: "واجهة فحص غير مدعومة",
     unavailable: "الفحص غير متاح",
   },

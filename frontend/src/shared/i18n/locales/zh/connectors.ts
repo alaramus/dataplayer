@@ -33,7 +33,6 @@ export const connectors: Messages["connectors"] = {
     not_checked: "尚未检查",
   },
   facts: {
-    absent: "未安装",
     unsupported: "不支持检查 API",
     unavailable: "检查不可用",
   },

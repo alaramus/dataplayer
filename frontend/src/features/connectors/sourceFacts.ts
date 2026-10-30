@@ -20,30 +20,24 @@ export interface SourceFact {
   code: string
 }
 
-const STATES: Record<Exclude<SourceFeature["state"], "available">, string> = {
-  get absent() { return t("connectors.facts.absent") },
+const STATES: Record<Exclude<SourceFeature["state"], "available" | "absent">, string> = {
   get unsupported() { return t("connectors.facts.unsupported") },
   get unavailable() { return t("connectors.facts.unavailable") },
 }
 
-/** What one optional feature says: its version, or why there is none. */
-export function featureFact(feature: SourceFeature): SourceFact {
-  const state = STATES[feature.state as Exclude<SourceFeature["state"], "available">]
-  return {
-    code: feature.code,
-    label: feature.title,
-    value: feature.installed_version ?? state,
-    ...(feature.reason ? { note: feature.reason } : {}),
-  }
-}
-
 /**
- * Everything a source said, the server itself first.
+ * Everything a source said, the server itself first, then every extension
+ * installed in it by the name the server gives it.
  *
  * The version leads because it is the question the rest is an answer about:
- * which TimescaleDB is installed means nothing until it is known which server
- * it is installed in. A source that says nothing produces nothing, and the
- * panel then shows only whether the connection worked.
+ * which extension is installed means nothing until it is known which server
+ * it is installed in. A feature is what the application can do with an
+ * extension, so it adds nothing to the line of an extension that is there and
+ * works, and an absent one is simply not in the list. Only a feature that
+ * could not be used says why, and one the list missed still says its version — on its extension's line, or on a line of its
+ * own when the catalog would not say what is installed at all. A source that
+ * says nothing produces nothing, and the panel then shows only whether the
+ * connection worked.
  */
 export function sourceFacts(
   features: SourceFeatures | null | undefined,
@@ -58,5 +52,25 @@ export function sourceFacts(
       value: features.server_version,
     })
   }
-  return [...facts, ...features.features.map(featureFact)]
+  const byCode = new Map(features.features.map((feature) => [feature.code as string, feature]))
+  for (const extension of features.extensions ?? []) {
+    const feature = byCode.get(extension.name)
+    byCode.delete(extension.name)
+    facts.push({
+      code: `extension-${extension.name}`,
+      label: feature?.title ?? extension.name,
+      value: extension.version,
+      ...(feature?.reason ? { note: feature.reason } : {}),
+    })
+  }
+  for (const feature of byCode.values()) {
+    if (feature.state === "absent") continue
+    facts.push({
+      code: feature.code,
+      label: feature.title,
+      value: feature.installed_version ?? STATES[feature.state as keyof typeof STATES],
+      ...(feature.reason ? { note: feature.reason } : {}),
+    })
+  }
+  return facts
 }

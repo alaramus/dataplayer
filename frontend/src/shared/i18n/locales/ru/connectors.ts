@@ -32,7 +32,6 @@ export const connectors: Messages["connectors"] = {
     not_checked: "Ещё не проверялось",
   },
   facts: {
-    absent: "Не установлено",
     unsupported: "API проверки не поддерживается",
     unavailable: "Проверка недоступна",
   },

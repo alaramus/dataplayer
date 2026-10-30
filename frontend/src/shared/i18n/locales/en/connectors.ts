@@ -31,7 +31,6 @@ export const connectors = {
     not_checked: "Not checked yet",
   },
   facts: {
-    absent: "Not installed",
     unsupported: "Unsupported inspection API",
     unavailable: "Inspection unavailable",
   },

@@ -2,7 +2,11 @@
 
 import asyncio
 
-from app.adapters.features import SourceFeatures
+from app.adapters.features import (
+    MAX_SOURCE_EXTENSIONS,
+    SourceExtension,
+    SourceFeatures,
+)
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.profile import TimescaleProfile, discover
@@ -13,6 +17,15 @@ from app.core.schemas import get_datetime_utc
 # distribution and sometimes the compiler, and none of that is what a person
 # reading "what am I working on" is asking.
 _VERSION_SQL = "SELECT split_part(current_setting('server_version'), ' ', 1) AS version"
+# plpgsql is in every database from initdb on, so naming it says nothing about
+# this one.
+_EXTENSIONS_SQL = """
+SELECT extname AS name, extversion AS version
+FROM pg_catalog.pg_extension
+WHERE extname <> 'plpgsql'
+ORDER BY extname
+LIMIT %s
+"""
 
 
 class PostgresFeatures:
@@ -63,10 +76,31 @@ class PostgresFeatures:
         version = rows[0].get("version") if rows else None
         return version if isinstance(version, str) and version else None
 
+    async def extensions(self) -> list[SourceExtension]:
+        """Every installed extension, or none when the catalog would not say."""
+        try:
+            rows = await self._session.query(
+                _EXTENSIONS_SQL, (MAX_SOURCE_EXTENSIONS,), inspection=True
+            )
+        except (AdapterError, ValueError):
+            return []
+        return [
+            SourceExtension(name=row["name"], version=row["version"])
+            for row in rows
+            if isinstance(row.get("name"), str)
+            and isinstance(row.get("version"), str)
+            and row["name"]
+            and row["version"]
+        ]
+
     async def source_features(self) -> SourceFeatures:
-        timescale = await self.timescale()
+        # Side by side: on a distant server every round trip is felt.
+        timescale, version, extensions = await asyncio.gather(
+            self.timescale(), self.server_version(), self.extensions()
+        )
         return SourceFeatures(
             observed_at=get_datetime_utc(),
-            server_version=await self.server_version(),
+            server_version=version,
             features=[timescale.feature],
+            extensions=extensions,
         )

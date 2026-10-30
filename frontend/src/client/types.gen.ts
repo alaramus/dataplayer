@@ -12556,6 +12556,25 @@ export type SourceCacheWindows = {
 }
 
 /**
+ * SourceExtension
+ *
+ * One extension installed in the database, named as the server names it.
+ *
+ * Every one, not only those a screen has a reader for: a feature above is
+ * what the application can do with an extension, this is what is there.
+ */
+export type SourceExtension = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Version
+   */
+  version: string
+}
+
+/**
  * SourceFeature
  */
 export type SourceFeature = {
@@ -12597,6 +12616,10 @@ export type SourceFeatures = {
    * Features
    */
   features: Array<SourceFeature>
+  /**
+   * Extensions
+   */
+  extensions?: Array<SourceExtension>
 }
 
 /**

@@ -7,7 +7,7 @@ import { sourceFacts } from "./sourceFacts"
 const observed = "2026-09-08T12:00:00Z"
 
 describe("what a source said about itself", () => {
-  it("names the server first, in the words of its own type", () => {
+  it("names the server first, then every installed extension once", () => {
     const said: SourceFeatures = {
       observed_at: observed,
       server_version: "17.6",
@@ -19,14 +19,57 @@ describe("what a source said about itself", () => {
           state: "available",
         },
       ],
+      extensions: [
+        { name: "timescaledb", version: "2.18.0" },
+        { name: "vector", version: "0.8.0" },
+      ],
     }
 
     expect(sourceFacts(said, "PostgreSQL")).toEqual([
       { code: "server", label: "PostgreSQL", value: "17.6" },
+      { code: "extension-timescaledb", label: "TimescaleDB", value: "2.18.0" },
+      { code: "extension-vector", label: "vector", value: "0.8.0" },
+    ])
+  })
+
+  it("does not mention a feature whose extension is not installed", () => {
+    const facts = sourceFacts(
       {
-        code: "timescaledb",
+        observed_at: observed,
+        server_version: "17.6",
+        features: [{ code: "timescaledb", title: "TimescaleDB", state: "absent" }],
+        extensions: [{ name: "pgcrypto", version: "1.3" }],
+      },
+      "PostgreSQL"
+    )
+
+    expect(facts.map((fact) => fact.code)).toEqual(["server", "extension-pgcrypto"])
+  })
+
+  it("says why an installed extension cannot be used, on its own line", () => {
+    const facts = sourceFacts(
+      {
+        observed_at: observed,
+        features: [
+          {
+            code: "timescaledb",
+            title: "TimescaleDB",
+            installed_version: "3.0.0",
+            state: "unsupported",
+            reason: "This TimescaleDB major version is not supported",
+          },
+        ],
+        extensions: [{ name: "timescaledb", version: "3.0.0" }],
+      },
+      "PostgreSQL"
+    )
+
+    expect(facts).toEqual([
+      {
+        code: "extension-timescaledb",
         label: "TimescaleDB",
-        value: "2.18.0",
+        value: "3.0.0",
+        note: "This TimescaleDB major version is not supported",
       },
     ])
   })

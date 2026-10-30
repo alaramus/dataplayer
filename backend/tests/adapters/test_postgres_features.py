@@ -190,3 +190,46 @@ def test_an_unusable_profile_refuses_with_the_reason_discovery_found(
         require_available(TimescaleProfile(feature))
 
     assert caught.value.reason == "not_applicable"
+
+
+async def test_source_features_name_every_installed_extension() -> None:
+    session = AsyncMock()
+
+    async def answer(sql: str, *_args: object, **_kwargs: object) -> list[dict[str, object]]:
+        if "server_version" in sql:
+            return [{"version": "17.6"}]
+        if "extname AS name" in sql:
+            return [
+                {"name": "pg_trgm", "version": "1.6"},
+                {"name": "vector", "version": "0.8.0"},
+            ]
+        return []
+
+    session.query.side_effect = answer
+
+    said = await PostgresFeatures(session).source_features()
+
+    assert said.server_version == "17.6"
+    assert [(item.name, item.version) for item in said.extensions] == [
+        ("pg_trgm", "1.6"),
+        ("vector", "0.8.0"),
+    ]
+    assert said.features[0].state == "absent"
+
+
+async def test_an_unreadable_extension_catalog_leaves_the_version() -> None:
+    session = AsyncMock()
+
+    async def answer(sql: str, *_args: object, **_kwargs: object) -> list[dict[str, object]]:
+        if "server_version" in sql:
+            return [{"version": "17.6"}]
+        if "extname AS name" in sql:
+            raise ValueError("permission denied for pg_extension")
+        return []
+
+    session.query.side_effect = answer
+
+    said = await PostgresFeatures(session).source_features()
+
+    assert said.server_version == "17.6"
+    assert said.extensions == []

@@ -33,7 +33,6 @@ export const connectors: Messages["connectors"] = {
     not_checked: "Aun sin comprobar",
   },
   facts: {
-    absent: "No instalado",
     unsupported: "API de inspección no compatible",
     unavailable: "Inspección no disponible",
   },

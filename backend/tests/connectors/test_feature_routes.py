@@ -107,6 +107,7 @@ async def test_runtime_features_are_live_and_not_http_cached(
                 "reason": None,
             }
         ],
+        "extensions": [],
     }
     absent = SourceFeatures(
         observed_at=datetime(2026, 9, 7, 12, 31, tzinfo=UTC),

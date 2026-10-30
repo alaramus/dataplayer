@@ -59,6 +59,12 @@ the source says about itself, while the monitor's rounds behind a coloured dot
 stay exactly what they were (D19) — nothing there reads a version, and a second
 query per connection per round would be a cost with no reader.
 
+Beside the features it lists every extension installed, by the server's name
+and version (`plpgsql`, present from `initdb` on, is left out). A feature is
+what the application can do with an extension; the list is what is there, so
+pgvector appears without a reader of its own, and an absent feature is simply
+not on the panel rather than a "not installed" line.
+
 Detection selects implemented readers/actions from installed version and
 verified public API shapes: schema, signature, function/procedure kind and
 extension ownership where available. It neither calls mutating functions as

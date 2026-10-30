@@ -33,7 +33,6 @@ export const connectors: Messages["connectors"] = {
     not_checked: "अभी जाँचा नहीं गया",
   },
   facts: {
-    absent: "इंस्टॉल नहीं है",
     unsupported: "निरीक्षण API असमर्थित",
     unavailable: "निरीक्षण उपलब्ध नहीं",
   },
