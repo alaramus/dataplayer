@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import type { ActionInfo } from "@/client"
 import { at, first } from "@/shared/testing/collections"
 import {
+  byKind,
+  tickableKinds,
   clientCommandOf,
   clientMenu,
   groupingChoices,
@@ -60,6 +62,7 @@ const createFolder: ActionInfo = {
   previews_set: false,
   downloads: false,
   acts_on: "children",
+  applies_to: ["directory"],
   offered_in: "catalog",
   applicable: true,
   params_schema: {
@@ -79,6 +82,7 @@ const remove: ActionInfo = {
   previews_set: false,
   downloads: false,
   acts_on: "node",
+  applies_to: ["file", "directory"],
   offered_in: "catalog",
   applicable: true,
   params_schema: {
@@ -98,6 +102,7 @@ const upload: ActionInfo = {
   previews_set: false,
   downloads: false,
   acts_on: "children",
+  applies_to: ["directory"],
   offered_in: "catalog",
   applicable: true,
   params_schema: {
@@ -185,6 +190,7 @@ describe("toCommands", () => {
       previews_set: false,
       downloads: true,
       acts_on: "node",
+      applies_to: ["file"],
       offered_in: "catalog",
       applicable: true,
       params_schema: { type: "object", properties: {} },
@@ -802,5 +808,33 @@ describe("an action opened over rows picked in a report", () => {
     const opened = withPickedRows(command, { params: { chunks }, replaces: ["ends_by", "starts_from"] })
     expect(opened.fields.map((each) => each.name)).toEqual(["chunks"])
     expect(opened.preset).toEqual({ chunks })
+  })
+})
+
+describe("what ticked nodes admit, by kind", () => {
+  it("admits every node of a kind the action is for, at once", () => {
+    const [answer] = byKind([{ ...remove, bulk: true }], ["file", "directory", "file"])
+
+    expect(answer?.applicable).toBe(true)
+  })
+
+  it("says why a kind it is not for is not admitted", () => {
+    const [answer] = byKind([remove], ["table"])
+
+    expect(answer?.applicable).toBe(false)
+    expect(answer?.unavailable_reason).toBeTruthy()
+  })
+
+  it("asks for one target where the action takes no more", () => {
+    const [answer] = byKind([remove], ["file", "file"])
+
+    expect(answer?.applicable).toBe(false)
+    expect(answer?.unavailable_reason).toBe("Select one target to use this")
+  })
+
+  it("draws a tick box only for what the menu acts on", () => {
+    const report: ActionInfo = { ...remove, name: "create_role", applies_to: ["report"], offered_in: "rows" }
+
+    expect(tickableKinds([remove, createFolder, report])).toEqual(new Set(["file", "directory"]))
   })
 })

@@ -145,6 +145,25 @@ export type ActionInfo = {
    */
   acts_on: "node" | "children" | "level" | "group" | "destination"
   /**
+   * Applies To
+   */
+  applies_to: Array<
+    | "schema"
+    | "table"
+    | "view"
+    | "directory"
+    | "file"
+    | "dataset"
+    | "entry"
+    | "report"
+    | "database"
+    | "key"
+  >
+  /**
+   * Bulk
+   */
+  bulk?: boolean
+  /**
    * Offered In
    */
   offered_in: "catalog" | "rows" | "picked"
@@ -248,6 +267,10 @@ export type ActionResult = {
    * Created Node Id
    */
   created_node_id?: string | null
+  /**
+   * Refused
+   */
+  refused?: Array<NodeRefusal>
 }
 
 /**
@@ -7687,6 +7710,23 @@ export type NodeMatch = {
    * Full Name
    */
   full_name?: string | null
+}
+
+/**
+ * NodeRefusal
+ *
+ * One node of a selection the action was not carried out on, and why.
+ */
+export type NodeRefusal = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Message
+   */
+  message: string
+  problem?: ProblemDetail | null
 }
 
 /**

@@ -24,7 +24,7 @@ function retentionAction(nodeIds: (string | null)[]): ActionInfo {
     unavailable_reason: ticked ? null : "Tick a row to use this",
     destructive: true, question: QUESTION,
     takes_file: false, takes_many_files: false, previews: true, requires_plan_review: true,
-    takes_set: false, previews_set: false, downloads: false, acts_on: "node", offered_in: "catalog",
+    takes_set: false, previews_set: false, downloads: false, acts_on: "node", applies_to: ["table"], offered_in: "catalog",
     params_schema: {
       type: "object", title: "RetentionParams", additionalProperties: false,
       required: ["amount", "unit"],

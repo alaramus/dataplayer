@@ -85,7 +85,7 @@ vi.mock("./ActionDialog.vue", () => ({
 }))
 
 const rename: ActionInfo = {
-  name: "rename_schema", title: "Rename schema", acts_on: "group", offered_in: "catalog",
+  name: "rename_schema", title: "Rename schema", acts_on: "group", applies_to: ["schema"], offered_in: "catalog",
   applicable: true, destructive: false, takes_file: false, takes_many_files: false,
   previews: false, takes_set: false, previews_set: false, downloads: false,
   params_schema: { type: "object", properties: {} },

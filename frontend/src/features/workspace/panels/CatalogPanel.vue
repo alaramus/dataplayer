@@ -6,9 +6,9 @@ import type { DetectedFramework, NodeMatch } from "@/client"
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
-import { reloadedBy, replacementsOf, ticksAfter } from "@/features/catalog/actions"
+import { reloadedBy, replacementsOf, tickableKinds, ticksAfter } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
-import { useCatalogLoader, useNodePathLoader, useNodeSearcher } from "@/features/catalog/api"
+import { useCatalogLoader, useNodeActions, useNodePathLoader, useNodeSearcher } from "@/features/catalog/api"
 import type { SearchScope } from "@/features/catalog/api"
 import { rememberAnswer, shouldAsk } from "@/features/catalog/contentSearch"
 import { useFadingMark } from "@/features/catalog/fadingMark"
@@ -75,6 +75,13 @@ const workspace = useWorkspaceActions()
 const connectorId = computed(() => props.connectorId)
 const rootLabel = computed(() => props.title)
 const level = useCatalogLevel(connectorId, rootLabel)
+// The level's vocabulary, the same question the menu asks and so one request:
+// a tick box is drawn only for a kind some command of the menu acts on.
+const vocabulary = useNodeActions(
+  connectorId,
+  computed(() => (level.currentId.value === null || level.currentId.value === "" ? null : [level.currentId.value]))
+)
+const tickable = computed(() => (vocabulary.data.value ? tickableKinds(vocabulary.data.value) : null))
 
 /**
  * The colour of the connection this catalog belongs to, if it was given one.
@@ -1237,6 +1244,7 @@ async function afterAction(outcome: ActionOutcome) {
       :style="panelColorStyle(color)"
       :items="level.items.value"
       :checked="level.checked.value"
+      :tickable="tickable"
       :loading="level.loading.value"
       :show-group="level.selectedGroups.value.length > 1"
       :has-parent="level.path.value.length > 1"
@@ -1244,7 +1252,7 @@ async function afterAction(outcome: ActionOutcome) {
       @open="level.found.value ? openFound($event) : onOpen($event)"
       @up="level.up"
       @toggle="onToggle"
-      @toggle-all="level.toggleAll"
+      @toggle-all="level.toggleAll($event, (node) => tickable === null || tickable.has(node.kind))"
     />
 
     <BackupsDialog v-model:connector="backingUp" />

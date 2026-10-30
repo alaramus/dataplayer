@@ -18,6 +18,8 @@ import { AppCheckbox, AppEmptyState, AppIconButton, AppSpinner, useToast } from 
 const props = defineProps<{
   items: ListNode[]
   checked: string[]
+  /** The kinds a tick box is drawn for; null draws one everywhere. */
+  tickable?: Set<string> | null
   loading: boolean
   /**
    * Whether to name the grouping a row came from. It says nothing while only
@@ -112,9 +114,14 @@ const emit = defineEmits<{
   up: []
 }>()
 
-const allChecked = computed(
-  () => props.items.length > 0 && props.items.every((node) => props.checked.includes(node.id))
-)
+function tickableNode(node: ListNode): boolean {
+  return props.tickable === null || props.tickable === undefined || props.tickable.has(node.kind)
+}
+
+const allChecked = computed(() => {
+  const ticking = props.items.filter(tickableNode)
+  return ticking.length > 0 && ticking.every((node) => props.checked.includes(node.id))
+})
 
 const someChecked = computed(() => props.checked.length > 0 && !allChecked.value)
 
@@ -222,7 +229,20 @@ const countLabel = computed(() => {
         @keydown.enter="emit('open', node)"
         @keydown.space.prevent="emit('open', node)"
       >
-        <span @click.stop>
+        <span
+          v-if="!tickableNode(node)"
+          class="catalog-list__tick-space"
+          aria-hidden="true"
+        >
+          <AppCheckbox
+            :model-value="false"
+            dense
+          />
+        </span>
+        <span
+          v-else
+          @click.stop
+        >
           <AppCheckbox
             :model-value="checked.includes(node.id)"
             dense

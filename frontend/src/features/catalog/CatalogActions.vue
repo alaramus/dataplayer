@@ -8,6 +8,7 @@ import { appIcons } from "@/shared/ui/icons"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import CrossPaste from "@/features/catalog/CrossPaste.vue"
 import {
+  byKind,
   clientCommandOf,
   clientMenu,
   needsClipboard,
@@ -114,9 +115,6 @@ const nodeTargetIds = computed(() =>
     ? [...props.checkedIds]
     : props.selectedGroups.map((group) => group.id)
 )
-const pickedIds = computed<string[] | null>(() =>
-  nodeTargetIds.value.length === 0 ? null : [...nodeTargetIds.value]
-)
 const nodeTargetNodes = computed(() =>
   props.checkedIds.length > 0 ? props.checkedNodes : props.selectedGroups
 )
@@ -134,16 +132,25 @@ const hasDestinations = computed(() => destinationIds.value.length > 0)
 // Equal target lists share a query; row ticks never replace the grouping subject (D118).
 const level = useNodeActions(connectorId, levelIds)
 const here = useNodeActions(connectorId, placeIds)
-const picked = useNodeActions(connectorId, pickedIds, anyChecked)
-const groups = useNodeActions(connectorId, groupIds, hasGroups)
+// Ticks and groupings are judged by kind against the level's vocabulary, with
+// no request per tick (see `byKind`).
+const pickedKinds = computed(() =>
+  props.checkedIds.length > 0
+    ? props.checkedNodes.map((node) => node.kind)
+    : props.selectedGroups.map((group) => group.kind)
+)
+const pickedActions = computed(() => byKind(level.data.value ?? [], pickedKinds.value))
+const groupActions = computed(() =>
+  byKind(level.data.value ?? [], props.selectedGroups.map((group) => group.kind))
+)
 const destinations = useNodeActions(connectorId, destinationIds, hasDestinations)
 
 const commands = computed(() =>
   toMenu({
     level: { actions: level.data.value ?? [], targets: [props.levelId] },
     children: { actions: here.data.value ?? [], targets: props.places },
-    node: { actions: picked.data.value ?? [], targets: nodeTargetIds.value },
-    group: { actions: groups.data.value ?? [], targets: groupIds.value },
+    node: { actions: anyChecked.value ? pickedActions.value : [], targets: nodeTargetIds.value },
+    group: { actions: hasGroups.value ? groupActions.value : [], targets: groupIds.value },
     destination: { actions: destinations.data.value ?? [], targets: destinationIds.value },
   })
 )
@@ -205,13 +212,16 @@ const crossLines = computed(() => pasteLines(crossOffers.data.value ?? []))
 const crossUsable = computed(() => usableOffers(crossLines.value.paste))
 // Asked only of a source without a Paste of its own, and only once its own
 // actions have answered: until then it is not known which one this is.
+// Whether this source can hold a selection at all, asked once rather than per
+// tick: what is held is judged when it is pasted, by the paste's own offers.
 const holdOffer = useQuery({
-  queryKey: computed(() => ["clipboard-offer", props.connectorId, [...props.checkedIds]]),
+  queryKey: computed(() => ["clipboard-offer", props.connectorId]),
   enabled: computed(() => level.data.value !== undefined && !canHold.value),
   retry: false,
+  staleTime: Infinity,
   queryFn: async () => (await ConnectorsService.clipboardOffer({
     path: { connector_id: props.connectorId },
-    body: { node_ids: [...props.checkedIds] },
+    body: { node_ids: [] },
   })).data,
 })
 const holds = computed(() =>

@@ -73,7 +73,7 @@ export interface CatalogLevel {
   reloadMany: (nodeIds: (string | null)[]) => Promise<void>
   /** Apply one exact source-issued identity change before the reload lands. */
   replaceNode: (replacement: NodeReplacement) => void
-  toggleAll: (on: boolean) => void
+  toggleAll: (on: boolean, tickable?: (node: ListNode) => boolean) => void
 }
 
 /**
@@ -395,8 +395,8 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     checked.value = checked.value.map(replaceId)
   }
 
-  function toggleAll(on: boolean) {
-    checked.value = on ? items.value.map((node) => node.id) : []
+  function toggleAll(on: boolean, tickable: (node: ListNode) => boolean = () => true) {
+    checked.value = on ? items.value.filter(tickable).map((node) => node.id) : []
   }
 
   /**

@@ -28,7 +28,7 @@ function compressAction(nodeIds: (string | null)[]): ActionInfo {
     destructive: false, question: null,
     takes_file: false, takes_many_files: false, previews: true, requires_plan_review: true,
     produces_job: true, takes_set: false, previews_set: false, downloads: false,
-    acts_on: "node", offered_in: "catalog",
+    acts_on: "node", applies_to: ["table"], offered_in: "catalog",
     params_schema: {
       type: "object", title: "ChunkWindowParams", additionalProperties: false, required: ["ends_by"],
       properties: {

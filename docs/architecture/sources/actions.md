@@ -75,6 +75,15 @@ guard.
   allows, and running an action asks `available` again, so being listed permits
   nothing. Applicability depends on state as well as kind: the root of a
   connector is an ordinary directory that may not be renamed or removed.
+- **Ticks are judged by kind, state by the run.** Each action lists the kinds
+  it `applies_to` and whether it is `bulk`, and the menu enables a command for
+  ticked nodes and selected groupings from the level's vocabulary at once,
+  with no request per tick: on a distant server that answer cost seconds a
+  node. A refusal that depends on state — a table an extension owns, a root —
+  is the run's own answer for that node. Copy and Cut ask once whether the
+  source holds a selection at all; what is held is judged when it is pasted.
+  A tick box is drawn only for a kind some command of the catalog menu acts
+  on, so a section of reports and the reports in it have none.
 - `acts_on` says what an action changes — see D56 and D118. Without
   it the screen would read the difference off the names of actions.
 - `Action.bulk` says whether one filled form may be applied to many; `Delete`
@@ -135,11 +144,11 @@ Known deviations:
 - **A set is acted on one call at a time.** Deleting five files is five requests
   run in order; a refusal in the middle is collected and reported rather than
   stopping the rest. Nothing is transactional.
-- **Applicability costs a call per node.** Bounded by a ceiling of a thousand node
-  ids and by the 2000-entry listing refusal.
-- **The menu asks about distinct subjects.** Level, places, selected nodes,
-  selected groupings and destination candidates use cached queries; identical
-  target lists share an answer.
+- **Applicability costs a call per node**, asked side by side. Bounded by a
+  ceiling of a thousand node ids and by the 2000-entry listing refusal.
+- **The menu asks about distinct subjects.** Level, places and destination
+  candidates use cached queries; identical target lists share an answer. Ticks
+  and selected groupings are not asked about (see above).
 
 Spec: [The action registry](../../decisions/2026-08-21-action-registry-design.md)
 
@@ -395,9 +404,15 @@ Known deviations:
   before materialized views before tables covers a view over a table, which is
   the case people meet. A materialized view read by a view, all three ticked,
   can still need a cascade — and the preview says so before anything happens.
-- **One refusal refuses the whole set.** That is the point where relations are
-  concerned, and it is the wrong answer for an action whose members really are
-  independent. Such an action keeps the repeated transport.
+- **A set is carried out as far as it goes.** The route sends the whole set
+  first, which is what drops a view and its table together. Refused, it tries
+  each node alone and repeats the round while it still frees something — a view
+  gone in one round lets its table go in the next — and answers with what was
+  done and `refused`, each left node with its reason. A node that does not
+  admit the action is one of those, not a refusal of the selection; only when
+  nothing at all was done is the first refusal the answer. So one transaction
+  holds per attempt, not across the selection: ten ticked and two refused is
+  eight dropped and two named.
 - **Nothing names which relations went.** The message counts them, and the
   catalog is re-read; a person who ticked five boxes and looked away has the
   count and the list, not a receipt.

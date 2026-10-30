@@ -6,7 +6,7 @@ import { ConnectorsService } from "@/client"
 import type { ActionPreview, ActionResult, NodeSearchResult } from "@/client"
 import { jobsKey } from "@/features/activity/api"
 import { messageOf, statusOf } from "@/shared/api/errors"
-import { t } from "@/shared/i18n"
+import { problemMessage, t } from "@/shared/i18n"
 import { freshnessOf } from "@/shared/freshness/freshness"
 import type { Freshness } from "@/shared/freshness/freshness"
 import { useOperations } from "@/shared/operations"
@@ -307,8 +307,24 @@ export function useRunAction() {
             })
           ).data
           operation.complete()
-          operation.finish(result.message)
-          return { done: [result], failures: [], total: 1 }
+          // Carried out as far as it went: what was left is said node by node,
+          // in the same report a run node by node gives.
+          const failures: ActionFailure[] = (result.refused ?? []).map((refusal) => ({
+            nodeId: refusal.node_id,
+            message: refusal.problem ? problemMessage(refusal.problem) ?? refusal.message : refusal.message,
+          }))
+          if (failures.length === 0) {
+            operation.finish(result.message)
+            return { done: [result], failures: [], total: 1 }
+          }
+          const outcome: ActionOutcome = {
+            done: [result],
+            failures,
+            total: together.length,
+            doneCount: together.length - failures.length,
+          }
+          operation.finish(summarize(outcome, label), true)
+          return outcome
         }
         const done: ActionResult[] = []
         const failures: ActionFailure[] = []

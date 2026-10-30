@@ -105,20 +105,15 @@ export function holdLines(
   ticked: number,
   offer: ClipboardOffer | undefined
 ): { copy?: HoldLine; cut?: HoldLine } {
-  if (ownPaste) {
-    const line = ticked === 0
-      ? { enabled: false, reason: t("catalog.actions.no_target.node") }
-      : { enabled: true }
-    return { copy: line, cut: line }
-  }
+  // Whether there is something to hold is the ticks' answer. Whether this
+  // source holds a selection at all is its Paste, or its offer for none;
+  // what is held is judged when it is pasted.
+  const line = ticked === 0
+    ? { enabled: false, reason: t("catalog.actions.no_target.node") }
+    : { enabled: true }
+  if (ownPaste) return { copy: line, cut: line }
   return {
-    ...(offer?.can_copy ? { copy: lineOf(offer.can_copy) } : {}),
-    ...(offer?.can_cut ? { cut: lineOf(offer.can_cut) } : {}),
+    ...(offer?.can_copy ? { copy: line } : {}),
+    ...(offer?.can_cut ? { cut: line } : {}),
   }
-}
-
-function lineOf(answer: { available: boolean; reason?: string | null }): HoldLine {
-  return answer.available
-    ? { enabled: true }
-    : { enabled: false, ...(answer.reason ? { reason: answer.reason } : {}) }
 }

@@ -427,6 +427,27 @@ describe("what an action would do", () => {
     wrapper.unmount()
   })
 
+  it("says a refusal once when the preview arrives after the run was pressed", async () => {
+    let answer: ((value: unknown) => void) | undefined
+    vi.spyOn(ConnectorsService, "previewAction").mockReturnValue(
+      new Promise((resolve) => { answer = resolve }) as never
+    )
+    vi.spyOn(ConnectorsService, "runAction").mockRejectedValue(refused(422))
+    const wrapper = mountDialog()
+    await settle()
+
+    click("action-submit")
+    await settle()
+    expect(document.body.querySelector('[data-testid="action-error"]')).not.toBeNull()
+
+    answer?.({ data: { summary: "Something else is built on this relation", items: ["a view"], blocked: true } })
+    await settle()
+
+    expect(text("action-preview")).toContain("built on this relation")
+    expect(document.body.querySelector('[data-testid="action-error"]')).toBeNull()
+    wrapper.unmount()
+  })
+
   it("asks again when the form changes, because the answer is about it", async () => {
     const preview = vi.spyOn(ConnectorsService, "previewAction").mockResolvedValue({
       data: { summary: "fine", items: [], blocked: false },
@@ -441,6 +462,29 @@ describe("what an action would do", () => {
       { cascade: false },
       { cascade: true },
     ])
+    wrapper.unmount()
+  })
+
+  it("shows that the source is being asked, the last answer dimmed meanwhile", async () => {
+    let answer: ((value: unknown) => void) | undefined
+    vi.spyOn(ConnectorsService, "previewAction")
+      .mockResolvedValueOnce({ data: { summary: "blocked", items: [], blocked: true } } as never)
+      .mockReturnValueOnce(new Promise((resolve) => { answer = resolve }) as never)
+    const wrapper = mountDialog()
+    await settle()
+    expect(document.body.querySelector('[data-testid="action-preview-pending"]')).toBeNull()
+
+    wrapper.findComponent(AppToggle).vm.$emit("update:modelValue", true)
+    await settle()
+
+    expect(document.body.querySelector('[data-testid="action-preview-pending"]')).not.toBeNull()
+    expect(document.body.querySelector('[data-testid="action-preview"]')?.className).toContain("stale")
+
+    answer?.({ data: { summary: "Drops a view too", items: [], blocked: false } })
+    await settle()
+
+    expect(document.body.querySelector('[data-testid="action-preview-pending"]')).toBeNull()
+    expect(text("action-preview")).toContain("Drops a view too")
     wrapper.unmount()
   })
 

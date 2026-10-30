@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.adapters.catalog import NodeKind
 from app.adapters.features import FeatureCode
 from app.core.access import Access
+from app.core.problems import ProblemDetail
 from app.core.translation import N_
 
 
@@ -26,6 +27,16 @@ class NodeReplacement(BaseModel):
     old_node_id: str
     new_node_id: str
     title: str
+
+
+class NodeRefusal(BaseModel):
+    """One node of a selection the action was not carried out on, and why."""
+
+    node_id: str
+    message: str
+    # The coded refusal, where there was one, so the reader's language words it
+    # (D225); `message` is the English, or a source's own safe sentence.
+    problem: ProblemDetail | None = None
 
 
 class ActionResult(BaseModel):
@@ -49,6 +60,9 @@ class ActionResult(BaseModel):
     # knowledge of what the action was: it holds an id it can walk to, or it
     # holds nothing.
     created_node_id: str | None = None
+    # Nodes of a selection left as they were, each with its reason: a set is
+    # carried out as far as it goes and says what it could not do.
+    refused: list[NodeRefusal] = Field(default_factory=list)
 
 
 class ActionDownloadMetadata(BaseModel):

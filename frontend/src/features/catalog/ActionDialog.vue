@@ -41,6 +41,7 @@ import {
   AppFileInput,
   AppForm,
   AppIconButton,
+  AppSpinner,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -142,6 +143,12 @@ const reviewMissing = computed(() => props.command?.requiresPlanReview === true 
   props.nodeIds.length !== 1 || !preview.value?.fingerprint || preview.value.blocked === true
 ))
 const previewFailed = ref("")
+/**
+ * Whether a question is out: from the change that asks it to the answer. On a
+ * distant server that is seconds, and a switch that changes what would be
+ * dropped showed nothing at all in between.
+ */
+const previewPending = ref(false)
 /** The number of the last question asked, so a late answer is ignored. */
 let asked = 0
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -188,8 +195,10 @@ async function askPreview() {
     if (mine !== asked) return
     preview.value = answer
     previewFailed.value = ""
+    previewPending.value = false
   } catch (cause) {
     if (mine !== asked) return
+    previewPending.value = false
     preview.value = null
     // Optional previews remain advisory; reviewed plans require a fresh fingerprint.
     previewFailed.value = messageOf(cause, t("catalog.action_dialog.preview_failed"))
@@ -218,8 +227,10 @@ function schedulePreview() {
   if (unfilled.value !== null) {
     preview.value = null
     previewFailed.value = ""
+    previewPending.value = false
     return
   }
+  previewPending.value = true
   timer = setTimeout(() => void askPreview(), PREVIEW_DELAY_MS)
 }
 
@@ -229,6 +240,7 @@ function forgetPreview() {
   asked += 1
   preview.value = null
   previewFailed.value = ""
+  previewPending.value = false
 }
 
 /**
@@ -780,8 +792,10 @@ async function runReviewed(value: {
         {{ destructiveQuestion }}
       </p>
 
+      <!-- A blocked preview already says why, with what stands in the way: the
+           same refusal from a run pressed before it arrived would say it twice. -->
       <AppBanner
-        v-if="failure"
+        v-if="failure && preview?.blocked !== true"
         tone="error"
         data-testid="action-error"
       >
@@ -841,15 +855,27 @@ async function runReviewed(value: {
       >
         {{ t("catalog.action_dialog.fill_in", { field: unfilled.label }) }}
       </p>
+      <p
+        v-else-if="previewPending"
+        class="action-dialog__waiting action-dialog__asking"
+        role="status"
+        data-testid="action-preview-pending"
+      >
+        <AppSpinner inline />
+        {{ t("catalog.action_dialog.previewing") }}
+      </p>
       <AppBanner
-        v-else-if="previewFailed"
+        v-if="previewFailed && !previewPending"
         tone="warning"
         data-testid="action-preview-error"
       >
         {{ previewFailed }}
       </AppBanner>
+      <!-- The last answer stays, dimmed, while the next is asked: it was about
+           the form as it was, and the window should not jump. -->
       <AppBanner
-        v-else-if="preview"
+        v-else-if="preview && !(previewable && unfilled)"
+        :class="{ 'action-dialog__stale': previewPending }"
         :tone="preview.blocked ? 'warning' : 'info'"
         data-testid="action-preview"
       >
@@ -909,6 +935,14 @@ async function runReviewed(value: {
 .action-dialog__waiting {
   margin: 0;
   color: var(--dp-text-muted);
+}
+.action-dialog__asking {
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-2);
+}
+.action-dialog__stale {
+  opacity: var(--dp-opacity-dim);
 }
 .action-dialog__question {
   margin: 0;

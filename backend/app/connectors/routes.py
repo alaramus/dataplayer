@@ -34,6 +34,7 @@ from app.adapters.actions import (
     ActsOn,
     ConnectorDraft,
     FieldHints,
+    NodeRefusal,
     OfferedIn,
     OffersFieldHints,
     PreparesConnector,
@@ -45,6 +46,7 @@ from app.adapters.actions import (
     TakesFile,
     TakesNodeSet,
     TakesParams,
+    UnknownAction,
     action_availability,
 )
 from app.adapters.cache import (
@@ -55,7 +57,7 @@ from app.adapters.cache import (
     cached_read,
 )
 from app.adapters.cache_serialization import CacheFormat
-from app.adapters.catalog import CatalogNode
+from app.adapters.catalog import CatalogNode, NodeKind
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
@@ -244,7 +246,7 @@ from app.connectors.names import NamesChanged, NamesChangedDep
 from app.core.access import Access, at_least
 from app.core.config import settings
 from app.core.db import SessionDep
-from app.core.problems import Problem
+from app.core.problems import Problem, ProblemDetail
 from app.core.schemas import Message, get_datetime_utc
 from app.core.translation import current_language, say, say_if, say_schema
 from app.realtime.topics import TopicsDep
@@ -2917,6 +2919,12 @@ class ActionInfo(ActionAvailability):
     prepares_connector: bool = False
     # The selection subject, or a workflow's destination candidates (D118).
     acts_on: ActsOn
+    # The kinds of node it is for. A menu enables it by these at once and the
+    # server decides the rest when it is run: asking per tick cost seconds a
+    # node on a distant server, and the run asks again anyway.
+    applies_to: list[NodeKind]
+    # Whether several nodes may be its subject at once.
+    bulk: bool = False
     # Where the source wants it offered: the catalog menu, or the row of
     # commands above the rows of the node it acts on (D79).
     offered_in: OfferedIn
@@ -2976,6 +2984,8 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         downloads=isinstance(action, ProducesDownload),
         prepares_connector=isinstance(action, PreparesConnector),
         acts_on=action.acts_on,
+        applies_to=sorted(action.applies_to),
+        bulk=action.bulk,
         offered_in=action.offered_in,
         icon=action.icon,
         menu_group=action.menu_group,
@@ -2994,9 +3004,10 @@ async def _action_for_nodes(
     """One bulk action admitted by every selected node, checked together."""
     if len(set(node_ids)) != len(node_ids):
         raise Problem(422, "actions.node_repeated")
-    action: Action[Any] | None = None
-    for node_id in node_ids:
-        action = await action_for_node(adapter, action_name, node_id)
+    found = await asyncio.gather(
+        *(action_for_node(adapter, action_name, node_id) for node_id in node_ids)
+    )
+    action: Action[Any] | None = found[-1] if found else None
     if action is None:
         raise Problem(422, "actions.no_node")
     if len(node_ids) > 1 and not action.bulk:
@@ -3033,7 +3044,7 @@ async def read_actions(
     )
     acting = acting_or_501(adapter)
     targets: list[str | None] = list(body.node_ids) if body.node_ids else [None]
-    offers = [await available_or_422(acting, node_id) for node_id in targets]
+    offers = await asyncio.gather(*(available_or_422(acting, node_id) for node_id in targets))
     # Filtered rather than greyed out: an action the caller may not run is not
     # inapplicable here, it is not theirs, and saying so per action would put
     # the level rules into the menu as well as into the route.
@@ -3204,17 +3215,109 @@ async def run_action_on_set(
     adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
-    action = await _action_for_nodes(
-        acting_or_501(adapter), action_name, body.node_ids
-    )
+    acting = acting_or_501(adapter)
+    if len(set(body.node_ids)) != len(body.node_ids):
+        raise Problem(422, "actions.node_repeated")
+    action, admitted, refused = await _admitted(acting, action_name, body.node_ids)
+    if len(body.node_ids) > 1 and not action.bulk:
+        raise Problem(422, "actions.not_bulk", action=say(action.title))
     allowed_or_403(action, access)
     if not isinstance(action, TakesNodeSet):
         raise Problem(415, "actions.one_node_at_a_time", action=say(action.title))
+    set_action = action
     return await _invalidate_after(
-        lambda: perform(lambda: action.perform_on_set(body.node_ids, body.params)),
+        lambda: _perform_in_parts(set_action, admitted, refused, body.params),
         data_cache,
         connector_id,
         names=names,
+    )
+
+
+def _refusal(node_id: str, exc: HTTPException) -> NodeRefusal:
+    detail = exc.detail
+    if isinstance(exc, Problem):
+        problem = ProblemDetail.model_validate(detail)
+        return NodeRefusal(node_id=node_id, message=problem.message, problem=problem)
+    if isinstance(detail, dict) and isinstance(detail.get("message"), str):
+        return NodeRefusal(node_id=node_id, message=detail["message"])
+    if isinstance(detail, list) and detail and isinstance(detail[0], dict):
+        return NodeRefusal(node_id=node_id, message=str(detail[0].get("msg", "")))
+    return NodeRefusal(node_id=node_id, message=str(detail))
+
+
+async def _admitted(
+    adapter: SupportsActions, action_name: str, node_ids: list[str]
+) -> tuple[Action[Any], list[str], list[NodeRefusal]]:
+    """The action, the nodes that admit it, and why the others do not.
+
+    Asked side by side. A node that does not admit the action is one line of
+    the answer rather than a refusal of the whole selection; when none does,
+    the first node's refusal is the answer.
+    """
+    try:
+        action = adapter.action(action_name)
+    except UnknownAction as exc:
+        raise Problem(404, "actions.unknown", name=action_name) from exc
+
+    async def check(node_id: str) -> NodeRefusal | None:
+        try:
+            await action_for_node(adapter, action_name, node_id)
+        except HTTPException as exc:
+            return _refusal(node_id, exc)
+        return None
+
+    answers = await asyncio.gather(*(check(node_id) for node_id in node_ids))
+    if all(answer is not None for answer in answers):
+        await action_for_node(adapter, action_name, node_ids[0])
+    admitted = [node_id for node_id, answer in zip(node_ids, answers, strict=True) if answer is None]
+    return action, admitted, [answer for answer in answers if answer is not None]
+
+
+async def _perform_in_parts(
+    action: TakesNodeSet,
+    node_ids: list[str],
+    refused: list[NodeRefusal],
+    params: dict[str, Any],
+) -> ActionResult:
+    """The set in one request, and node by node when the source refuses it.
+
+    The whole set first, because that is what makes relations that depend on
+    each other go together. Refused, each node is tried alone, and the round
+    is repeated while it still frees something: a view dropped in one round
+    lets the table it read be dropped in the next. What is left is said node
+    by node, and when nothing at all was done the first refusal is the answer.
+    """
+    if len(node_ids) > 1:
+        try:
+            whole = await perform(lambda: action.perform_on_set(node_ids, params))
+        except HTTPException:
+            pass
+        else:
+            return whole.model_copy(update={"refused": refused}) if refused else whole
+    elif not refused:
+        return await perform(lambda: action.perform_on_set(node_ids, params))
+    done: list[ActionResult] = []
+    failed: dict[str, HTTPException] = {}
+    pending = list(node_ids)
+    progressed = True
+    while pending and progressed:
+        progressed = False
+        still: list[str] = []
+        for node_id in pending:
+            try:
+                done.append(await perform(partial(action.perform_on_set, [node_id], params)))
+                progressed = True
+            except HTTPException as exc:
+                failed[node_id] = exc
+                still.append(node_id)
+        pending = still
+    if not done:
+        raise failed[pending[0]]
+    reloads = list(dict.fromkeys(node for result in done for node in result.reload_node_ids))
+    return ActionResult(
+        message="; ".join(result.message for result in done),
+        reload_node_ids=reloads,
+        refused=[*refused, *(_refusal(node_id, failed[node_id]) for node_id in pending)],
     )
 
 

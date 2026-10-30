@@ -225,6 +225,40 @@ export interface ActionSubject {
 
 export type ActionSubjects = Record<ActionInfo["acts_on"], ActionSubject>
 
+/**
+ * What the vocabulary says of ticked nodes, by their kinds alone.
+ *
+ * Not asked of the server per tick: on a distant server that answer took
+ * seconds a node, and the run asks again anyway, so a refusal arrives as the
+ * run's own answer for the node it was about. The rules are the server's
+ * (`action_availability`): every target of a kind the action is for, and one
+ * target unless the action takes several.
+ */
+export function byKind(vocabulary: ActionInfo[], kinds: string[]): ActionInfo[] {
+  return vocabulary.map((action) => {
+    let reason: string | null = null
+    if (kinds.length === 0 || !kinds.every((kind) => (action.applies_to as string[]).includes(kind))) {
+      reason = t("catalog.actions.not_for_targets")
+    } else if (kinds.length > 1 && action.bulk !== true) {
+      reason = t(action.acts_on === "group" ? "catalog.actions.one_grouping" : "catalog.actions.one_target")
+    }
+    return { ...action, applicable: reason === null, unavailable_reason: reason }
+  })
+}
+
+/**
+ * The kinds a tick box is drawn for: what some command of the catalog's menu
+ * acts on. A section of reports and the reports in it are what a connection
+ * says about itself, and nothing in the menu is done to them.
+ */
+export function tickableKinds(vocabulary: ActionInfo[]): Set<string> {
+  return new Set(
+    vocabulary
+      .filter((action) => action.offered_in === "catalog" && (action.acts_on === "node" || action.acts_on === "group"))
+      .flatMap((action) => action.applies_to as string[])
+  )
+}
+
 /** Why a line is off when its subject is empty, keyed by what it acts on. */
 function noTarget(actsOn: ActionInfo["acts_on"]): string {
   return t(`catalog.actions.no_target.${actsOn}`)
@@ -442,6 +476,8 @@ export interface ActionOutcome {
   done: ActionResult[]
   failures: ActionFailure[]
   total: number
+  /** How many targets were done, where one result stands for several: a set. */
+  doneCount?: number
   /** Unsent requests after Stop. Completed effects have not been undone. */
   skipped?: ActionFailure[]
 }
@@ -508,7 +544,7 @@ export function summarize(outcome: ActionOutcome, label: string): string {
     return first?.message ?? t("catalog.actions.done", { label })
   }
   const stopped = outcome.skipped?.length ?? 0
-  const head = t("catalog.actions.done_of", { label, done: outcome.done.length, total: outcome.total }) +
+  const head = t("catalog.actions.done_of", { label, done: outcome.doneCount ?? outcome.done.length, total: outcome.total }) +
     (stopped > 0 ? `. ${t("catalog.actions.stopped", { n: stopped }, stopped)}` : "")
   if (outcome.failures.length === 0) return head
   const said = outcome.failures

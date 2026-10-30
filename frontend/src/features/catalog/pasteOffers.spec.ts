@@ -90,16 +90,14 @@ describe("whether Copy and Cut are drawn", () => {
     })
   })
 
-  it("draws for any other source only what the server says something could take", () => {
-    expect(holdLines(false, 1, { can_copy: { available: true }, can_cut: null })).toEqual({
-      copy: { enabled: true },
+  it("draws for any other source what it can hold, usable while something is ticked", () => {
+    // The offer is asked for no nodes: it says whether this source holds a
+    // selection at all, and what is held is judged when it is pasted.
+    const holds = { can_copy: { available: false, reason: "Tick a row to use this" }, can_cut: null }
+    expect(holdLines(false, 2, holds)).toEqual({ copy: { enabled: true } })
+    expect(holdLines(false, 0, holds)).toEqual({
+      copy: { enabled: false, reason: "Tick a row to use this" },
     })
-    expect(
-      holdLines(false, 2, {
-        can_copy: { available: false, reason: "Copy one table at a time" },
-        can_cut: null,
-      })
-    ).toEqual({ copy: { enabled: false, reason: "Copy one table at a time" } })
     expect(holdLines(false, 1, { can_copy: null, can_cut: null })).toEqual({})
   })
 

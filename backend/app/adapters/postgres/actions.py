@@ -643,9 +643,8 @@ class DropRelation(JsonAction[DropRelationParams]):
         targets = await self._targets(node_ids)
         await self._guard_cascades(targets, cascade=params.cascade)
         statements = self._statements(targets, cascade=params.cascade)
-        # One transaction, so a selection that cannot be dropped whole leaves
-        # every relation in it standing. Half a drop is not a partial success,
-        # it is a schema nobody asked for.
+        # One transaction, so what one request names goes whole or not at all.
+        # A refused set is tried again node by node by the route (D68).
         async with self._session.transaction(
             refusals=drop_refusals(targets)
         ) as change:

@@ -1067,6 +1067,7 @@ export type {
   NewRelationTarget,
   NoColumns,
   NodeMatch,
+  NodeRefusal,
   NodeReplacement,
   NodeRepresentation,
   NodeSearchResult,

@@ -1104,6 +1104,101 @@ async def test_a_selection_of_relations_is_dropped_in_one_request(
 
 
 @pytest.mark.usefixtures("home")
+async def test_a_set_is_carried_out_as_far_as_it_goes(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    """Two of three dropped, and the third named with its reason."""
+    await run(
+        f"CREATE TABLE {relation_schema}.loose_a (id int);"
+        f"CREATE TABLE {relation_schema}.loose_b (id int);"
+        f"CREATE TABLE {relation_schema}.held (id int PRIMARY KEY);"
+        f"CREATE TABLE {relation_schema}.holder (held_id int REFERENCES {relation_schema}.held)"
+    )
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    held = f"{relation_schema}.held"
+    nodes = [f"{relation_schema}.loose_a", held, f"{relation_schema}.loose_b"]
+
+    response = await _run_on_set(
+        client, normal_user_token_headers, connector_id, "drop_relation", nodes
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [refusal["node_id"] for refusal in body["refused"]] == [held]
+    assert body["refused"][0]["message"]
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": relation_schema},
+    )
+    left = {node["name"] for node in catalog.json()}
+    assert {"held", "holder"} <= left
+    assert not {"loose_a", "loose_b"} & left
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_set_refused_whole_still_drops_what_depends_in_order(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    """Node by node, round after round: the view goes first, then its table."""
+    await run(
+        f"CREATE TABLE {relation_schema}.base (id int PRIMARY KEY);"  # noqa: S608 -- generated fixture name.
+        f"CREATE VIEW {relation_schema}.over_base AS SELECT id FROM {relation_schema}.base;"
+        f"CREATE TABLE {relation_schema}.kept (id int PRIMARY KEY);"
+        f"CREATE TABLE {relation_schema}.keeper (kept_id int REFERENCES {relation_schema}.kept)"
+    )
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    nodes = [
+        f"{relation_schema}.base", f"{relation_schema}.kept", f"{relation_schema}.over_base",
+    ]
+
+    response = await _run_on_set(
+        client, normal_user_token_headers, connector_id, "drop_relation", nodes
+    )
+
+    assert response.status_code == 200
+    assert [refusal["node_id"] for refusal in response.json()["refused"]] == [
+        f"{relation_schema}.kept"
+    ]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_set_nothing_of_which_could_be_done_is_refused(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    await run(
+        f"CREATE TABLE {relation_schema}.only (id int PRIMARY KEY);"
+        f"CREATE TABLE {relation_schema}.only_ref (only_id int REFERENCES {relation_schema}.only)"
+    )
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _run_on_set(
+        client, normal_user_token_headers, connector_id, "drop_relation",
+        [f"{relation_schema}.only"],
+    )
+
+    assert response.status_code >= 400
+
+
+@pytest.mark.usefixtures("home")
+async def test_an_action_names_the_kinds_of_node_it_is_for(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _offered(client, normal_user_token_headers, connector_id, ["notes.txt"])
+
+    kinds = {action["name"]: action["applies_to"] for action in response.json()}
+    assert "file" in kinds["delete"]
+
+
+@pytest.mark.usefixtures("home")
 async def test_a_node_named_twice_in_a_set_is_refused(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
