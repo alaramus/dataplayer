@@ -4,7 +4,7 @@ The relation model reduced to counts, as PostgreSQL's summary is. The server
 keeps no time a collection was made or last written to.
 """
 
-from app.adapters.mongodb.catalog import OPTIONS_REPRESENTATION, TABLE_REPRESENTATION
+from app.adapters.mongodb.catalog import REPRESENTATIONS
 from app.adapters.mongodb.relation import MongodbRelation, model_of
 from app.adapters.summary import NodeSummary, RelationContents
 from app.adapters.words import worded_titles
@@ -21,7 +21,7 @@ class MongodbSummaries:
             node_id=node_id,
             name=model.name,
             kind="view" if facts.is_view else "table",
-            representations=worded_titles([TABLE_REPRESENTATION, OPTIONS_REPRESENTATION]),
+            representations=worded_titles(REPRESENTATIONS),
             size_bytes=model.size_bytes,
             contents=RelationContents(
                 relation_kind=model.kind,

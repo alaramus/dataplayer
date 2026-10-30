@@ -1,14 +1,15 @@
 # MongoDB
 
 What a MongoDB source is, how it reaches the server, what its catalog shows,
-how a collection becomes columns and how its documents cross to the grid. Its
+how a collection becomes columns, how its documents cross to the grid and
+how they are changed there. Its
 console is `mongosh` in a terminal, run in a container (D286, in
 [terminals.md](../terminals.md)). The
 contract every source type follows is in [contract.md](contract.md); reading a
 relation in general is in [relations.md](relations.md). Read this before
 changing the `mongodb` adapter.
 
-Decisions here: D283, D284, D285.
+Decisions here: D283, D284, D285, D287.
 
 ## D283. A MongoDB source speaks to one server through pymongo
 
@@ -112,3 +113,45 @@ past the page to know whether there is another, stopped by the server after a
 minute.
 
 Spec: [A MongoDB source](../../decisions/2026-10-31-mongodb-source-design.md)
+
+## D287. A document is named by its `_id` and changed only as it was read
+
+A page's row handle is the document's `_id` as canonical Extended JSON, so an
+id of any BSON type comes back as exactly itself, and a digest of the whole
+document as it was read (`app.adapters.row_handles`, D234). A change reads the
+document by its id, compares the digest, and writes with a filter that holds
+the document read compared whole by the server
+(`$expr: {$eq: ["$$ROOT", {$literal: …}]}`), so a document changed in between
+matches nothing and the change is a conflict, answered 409.
+
+A cell's text is stored as its column holds values (D284): a number by its
+width, a date as a moment, an ObjectId by its hex, bytes from `0x…`; an object
+or an array from relaxed Extended JSON; a mixed field from JSON when the text
+is JSON and as a string when it is not. An empty cell is null. `_id` is never
+editable, and a field no query path can name is neither editable nor
+insertable. A new document holds the fields given and no others: an empty
+value is no field, and the driver makes an `_id` when none is given.
+
+A pasted block and a deletion are checked whole before anything is written and
+then applied document by document, each all or nothing, as ClickHouse's rows
+are (D272). A block of new documents goes in with one ordered `insertMany`;
+when the server refuses one, those it took before it are deleted again, so the
+block goes in whole or not at all. A unique index's and a validator's refusals
+are said by their codes.
+
+A view's documents come from its pipeline and are not changed; a time series
+takes new documents and changes none; the server's own collections take
+nothing.
+
+A collection is also offered as its documents whole (`jsonl`, "View as
+documents"): a page of documents by `_id` as relaxed Extended JSON trees, one
+past 256 KB shown as the beginning of its text.
+
+Known deviations:
+
+- A block is not a transaction. A conflict on the tenth document of a paste
+  leaves the nine before it changed; a replica set's transactions are not used.
+- A missing field and a null are both an empty cell, so emptying a cell writes
+  null rather than removing the field.
+
+Spec: [MongoDB documents](../../decisions/2026-10-31-mongodb-documents-design.md)

@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from pymongo import AsyncMongoClient
 from pymongo.errors import (
+    BulkWriteError,
     ConfigurationError,
     ConnectionFailure,
     ExecutionTimeout,
@@ -34,6 +35,7 @@ from app.adapters.protocol import (
 )
 from app.adapters.resources import Pooling
 from app.adapters.tunnels import TunnelAccess, reach
+from app.adapters.update import RowConflict
 from app.core.config import settings
 from app.core.logs import record_failure, with_ref
 from app.core.translation import N_, say
@@ -101,9 +103,15 @@ def classify(
 
 def named_refusal(exc: BaseException, refusals: Mapping[int, str] | None) -> str | None:
     """The caller's own sentence for an error code it anticipated, or nothing."""
-    if refusals is None or not isinstance(exc, OperationFailure) or exc.code is None:
+    if refusals is None or not isinstance(exc, OperationFailure):
         return None
-    named = refusals.get(exc.code)
+    code = exc.code
+    if isinstance(exc, BulkWriteError):
+        errors = exc.details.get("writeErrors") or [{}]
+        code = errors[0].get("code")
+    if code is None:
+        return None
+    named = refusals.get(code)
     return None if named is None else say(named)
 
 
@@ -335,7 +343,7 @@ class MongodbSession:
         """
         try:
             yield
-        except (AdapterError, NodeNotFound, ValueError):
+        except (AdapterError, NodeNotFound, ValueError, RowConflict):
             raise
         except Exception as exc:
             named = named_refusal(exc, refusals)

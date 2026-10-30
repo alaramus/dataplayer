@@ -24,6 +24,9 @@ TABLE_REPRESENTATION = NodeRepresentation(kind="table", title=N_("View as table"
 # A collection has no DDL; its options, validator, indexes and a view's
 # pipeline answer the same question (D55), as the JSON they are.
 OPTIONS_REPRESENTATION = NodeRepresentation(kind="json", title=N_("View the definition"))
+# Every document whole, a page at a time (D287).
+DOCUMENTS_REPRESENTATION = NodeRepresentation(kind="jsonl", title=N_("View as documents"))
+REPRESENTATIONS = [TABLE_REPRESENTATION, DOCUMENTS_REPRESENTATION, OPTIONS_REPRESENTATION]
 
 
 def is_system_database(name: str) -> bool:
@@ -51,7 +54,7 @@ def collection_node(
     """One collection or view as a node; shared by the listing and `path_to`."""
     name = str(info["name"])
     system = is_system_collection(database, name)
-    representations = worded_titles([TABLE_REPRESENTATION, OPTIONS_REPRESENTATION])
+    representations = worded_titles(REPRESENTATIONS)
     if collection_type(info) == "view":
         return ViewNode(
             id=relation_id(database, name),

@@ -10,16 +10,24 @@ from typing import Any
 
 from app.adapters import jsontext
 from app.adapters.content import ContentRequest, ContentResult, JsonContent, json_tree
+from app.adapters.mongodb.documents import read_documents
 from app.adapters.mongodb.relation import MongodbRelation
+from app.adapters.mongodb.session import MongodbSession
 from app.adapters.mongodb.values import relaxed_json
 from app.core.translation import say
 
 
 class MongodbContent:
-    def __init__(self, relation: MongodbRelation) -> None:
+    def __init__(self, session: MongodbSession, relation: MongodbRelation) -> None:
+        self._session = session
         self._relation = relation
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
+        if request.representation == "jsonl":
+            facts = await self._relation.facts(request.node_id, structure=False)
+            return await read_documents(
+                self._session, facts, limit=request.limit, offset=request.offset
+            )
         if request.representation != "json":
             raise ValueError(
                 say(

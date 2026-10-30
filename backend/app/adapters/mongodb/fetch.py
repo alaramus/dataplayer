@@ -19,7 +19,14 @@ from app.adapters.fetch import (
     ScalarFilter,
 )
 from app.adapters.mongodb.inspection import CollectionFacts
-from app.adapters.mongodb.relation import MongodbRelation, system_reason
+from app.adapters.mongodb.relation import MongodbRelation
+from app.adapters.mongodb.rows import (
+    editable,
+    editing_reason,
+    handle_of,
+    insertable,
+    inserting_reason,
+)
 from app.adapters.mongodb.session import MongodbSession
 from app.adapters.mongodb.values import (
     Tag,
@@ -166,14 +173,30 @@ class MongodbFetch:
                     .to_list()
                 )
         page = documents[: request.limit]
-        columns = with_page_fields(prepared.columns, page)
+        update_reason = editing_reason(facts)
+        insert_reason = inserting_reason(facts)
+        columns = [
+            column.model_copy(
+                update={
+                    "editable": update_reason is None and editable(column),
+                    "insertable": insert_reason is None and insertable(column),
+                    # `_id` is made by the driver when it is not given.
+                    "has_default": True,
+                }
+            )
+            for column in prepared.columns
+        ]
+        columns = with_page_fields(columns, page)
         rows = [[read_cell(document.get(column.name)) for column in columns] for document in page]
-        refused = system_reason(facts) or say("Documents are not changed here yet")
         return FetchResult(
             columns=columns,
             rows=rows,
             has_more=len(documents) > request.limit,
-            update_reason=refused,
-            insert_reason=refused,
-            delete_reason=refused,
+            row_handles=[handle_of(document) for document in page],
+            update_supported=update_reason is None,
+            update_reason=update_reason,
+            insert_supported=insert_reason is None,
+            insert_reason=insert_reason,
+            delete_supported=update_reason is None,
+            delete_reason=update_reason,
         )

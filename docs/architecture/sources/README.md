@@ -20,7 +20,7 @@ file holds which decision.
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
-| [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read |
+| [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
 ## Eight source types
@@ -142,7 +142,9 @@ collections and their views, a collection's definition as JSON, and its
 documents as rows whose columns are the fields its validator declares and its
 documents at both ends hold, every value as text and nested ones as relaxed
 Extended JSON (D284), paged, sorted and filtered by a query document built
-from the closed predicates (D285).
+from the closed predicates (D285). `mongosh` in a terminal, run in a container
+(D286). Documents are edited, added and deleted in the grid, each named by its
+`_id` and a digest of the whole of it, and read whole as JSON lines (D287).
 
 ## Where the code is
 
@@ -238,7 +240,9 @@ backend/app/adapters/
 │                       values.py (BSON as text, fields from documents),
 │                       inspection.py (a collection, its sample), catalog.py,
 │                       relation.py, fetch.py, content.py (the definition),
-│                       summary.py, adapter.py
+│                       documents.py (documents whole), rows.py (a document
+│                       by its id and digest, values written), update.py,
+│                       console.py (mongosh), summary.py, adapter.py
 ├── database_ids.py     a database and a relation as one node id (D229)
 ├── row_handles.py      a handle of values and a digest of the row (D234, D272)
 ├── redis/              session.py (reaching the server, and reducing its

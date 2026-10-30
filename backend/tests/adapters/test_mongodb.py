@@ -99,7 +99,7 @@ def test_it_claims_only_what_it_does() -> None:
     ):
         assert isinstance(source, capability)
     assert not isinstance(source, SupportsQuery)
-    assert not isinstance(source, SupportsUpdate)
+    assert isinstance(source, SupportsUpdate)
 
 
 def test_a_server_is_read_as_its_number() -> None:
@@ -354,7 +354,7 @@ async def test_a_database_lists_collections_and_views() -> None:
     assert people.term == "collection"
     assert people.row_count_estimate == 3
     assert people.describable and people.summarizable
-    assert [item.kind for item in people.representations] == ["table", "json"]
+    assert [item.kind for item in people.representations] == ["table", "jsonl", "json"]
     assert isinstance(by_name["adults"], ViewNode)
     assert by_name[DOTTED].id == relation_id(DATABASE, DOTTED)
 
@@ -463,8 +463,6 @@ async def test_every_value_crosses_as_its_canonical_text() -> None:
     assert ann["uid"] == str(UID)
     assert ann["active"] == "true"
     assert ann["address"] is None
-    assert not page.update_supported
-    assert page.update_reason is not None
 
 
 @pytest.mark.usefixtures("server")

@@ -19,6 +19,7 @@ from app.adapters.mongodb.session import (
     options_from_url,
 )
 from app.adapters.mongodb.summary import MongodbSummaries
+from app.adapters.mongodb.update import MongodbUpdate
 from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
@@ -26,6 +27,18 @@ from app.adapters.resources import Pooling
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
+)
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_
 
@@ -77,7 +90,8 @@ class MongodbAdapter:
         self._catalog = MongodbCatalog(self._session)
         self._relation = MongodbRelation(self._session)
         self._fetch = MongodbFetch(self._session, self._relation)
-        self._content = MongodbContent(self._relation)
+        self._content = MongodbContent(self._session, self._relation)
+        self._update = MongodbUpdate(self._session, self._relation)
         self._summaries = MongodbSummaries(self._relation)
 
     @classmethod
@@ -143,6 +157,22 @@ class MongodbAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        """One field of one document, if it is still the document read (D287)."""
+        return await self._update.update_cell(request)
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        return await self._update.update_cells(request)
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._update.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request)
+
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        return await self._update.delete_rows(request)
 
     async def console_program(self) -> ConsoleProgram:
         """mongosh, signed in as this connection, in a container (D286)."""

@@ -11,11 +11,13 @@ documents. How connections work in general is on the
 - Documents as rows, sorted and filtered on the server
 - The fields a collection's documents have, and its indexes
 - A collection's definition: its options, validator and indexes, as JSON
+- Every document whole, as JSON, a page at a time
 - How many documents a collection holds and how much space it takes
 - mongosh, signed in as the connection, in a terminal
 
 ## What you can change
 
+- Documents: edit fields, paste blocks, add and delete documents
 - Anything mongosh can change, typed into its terminal
 
 ## Connecting
@@ -70,6 +72,23 @@ connection is checked, with its version named.
   repeats the last one.
 - A field whose name holds a dot or starts with `$` is shown but cannot be
   sorted or filtered by: a query cannot name it.
+
+## Changing documents
+
+- A cell is one field of one document. What you type is stored as the field
+  holds values: a number as a number, a date as a moment, an object or an
+  array as JSON in the form the cell shows. A field of mixed type takes JSON
+  when what you type is JSON, and text when it is not.
+- A document changed by somebody else since the page was read is not
+  overwritten: you are told, and the page is read again.
+- `_id` cannot be changed. Emptying a cell stores null.
+- A new document holds the fields you fill in and no others; leave `_id`
+  empty and one is made.
+- A pasted block is checked whole first, then written a document at a time.
+  A block of new documents goes in whole or not at all.
+- A view, a time series and the server's own collections are not changed
+  here; a time series takes new documents.
+- **View as documents** shows every document whole, every level of it.
 
 ## mongosh
 

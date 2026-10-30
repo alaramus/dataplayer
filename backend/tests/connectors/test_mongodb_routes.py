@@ -77,7 +77,7 @@ async def test_a_connection_is_checked_browsed_read_and_described(
     page = await post("fetch", {"node_id": PEOPLE, "limit": 2})
     assert [row[1] for row in page["rows"]] == ["Ann", "Bob"]
     assert page["has_more"] is True
-    assert page["update_supported"] is False
+    assert page["update_supported"] is True
 
     model = await get("relation-model", node_id=PEOPLE)
     assert model["columns"][0]["name"] == "_id"
@@ -101,3 +101,41 @@ async def test_a_connection_string_fills_the_form(
 
     assert response.status_code == 200, response.text
     assert response.json()["options"]["auth_source"] == "shop"
+
+
+@pytest.mark.usefixtures("server")
+async def test_a_field_is_edited_and_a_document_deleted_through_the_routes(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Named by `_id` and a digest of the document, as the grid sends it back (D287)."""
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers)
+    numbers = relation_id(DATABASE, "numbers")
+
+    page = await client.post(
+        f"{BASE}/{connector}/fetch", headers=headers, json={"node_id": numbers, "limit": 2}
+    )
+    assert page.status_code == 200, page.text
+    handles = page.json()["row_handles"]
+
+    edited = await client.patch(
+        f"{BASE}/{connector}/rows/cell",
+        headers=headers,
+        json={"node_id": numbers, "row_handle": handles[0], "column": "label", "value": "first"},
+    )
+    assert edited.status_code == 200, edited.text
+    assert "first" in edited.json()["values"]
+    stale = await client.patch(
+        f"{BASE}/{connector}/rows/cell",
+        headers=headers,
+        json={"node_id": numbers, "row_handle": handles[0], "column": "label", "value": "again"},
+    )
+    assert stale.status_code == 409, stale.text
+    deleted = await client.request(
+        "DELETE",
+        f"{BASE}/{connector}/rows",
+        headers=headers,
+        json={"node_id": numbers, "row_handles": [handles[1]]},
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["deleted"] == 1
