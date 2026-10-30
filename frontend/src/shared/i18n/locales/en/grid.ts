@@ -275,12 +275,11 @@ export const grid = {
     more: "The source holds more than these.",
     preview: "Preview",
     run: "Bring in",
+    background: "Too many rows for one go: they go in the background, followed at the foot of the window",
     nothing_paired: "nothing paired yet",
     filled: "{filled} of {total} filled",
     preview_failed: "Could not read those rows",
     done: "{n} row brought in | {n} rows brought in",
-    done_truncated:
-      "{n} row brought in; the source held more | {n} rows brought in; the source held more",
     failed: "Could not bring those rows in",
   },
   create_table: {

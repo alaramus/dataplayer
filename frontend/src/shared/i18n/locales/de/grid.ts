@@ -276,12 +276,11 @@ export const grid: Messages["grid"] = {
     more: "Die Quelle enthält mehr als diese.",
     preview: "Vorschau",
     run: "Hereinbringen",
+    background: "Zu viele Zeilen auf einmal: sie werden im Hintergrund übertragen, unten im Fenster zu verfolgen",
     nothing_paired: "noch nichts zugeordnet",
     filled: "{filled} von {total} gefüllt",
     preview_failed: "Diese Zeilen konnten nicht gelesen werden",
     done: "{n} Zeile hereingebracht | {n} Zeilen hereingebracht",
-    done_truncated:
-      "{n} Zeile hereingebracht; die Quelle enthielt mehr | {n} Zeilen hereingebracht; die Quelle enthielt mehr",
     failed: "Diese Zeilen konnten nicht hereingebracht werden",
   },
   create_table: {

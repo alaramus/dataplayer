@@ -277,12 +277,11 @@ export const grid: Messages["grid"] = {
     more: "La fuente tiene más que estas.",
     preview: "Vista previa",
     run: "Traer",
+    background: "Demasiadas filas de una vez: se trasladan en segundo plano y se siguen al pie de la ventana",
     nothing_paired: "aún no hay nada emparejado",
     filled: "{filled} de {total} rellenadas",
     preview_failed: "No se pudieron leer esas filas",
     done: "Se trajo {n} fila | Se trajeron {n} filas",
-    done_truncated:
-      "Se trajo {n} fila; la fuente tenía más | Se trajeron {n} filas; la fuente tenía más",
     failed: "No se pudieron traer esas filas",
   },
   create_table: {

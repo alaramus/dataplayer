@@ -277,12 +277,11 @@ export const grid: Messages["grid"] = {
     more: "数据源中的行不止这些。",
     preview: "预览",
     run: "导入",
+    background: "行数较多：将在后台传输，可在窗口底部查看进度",
     nothing_paired: "尚未配对任何内容",
     filled: "已填充 {filled}/{total}",
     preview_failed: "无法读取这些行",
     done: "已导入 {n} 行",
-    done_truncated:
-      "已导入 {n} 行；数据源中的行更多",
     failed: "无法导入这些行",
   },
   create_table: {

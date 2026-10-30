@@ -271,6 +271,31 @@ async def test_moves_rows_from_a_file_into_a_relation(
     assert sorted(row[1] for row in rows.json()["rows"]) == ["AP", "EU", "US"]
 
 
+async def test_more_rows_than_one_request_carries_start_a_job(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    schema: str,
+    home: Path,
+) -> None:
+    """Past the ceiling the rows go as a job a block at a time (D43)."""
+    target = await _postgres(client, normal_user_token_headers)
+    files = await _files(client, normal_user_token_headers)
+    lines = "".join(f"{n},C{n % 100}\n" for n in range(2, 6003))
+    node = _csv(home, "id,code\n" + lines)
+
+    response = await client.post(
+        f"{BASE}/{target}/import",
+        headers=normal_user_token_headers,
+        json=_move(schema, files, node, [("id", "id"), ("code", "code")]),
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["outcome"] == "started"
+    assert body["job"]["kind"] == "paste.transfer"
+    assert body["job"]["parameters"]["kind"] == "rows_into_relation"
+
+
 async def test_a_value_the_target_cannot_read_is_named_and_nothing_is_written(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

@@ -2047,35 +2047,6 @@ export class ConnectorsService {
   }
 
   /**
-   * Import Rows
-   *
-   * Move a bounded set of rows from one source into a relation of another.
-   *
-   * Either every row arrives or none does. A value the target cannot read is
-   * named — row, column and the value itself — and nothing is written. A source
-   * holding more rows than the ceiling is not refused, but the answer says the
-   * rows were cut off.
-   */
-  public static importRows<ThrowOnError extends boolean = true>(
-    options: Options<connectorsImportRowsData, ThrowOnError>
-  ) {
-    return (options.client ?? client).post<
-      connectorsImportRowsResponses,
-      connectorsImportRowsErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/connectors/{connector_id}/import",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    })
-  }
-
-  /**
    * Run Row Command
    *
    * Do one source-declared thing to the rows somebody selected.
@@ -2147,30 +2118,6 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/relations/options",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    })
-  }
-
-  /**
-   * Create Relation From Source
-   *
-   * Create and fill one relation from any bounded readable source.
-   */
-  public static createRelationFromSource<ThrowOnError extends boolean = true>(
-    options: Options<connectorsCreateRelationFromSourceData, ThrowOnError>
-  ) {
-    return (options.client ?? client).post<
-      connectorsCreateRelationFromSourceResponses,
-      connectorsCreateRelationFromSourceErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/connectors/{connector_id}/relations/from-source",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -3206,6 +3153,62 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/paste",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Import Rows
+   *
+   * Move a bounded set of rows from one source into a relation of another.
+   *
+   * Either every row arrives or none does. A value the target cannot read is
+   * named — row, column and the value itself — and nothing is written. A source
+   * holding more rows than one request carries is carried by a job instead, a
+   * block at a time, as Paste carries it (D43).
+   */
+  public static importRows<ThrowOnError extends boolean = true>(
+    options: Options<connectorsImportRowsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsImportRowsResponses,
+      connectorsImportRowsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Create Relation From Source
+   *
+   * Create and fill one relation from any readable source.
+   *
+   * Past one request's ceiling the relation is made and filled by a job, as
+   * Paste fills it (D43); a folder still takes at most that many as a file.
+   */
+  public static createRelationFromSource<ThrowOnError extends boolean = true>(
+    options: Options<connectorsCreateRelationFromSourceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsCreateRelationFromSourceResponses,
+      connectorsCreateRelationFromSourceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/relations/from-source",
       ...options,
       headers: {
         "Content-Type": "application/json",

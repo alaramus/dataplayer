@@ -92,7 +92,12 @@ watch(serverJobs, (listed) => {
 // every two seconds, and the tab that started it says how it ended (D168).
 // A pipeline's run does the same as its links end (D177).
 const changes = useSourceChangesStore()
-const rereader = createRereader((connectorId) => { changes.announce(connectorId) })
+// Rows carried a block at a time (D43) land in a table that may be open: its
+// page is read again with the catalogs.
+const rereader = createRereader((connectorId) => {
+  changes.announce(connectorId)
+  void queryClient.invalidateQueries({ queryKey: ["rows", connectorId] })
+})
 onBeforeUnmount(() => { rereader.dispose() })
 let transferSignatures = new Map<string, string>()
 watch([serverJobs, startedHere], ([listed, started]) => {

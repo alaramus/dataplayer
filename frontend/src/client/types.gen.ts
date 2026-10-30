@@ -16574,37 +16574,6 @@ export type connectorsPreviewImportResponses = {
 export type connectorsPreviewImportResponse =
   connectorsPreviewImportResponses[keyof connectorsPreviewImportResponses]
 
-export type connectorsImportRowsData = {
-  body: ImportRowsRequest
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/import"
-}
-
-export type connectorsImportRowsErrors = {
-  /**
-   * A coded refusal
-   */
-  "4XX": ProblemResponse
-}
-
-export type connectorsImportRowsError = connectorsImportRowsErrors[keyof connectorsImportRowsErrors]
-
-export type connectorsImportRowsResponses = {
-  /**
-   * Successful Response
-   */
-  200: RowsMoved
-}
-
-export type connectorsImportRowsResponse =
-  connectorsImportRowsResponses[keyof connectorsImportRowsResponses]
-
 export type connectorsRunRowCommandData = {
   body: RowCommandRequest
   path: {
@@ -16700,38 +16669,6 @@ export type connectorsNewRelationOptionsResponses = {
 
 export type connectorsNewRelationOptionsResponse =
   connectorsNewRelationOptionsResponses[keyof connectorsNewRelationOptionsResponses]
-
-export type connectorsCreateRelationFromSourceData = {
-  body: CreateRelationFromSourceRequest
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/relations/from-source"
-}
-
-export type connectorsCreateRelationFromSourceErrors = {
-  /**
-   * A coded refusal
-   */
-  "4XX": ProblemResponse
-}
-
-export type connectorsCreateRelationFromSourceError =
-  connectorsCreateRelationFromSourceErrors[keyof connectorsCreateRelationFromSourceErrors]
-
-export type connectorsCreateRelationFromSourceResponses = {
-  /**
-   * Successful Response
-   */
-  200: RelationCreated
-}
-
-export type connectorsCreateRelationFromSourceResponse =
-  connectorsCreateRelationFromSourceResponses[keyof connectorsCreateRelationFromSourceResponses]
 
 export type connectorsFollowReferenceData = {
   body: FollowReferenceRequest
@@ -19206,6 +19143,73 @@ export type connectorsPasteResponses = {
 }
 
 export type connectorsPasteResponse = connectorsPasteResponses[keyof connectorsPasteResponses]
+
+export type connectorsImportRowsData = {
+  body: ImportRowsRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/import"
+}
+
+export type connectorsImportRowsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsImportRowsError = connectorsImportRowsErrors[keyof connectorsImportRowsErrors]
+
+export type connectorsImportRowsResponses = {
+  /**
+   * Response Connectors-Import Rows
+   *
+   * Successful Response
+   */
+  200: RowsMoved | PasteStarted
+}
+
+export type connectorsImportRowsResponse =
+  connectorsImportRowsResponses[keyof connectorsImportRowsResponses]
+
+export type connectorsCreateRelationFromSourceData = {
+  body: CreateRelationFromSourceRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/relations/from-source"
+}
+
+export type connectorsCreateRelationFromSourceErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsCreateRelationFromSourceError =
+  connectorsCreateRelationFromSourceErrors[keyof connectorsCreateRelationFromSourceErrors]
+
+export type connectorsCreateRelationFromSourceResponses = {
+  /**
+   * Response Connectors-Create Relation From Source
+   *
+   * Successful Response
+   */
+  200: RelationCreated | PasteStarted
+}
+
+export type connectorsCreateRelationFromSourceResponse =
+  connectorsCreateRelationFromSourceResponses[keyof connectorsCreateRelationFromSourceResponses]
 
 export type pipelinesReadPipelinesData = {
   body?: never

@@ -28,6 +28,7 @@ import { t } from "@/shared/i18n"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import { reloadedBy, toCommands, withPickedRows } from "@/features/catalog/actions"
 import type { ActionCommand, ActionOutcome } from "@/features/catalog/actions"
+import { startedInThisTab } from "@/features/activity/transfers"
 import { useNodeActions } from "@/features/catalog/api"
 import { useConnectionFreshness } from "@/features/connectors/api"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
@@ -484,11 +485,13 @@ async function bringIn(value: {
       columns: value.columns,
     })
     importOpen.value = false
-    toast.success(
-      answer.truncated
-        ? t("grid.import.done_truncated", { n: answer.inserted }, answer.inserted)
-        : t("grid.import.done", { n: answer.inserted }, answer.inserted)
-    )
+    if ("job" in answer) {
+      // Past one request's ceiling the rows go as a job, followed at the foot (D43).
+      startedInThisTab(answer.job.id)
+      toast.info(t("grid.import.background"))
+      return
+    }
+    toast.success(t("grid.import.done", { n: answer.inserted }, answer.inserted))
   } catch (error) {
     importError.value = messageOf(error, t("grid.import.failed"))
   }
@@ -518,6 +521,11 @@ async function createTable(value: {
       },
     })
     createTableOpen.value = false
+    if ("job" in answer) {
+      startedInThisTab(answer.job.id)
+      toast.info(t("grid.import.background"))
+      return
+    }
     // The destination may be the very connection the catalog beside this is
     // showing — a folder of the source these rows came from — and a list that
     // built itself does not re-read on a cache being emptied (D66).

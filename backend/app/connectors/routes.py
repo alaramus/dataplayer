@@ -165,7 +165,6 @@ from app.adapters.relation import (
 )
 from app.adapters.relation_changes import (
     NewRelationOptions,
-    RelationCreated,
 )
 from app.adapters.resources import ResourcesDep
 from app.adapters.row_commands import (
@@ -197,7 +196,6 @@ from app.adapters.update import (
     InsertRowRequest,
     InsertRowResult,
     RowConflict,
-    RowsInserted,
     UpdateCellRequest,
     UpdateCellResult,
     UpdateCellsRequest,
@@ -1712,7 +1710,7 @@ async def delete_rows(
         ) from exc
 
 
-async def _import_sides(
+async def import_sides(
     session: SessionDep,
     connector_id: uuid.UUID,
     request: imports.ImportRowsRequest,
@@ -1790,57 +1788,13 @@ async def preview_import(
     nothing when one cannot be read, so a second validating call would be the
     same answer one step earlier and a second contract to keep in step.
     """
-    _, source = await _import_sides(
+    _, source = await import_sides(
         session, connector_id, request, current_user, resources
     )
     read = await _read_for_import(source, request, imports.PREVIEW_ROWS)
     return imports.ImportPreview(
         columns=read.columns, rows=read.rows, more=read.truncated
     )
-
-
-@router.post("/{connector_id}/import", response_model=imports.RowsMoved)
-async def import_rows(
-    session: SessionDep,
-    current_user: CurrentUser,
-    resources: ResourcesDep,
-    data_cache: DataCacheDep,
-    connector_id: uuid.UUID,
-    request: imports.ImportRowsRequest,
-) -> Any:
-    """
-    Move a bounded set of rows from one source into a relation of another.
-
-    Either every row arrives or none does. A value the target cannot read is
-    named — row, column and the value itself — and nothing is written. A source
-    holding more rows than the ceiling is not refused, but the answer says the
-    rows were cut off.
-    """
-    target, source = await _import_sides(
-        session, connector_id, request, current_user, resources
-    )
-    if not isinstance(target, SupportsInsert):
-        raise Problem(501, "connectors.no_row_import", error_kind="config")
-    result, truncated = await _shape_change(
-        lambda: imports.insert_from_source(target, source, request)
-    )
-    if not isinstance(result, RowsInserted):
-        # Named values that could not be read, with nothing written. A 422
-        # rather than an answer, because unlike the counts of D37 this is a
-        # request that cannot be carried out as given.
-        raise HTTPException(
-            status_code=422,
-            detail=[
-                {
-                    "loc": ["body", "rows", cell.row, cell.column],
-                    "msg": say("{value} cannot be read by {column}", value=repr(cell.value), column=cell.column),
-                    "type": "value_error",
-                }
-                for cell in result.cells
-            ],
-        )
-    await data_cache.invalidate_connector(connector_id)
-    return imports.RowsMoved(inserted=result.inserted, truncated=truncated)
 
 
 class RowCommandRequest(BaseModel):
@@ -1962,68 +1916,9 @@ async def new_relation_options(
     )
     if not isinstance(target, SupportsCreateRelation):
         raise Problem(501, "connectors.no_relation_create", error_kind="config")
-    return await _shape_change(
+    return await shape_change(
         lambda: target.new_relation_options(request.parent_node_id)
     )
-
-
-@router.post("/{connector_id}/relations/from-source", response_model=RelationCreated)
-async def create_relation_from_source(
-    session: SessionDep,
-    current_user: CurrentUser,
-    resources: ResourcesDep,
-    data_cache: DataCacheDep,
-    names: NamesChangedDep,
-    connector_id: uuid.UUID,
-    request: imports.CreateRelationFromSourceRequest,
-) -> Any:
-    """Create and fill one relation from any bounded readable source."""
-    try:
-        source_id = uuid.UUID(request.source_connector_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=422,
-            detail=[
-                {
-                    "loc": ["body", "source_connector_id"],
-                    "msg": say("That is not a connector id"),
-                    "type": "value_error",
-                }
-            ],
-        ) from None
-    target = await adapter_for(
-        session, connector_id, current_user, resources, requires="structure"
-    )
-    source = await adapter_for(
-        session, source_id, current_user, resources, requires="read"
-    )
-    if not isinstance(target, SupportsCreateRelation):
-        raise Problem(501, "connectors.no_relation_create", error_kind="config")
-    if not isinstance(source, SupportsFetch):
-        raise Problem(501, "connectors.source_not_rows", error_kind="config")
-    try:
-        result = await _shape_change(
-            lambda: imports.create_from_source(target, source, request)
-        )
-    except imports.SourceTooLarge:
-        raise Problem(
-            413, "connectors.import_too_many_rows", limit=imports.IMPORT_CEILING
-        ) from None
-    if not isinstance(result, RelationCreated):
-        raise HTTPException(
-            status_code=422,
-            detail=[
-                {
-                    "loc": ["body", "rows", cell.row, cell.column],
-                    "msg": say("{value} cannot be read by {column}", value=repr(cell.value), column=cell.column),
-                    "type": "value_error",
-                }
-                for cell in result.cells
-            ],
-        )
-    await data_cache.invalidate_connector(connector_id)
-    await names(connector_id)
-    return result
 
 
 def _in_connection(target: ReferenceTarget, connector: Connector) -> ReferenceTarget:
@@ -2632,7 +2527,7 @@ async def change_column_type(
     return result
 
 
-async def _shape_change[T](adapter_call: Callable[[], Awaitable[T]]) -> T:
+async def shape_change[T](adapter_call: Callable[[], Awaitable[T]]) -> T:
     """One reading of what an adapter can say about changing a shape."""
     try:
         return await adapter_call()
@@ -2681,7 +2576,7 @@ async def create_index(
     and only a created index invalidates what the connector cached.
     """
     adapter = await _indexing_adapter(session, connector_id, current_user, resources)
-    result = await _shape_change(lambda: adapter.create_index(request))
+    result = await shape_change(lambda: adapter.create_index(request))
     if isinstance(result, IndexCreated):
         await data_cache.invalidate_connector(connector_id)
     return result
@@ -2699,7 +2594,7 @@ async def drop_index(
     """Drop one index of a relation, without an implicit cascade."""
     adapter = await _indexing_adapter(session, connector_id, current_user, resources)
     return await _invalidate_after(
-        lambda: _shape_change(lambda: adapter.drop_index(request)),
+        lambda: shape_change(lambda: adapter.drop_index(request)),
         data_cache,
         connector_id,
     )
@@ -2736,7 +2631,7 @@ async def table_design_options(
     the browser would be wrong within a release.
     """
     adapter = await _designing_adapter(session, connector_id, current_user, resources)
-    return await _shape_change(lambda: adapter.table_design_options(request.node_id))
+    return await shape_change(lambda: adapter.table_design_options(request.node_id))
 
 
 @router.post("/{connector_id}/table-design/plan", response_model=TablePlan)
@@ -2760,7 +2655,7 @@ async def plan_table(
     once.
     """
     adapter = await _designing_adapter(session, connector_id, current_user, resources)
-    return await _shape_change(lambda: adapter.plan_table(request))
+    return await shape_change(lambda: adapter.plan_table(request))
 
 
 @router.post("/{connector_id}/hypertable-design/state", response_model=HypertableDesignState)
@@ -2782,7 +2677,7 @@ async def hypertable_design_state(
     )
     if not isinstance(adapter, SupportsHypertableDesign):
         raise Problem(501, "connectors.no_hypertables", error_kind="config")
-    return await _shape_change(lambda: adapter.hypertable_design_state(request.node_id))
+    return await shape_change(lambda: adapter.hypertable_design_state(request.node_id))
 
 
 async def _constraining_adapter(
@@ -2818,7 +2713,7 @@ async def create_constraint(
     adapter = await _constraining_adapter(
         session, connector_id, current_user, resources
     )
-    result = await _shape_change(lambda: adapter.create_constraint(request))
+    result = await shape_change(lambda: adapter.create_constraint(request))
     if isinstance(result, ConstraintCreated):
         await data_cache.invalidate_connector(connector_id)
     return result
@@ -2838,7 +2733,7 @@ async def drop_constraint(
         session, connector_id, current_user, resources
     )
     return await _invalidate_after(
-        lambda: _shape_change(lambda: adapter.drop_constraint(request)),
+        lambda: shape_change(lambda: adapter.drop_constraint(request)),
         data_cache,
         connector_id,
     )

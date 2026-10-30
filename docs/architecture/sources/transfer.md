@@ -381,10 +381,9 @@ asking one to read another would be the first crack in that.
   implies the other.
 - It is not an import of a file: the file source is one readable source among
   several and the relation one writable target among several.
-- The read has a ceiling of 5000 rows and pages the source at its own limit to
-  reach it. More is not refused — that would make the command useless — but the
-  answer says the rows were cut off.
-- **Past that ceiling a paste is a job** (D168), and carries every row:
+- One request carries at most 5000 rows, read by paging the source at its own
+  limit, in one transaction.
+- **Past that ceiling it is a job** (D168), and carries every row:
   `imports.carry_rows` pages the source and writes blocks of 5000, each its
   own transaction. What arrived before a refused value, a failure or a Stop
   stays, and the job's sentence says how many rows that was; a refused value is
@@ -392,7 +391,10 @@ asking one to read another would be the first crack in that.
   filled by the rest, and taken back through `SupportsDropCreated` when it
   cannot be filled — part of a source under a name that claims all of it is
   worse than none. One row read past the ceiling decides which, so nothing is
-  counted. The form of the grid still carries what one request does (next).
+  counted. Paste and the grid's two forms decide alike: `/import` and
+  `/relations/from-source` live in `app/transfers` beside `/paste`, where a
+  job can be started, and answer `started` with it. A folder still takes at
+  most 5000 rows as a file.
 - Columns are paired explicitly, source column to target column, and both sides
   are validated against what each says it has before anything is read. Matching
   by position or by equal names would turn a wrong import into one that looks

@@ -276,12 +276,11 @@ export const grid: Messages["grid"] = {
     more: "La source en contient plus que celles-ci.",
     preview: "Aperçu",
     run: "Importer",
+    background: "Trop de lignes d’un coup : elles passent en arrière-plan, suivies au bas de la fenêtre",
     nothing_paired: "rien d'associé pour l'instant",
     filled: "{filled} sur {total} rempli",
     preview_failed: "Ces lignes n'ont pas pu être lues",
     done: "{n} ligne importée | {n} lignes importées",
-    done_truncated:
-      "{n} ligne importée ; la source en contenait plus | {n} lignes importées ; la source en contenait plus",
     failed: "Ces lignes n'ont pas pu être importées",
   },
   create_table: {
