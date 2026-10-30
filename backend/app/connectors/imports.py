@@ -5,10 +5,12 @@ rather than in an adapter on purpose: an adapter knows itself and nothing else,
 and asking one to read another would be the first crack in that (D43).
 """
 
+from collections.abc import Awaitable, Callable
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import MAX_LIMIT, FetchColumn, FetchRequest
 from app.adapters.protocol import SupportsCreateRelation, SupportsFetch, SupportsInsert
 from app.adapters.relation_changes import (
@@ -19,9 +21,8 @@ from app.adapters.relation_changes import (
 from app.adapters.update import InsertRowsRequest, RowsInserted, ValuesRejected
 from app.core.translation import say
 
-# How many rows one move may carry. More than this is a durable job with
-# progress and cancellation, which is Phase 4; a larger number here would only
-# move the point at which the request times out.
+# How many rows one move carries inside its request, in one transaction. More
+# is carried by a job, a block of this many at a time (`carry_rows`).
 IMPORT_CEILING = 5000
 
 # How many rows are shown before the move is made. Enough to see whether the
@@ -237,3 +238,129 @@ async def insert_from_source(
         InsertRowsRequest(node_id=request.node_id, columns=read.columns, rows=read.rows)
     )
     return result, read.truncated
+
+
+BlockWriter = Callable[
+    [list[str], list[list[str | None]]], Awaitable[RowsInserted | ValuesRejected]
+]
+
+
+class BlockRefused(Exception):
+    """A block the target would not take, its cells counted from the source's
+    first row rather than from the block's."""
+
+    def __init__(self, rejected: ValuesRejected) -> None:
+        super().__init__("values rejected")
+        self.rejected = rejected
+
+
+async def exceeds_ceiling(source: SupportsFetch, node_id: str) -> bool:
+    """Whether the source holds more rows than one request carries.
+
+    One row read past the ceiling, which every source answers without
+    counting the rest.
+    """
+    page = await source.fetch(FetchRequest(node_id=node_id, limit=1, offset=IMPORT_CEILING))
+    return bool(page.rows)
+
+
+async def carry_rows(
+    source: SupportsFetch,
+    node_id: str,
+    pairs: list[ColumnPair],
+    write: BlockWriter,
+    arrived: Callable[[int], Awaitable[None]],
+) -> int:
+    """Every row of a source, written a block at a time; how many arrived.
+
+    Each block is its own transaction, so what arrived before a refusal, a
+    failure or a Stop stays (a job's answer says how much). A block the target
+    refuses ends the carrying with its cells, numbered from the source's
+    first row. Paged by offset at the source's own limit, as `read_rows` is.
+    """
+    block: list[list[str | None]] = []
+    targets: list[str] = []
+    indexes: list[int] = []
+    done = 0
+    offset = 0
+    first = True
+
+    async def flush() -> None:
+        nonlocal done
+        result = await write(targets, block)
+        if isinstance(result, ValuesRejected):
+            raise BlockRefused(
+                ValuesRejected(
+                    cells=[
+                        cell.model_copy(update={"row": cell.row + done})
+                        for cell in result.cells
+                    ]
+                )
+            )
+        done += len(block)
+        block.clear()
+        await arrived(done)
+
+    while True:
+        page = await source.fetch(
+            FetchRequest(node_id=node_id, limit=MAX_LIMIT, offset=offset)
+        )
+        if first:
+            targets, indexes = _pick(pairs, page.columns)
+            first = False
+        for row in page.rows:
+            block.append([row[index] for index in indexes])
+            if len(block) == IMPORT_CEILING:
+                await flush()
+        if not page.has_more or not page.rows:
+            break
+        offset += len(page.rows)
+    if block:
+        await flush()
+    return done
+
+
+def into_relation(target: SupportsInsert, node_id: str) -> BlockWriter:
+    """Blocks written into a relation that is there."""
+
+    async def write(columns: list[str], rows: list[list[str | None]]) -> RowsInserted | ValuesRejected:
+        return await target.insert_rows(
+            InsertRowsRequest(node_id=node_id, columns=columns, rows=rows)
+        )
+
+    return write
+
+
+class NewRelationBlocks:
+    """Blocks of which the first makes the relation, with its rows, and the
+    rest are added to it."""
+
+    def __init__(
+        self,
+        target: SupportsCreateRelation,
+        inserting: SupportsInsert,
+        request: CreateRelationFromSourceRequest,
+    ) -> None:
+        self._target = target
+        self._inserting = inserting
+        self._request = request
+        self.node: CatalogNode | None = None
+
+    async def write(
+        self, columns: list[str], rows: list[list[str | None]]
+    ) -> RowsInserted | ValuesRejected:
+        if self.node is not None:
+            return await into_relation(self._inserting, self.node.id)(columns, rows)
+        made = await self._target.create_relation(
+            CreateRelationRequest(
+                parent_node_id=self._request.parent_node_id,
+                name=self._request.name,
+                columns=self._request.new_columns(),
+                rows=rows,
+            )
+        )
+        if isinstance(made, ValuesRejected):
+            return made
+        self.node = made.node
+        return RowsInserted(inserted=made.inserted)
+

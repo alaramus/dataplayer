@@ -192,4 +192,13 @@ MESSAGES: dict[str, str] = {
     "Nothing was copied: it failed": "कुछ भी कॉपी नहीं हुआ: यह विफल हुआ",
     "Nothing was copied: {reason}": "कुछ भी कॉपी नहीं हुआ: {reason}",
     "{name} was not copied: {reason}": "{name} कॉपी नहीं किया गया: {reason}",
+    # Rows carried a block at a time (D43).
+    "Adding rows": "पंक्तियाँ जोड़ी जा रही हैं",
+    "Filling a new table": "नई तालिका भरी जा रही है",
+    "The rows could not be carried": "पंक्तियाँ स्थानांतरित नहीं हो सकीं",
+    "added": "जोड़ी गईं",
+    "created": "बनाई गई",
+    "{count} rows added to {name}": "{name} में {count} पंक्तियाँ जोड़ी गईं",
+    "{count} rows added to {name}, then: {reason}": "{name} में {count} पंक्तियाँ जोड़ी गईं, फिर: {reason}",
+    "{name} was not created: {reason}": "{name} नहीं बनाई गई: {reason}",
 }

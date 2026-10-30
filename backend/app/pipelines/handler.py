@@ -30,7 +30,7 @@ from app.jobs.runner import JobFailed, JobHandler, Progress
 from app.pipelines.record import STEP_SAYS, RunRecord, RunStep, clipped
 from app.pipelines.runs import KIND
 from app.transfers.handler import WAITING, RunTransfer
-from app.transfers.run import paste_now, planned
+from app.transfers.run import as_job, paste_now, planned
 from app.users.models import User
 
 RUNNING = N_("running its links")
@@ -146,9 +146,11 @@ class RunPipeline:
                 )
             if isinstance(kind, PastesAsJob):
                 try:
-                    step.transfer = await planned(
-                        session, kind, source, destination, step.destination_connector_id, step.paste
-                    )
+                    if await as_job(kind, source, step.paste):
+                        step.transfer = await planned(
+                            session, kind, source, destination, step.destination_connector_id,
+                            step.paste,
+                        )
                 except HTTPException as refused:
                     raise _StepFailed(_said(refused)) from None
         if isinstance(kind, PastesAsJob) and step.transfer is not None:

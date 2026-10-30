@@ -5,7 +5,11 @@ from typing import Any
 from app.adapters.actions import Action, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
-from app.adapters.clickhouse.actions import CLICKHOUSE_ACTION_TYPES, ClickhouseActions
+from app.adapters.clickhouse.actions import (
+    CLICKHOUSE_ACTION_TYPES,
+    ClickhouseActions,
+    DropRelation,
+)
 from app.adapters.clickhouse.backup import ClickhouseBackup
 from app.adapters.clickhouse.catalog import ClickhouseCatalog
 from app.adapters.clickhouse.columns import ClickhouseColumns
@@ -373,6 +377,12 @@ class ClickhouseAdapter:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
+
+    async def drop_created(self, node_id: str) -> None:
+        drop = self._actions.action(DropRelation.name)
+        if not isinstance(drop, DropRelation):
+            raise TypeError("drop_relation is not the drop this adapter registers")
+        await drop.perform_on_set([node_id], {})
 
     async def all_actions(self) -> list[Action[Any]]:
         return await self._actions.all_actions()

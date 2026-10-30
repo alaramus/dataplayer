@@ -192,4 +192,13 @@ MESSAGES: dict[str, str] = {
     "Nothing was copied: it failed": "Ничего не скопировано — ошибка",
     "Nothing was copied: {reason}": "Ничего не скопировано — {reason}",
     "{name} was not copied: {reason}": "{name}: не скопировано — {reason}",
+    # Rows carried a block at a time (D43).
+    "Adding rows": "Добавление строк",
+    "Filling a new table": "Заполнение новой таблицы",
+    "The rows could not be carried": "Строки не удалось перенести",
+    "added": "добавлено",
+    "created": "создана",
+    "{count} rows added to {name}": "В {name} добавлено строк: {count}",
+    "{count} rows added to {name}, then: {reason}": "В {name} добавлено строк: {count}, затем: {reason}",
+    "{name} was not created: {reason}": "{name} не создана: {reason}",
 }

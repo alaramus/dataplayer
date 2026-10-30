@@ -145,10 +145,12 @@ Spec: [Folders carried between connections](../../decisions/2026-09-25-folder-tr
 ## D168. A transfer between connections is an owned job
 
 `file_copy`, `file_move` and `relation_csv` run as D81 jobs of kind
-`paste.transfer`; the row kinds of D166 stay in the request, held to D45's
-16 MB. A kind says which by the protocol it implements, `PastesNow` or
-`PastesAsJob`, and `/paste` — in `app/transfers`, above the jobs it starts —
-answers `done` with the result or `started` with the job.
+`paste.transfer`. The row kinds of D166 stay in the request up to one
+request's ceiling and become such a job past it (D43). A kind says which by
+the protocol it implements, `PastesNow`, `PastesAsJob`, or both with
+`PastesBySize` to choose, and `/paste` — in `app/transfers`, above the jobs it
+starts — answers `done` with the result or `started` with the job. A pipeline's
+link chooses the same way.
 
 - **Planned at once.** `plan` makes every check that answers immediately: the
   ceilings, a taken name, access. D162's window still opens before anything
@@ -267,11 +269,11 @@ call the same two functions.
 - `rows_new_relation`, "Create a table": into the place Paste was chosen in,
   of a source implementing `SupportsCreateRelation`, with `structure` there.
   Its window is D45's form with the connection and schema fixed. A source
-  beyond 5000 rows is refused.
+  beyond 5000 rows is filled by a job (D43).
 - `rows_into_relation`, "Add rows to a table": into the one ticked node, of a
   source implementing `SupportsInsert` and `SupportsFetch`, with `write`
   there. Its window is D43's form with the source fixed, same names paired to
-  start with. Beyond 5000 rows the rest is cut off and the answer says so.
+  start with. Beyond 5000 rows the rows are added by a job (D43).
 - A value the target cannot read is named — the first one, its row, and how
   many more — and nothing is written; the window stays open with it.
 - A source that holds files is not a destination for either. A folder takes a
@@ -382,6 +384,15 @@ asking one to read another would be the first crack in that.
 - The read has a ceiling of 5000 rows and pages the source at its own limit to
   reach it. More is not refused — that would make the command useless — but the
   answer says the rows were cut off.
+- **Past that ceiling a paste is a job** (D168), and carries every row:
+  `imports.carry_rows` pages the source and writes blocks of 5000, each its
+  own transaction. What arrived before a refused value, a failure or a Stop
+  stays, and the job's sentence says how many rows that was; a refused value is
+  named by its row in the source. A new table is made by its first block and
+  filled by the rest, and taken back through `SupportsDropCreated` when it
+  cannot be filled — part of a source under a name that claims all of it is
+  worse than none. One row read past the ceiling decides which, so nothing is
+  counted. The form of the grid still carries what one request does (next).
 - Columns are paired explicitly, source column to target column, and both sides
   are validated against what each says it has before anything is read. Matching
   by position or by equal names would turn a wrong import into one that looks

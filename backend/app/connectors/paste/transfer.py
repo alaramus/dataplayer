@@ -21,6 +21,7 @@ from app.connectors.paste.models import (
     MAX_CLIPBOARD_NODES,
     ClipboardMode,
     Conflict,
+    PasteColumn,
     PasteKindName,
     TablesChoice,
 )
@@ -86,6 +87,10 @@ class TransferPlan(BaseModel):
     name: str | None = None
     # A copy of tables as its window chose it, every name decided (D182).
     tables: TablesChoice | None = None
+    # Rows carried a block at a time: their pairing, and the table they go
+    # into when it is there already (D43, D166).
+    columns: list[PasteColumn] | None = None
+    target_node_id: str | None = None
 
 
 class Transfer(BaseModel):
@@ -113,6 +118,9 @@ class Transfer(BaseModel):
     name: str | None = Field(default=None, max_length=255)
     # What a copy of tables was planned with, so the job plans it again (D182).
     tables: TablesChoice | None = None
+    # What a rows job was planned with (D43, D166).
+    columns: list[PasteColumn] | None = Field(default=None, max_length=100)
+    target_node_id: str | None = Field(default=None, max_length=4096)
     items: list[TransferItem] = Field(min_length=1, max_length=MAX_CLIPBOARD_NODES)
     # Unknown for a table, whose CSV is as long as it turns out to be.
     bytes_total: int | None = None

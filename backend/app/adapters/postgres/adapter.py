@@ -35,7 +35,11 @@ from app.adapters.indexes import (
 )
 from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.postgres import tablespaces
-from app.adapters.postgres.actions import POSTGRES_ACTION_TYPES, PostgresActions
+from app.adapters.postgres.actions import (
+    POSTGRES_ACTION_TYPES,
+    DropRelation,
+    PostgresActions,
+)
 from app.adapters.postgres.backup import PostgresBackup
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
@@ -316,6 +320,12 @@ class PostgresAdapter:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
+
+    async def drop_created(self, node_id: str) -> None:
+        drop = self._actions.action(DropRelation.name)
+        if not isinstance(drop, DropRelation):
+            raise TypeError("drop_relation is not the drop this adapter registers")
+        await drop.perform_on_set([node_id], {})
 
     async def hypertable_design_state(self, node_id: str) -> HypertableDesignState:
         return await self._actions.hypertable_design_state(node_id)

@@ -619,6 +619,21 @@ class SupportsCreateRelation(Protocol):
 
 
 @runtime_checkable
+class SupportsDropCreated(Protocol):
+    """Taking back a relation this application has just made and could not fill.
+
+    A job that makes a table and fills it a block at a time leaves, when it
+    fails or is stopped, a table holding part of its source under a name that
+    claims all of it (D43). A source that can make relations that way says how
+    one is removed again.
+    """
+
+    async def drop_created(self, node_id: str) -> None:
+        """Remove the relation, and nothing else. Raises AdapterError."""
+        ...
+
+
+@runtime_checkable
 class SupportsAddColumn(Protocol):
     async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
         """Add one column from the source-owned type vocabulary."""

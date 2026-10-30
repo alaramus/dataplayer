@@ -20,7 +20,7 @@ from app.adapters.resources import ResourceStore
 from app.connectors.access import adapter_for
 from app.connectors.action_lookup import perform
 from app.connectors.models import Connector
-from app.connectors.paste.kinds import PastesAsJob, PastesNow
+from app.connectors.paste.kinds import PastesAsJob, PastesBySize, PastesNow
 from app.connectors.paste.models import PasteResult, PasteRun
 from app.connectors.paste.registry import kind_named
 from app.connectors.paste.transfer import Transfer
@@ -76,12 +76,20 @@ async def run_paste(
     )
     if not kind.serves(source, destination):
         raise Problem(501, "transfers.not_possible")
-    if isinstance(kind, PastesAsJob):
+    if isinstance(kind, PastesAsJob) and await as_job(kind, source, request):
         transfer = await planned(session, kind, source, destination, connector_id, request)
         return await _started(carrying, transfer, connector_id)
     if not isinstance(kind, PastesNow):
         raise Problem(501, "transfers.cannot_run")
     return await paste_now(carrying.data_cache, kind, source, destination, connector_id, request)
+
+
+async def as_job(kind: PastesAsJob, source: DataAdapter, request: PasteRun) -> bool:
+    """Whether a kind that moves bytes is carried out as a transfer this time:
+    always, unless it runs in the request while it is small (D43)."""
+    if not isinstance(kind, PastesNow) or not isinstance(kind, PastesBySize):
+        return True
+    return await perform(lambda: kind.too_large_for_request(source, request))
 
 
 async def paste_now(
@@ -131,6 +139,8 @@ async def planned(
         place_label=plan.place or destination_label,
         name=plan.name,
         tables=plan.tables,
+        columns=plan.columns,
+        target_node_id=plan.target_node_id,
         items=plan.items,
         bytes_total=plan.bytes_total,
     )

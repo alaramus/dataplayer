@@ -33,7 +33,7 @@ from app.adapters.indexes import (
     IndexDropped,
 )
 from app.adapters.metrics import MetricPreset, MetricSample
-from app.adapters.mysql.actions import MYSQL_ACTION_TYPES, MysqlActions
+from app.adapters.mysql.actions import MYSQL_ACTION_TYPES, DropRelation, MysqlActions
 from app.adapters.mysql.backup import MysqlBackup
 from app.adapters.mysql.catalog import MysqlCatalog
 from app.adapters.mysql.columns import MysqlColumns
@@ -356,6 +356,12 @@ class MysqlAdapter:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
+
+    async def drop_created(self, node_id: str) -> None:
+        drop = self._actions.action(DropRelation.name)
+        if not isinstance(drop, DropRelation):
+            raise TypeError("drop_relation is not the drop this adapter registers")
+        await drop.perform_on_set([node_id], {})
 
     async def all_actions(self) -> list[Action[Any]]:
         return await self._actions.all_actions()

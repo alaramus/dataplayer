@@ -191,4 +191,13 @@ MESSAGES: dict[str, str] = {
     "Nothing was copied: it failed": "未复制任何内容：失败",
     "Nothing was copied: {reason}": "未复制任何内容：{reason}",
     "{name} was not copied: {reason}": "{name} 未复制：{reason}",
+    # Rows carried a block at a time (D43).
+    "Adding rows": "正在添加行",
+    "Filling a new table": "正在填充新表",
+    "The rows could not be carried": "无法传输这些行",
+    "added": "已添加",
+    "created": "已创建",
+    "{count} rows added to {name}": "已向 {name} 添加 {count} 行",
+    "{count} rows added to {name}, then: {reason}": "已向 {name} 添加 {count} 行，随后：{reason}",
+    "{name} was not created: {reason}": "{name} 未创建：{reason}",
 }

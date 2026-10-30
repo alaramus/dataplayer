@@ -188,4 +188,13 @@ MESSAGES: dict[str, str] = {
     "Nothing was copied: it failed": "لم يُنسخ شيء: فشل",
     "Nothing was copied: {reason}": "لم يُنسخ شيء: {reason}",
     "{name} was not copied: {reason}": "لم يُنسخ {name}: {reason}",
+    # Rows carried a block at a time (D43).
+    "Adding rows": "إضافة الصفوف",
+    "Filling a new table": "ملء جدول جديد",
+    "The rows could not be carried": "تعذّر نقل الصفوف",
+    "added": "أُضيفت",
+    "created": "أُنشئ",
+    "{count} rows added to {name}": "أُضيف {count} صفًا إلى {name}",
+    "{count} rows added to {name}, then: {reason}": "أُضيف {count} صفًا إلى {name}، ثم: {reason}",
+    "{name} was not created: {reason}": "لم يُنشأ {name}: {reason}",
 }

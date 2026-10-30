@@ -4,15 +4,20 @@ What runs is D43's and D45's own work, from `imports`: the same bounded read,
 the same check of every value, the same transaction.
 """
 
+import asyncio
+
 from app.adapters.actions import ActionRefused
+from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import FetchColumn, FetchRequest
 from app.adapters.protocol import (
     AdapterError,
     DataAdapter,
     NodeNotFound,
     SupportsCreateRelation,
+    SupportsDropCreated,
     SupportsFetch,
     SupportsInsert,
+    SupportsNodePath,
 )
 from app.adapters.relation import ColumnType
 from app.adapters.update import ValuesRejected
@@ -31,6 +36,13 @@ from app.connectors.paste.models import (
     PasteResult,
     PasteRun,
     PasteWorkflow,
+)
+from app.connectors.paste.transfer import (
+    Transfer,
+    TransferItem,
+    TransferPlan,
+    TransferReport,
+    TransferStopped,
 )
 from app.core.access import Access
 from app.core.translation import N_, say
@@ -100,6 +112,39 @@ class _Rows:
     def takes_from(self, source: DataAdapter) -> bool:
         return isinstance(source, SupportsFetch)
 
+    async def too_large_for_request(self, source: DataAdapter, request: PasteRun) -> bool:
+        if not isinstance(source, SupportsFetch) or len(request.source_node_ids) != 1:
+            return False
+        return await imports.exceeds_ceiling(source, request.source_node_ids[0])
+
+    def _pairs(self, transfer: Transfer) -> list[imports.ColumnPair]:
+        return [
+            imports.ColumnPair(source=column.source, target=column.target)
+            for column in transfer.columns or []
+        ]
+
+    async def _carried(
+        self,
+        source: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+        write: imports.BlockWriter,
+    ) -> int:
+        """The rows carried, the item kept up to date as blocks arrive."""
+        if not isinstance(source, SupportsFetch):
+            raise TransferStopped(say(NOT_ROWS))
+        item = transfer.items[0]
+
+        async def arrived(count: int) -> None:
+            item.rows = count
+            await report.progressed()
+
+        item.outcome = "running"
+        item.rows = 0
+        transfer.current = item.name
+        await report.progressed()
+        return await imports.carry_rows(source, item.node_id, self._pairs(transfer), write, arrived)
+
     def _takes_rows(self, destination: DataAdapter) -> bool:
         return not isinstance(destination, TransfersFiles)
 
@@ -121,6 +166,8 @@ class _Rows:
 class RowsNewRelation(_Rows):
     name: PasteKindName = "rows_new_relation"
     title = N_("Create a table")
+    doing = N_("Filling a new table")
+    done = N_("created")
     workflow: PasteWorkflow = "new-relation"
     # What D45 asks of the place the table is made in.
     destination_requires: Access = "structure"
@@ -187,9 +234,8 @@ class RowsNewRelation(_Rows):
             return refused(self, options.reason or say("This place cannot take a new table"))
         return offered(self, available=True, source_columns=columns)
 
-    async def run(
-        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
-    ) -> PasteResult:
+    def _checked(self, source: DataAdapter, destination: DataAdapter, request: PasteRun) -> str:
+        """The table's name, once the request asks for something that can run."""
         if not isinstance(source, SupportsFetch) or not isinstance(
             destination, SupportsCreateRelation
         ):
@@ -200,6 +246,94 @@ class RowsNewRelation(_Rows):
             raise ActionRefused("not_applicable", say("Name the table and choose its columns"))
         if any(column.type_code is None for column in request.columns):
             raise ActionRefused("not_applicable", say("Choose a type for every column"))
+        return request.name.strip()
+
+    async def plan(
+        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
+    ) -> TransferPlan:
+        name = self._checked(source, destination, request)
+        # Filled a block at a time, so taken back when it cannot be filled.
+        if not isinstance(destination, SupportsInsert) or not isinstance(
+            destination, SupportsDropCreated
+        ):
+            raise ActionRefused(
+                "too_large",
+                say(
+                    "A new table may be filled with at most {count} rows",
+                    count=imports.IMPORT_CEILING,
+                ),
+            )
+        return TransferPlan(
+            items=[TransferItem(node_id=request.source_node_ids[0], name=name)],
+            bytes_total=None,
+            place="",
+            name=name,
+            columns=request.columns,
+        )
+
+    async def transfer(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+    ) -> None:
+        if not isinstance(destination, SupportsCreateRelation) or not isinstance(
+            destination, SupportsInsert
+        ):
+            raise TransferStopped(say("This connection cannot create tables"))
+        item = transfer.items[0]
+        blocks = imports.NewRelationBlocks(
+            destination,
+            destination,
+            imports.CreateRelationFromSourceRequest(
+                parent_node_id=transfer.destination_node_id or "",
+                name=transfer.name or item.name,
+                source_connector_id=str(transfer.source_connector_id),
+                source_node_id=item.node_id,
+                columns=[
+                    imports.NewRelationColumn(
+                        source=column.source, target=column.target, type_code=column.type_code or ""
+                    )
+                    for column in transfer.columns or []
+                ],
+            ),
+        )
+        try:
+            count = await self._carried(source, transfer, report, blocks.write)
+        except (asyncio.CancelledError, Exception) as failure:
+            # A table holding part of its source under a name that claims all
+            # of it is taken back, whatever ended the filling.
+            await _taken_back(destination, blocks.node)
+            item.outcome = "stopped" if isinstance(failure, asyncio.CancelledError) else "failed"
+            if isinstance(failure, (asyncio.CancelledError, TransferStopped)):
+                raise
+            raise TransferStopped(_ended(failure)) from None
+        if blocks.node is None:
+            # An empty source still makes its table.
+            await blocks.write([column.target for column in transfer.columns or []], [])
+        item.outcome = "done"
+        item.arrived = 1
+        item.rows = count
+        item.published_as = blocks.node.name if blocks.node else item.name
+        item.published_id = blocks.node.id if blocks.node else None
+        transfer.current = None
+        transfer.published += 1
+
+    def told(self, transfer: Transfer, stopped: str | None = None) -> str:
+        item = transfer.items[0]
+        if stopped is not None:
+            return say("{name} was not created: {reason}", name=item.name, reason=stopped)
+        return say("{name} created with {count} rows", name=item.published_as or item.name, count=item.rows or 0)
+
+    async def run(
+        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
+    ) -> PasteResult:
+        self._checked(source, destination, request)
+        if not isinstance(source, SupportsFetch) or not isinstance(destination, SupportsCreateRelation):
+            raise ActionRefused("not_applicable", say("These connections cannot create a table"))
+        if request.name is None or not request.columns:
+            raise ActionRefused("not_applicable", say("Name the table and choose its columns"))
         creation = imports.CreateRelationFromSourceRequest(
             parent_node_id=request.destination_node_id or "",
             name=request.name.strip(),
@@ -248,6 +382,8 @@ class RowsNewRelation(_Rows):
 class RowsIntoRelation(_Rows):
     name: PasteKindName = "rows_into_relation"
     title = N_("Add rows to a table")
+    doing = N_("Adding rows")
+    done = N_("added")
     workflow: PasteWorkflow = "into-relation"
     # What D43 asks of the relation written.
     destination_requires: Access = "write"
@@ -312,9 +448,8 @@ class RowsIntoRelation(_Rows):
             self, available=True, source_columns=columns, target_columns=insertable
         )
 
-    async def run(
-        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
-    ) -> PasteResult:
+    def _checked(self, source: DataAdapter, destination: DataAdapter, request: PasteRun) -> str:
+        """The table the rows go into, once the request can run."""
         if not isinstance(source, SupportsFetch) or not isinstance(
             destination, SupportsInsert
         ):
@@ -325,6 +460,69 @@ class RowsIntoRelation(_Rows):
             raise ActionRefused("not_applicable", say("Tick the table the rows go into"))
         if not request.columns:
             raise ActionRefused("not_applicable", say("Pair at least one column"))
+        return request.target_node_id
+
+    async def plan(
+        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
+    ) -> TransferPlan:
+        target = self._checked(source, destination, request)
+        return TransferPlan(
+            items=[TransferItem(node_id=request.source_node_ids[0], name=await _name_of(destination, target))],
+            bytes_total=None,
+            place="",
+            columns=request.columns,
+            target_node_id=target,
+        )
+
+    async def transfer(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+    ) -> None:
+        if not isinstance(destination, SupportsInsert) or transfer.target_node_id is None:
+            raise TransferStopped(say("This connection cannot take rows"))
+        item = transfer.items[0]
+        try:
+            count = await self._carried(
+                source, transfer, report, imports.into_relation(destination, transfer.target_node_id)
+            )
+        except asyncio.CancelledError:
+            item.outcome = "stopped"
+            raise
+        except TransferStopped:
+            item.outcome = "failed"
+            raise
+        except Exception as failure:  # noqa: BLE001 — said in the job's sentence, rows kept
+            item.outcome = "failed"
+            raise TransferStopped(_ended(failure)) from None
+        item.outcome = "done"
+        item.arrived = 1
+        item.rows = count
+        item.published_id = transfer.target_node_id
+        transfer.current = None
+        transfer.published += 1
+
+    def told(self, transfer: Transfer, stopped: str | None = None) -> str:
+        item = transfer.items[0]
+        rows = item.rows or 0
+        if stopped is not None:
+            # What arrived before stays: each block was its own transaction.
+            return say("{count} rows added to {name}, then: {reason}", count=rows, name=item.name, reason=stopped)
+        return say("{count} rows added to {name}", count=rows, name=item.name)
+
+    async def run(
+        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
+    ) -> PasteResult:
+        self._checked(source, destination, request)
+        if (
+            not isinstance(source, SupportsFetch)
+            or not isinstance(destination, SupportsInsert)
+            or request.target_node_id is None
+            or not request.columns
+        ):
+            raise ActionRefused("not_applicable", say("These connections cannot move rows"))
         importing = imports.ImportRowsRequest(
             node_id=request.target_node_id,
             source_connector_id=str(request.source_connector_id),
@@ -356,3 +554,34 @@ class RowsIntoRelation(_Rows):
             rows=result.inserted,
             reload_node_ids=[request.destination_node_id],
         )
+
+
+async def _name_of(destination: DataAdapter, node_id: str) -> str:
+    """What a table is called, for the screen that follows the job."""
+    if isinstance(destination, SupportsNodePath):
+        try:
+            return (await destination.path_to(node_id))[-1].name
+        except (NodeNotFound, AdapterError, ValueError, IndexError):
+            pass
+    return node_id
+
+
+async def _taken_back(destination: DataAdapter, node: CatalogNode | None) -> None:
+    if node is not None and isinstance(destination, SupportsDropCreated):
+        # Shielded: a Stop is what most often ends the filling, and the drop
+        # must not be stopped with it.
+        await asyncio.shield(destination.drop_created(node.id))
+
+
+def _ended(failure: BaseException) -> str:
+    """Why the carrying ended, in a sentence that is safe to show."""
+    if isinstance(failure, imports.BlockRefused):
+        return rejected(failure.rejected)
+    if isinstance(failure, NodeNotFound):
+        return say("The copied node no longer exists")
+    if isinstance(failure, AdapterError):
+        return failure.message
+    if isinstance(failure, (ValueError, ActionRefused)):
+        return str(failure)
+    return say("The rows could not be carried")
+

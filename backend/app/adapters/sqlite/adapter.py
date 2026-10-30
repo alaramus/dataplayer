@@ -74,7 +74,7 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.sqlite import made_here
-from app.adapters.sqlite.actions import SQLITE_ACTION_TYPES, SqliteActions
+from app.adapters.sqlite.actions import SQLITE_ACTION_TYPES, DropRelation, SqliteActions
 from app.adapters.sqlite.backup import SqliteBackup
 from app.adapters.sqlite.catalog import SqliteCatalog
 from app.adapters.sqlite.columns import SqliteColumns
@@ -237,6 +237,12 @@ class SqliteAdapter:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
+
+    async def drop_created(self, node_id: str) -> None:
+        drop = self._actions.action(DropRelation.name)
+        if not isinstance(drop, DropRelation):
+            raise TypeError("drop_relation is not the drop this adapter registers")
+        await drop.perform_on_set([node_id], {})
 
     async def all_actions(self) -> list[Action[Any]]:
         return await self._actions.all_actions()

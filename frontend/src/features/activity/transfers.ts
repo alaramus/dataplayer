@@ -145,8 +145,15 @@ export function transferOf(job: Pick<JobPublic, "kind" | "parameters">): Transfe
   }
 }
 
-/** Bytes measured so far, and of how many when that is known: never estimated. */
+/**
+ * Bytes measured so far, and of how many when that is known: never estimated.
+ * Rows carried a block at a time move no bytes of their own, and are counted.
+ */
 export function transferMeasure(transfer: TransferRecord): string {
+  const rows = transfer.items[0]?.rows ?? null
+  if (transfer.bytesDone === 0 && transfer.bytesTotal === null && rows !== null) {
+    return t("catalog.count.row", { n: counted(rows) }, rows)
+  }
   return transfer.bytesTotal === null
     ? t("activity.transfers.written", { size: formatSize(transfer.bytesDone) })
     : t("activity.transfers.of", {

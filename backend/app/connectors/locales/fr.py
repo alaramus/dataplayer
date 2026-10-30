@@ -192,4 +192,13 @@ MESSAGES: dict[str, str] = {
     "Nothing was copied: it failed": "Rien n'a été copié : échec",
     "Nothing was copied: {reason}": "Rien n'a été copié : {reason}",
     "{name} was not copied: {reason}": "{name} n'a pas été copié : {reason}",
+    # Rows carried a block at a time (D43).
+    "Adding rows": "Ajout de lignes",
+    "Filling a new table": "Remplissage d’une nouvelle table",
+    "The rows could not be carried": "Les lignes n’ont pas pu être transférées",
+    "added": "ajoutées",
+    "created": "créée",
+    "{count} rows added to {name}": "{count} lignes ajoutées à {name}",
+    "{count} rows added to {name}, then: {reason}": "{count} lignes ajoutées à {name}, puis : {reason}",
+    "{name} was not created: {reason}": "{name} n’a pas été créée : {reason}",
 }

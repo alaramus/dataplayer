@@ -173,6 +173,15 @@ class PastesAsJob(PasteKind, Protocol):
         ...
 
 
+@runtime_checkable
+class PastesBySize(Protocol):
+    """A kind carried out in the request while it is small, and as a job past
+    that (D43): rows up to one request's ceiling arrive in one transaction,
+    more a block at a time."""
+
+    async def too_large_for_request(self, source: DataAdapter, request: PasteRun) -> bool: ...
+
+
 def offered(
     kind: PasteKind,
     *,

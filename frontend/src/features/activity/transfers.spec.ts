@@ -64,6 +64,12 @@ describe("a transfer as its job records it", () => {
       items: [item("orders", "running", { rows: 1200 })], current: "orders",
     }))
     expect(table && transferBrief(table)).toBe("Saving as CSV to SSH server · 12.0 MB written")
+    // Rows carried a block at a time move no bytes: they are counted.
+    const rows = transferOf(job({}, {
+      kind: "rows_into_relation", doing: "Adding rows", bytes_total: null, bytes_done: 0,
+      items: [item("orders", "running", { rows: 15000 })], current: "orders",
+    }))
+    expect(rows && transferBrief(rows)).toBe("Adding rows to SSH server · 15,000 rows")
   })
 
   it("shows the file in hand by its path and how far, then each outcome", () => {
