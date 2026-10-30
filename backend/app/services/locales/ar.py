@@ -86,4 +86,5 @@ MESSAGES: dict[str, str] = {
     'MariaDB': 'MariaDB',
     'A MySQL server of its own, started on this machine with a password nobody has to choose.': 'خادم MySQL مستقل، يعمل على هذا الجهاز بكلمة مرور لا يحتاج أحد إلى اختيارها.',
     'A MariaDB server of its own, started on this machine with a password nobody has to choose.': 'خادم MariaDB مستقل، يعمل على هذا الجهاز بكلمة مرور لا يحتاج أحد إلى اختيارها.',
+    "The console could not be attached": "تعذّر الاتصال بوحدة التحكم",
 }

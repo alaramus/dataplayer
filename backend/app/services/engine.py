@@ -12,16 +12,19 @@ repository's words instead, which is the same rule the adapters follow for
 driver text.
 """
 
+import uuid
 from dataclasses import dataclass
 from typing import Annotated, Literal, Protocol, runtime_checkable
 
 from fastapi import Depends, Request
 
+from app.adapters.terminal import ConsoleProgram, Terminal, TerminalSize
 from app.core.config import settings
 from app.core.translation import N_, say
 from app.jobs.runner import JobFailed
 from app.services.plan import ContainerSpec
 from app.services.tools import ToolResult, ToolRun
+from app.terminals.consoles import ConsoleRefused
 
 
 class EngineError(JobFailed):
@@ -174,6 +177,11 @@ class NoEngine:
 
     async def run_once(self, run: ToolRun) -> ToolResult:
         raise EngineUnavailable(say(self._reason))
+
+    async def open_console(
+        self, program: ConsoleProgram, size: TerminalSize, *, owner: uuid.UUID
+    ) -> Terminal:
+        raise ConsoleRefused(say(self._reason))
 
 
 def get_engine(request: Request) -> ServiceEngine:

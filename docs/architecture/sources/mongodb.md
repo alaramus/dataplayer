@@ -1,7 +1,9 @@
 # MongoDB
 
 What a MongoDB source is, how it reaches the server, what its catalog shows,
-how a collection becomes columns and how its documents cross to the grid. The
+how a collection becomes columns and how its documents cross to the grid. Its
+console is `mongosh` in a terminal, run in a container (D286, in
+[terminals.md](../terminals.md)). The
 contract every source type follows is in [contract.md](contract.md); reading a
 relation in general is in [relations.md](relations.md). Read this before
 changing the `mongodb` adapter.

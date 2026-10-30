@@ -7,6 +7,7 @@ from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.mongodb.catalog import MongodbCatalog
+from app.adapters.mongodb.console import console_program
 from app.adapters.mongodb.content import MongodbContent
 from app.adapters.mongodb.fetch import MongodbFetch
 from app.adapters.mongodb.options import MongodbOptions
@@ -23,6 +24,7 @@ from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.resources import Pooling
 from app.adapters.summary import NodeSummary
+from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_
@@ -142,6 +144,10 @@ class MongodbAdapter:
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
 
+    async def console_program(self) -> ConsoleProgram:
+        """mongosh, signed in as this connection, in a container (D286)."""
+        return console_program(self._session)
+
 
 @register(
     name="mongodb",
@@ -150,7 +156,8 @@ class MongodbAdapter:
     description=N_(
         "A MongoDB server. Browse databases, collections and views, and read "
         "documents a page at a time as rows, their fields found from the "
-        "documents themselves, with sorting and filtering done by the server."
+        "documents themselves, with sorting and filtering done by the server, "
+        "and work in mongosh in a terminal."
     ),
     options_schema=MongodbOptions,
     adapter_class=MongodbAdapter,

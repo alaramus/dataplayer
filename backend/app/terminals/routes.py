@@ -17,11 +17,17 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from app.adapters.protocol import AdapterError, ErrorKind
-from app.adapters.terminal import SupportsTerminal, Terminal, TerminalSize
+from app.adapters.terminal import (
+    SupportsConsoleProgram,
+    SupportsTerminal,
+    Terminal,
+    TerminalSize,
+)
 from app.connectors.access import adapter_for
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.translation import N_, say
+from app.terminals.consoles import ConsoleRefused, ConsoleRunner
 from app.terminals.messages import (
     ClientFrame,
     RefusalCode,
@@ -131,7 +137,7 @@ async def _opened(websocket: WebSocket, held: AsyncExitStack) -> Terminal:
         except (ValueError, ValidationError):
             raise _Refusal("source", say("The settings of this connection are not valid")) from None
 
-    if not isinstance(adapter, SupportsTerminal):
+    if not isinstance(adapter, SupportsTerminal | SupportsConsoleProgram):
         raise _Refusal("unsupported", say("This kind of connection has no terminal"))
     try:
         held.enter_context(SLOTS.taken(user.id))
@@ -140,12 +146,21 @@ async def _opened(websocket: WebSocket, held: AsyncExitStack) -> Terminal:
             "too_many",
             say("You have {count} terminals open already; close one first", count=SLOTS.limit),
         ) from None
+    size = TerminalSize(cols=opening.cols, rows=opening.rows)
     try:
-        terminal = await adapter.open_terminal(
-            TerminalSize(cols=opening.cols, rows=opening.rows)
-        )
+        if isinstance(adapter, SupportsTerminal):
+            terminal = await adapter.open_terminal(size)
+        else:
+            runner = getattr(websocket.app.state, "console_runner", None)
+            if not isinstance(runner, ConsoleRunner):
+                raise _Refusal("unsupported", say("This server cannot start a console"))
+            terminal = await runner.open_console(
+                await adapter.console_program(), size, owner=user.id
+            )
     except AdapterError as failure:
         raise _Refusal("source", failure.message, failure.error_kind) from None
+    except ConsoleRefused as refusal:
+        raise _Refusal("source", refusal.message) from None
     held.push_async_callback(terminal.close)
     return terminal
 

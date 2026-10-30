@@ -3,7 +3,6 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "MongoDB": "MongoDB",
-    "A MongoDB server. Browse databases, collections and views, and read documents a page at a time as rows, their fields found from the documents themselves, with sorting and filtering done by the server.": "خادم MongoDB. تصفّح قواعد البيانات والمجموعات وطرق العرض، واقرأ المستندات صفحةً صفحةً كصفوف، تُستخرج حقولها من المستندات نفسها، ويتولى الخادم الفرز والتصفية.",
     "Authentication database": "قاعدة بيانات المصادقة",
     "Where the user is defined; admin unless it was made in another database": "حيث عُرِّف المستخدم؛ admin ما لم يُنشأ في قاعدة بيانات أخرى",
     "Encrypted, with the server's certificate verified": "مشفّر، مع التحقق من شهادة الخادم",
@@ -23,4 +22,6 @@ MESSAGES: dict[str, str] = {
     "MongoDB has no constraints but unique indexes": "لا توجد في MongoDB قيود سوى الفهارس الفريدة",
     "Documents are not changed here yet": "لا تُعدَّل المستندات هنا بعد",
     'This MongoDB source does not offer the "{representation}" content representation': "لا يقدّم مصدر MongoDB هذا تمثيل المحتوى «{representation}»",
+    "A MongoDB server. Browse databases, collections and views, and read documents a page at a time as rows, their fields found from the documents themselves, with sorting and filtering done by the server, and work in mongosh in a terminal.": "خادم MongoDB. تصفّح قواعد البيانات والمجموعات وطرق العرض، واقرأ المستندات صفحةً صفحةً كصفوف تُستخرج حقولها من المستندات نفسها ويتولى الخادم فرزها وتصفيتها، واعمل في mongosh داخل طرفية.",
+    "A console does not go through an SSH tunnel yet": "لا تمر وحدة التحكم عبر نفق SSH بعد",
 }

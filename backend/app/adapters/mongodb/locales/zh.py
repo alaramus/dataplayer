@@ -3,7 +3,6 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "MongoDB": "MongoDB",
-    "A MongoDB server. Browse databases, collections and views, and read documents a page at a time as rows, their fields found from the documents themselves, with sorting and filtering done by the server.": "MongoDB 服务器。浏览数据库、集合和视图，并按页以行的形式读取文档，字段由文档本身确定，排序和筛选在服务器上完成。",
     "Authentication database": "认证数据库",
     "Where the user is defined; admin unless it was made in another database": "用户所在的数据库；除非用户创建在其他数据库中，否则为 admin",
     "Encrypted, with the server's certificate verified": "加密，并验证服务器证书",
@@ -23,4 +22,6 @@ MESSAGES: dict[str, str] = {
     "MongoDB has no constraints but unique indexes": "MongoDB 除唯一索引外没有约束",
     "Documents are not changed here yet": "此处暂不能修改文档",
     'This MongoDB source does not offer the "{representation}" content representation': "此 MongoDB 数据源不提供“{representation}”内容表示",
+    "A MongoDB server. Browse databases, collections and views, and read documents a page at a time as rows, their fields found from the documents themselves, with sorting and filtering done by the server, and work in mongosh in a terminal.": "MongoDB 服务器。浏览数据库、集合和视图，按页以行的形式读取文档（字段由文档本身确定，排序和筛选在服务器上完成），并在终端中使用 mongosh。",
+    "A console does not go through an SSH tunnel yet": "控制台暂不支持通过 SSH 隧道连接",
 }

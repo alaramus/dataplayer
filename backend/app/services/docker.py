@@ -11,6 +11,7 @@ that were decided elsewhere (D80), and it does what it is told.
 
 import json
 import logging
+import uuid
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -18,8 +19,10 @@ from typing import Any
 
 import httpx
 
+from app.adapters.terminal import ConsoleProgram, TerminalSize
 from app.core.config import settings
 from app.core.translation import N_, say
+from app.services.consoles import DockerConsole, open_console, unix_connection
 from app.services.engine import (
     Availability,
     ContainerState,
@@ -30,6 +33,7 @@ from app.services.engine import (
 )
 from app.services.plan import SERVICE_LABEL, ContainerSpec
 from app.services.tools import ToolResult, ToolRun
+from app.terminals.consoles import ConsoleRefused
 
 logger = logging.getLogger(__name__)
 
@@ -333,6 +337,29 @@ class DockerEngine:
                 expected=(204, 404),
             )
         return result
+
+    async def open_console(
+        self, program: ConsoleProgram, size: TerminalSize, *, owner: uuid.UUID
+    ) -> DockerConsole:
+        """A client program in a container of its own, as a terminal (D286)."""
+        try:
+            return await open_console(
+                program,
+                size,
+                owner=owner,
+                request=self._request,
+                has_image=self._has_image,
+                pull=self.pull,
+                connect=lambda: unix_connection(self._socket_path),
+            )
+        except EngineError as failure:
+            raise ConsoleRefused(str(failure)) from None
+        except OSError:
+            raise ConsoleRefused(say("This server cannot reach a container runtime")) from None
+
+    async def _has_image(self, image: str) -> bool:
+        answer = await self._request("GET", f"/images/{image}/json", expected=(200, 404))
+        return answer.status == 200
 
     async def _full_output(self, container: str, exit_code: int) -> ToolResult:
         body = bytearray()

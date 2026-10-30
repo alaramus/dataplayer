@@ -6,6 +6,8 @@ that to a browser. Which shell, which machine and how it is signed in to is the
 driver's alone.
 """
 
+from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -55,5 +57,34 @@ class SupportsTerminal(Protocol):
 
         Raises `AdapterError` when it cannot be had, in the same words the rest
         of the source uses: a locked key, a server key that does not match.
+        """
+        ...
+
+
+@dataclass(frozen=True)
+class ConsoleProgram:
+    """A program whose screen is the terminal, run in a container of its own (D286).
+
+    For a source whose shell is a client program rather than a login: the
+    driver says what to run and the server runs it, as a backup is run (D87).
+    The password is in the environment, never in the arguments.
+    """
+
+    image: str
+    argv: tuple[str, ...]
+    environment: Mapping[str, str]
+
+    def __repr__(self) -> str:
+        keys = ", ".join(sorted(self.environment))
+        return f"ConsoleProgram(image={self.image!r}, argv={self.argv!r}, environment keys: {keys})"
+
+
+@runtime_checkable
+class SupportsConsoleProgram(Protocol):
+    async def console_program(self) -> ConsoleProgram:
+        """The client program that is this source's terminal.
+
+        Raises `AdapterError` when the program could not reach the source from
+        a container: through an SSH tunnel, for one.
         """
         ...

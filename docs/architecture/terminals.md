@@ -4,14 +4,18 @@ A shell on the machine a source runs on, typed into from the panel at the foot
 of the workspace. Read this before changing how a terminal is opened, what
 travels on its socket, or who may have one.
 
-Decisions here: D148, D149.
+Decisions here: D148, D149, D286.
 
 ```
 backend/app/
 ├── adapters/
-│   ├── terminal.py        TerminalSize, Terminal, SupportsTerminal
-│   └── ssh/terminal.py    the login shell of the account, in a pty on the server
+│   ├── terminal.py        TerminalSize, Terminal, SupportsTerminal,
+│   │                      ConsoleProgram, SupportsConsoleProgram
+│   ├── ssh/terminal.py    the login shell of the account, in a pty on the server
+│   └── mongodb/console.py mongosh, signed in from its environment
+├── services/consoles.py   a program in a container, attached as a terminal
 └── terminals/
+    ├── consoles.py        ConsoleRunner: what runs a program, as the socket sees it
     ├── messages.py        the text frames: open, resize, ready, refused, ended
     ├── slots.py           how many terminals each person holds
     └── routes.py          the socket: who is asking, then bytes both ways
@@ -32,9 +36,10 @@ frontend/src/features/terminals/
 WS     /api/v1/terminals
 ```
 
-Only SSH has a shell today. A terminal on personal storage was asked for and
-postponed; it would be a second driver implementing `SupportsTerminal`, and
-nothing above the adapter would change.
+SSH has a shell; MongoDB has `mongosh`, a client program the server runs in a
+container (D286). A terminal on personal storage was asked for and postponed;
+it would be a second driver implementing `SupportsTerminal`, and nothing above
+the adapter would change.
 
 ## D148. A terminal is a socket of its own
 
@@ -108,3 +113,43 @@ Known deviations:
 - **The count is per process**, correct only while the backend is one (D124).
 
 Spec: [A terminal on an SSH connection](../decisions/2026-09-19-terminal-design.md)
+
+## D286. A source's client program is a terminal too, run in a container
+
+A source whose console is a client program rather than a login — MongoDB's
+`mongosh` — says what to run, and the server runs it the way it runs a backup
+(D87): `SupportsConsoleProgram` answers with an image, an argv and an
+environment, and the socket hands that to a `ConsoleRunner`, which the
+application wires to its container engine at start-up (`app.state.
+console_runner`), since `app.services` sits above `app.terminals`. A screen
+sees the same `terminal` capability and the same frames as for SSH.
+
+- **The container has a TTY and an open stdin**, is attached before it starts
+  so its first screen is not lost, carries the limits a service has (D86), and
+  is removed by the daemon when the program ends and by the socket when it
+  closes. Stdin closes with the attach, so a program left behind by a server
+  that went away reads its end and exits.
+- **The attach is the Engine API's own upgraded request** on a socket of its
+  own: httpx cannot hand over a connection it upgraded. With a TTY the stream
+  is the program's bytes both ways; a resize is the API's resize.
+- **The password is in the environment, never in the arguments**, by D87's
+  rule. `mongosh` starts with `--nodb` and makes its connection from an address
+  in its environment, which it then deletes.
+- **On the service network**, so the program reaches the host the connection
+  names as a backup does; not through an SSH tunnel (D282), whose end is a port
+  on this process's loopback.
+- **Only where the server runs containers.** Without an engine the refusal is
+  the engine's own sentence, as for a backup.
+
+Rejected: a console that parses part of the shell's syntax (`db.c.find(…)`)
+into driver calls — the user chose the real shell; and running `mongosh` in
+the backend's image, which would fix its version into the application and
+start a program in the application's own process tree.
+
+Known deviations:
+
+- The program's image is pulled the first time a console is opened, so that
+  first terminal waits for it.
+- The program's output does not reach the grid: it is a terminal.
+
+Spec: [The MongoDB console](../decisions/2026-10-31-mongodb-console-design.md)

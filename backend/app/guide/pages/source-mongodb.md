@@ -12,10 +12,11 @@ documents. How connections work in general is on the
 - The fields a collection's documents have, and its indexes
 - A collection's definition: its options, validator and indexes, as JSON
 - How many documents a collection holds and how much space it takes
+- mongosh, signed in as the connection, in a terminal
 
 ## What you can change
 
-- Nothing yet: this source reads
+- Anything mongosh can change, typed into its terminal
 
 ## Connecting
 
@@ -69,3 +70,16 @@ connection is checked, with its version named.
   repeats the last one.
 - A field whose name holds a dot or starts with `$` is shown but cannot be
   sorted or filtered by: a query cannot name it.
+
+## mongosh
+
+**Open a terminal** on a MongoDB connection of your own starts `mongosh`,
+signed in as the connection and in its database, in the terminal panel. It is
+the real shell, with all its commands; what it prints stays on its screen.
+
+- It runs in a container this server starts for it, so it opens only
+  where the server may start containers. The first one waits while the image
+  is fetched.
+- It reaches the database as a backup does, by the host the connection names;
+  not through an SSH tunnel.
+- Closing the terminal ends the shell. `exit` ends it too.

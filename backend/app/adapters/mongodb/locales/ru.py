@@ -3,7 +3,6 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "MongoDB": "MongoDB",
-    "A MongoDB server. Browse databases, collections and views, and read documents a page at a time as rows, their fields found from the documents themselves, with sorting and filtering done by the server.": "Сервер MongoDB. Просмотр баз данных, коллекций и представлений и чтение документов постранично в виде строк: поля определяются по самим документам, сортировка и фильтрация выполняются на сервере.",
     "Authentication database": "База данных аутентификации",
     "Where the user is defined; admin unless it was made in another database": "Где определён пользователь; admin, если он не создан в другой базе данных",
     "Encrypted, with the server's certificate verified": "С шифрованием и проверкой сертификата сервера",
@@ -23,4 +22,6 @@ MESSAGES: dict[str, str] = {
     "MongoDB has no constraints but unique indexes": "В MongoDB нет ограничений, кроме уникальных индексов",
     "Documents are not changed here yet": "Документы здесь пока не изменяются",
     'This MongoDB source does not offer the "{representation}" content representation': "Этот источник MongoDB не предлагает представление содержимого «{representation}»",
+    "A MongoDB server. Browse databases, collections and views, and read documents a page at a time as rows, their fields found from the documents themselves, with sorting and filtering done by the server, and work in mongosh in a terminal.": "Сервер MongoDB. Просмотр баз данных, коллекций и представлений, чтение документов постранично в виде строк — поля определяются по самим документам, сортировка и фильтрация выполняются на сервере — и работа в mongosh в терминале.",
+    "A console does not go through an SSH tunnel yet": "Консоль пока не работает через SSH-туннель",
 }

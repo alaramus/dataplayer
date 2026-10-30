@@ -13,4 +13,5 @@ MESSAGES: dict[str, str] = {
     "The first frame opens a terminal": "第一帧会打开一个终端",
     "Frame not understood": "无法理解该帧",
     "This terminal is already open": "此终端已打开",
+    "This server cannot start a console": "此服务器无法启动控制台",
 }

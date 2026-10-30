@@ -33,7 +33,7 @@ from app.adapters.protocol import (
     SupportsUpdate,
 )
 from app.adapters.resources import Pooling
-from app.adapters.terminal import SupportsTerminal
+from app.adapters.terminal import SupportsConsoleProgram, SupportsTerminal
 from app.adapters.tunnels import TunnelAccess
 from app.core.translation import N_, say
 
@@ -346,7 +346,8 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
                 code="backup",
             )
         )
-    if issubclass(driver, SupportsTerminal):
+    # A shell and a client program in a container are one thing to a screen.
+    if issubclass(driver, SupportsTerminal) or issubclass(driver, SupportsConsoleProgram):
         found.append(
             Capability(group="manage", title=say("Open a terminal"), code="terminal")
         )

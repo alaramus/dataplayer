@@ -13,4 +13,5 @@ MESSAGES: dict[str, str] = {
     "The first frame opens a terminal": "Der erste Frame öffnet ein Terminal",
     "Frame not understood": "Frame nicht verstanden",
     "This terminal is already open": "Dieses Terminal ist bereits geöffnet",
+    "This server cannot start a console": "Dieser Server kann keine Konsole starten",
 }

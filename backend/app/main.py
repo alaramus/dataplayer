@@ -126,6 +126,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         else NoEngine(SWITCHED_OFF_MESSAGE)
     )
     application.state.service_engine = engine
+    # The same runtime runs a source's client program as a terminal (D286).
+    application.state.console_runner = engine
     transfers = RunTransfer(
         application.state.data_cache, application.state.resources, kept.names_changed
     )

@@ -3,7 +3,6 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "MongoDB": "MongoDB",
-    "A MongoDB server. Browse databases, collections and views, and read documents a page at a time as rows, their fields found from the documents themselves, with sorting and filtering done by the server.": "एक MongoDB सर्वर। डेटाबेस, कलेक्शन और व्यू ब्राउज़ करें, और दस्तावेज़ों को पंक्तियों के रूप में एक-एक पेज पढ़ें; उनके फ़ील्ड दस्तावेज़ों से ही पहचाने जाते हैं, और सॉर्टिंग व फ़िल्टरिंग सर्वर करता है।",
     "Authentication database": "प्रमाणीकरण डेटाबेस",
     "Where the user is defined; admin unless it was made in another database": "जहाँ उपयोगकर्ता परिभाषित है; admin, जब तक वह किसी दूसरे डेटाबेस में न बनाया गया हो",
     "Encrypted, with the server's certificate verified": "एन्क्रिप्टेड, सर्वर के प्रमाणपत्र की जाँच के साथ",
@@ -23,4 +22,6 @@ MESSAGES: dict[str, str] = {
     "MongoDB has no constraints but unique indexes": "MongoDB में यूनिक इंडेक्स के अलावा कोई कंस्ट्रेंट नहीं होते",
     "Documents are not changed here yet": "दस्तावेज़ यहाँ अभी नहीं बदले जाते",
     'This MongoDB source does not offer the "{representation}" content representation': "यह MongoDB स्रोत \"{representation}\" सामग्री प्रस्तुति नहीं देता",
+    "A MongoDB server. Browse databases, collections and views, and read documents a page at a time as rows, their fields found from the documents themselves, with sorting and filtering done by the server, and work in mongosh in a terminal.": "एक MongoDB सर्वर। डेटाबेस, कलेक्शन और व्यू ब्राउज़ करें, दस्तावेज़ों को पंक्तियों के रूप में एक-एक पेज पढ़ें — उनके फ़ील्ड दस्तावेज़ों से ही पहचाने जाते हैं, सॉर्टिंग व फ़िल्टरिंग सर्वर करता है — और टर्मिनल में mongosh में काम करें।",
+    "A console does not go through an SSH tunnel yet": "कंसोल अभी SSH टनल से होकर नहीं चलता",
 }
