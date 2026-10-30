@@ -4,4 +4,5 @@ MESSAGES: dict[str, str] = {
     "If that email is registered, we sent a password recovery link": "Si ese correo está registrado, hemos enviado un enlace de recuperación de contraseña",
     "Password updated successfully": "Contraseña actualizada correctamente",
     "User deleted successfully": "Usuario eliminado correctamente",
+    "Password set; sign in with it": "Contraseña establecida; inicie sesión con ella",
 }

@@ -6528,6 +6528,62 @@ export type IntegerTimeOption = {
 }
 
 /**
+ * InvitationAccept
+ */
+export type InvitationAccept = {
+  /**
+   * Token
+   */
+  token: string
+  /**
+   * New Password
+   */
+  new_password: string
+}
+
+/**
+ * InvitationHolder
+ *
+ * Whom a link is for, as its page greets them.
+ */
+export type InvitationHolder = {
+  /**
+   * Email
+   */
+  email: string
+  /**
+   * Full Name
+   */
+  full_name?: string | null
+}
+
+/**
+ * InvitationLink
+ *
+ * Where the person chooses their password, and until when it works.
+ */
+export type InvitationLink = {
+  /**
+   * Url
+   */
+  url: string
+  /**
+   * Expires At
+   */
+  expires_at: string
+}
+
+/**
+ * InvitationToken
+ */
+export type InvitationToken = {
+  /**
+   * Token
+   */
+  token: string
+}
+
+/**
  * JobPublic
  *
  * A job as its owner reads it.
@@ -14266,13 +14322,30 @@ export type UserBrief = {
 }
 
 /**
- * UserCreate
+ * UserDirectory
  */
-export type UserCreate = {
+export type UserDirectory = {
+  /**
+   * Data
+   */
+  data: Array<UserBrief>
+}
+
+/**
+ * UserInvite
+ *
+ * A new account as a superuser makes it: no password, which the person
+ * chooses through the link they are given.
+ */
+export type UserInvite = {
   /**
    * Email
    */
   email: string
+  /**
+   * Full Name
+   */
+  full_name?: string | null
   /**
    * Is Active
    */
@@ -14281,24 +14354,14 @@ export type UserCreate = {
    * Is Superuser
    */
   is_superuser?: boolean
-  /**
-   * Full Name
-   */
-  full_name?: string | null
-  /**
-   * Password
-   */
-  password: string
 }
 
 /**
- * UserDirectory
+ * UserInvited
  */
-export type UserDirectory = {
-  /**
-   * Data
-   */
-  data: Array<UserBrief>
+export type UserInvited = {
+  user: UserPublic
+  invitation: InvitationLink
 }
 
 /**
@@ -14329,6 +14392,10 @@ export type UserPublic = {
    * Created At
    */
   created_at?: string | null
+  /**
+   * Password Set
+   */
+  password_set?: boolean
 }
 
 /**
@@ -14963,6 +15030,60 @@ export type loginResetPasswordResponses = {
 export type loginResetPasswordResponse =
   loginResetPasswordResponses[keyof loginResetPasswordResponses]
 
+export type loginInvitationHolderData = {
+  body: InvitationToken
+  path?: never
+  query?: never
+  url: "/api/v1/invitation/holder"
+}
+
+export type loginInvitationHolderErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type loginInvitationHolderError =
+  loginInvitationHolderErrors[keyof loginInvitationHolderErrors]
+
+export type loginInvitationHolderResponses = {
+  /**
+   * Successful Response
+   */
+  200: InvitationHolder
+}
+
+export type loginInvitationHolderResponse =
+  loginInvitationHolderResponses[keyof loginInvitationHolderResponses]
+
+export type loginAcceptInvitationData = {
+  body: InvitationAccept
+  path?: never
+  query?: never
+  url: "/api/v1/invitation/accept"
+}
+
+export type loginAcceptInvitationErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type loginAcceptInvitationError =
+  loginAcceptInvitationErrors[keyof loginAcceptInvitationErrors]
+
+export type loginAcceptInvitationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type loginAcceptInvitationResponse =
+  loginAcceptInvitationResponses[keyof loginAcceptInvitationResponses]
+
 export type loginRecoverPasswordHtmlContentData = {
   body?: never
   path: {
@@ -15030,7 +15151,7 @@ export type usersReadUsersResponses = {
 export type usersReadUsersResponse = usersReadUsersResponses[keyof usersReadUsersResponses]
 
 export type usersCreateUserData = {
-  body: UserCreate
+  body: UserInvite
   path?: never
   query?: never
   url: "/api/v1/users/"
@@ -15049,7 +15170,7 @@ export type usersCreateUserResponses = {
   /**
    * Successful Response
    */
-  200: UserPublic
+  200: UserInvited
 }
 
 export type usersCreateUserResponse = usersCreateUserResponses[keyof usersCreateUserResponses]
@@ -15079,6 +15200,36 @@ export type usersReadDirectoryResponses = {
 
 export type usersReadDirectoryResponse =
   usersReadDirectoryResponses[keyof usersReadDirectoryResponses]
+
+export type usersInviteUserData = {
+  body?: never
+  path: {
+    /**
+     * User Id
+     */
+    user_id: string
+  }
+  query?: never
+  url: "/api/v1/users/{user_id}/invitation"
+}
+
+export type usersInviteUserErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type usersInviteUserError = usersInviteUserErrors[keyof usersInviteUserErrors]
+
+export type usersInviteUserResponses = {
+  /**
+   * Successful Response
+   */
+  200: InvitationLink
+}
+
+export type usersInviteUserResponse = usersInviteUserResponses[keyof usersInviteUserResponses]
 
 export type usersDeleteUserMeData = {
   body?: never

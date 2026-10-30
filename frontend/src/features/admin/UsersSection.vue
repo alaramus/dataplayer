@@ -2,8 +2,14 @@
 import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
-import type { UserPublic } from "@/client"
-import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from "@/features/admin/api"
+import type { InvitationLink, UserPublic } from "@/client"
+import {
+  useCreateUser,
+  useDeleteUser,
+  useInviteUser,
+  useUpdateUser,
+  useUsers,
+} from "@/features/admin/api"
 import {
   emptyForm,
   formOf,
@@ -15,7 +21,9 @@ import {
 import type { UserForm } from "@/features/admin/users"
 import { messageOf } from "@/shared/api/errors"
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import { copyText } from "@/shared/clipboard"
 import { t } from "@/shared/i18n"
+import { formatDateTime } from "@/shared/i18n/format"
 import {
   AppBadge,
   AppButton,
@@ -44,6 +52,10 @@ const users = useUsers()
 const createUser = useCreateUser()
 const updateUser = useUpdateUser()
 const removeUser = useDeleteUser()
+const inviteUser = useInviteUser()
+
+/** The link just issued, and for whom: shown once, to be handed on. */
+const invitation = ref<{ email: string; link: InvitationLink } | null>(null)
 
 const isAdmin = computed(() => me.data.value?.is_superuser === true)
 const myId = computed(() => me.data.value?.id ?? null)
@@ -81,13 +93,14 @@ function openEdit(user: UserPublic) {
 }
 
 async function save() {
-  errors.value = validate(form.value, isNew.value)
+  errors.value = validate(form.value)
   if (Object.keys(errors.value).length > 0) return
 
   try {
     if (editing.value === null) {
-      await createUser.mutateAsync(toCreate(form.value))
+      const created = await createUser.mutateAsync(toCreate(form.value))
       toast.success(t("admin.users.created"))
+      invitation.value = { email: created.user.email, link: created.invitation }
     } else {
       await updateUser.mutateAsync({
         userId: editing.value.id,
@@ -99,6 +112,30 @@ async function save() {
   } catch (error) {
     toast.error(messageOf(error, t("admin.users.save_failed")))
   }
+}
+
+/** A new link; for an account that has a password, after saying it stops working. */
+async function invite(user: UserPublic) {
+  if (user.password_set !== false) {
+    const ok = await confirm({
+      title: t("admin.users.reset_title"),
+      message: t("admin.users.reset_message", { email: user.email }),
+      confirmLabel: t("admin.users.reset_confirm"),
+      danger: true,
+    })
+    if (!ok) return
+  }
+  try {
+    invitation.value = { email: user.email, link: await inviteUser.mutateAsync(user.id) }
+  } catch (error) {
+    toast.error(messageOf(error, t("admin.users.invite_failed")))
+  }
+}
+
+async function copyInvitation() {
+  if (invitation.value === null) return
+  await copyText(invitation.value.link.url)
+  toast.success(t("admin.users.link_copied"))
 }
 
 async function remove(user: UserPublic) {
@@ -159,6 +196,13 @@ async function remove(user: UserPublic) {
       <template #body-cell-state="cellProps">
         <q-td :props="cellProps">
           <AppBadge
+            v-if="cellProps.row.is_active && cellProps.row.password_set === false"
+            :label="t('admin.users.awaiting')"
+            tone="info"
+            :data-testid="`awaiting-${cellProps.row.email}`"
+          />
+          <AppBadge
+            v-else
             :label="cellProps.row.is_active ? t('admin.users.active') : t('admin.users.switched_off')"
             :tone="cellProps.row.is_active ? 'success' : 'warning'"
           />
@@ -167,6 +211,12 @@ async function remove(user: UserPublic) {
 
       <template #body-cell-actions="cellProps">
         <q-td :props="cellProps">
+          <AppIconButton
+            :icon="appIcons.key"
+            :tooltip="t('admin.users.invite')"
+            :data-testid="`invite-user-${cellProps.row.email}`"
+            @click="invite(cellProps.row)"
+          />
           <AppIconButton
             :icon="appIcons.edit"
             :tooltip="t('admin.users.edit')"
@@ -211,16 +261,6 @@ async function remove(user: UserPublic) {
           persistent-label
           data-testid="user-name"
         />
-        <AppInput
-          v-model="form.password"
-          type="password"
-          autocomplete="new-password"
-          persistent-label
-          :label="isNew ? t('admin.users.password') : t('admin.users.new_password')"
-          :hint="isNew ? undefined : t('admin.users.keep_password')"
-          data-testid="user-password"
-          :error="errors.password"
-        />
         <AppCheckbox
           v-model="form.isActive"
           :label="t('admin.users.can_sign_in')"
@@ -248,6 +288,42 @@ async function remove(user: UserPublic) {
         />
       </template>
     </WindowDialog>
+
+    <WindowDialog
+      :model-value="invitation !== null"
+      :title="t('admin.users.invitation_title', { email: invitation?.email ?? '' })"
+      size="medium-form"
+      data-testid="invitation-dialog"
+      @update:model-value="invitation = null"
+    >
+      <AppForm
+        v-if="invitation"
+        layout="section"
+      >
+        <p class="users-section__note">
+          {{ t('admin.users.invitation_text', { email: invitation.email, until: formatDateTime(invitation.link.expires_at) }) }}
+        </p>
+        <AppInput
+          :model-value="invitation.link.url"
+          readonly
+          data-testid="invitation-url"
+        />
+      </AppForm>
+
+      <template #actions>
+        <AppButton
+          variant="quiet"
+          :label="t('admin.users.done')"
+          data-testid="invitation-done"
+          @click="invitation = null"
+        />
+        <AppButton
+          :label="t('admin.users.copy_link')"
+          data-testid="invitation-copy"
+          @click="copyInvitation"
+        />
+      </template>
+    </WindowDialog>
   </div>
 </template>
 
@@ -257,6 +333,10 @@ async function remove(user: UserPublic) {
   flex-direction: column;
   gap: var(--dp-space-3);
   min-width: 0;
+}
+
+.users-section__note {
+  margin: 0;
 }
 
 /* The one action this section has, kept off the table it acts on. */

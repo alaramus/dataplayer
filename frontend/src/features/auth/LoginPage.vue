@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 import { useLogin } from "@/features/auth/api"
+import AuthLayout from "./AuthLayout.vue"
 import { requiredCredentialErrors } from "./validation"
 import { useActiveServerCheck } from "@/features/servers/api"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
@@ -16,9 +17,6 @@ const route = useRoute()
 const login = useLogin()
 const servers = useServersStore()
 const serverStatus = useActiveServerCheck()
-
-/** The product's name, which no language translates. */
-const PRODUCT = "DataPlayer"
 
 /**
  * Where to go once signed in.
@@ -59,108 +57,79 @@ async function submit() {
 </script>
 
 <template>
-  <div class="login-page">
-    <!-- The welcome half says what the product is before anyone has an
-         account; it is decoration, so the form is the page's one landmark. -->
-    <section
-      class="login-welcome"
-      aria-hidden="true"
+  <AuthLayout>
+    <q-form
+      class="login-form"
+      @submit.prevent="submit"
     >
-      <div class="login-welcome-body">
-        <img
-          class="login-logo"
-          src="/icons/logodp.svg"
-          alt=""
-        >
-        <div class="login-product">
-          {{ PRODUCT }}
+      <AppForm layout="section">
+        <h1 class="dp-page-title login-title">
+          {{ t('auth.sign_in') }}
+        </h1>
+        <q-separator />
+        <div class="login-server">
+          <ServerSwitcher />
+          <div class="login-server-url">
+            {{ servers.active.url }}
+          </div>
         </div>
-        <p class="login-tagline">
-          {{ t('auth.welcome_tagline') }}
-        </p>
-      </div>
-    </section>
-    <main class="login-side">
-      <q-form
-        class="login-form"
-        @submit.prevent="submit"
-      >
-        <AppForm layout="section">
-          <h1 class="dp-page-title login-title">
-            {{ t('auth.sign_in') }}
-          </h1>
-          <q-separator />
-          <div class="login-server">
-            <ServerSwitcher />
-            <div class="login-server-url">
-              {{ servers.active.url }}
-            </div>
-          </div>
-          <div
-            v-if="serverStatus.isPending.value"
-            class="login-server-url"
-          >
-            {{ t('auth.checking_server') }}
-          </div>
-          <AppBanner
-            v-if="serverStatus.isError.value"
-            tone="error"
-          >
-            {{ serverStatus.error.value?.message }}
-            <AppButton
-              :label="t('auth.retry_connection')"
-              variant="quiet"
-              :loading="serverStatus.isFetching.value"
-              @click="serverStatus.refetch()"
-            />
-          </AppBanner>
-          <q-separator />
-          <AppInput
-            v-model="username"
-            :label="t('auth.email')"
-            type="email"
-            autocomplete="username"
-            aria-required="true"
-            :error="errors.username"
-            data-testid="login-email"
-          />
-          <AppInput
-            v-model="password"
-            :label="t('auth.password')"
-            type="password"
-            autocomplete="current-password"
-            aria-required="true"
-            :error="errors.password"
-            data-testid="login-password"
-          />
-          <AppBanner
-            v-if="failed"
-            tone="error"
-            data-testid="login-error"
-          >
-            {{ t('auth.sign_in_failed') }}
-          </AppBanner>
+        <div
+          v-if="serverStatus.isPending.value"
+          class="login-server-url"
+        >
+          {{ t('auth.checking_server') }}
+        </div>
+        <AppBanner
+          v-if="serverStatus.isError.value"
+          tone="error"
+        >
+          {{ serverStatus.error.value?.message }}
           <AppButton
-            type="submit"
-            :label="t('auth.sign_in')"
-            data-testid="login-submit"
-            :loading="login.isPending.value"
-            :disable="!serverStatus.isSuccess.value"
+            :label="t('auth.retry_connection')"
+            variant="quiet"
+            :loading="serverStatus.isFetching.value"
+            @click="serverStatus.refetch()"
           />
-        </AppForm>
-      </q-form>
-    </main>
-  </div>
+        </AppBanner>
+        <q-separator />
+        <AppInput
+          v-model="username"
+          :label="t('auth.email')"
+          type="email"
+          autocomplete="username"
+          aria-required="true"
+          :error="errors.username"
+          data-testid="login-email"
+        />
+        <AppInput
+          v-model="password"
+          :label="t('auth.password')"
+          type="password"
+          autocomplete="current-password"
+          aria-required="true"
+          :error="errors.password"
+          data-testid="login-password"
+        />
+        <AppBanner
+          v-if="failed"
+          tone="error"
+          data-testid="login-error"
+        >
+          {{ t('auth.sign_in_failed') }}
+        </AppBanner>
+        <AppButton
+          type="submit"
+          :label="t('auth.sign_in')"
+          data-testid="login-submit"
+          :loading="login.isPending.value"
+          :disable="!serverStatus.isSuccess.value"
+        />
+      </AppForm>
+    </q-form>
+  </AuthLayout>
 </template>
 
 <style scoped>
-.login-page { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: var(--dp-surface); }
-.login-welcome { display: grid; place-items: center; padding: var(--dp-space-5); background: linear-gradient(160deg, var(--dp-chrome) 0%, var(--dp-chrome-raised) 100%); border-inline-end: 1px solid var(--dp-border); }
-.login-welcome-body { display: flex; flex-direction: column; align-items: center; gap: var(--dp-space-3); max-width: var(--dp-width-text); text-align: center; }
-.login-logo { width: var(--dp-width-name); max-width: 50%; height: auto; margin-bottom: var(--dp-space-3); }
-.login-product { font-size: var(--dp-font-size-display); font-weight: 600; color: var(--dp-text); }
-.login-tagline { margin: 0; font-size: var(--dp-font-size-lg); color: var(--dp-text-muted); }
-.login-side { display: grid; place-items: center; padding: var(--dp-space-5); }
 .login-form { width: 100%; max-width: var(--dp-width-popover); }
 .login-title { text-align: center; }
 /* Content-sized and at the start of the column, not stretched across it with

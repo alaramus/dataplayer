@@ -3,23 +3,23 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlmodel import col, func, select
-from starlette.concurrency import run_in_threadpool
 
-from app.core.config import settings
 from app.core.db import SessionDep
-from app.core.email import generate_new_account_email, send_email
 from app.core.problems import Problem
 from app.core.schemas import Message
 from app.core.security import get_password_hash, verify_password
-from app.core.translation import current_language, say
-from app.users import crud, preferences
+from app.core.translation import say
+from app.users import crud, invitations, preferences
 from app.users.deps import CurrentUser, get_current_active_superuser
 from app.users.models import (
+    InvitationLink,
     UpdatePassword,
     User,
     UserBrief,
     UserCreate,
     UserDirectory,
+    UserInvite,
+    UserInvited,
     UserPublic,
     UserRegister,
     UsersPublic,
@@ -74,34 +74,42 @@ async def read_directory(session: SessionDep, current_user: CurrentUser) -> Any:
 
 
 @router.post(
-    "/", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic
+    "/", dependencies=[Depends(get_current_active_superuser)], response_model=UserInvited
 )
-async def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
+async def create_user(*, session: SessionDep, user_in: UserInvite) -> Any:
     """
-    Create new user.
+    Create a user with no password, and the link through which they choose one.
+
+    Nobody but the person knows their password: the superuser hands on the
+    link, which works once and for INVITATION_EXPIRE_HOURS.
     """
     user = await crud.get_user_by_email(session=session, email=user_in.email)
     if user:
         raise Problem(400, "users.email_taken")
 
-    user = await crud.create_user(session=session, user_create=user_in)
-    if settings.emails_enabled and user_in.email:
-        email_data = generate_new_account_email(
-            email_to=user_in.email,
-            username=user_in.email,
-            password=user_in.password,
-            # Nobody has chosen for the new account yet: the language of whoever made it.
-            language=current_language.get(),
-        )
-        # send_email blocks on SMTP: calling it directly from an async handler
-        # would stall the whole event loop.
-        await run_in_threadpool(
-            send_email,
-            email_to=user_in.email,
-            subject=email_data.subject,
-            html_content=email_data.html_content,
-        )
-    return user
+    user = await crud.create_invited_user(session=session, user_in=user_in)
+    return UserInvited(
+        user=UserPublic.model_validate(user), invitation=invitations.issue(user)
+    )
+
+
+@router.post(
+    "/{user_id}/invitation",
+    dependencies=[Depends(get_current_active_superuser)],
+    response_model=InvitationLink,
+)
+async def invite_user(*, session: SessionDep, user_id: uuid.UUID) -> Any:
+    """
+    A new link to choose a password, the old one no longer working.
+
+    For an account that has a password this is a reset: the password stops
+    working at once, and the person chooses a new one through the link.
+    """
+    user = await session.get(User, user_id)
+    if user is None:
+        raise Problem(404, "users.not_found")
+    user = await crud.lock_password(session=session, user=user)
+    return invitations.issue(user)
 
 
 @router.patch("/me", response_model=UserPublic)

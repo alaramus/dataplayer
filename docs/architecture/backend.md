@@ -375,6 +375,17 @@ bypass handed back through the API what the encryption was protecting.
 So `crud.get_with_access` knows nothing about the flag, and the connector list is
 what the caller owns plus what has been granted to them, for everyone alike.
 
+Nor does an administrator know anybody's password. An account is created
+without one: `hashed_password` holds a random lock, `!` and noise, that no
+password verifies against, and signing in is refused until it is replaced
+(`users/invitations.py`). The administrator is handed a link, signed with a key
+of its own so it is never a session token, naming the account and the lock it
+was issued against. It works for `INVITATION_EXPIRE_HOURS`, and once: setting
+the password removes the lock, and issuing another link replaces it, which for
+an account that had a password is a reset. Nothing is stored beside the
+account. The link is copied by hand for now; mailing it is the next step, and
+the old mail that carried a password to a new account is no longer sent.
+
 Spec: [Sharing a connection](../decisions/2026-08-29-connector-sharing-design.md)
 
 ## D124. The backend runs as one process

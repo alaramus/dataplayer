@@ -1,18 +1,17 @@
-import type { UserCreate, UserPublic, UserUpdate } from "@/client"
+import type { UserInvite, UserPublic, UserUpdate } from "@/client"
 import { t } from "@/shared/i18n"
 
 /**
  * The form behind the user dialog, and what it turns into.
  *
  * Plain functions rather than logic inside the component, so the rules that
- * matter — a password is required for a new account and optional for an
- * existing one, an unchanged field is not sent — are tested without mounting
- * anything.
+ * matter are tested without mounting anything. There is no password here: a
+ * new account chooses its own through the link it is given, and an existing
+ * one is reset by issuing another.
  */
 export interface UserForm {
   email: string
   fullName: string
-  password: string
   isActive: boolean
   isSuperuser: boolean
 }
@@ -21,7 +20,6 @@ export function emptyForm(): UserForm {
   return {
     email: "",
     fullName: "",
-    password: "",
     isActive: true,
     isSuperuser: false,
   }
@@ -31,64 +29,41 @@ export function formOf(user: UserPublic): UserForm {
   return {
     email: user.email,
     fullName: user.full_name ?? "",
-    // Never filled in from the server: a password is not something it sends,
-    // and an empty box here means "keep the one there is".
-    password: "",
     isActive: user.is_active ?? true,
     isSuperuser: user.is_superuser ?? false,
   }
 }
 
-/** The shortest password the server accepts. Stated once, next to the check
- * that uses it. */
-export const MIN_PASSWORD = 8
-
 /**
  * What is wrong with the form, by field. An empty object means nothing is.
  *
- * The same rules the server applies, checked here so that a typo does not cost
- * a round trip; the server still applies them, and its answer still wins.
+ * The same rule the server applies, checked here so that a typo does not cost
+ * a round trip; the server still applies it, and its answer still wins.
  */
-export function validate(form: UserForm, isNew: boolean): Record<string, string> {
+export function validate(form: UserForm): Record<string, string> {
   const errors: Record<string, string> = {}
   if (!/^\S+@\S+\.\S+$/.test(form.email)) {
     errors.email = t("admin.users.email_invalid")
   }
-  const password = form.password
-  if (isNew && password === "") {
-    errors.password = t("admin.users.password_required")
-  } else if (password !== "" && password.length < MIN_PASSWORD) {
-    errors.password = t("admin.users.password_short", { n: MIN_PASSWORD }, MIN_PASSWORD)
-  }
   return errors
 }
 
-export function toCreate(form: UserForm): UserCreate {
+export function toCreate(form: UserForm): UserInvite {
   return {
     email: form.email,
-    password: form.password,
     full_name: form.fullName === "" ? null : form.fullName,
     is_active: form.isActive,
     is_superuser: form.isSuperuser,
   }
 }
 
-/**
- * What to send for an existing account.
- *
- * An empty password box is left out entirely rather than sent as an empty
- * string: the field means "keep what is stored", and sending it would set a
- * password of no characters.
- */
 export function toUpdate(form: UserForm): UserUpdate {
-  const body: UserUpdate = {
+  return {
     email: form.email,
     full_name: form.fullName === "" ? null : form.fullName,
     is_active: form.isActive,
     is_superuser: form.isSuperuser,
   }
-  if (form.password !== "") body.password = form.password
-  return body
 }
 
 /**

@@ -13,9 +13,17 @@ from app.core.email import generate_reset_password_email, send_email
 from app.core.problems import Problem
 from app.core.schemas import Message
 from app.core.translation import say
-from app.users import crud
+from app.users import crud, invitations
 from app.users.deps import CurrentUser, get_current_active_superuser
-from app.users.models import NewPassword, Token, UserPublic, UserUpdate
+from app.users.models import (
+    InvitationAccept,
+    InvitationHolder,
+    InvitationToken,
+    NewPassword,
+    Token,
+    UserPublic,
+    UserUpdate,
+)
 from app.users.preferences import recipient_language
 from app.users.tokens import (
     generate_password_reset_token,
@@ -106,6 +114,27 @@ async def reset_password(session: SessionDep, body: NewPassword) -> Message:
         user_in=user_in_update,
     )
     return Message(message=say("Password updated successfully"))
+
+
+@router.post("/invitation/holder", response_model=InvitationHolder)
+async def invitation_holder(session: SessionDep, body: InvitationToken) -> Any:
+    """Whom a link to choose a password is for, while it still works."""
+    user = await invitations.holder(session, body.token)
+    if user is None:
+        raise Problem(400, "auth.invalid_token")
+    return user
+
+
+@router.post("/invitation/accept")
+async def accept_invitation(session: SessionDep, body: InvitationAccept) -> Message:
+    """Choose the password; the link is spent with it."""
+    user = await invitations.holder(session, body.token)
+    if user is None:
+        raise Problem(400, "auth.invalid_token")
+    await crud.update_user(
+        session=session, db_user=user, user_in=UserUpdate(password=body.new_password)
+    )
+    return Message(message=say("Password set; sign in with it"))
 
 
 @router.post(

@@ -357,6 +357,12 @@ import type {
   jobsReadJobsData,
   jobsReadJobsErrors,
   jobsReadJobsResponses,
+  loginAcceptInvitationData,
+  loginAcceptInvitationErrors,
+  loginAcceptInvitationResponses,
+  loginInvitationHolderData,
+  loginInvitationHolderErrors,
+  loginInvitationHolderResponses,
   loginLoginAccessTokenData,
   loginLoginAccessTokenErrors,
   loginLoginAccessTokenResponses,
@@ -720,6 +726,9 @@ import type {
   usersDeleteUserMeErrors,
   usersDeleteUserMeResponses,
   usersDeleteUserResponses,
+  usersInviteUserData,
+  usersInviteUserErrors,
+  usersInviteUserResponses,
   usersReadDirectoryData,
   usersReadDirectoryErrors,
   usersReadDirectoryResponses,
@@ -870,6 +879,52 @@ export class LoginService {
   }
 
   /**
+   * Invitation Holder
+   *
+   * Whom a link to choose a password is for, while it still works.
+   */
+  public static invitationHolder<ThrowOnError extends boolean = true>(
+    options: Options<loginInvitationHolderData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      loginInvitationHolderResponses,
+      loginInvitationHolderErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      url: "/api/v1/invitation/holder",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Accept Invitation
+   *
+   * Choose the password; the link is spent with it.
+   */
+  public static acceptInvitation<ThrowOnError extends boolean = true>(
+    options: Options<loginAcceptInvitationData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      loginAcceptInvitationResponses,
+      loginAcceptInvitationErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      url: "/api/v1/invitation/accept",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
    * Recover Password Html Content
    *
    * HTML Content for Password Recovery
@@ -914,7 +969,10 @@ export class UsersService {
   /**
    * Create User
    *
-   * Create new user.
+   * Create a user with no password, and the link through which they choose one.
+   *
+   * Nobody but the person knows their password: the superuser hands on the
+   * link, which works once and for INVITATION_EXPIRE_HOURS.
    */
   public static createUser<ThrowOnError extends boolean = true>(
     options: Options<usersCreateUserData, ThrowOnError>
@@ -959,6 +1017,29 @@ export class UsersService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/users/directory",
+      ...options,
+    })
+  }
+
+  /**
+   * Invite User
+   *
+   * A new link to choose a password, the old one no longer working.
+   *
+   * For an account that has a password this is a reset: the password stops
+   * working at once, and the person chooses a new one through the link.
+   */
+  public static inviteUser<ThrowOnError extends boolean = true>(
+    options: Options<usersInviteUserData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      usersInviteUserResponses,
+      usersInviteUserErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/users/{user_id}/invitation",
       ...options,
     })
   }

@@ -6,8 +6,8 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_password_hash, verify_password
-from app.users import storage
-from app.users.models import User, UserCreate, UserUpdate
+from app.users import invitations, storage
+from app.users.models import User, UserCreate, UserInvite, UserUpdate
 
 
 async def create_user(*, session: AsyncSession, user_create: UserCreate) -> User:
@@ -21,6 +21,25 @@ async def create_user(*, session: AsyncSession, user_create: UserCreate) -> User
     # reach anything. Creating files is blocking work, hence the thread.
     await to_thread.run_sync(storage.create_home, db_obj.id)
     return db_obj
+
+
+async def create_invited_user(*, session: AsyncSession, user_in: UserInvite) -> User:
+    """An account with no password yet, locked until its link is used."""
+    db_obj = User.model_validate(user_in, update={"hashed_password": invitations.new_lock()})
+    session.add(db_obj)
+    await session.commit()
+    await session.refresh(db_obj)
+    await to_thread.run_sync(storage.create_home, db_obj.id)
+    return db_obj
+
+
+async def lock_password(*, session: AsyncSession, user: User) -> User:
+    """A fresh lock in place of the password: every earlier link stops working."""
+    user.hashed_password = invitations.new_lock()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
 
 
 async def update_user(
@@ -78,6 +97,11 @@ async def authenticate(
         # Prevent timing attacks by running password verification even when user
         # doesn't exist. This ensures the response time is similar whether or not
         # the email exists.
+        verify_password(password, DUMMY_HASH)
+        return None
+    if not db_user.password_set:
+        # Nobody may sign in before choosing a password, and the answer takes
+        # as long as one that checked a password.
         verify_password(password, DUMMY_HASH)
         return None
     verified, updated_password_hash = verify_password(password, db_user.hashed_password)

@@ -21,6 +21,19 @@ export const auth: Messages["auth"] = {
   retry_connection: "Verbindung erneut versuchen",
   sign_in_failed: "Anmeldung nicht möglich. Prüfen Sie E-Mail und Passwort.",
   welcome_tagline: "Ein Ort für jede Datenquelle, mit der Sie arbeiten",
+  set_password: {
+    title: "Wählen Sie Ihr Passwort",
+    for_whom: "Für {email}",
+    new: "Neues Passwort",
+    repeat: "Passwort wiederholen",
+    too_short: "Mindestens {n} Zeichen | Mindestens {n} Zeichen",
+    mismatch: "Die beiden Passwörter unterscheiden sich",
+    submit: "Passwort festlegen",
+    done: "Passwort festgelegt. Melden Sie sich damit an.",
+    checking: "Link wird geprüft…",
+    invalid: "Dieser Link funktioniert nicht mehr: Er wurde verwendet, ist abgelaufen oder ein neuerer wurde ausgestellt. Bitten Sie Ihre Administration um einen neuen.",
+    to_sign_in: "Zur Anmeldung",
+  },
 }
 
 export const theme: Messages["theme"] = {

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
 
 import { UsersService } from "@/client"
-import type { UserCreate, UserUpdate } from "@/client"
+import type { UserInvite, UserUpdate } from "@/client"
 
 /**
  * The accounts an administrator manages.
@@ -23,8 +23,18 @@ export function useUsers() {
 export function useCreateUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: UserCreate) =>
+    mutationFn: async (body: UserInvite) =>
       (await UsersService.createUser({ body })).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: usersKey }),
+  })
+}
+
+/** A new link to choose a password; the previous one, and any password, stop working. */
+export function useInviteUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (userId: string) =>
+      (await UsersService.inviteUser({ path: { user_id: userId } })).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: usersKey }),
   })
 }

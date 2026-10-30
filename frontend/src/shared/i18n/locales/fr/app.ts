@@ -21,6 +21,19 @@ export const auth: Messages["auth"] = {
   retry_connection: "Réessayer la connexion",
   sign_in_failed: "Connexion impossible. Vérifiez l'e-mail et le mot de passe.",
   welcome_tagline: "Un seul endroit pour chaque source de données avec laquelle vous travaillez",
+  set_password: {
+    title: "Choisissez votre mot de passe",
+    for_whom: "Pour {email}",
+    new: "Nouveau mot de passe",
+    repeat: "Répétez le mot de passe",
+    too_short: "Au moins {n} caractère | Au moins {n} caractères",
+    mismatch: "Les deux mots de passe diffèrent",
+    submit: "Définir le mot de passe",
+    done: "Mot de passe défini. Connectez-vous avec.",
+    checking: "Vérification du lien…",
+    invalid: "Ce lien ne fonctionne plus : il a été utilisé, il a expiré ou un plus récent a été émis. Demandez-en un nouveau à votre administrateur.",
+    to_sign_in: "Aller à la connexion",
+  },
 }
 
 export const theme: Messages["theme"] = {

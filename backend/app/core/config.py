@@ -316,6 +316,8 @@ class Settings(BaseSettings):
         return self
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
+    # How long a link to choose a password works once a superuser issues it.
+    INVITATION_EXPIRE_HOURS: int = Field(default=72, gt=0, le=24 * 30)
 
     @computed_field  # type: ignore[prop-decorator]
     @property

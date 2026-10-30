@@ -42,6 +42,13 @@ export const router = createRouter({
       component: () => import("@/features/auth/LoginPage.vue"),
     },
     {
+      // A link a superuser handed on: the person chooses their password here,
+      // before they can sign in at all.
+      path: "/set-password",
+      name: "set-password",
+      component: () => import("@/features/auth/SetPasswordPage.vue"),
+    },
+    {
       // A shared link. It resolves here and then hands the workspace what to
       // open, so the address stays out of the workspace's own URL (D60).
       path: "/s/:token",

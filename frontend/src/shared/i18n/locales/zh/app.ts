@@ -21,6 +21,19 @@ export const auth: Messages["auth"] = {
   retry_connection: "重试连接",
   sign_in_failed: "无法登录。请检查电子邮件和密码。",
   welcome_tagline: "一个地方，管理你使用的所有数据源",
+  set_password: {
+    title: "设置您的密码",
+    for_whom: "账户：{email}",
+    new: "新密码",
+    repeat: "再次输入密码",
+    too_short: "至少 {n} 个字符",
+    mismatch: "两次输入的密码不一致",
+    submit: "设置密码",
+    done: "密码已设置，请用它登录。",
+    checking: "正在检查链接…",
+    invalid: "此链接已失效：已被使用、已过期，或已签发更新的链接。请向管理员索取新链接。",
+    to_sign_in: "前往登录",
+  },
 }
 
 export const theme: Messages["theme"] = {

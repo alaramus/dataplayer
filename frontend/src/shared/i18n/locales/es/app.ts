@@ -21,6 +21,19 @@ export const auth: Messages["auth"] = {
   retry_connection: "Reintentar conexión",
   sign_in_failed: "No se pudo iniciar sesión. Comprueba el correo y la contraseña.",
   welcome_tagline: "Un solo lugar para todas las fuentes de datos con las que trabajas",
+  set_password: {
+    title: "Elija su contraseña",
+    for_whom: "Para {email}",
+    new: "Nueva contraseña",
+    repeat: "Repita la contraseña",
+    too_short: "Al menos {n} carácter | Al menos {n} caracteres",
+    mismatch: "Las dos contraseñas no coinciden",
+    submit: "Establecer contraseña",
+    done: "Contraseña establecida. Inicie sesión con ella.",
+    checking: "Comprobando el enlace…",
+    invalid: "Este enlace ya no funciona: se usó, caducó o se emitió uno más reciente. Pida uno nuevo a su administrador.",
+    to_sign_in: "Ir a iniciar sesión",
+  },
 }
 
 export const theme: Messages["theme"] = {

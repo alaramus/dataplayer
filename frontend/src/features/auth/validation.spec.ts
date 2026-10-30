@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { requiredCredentialErrors } from "./validation"
+import { newPasswordErrors, requiredCredentialErrors } from "./validation"
 
 describe("required sign-in credentials", () => {
   it("identifies both missing fields", () => {
@@ -19,5 +19,13 @@ describe("required sign-in credentials", () => {
     expect(requiredCredentialErrors("person@example.com", "password")).toEqual({
       username: "", password: "",
     })
+  })
+})
+
+describe("a password being chosen", () => {
+  it("wants it long enough and typed the same twice", () => {
+    expect(newPasswordErrors("short", "short").password).toBeTruthy()
+    expect(newPasswordErrors("long-enough", "long-enougH").repeat).toBeTruthy()
+    expect(newPasswordErrors("long-enough", "long-enough")).toEqual({ password: "", repeat: "" })
   })
 })

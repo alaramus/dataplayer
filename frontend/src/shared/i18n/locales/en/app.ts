@@ -19,6 +19,19 @@ export const auth = {
   retry_connection: "Retry connection",
   sign_in_failed: "Could not sign in. Check the email and password.",
   welcome_tagline: "One place for every data source you work with",
+  set_password: {
+    title: "Choose your password",
+    for_whom: "For {email}",
+    new: "New password",
+    repeat: "Repeat the password",
+    too_short: "At least {n} character | At least {n} characters",
+    mismatch: "The two passwords differ",
+    submit: "Set password",
+    done: "Password set. Sign in with it.",
+    checking: "Checking the link…",
+    invalid: "This link no longer works: it was used, it expired, or a newer one was issued. Ask your administrator for a new one.",
+    to_sign_in: "Go to sign in",
+  },
 }
 
 export const theme = {
