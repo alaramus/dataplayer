@@ -442,14 +442,44 @@ def warnings(changed: list[Change], existed: bool) -> list[str]:
 # --- Questions ---------------------------------------------------------------
 
 
-def printable(text: str) -> str:
-    """What the screen showed: a half-erased character dropped.
+def erase_by_character() -> None:
+    """Make Backspace erase a whole character rather than one byte of it.
 
-    The container's terminal has no IUTF8, so Backspace after a letter typed
-    in another layout removes one byte of it; the byte left reaches Python as
-    a lone surrogate the screen does not show, and `y` stops being `y`.
+    A pseudo-terminal starts without IUTF8, Docker's included: Backspace after
+    a letter of another layout removes one of its bytes, and a second press
+    rubs out the prompt on screen while erasing the rest.
     """
-    return "".join(char for char in text if char.isprintable())
+    try:
+        import termios
+    except ImportError:  # Windows: the console edits characters itself
+        return
+    flag = getattr(termios, "IUTF8", 0)
+    if not flag:
+        return
+    try:
+        attributes = termios.tcgetattr(sys.stdin)
+        attributes[0] |= flag
+        termios.tcsetattr(sys.stdin, termios.TCSANOW, attributes)
+    except termios.error:
+        pass
+
+
+def printable(text: str) -> str:
+    """What the screen showed.
+
+    Where IUTF8 could not be set, a half-erased letter reaches Python as a lone
+    surrogate the screen does not show, and `y` stops being `y`. A terminal that
+    sends Backspace as ^H, which the line discipline does not take for erase,
+    leaves it in the text: it is applied here.
+    """
+    shown: list[str] = []
+    for char in text:
+        if char in "\b\x7f":
+            if shown:
+                shown.pop()
+        elif char.isprintable():
+            shown.append(char)
+    return "".join(shown)
 
 
 def ask_line(prompt: str) -> str:
@@ -701,7 +731,9 @@ def main(
     defaults = defaults_from(before if existed else None, args)
 
     interactive = sys.stdin.isatty() and not args.yes
-    choices = run_wizard(before, defaults) if interactive else defaults
+    if interactive:
+        erase_by_character()
+    choices =run_wizard(before, defaults) if interactive else defaults
     password_generated = choices.password is None and before.is_unset("FIRST_SUPERUSER_PASSWORD")
 
     after = before.copy()

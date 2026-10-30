@@ -415,6 +415,19 @@ def test_a_half_erased_letter_does_not_spoil_an_answer(
     assert "answer y or n" not in capsys.readouterr().out
 
 
+def test_a_backspace_sent_as_a_control_character_erases(
+    setup: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A terminal sending ^H, which the line discipline passes through as text.
+    answer(monkeypatch, "н\by", "yes\b\b\b\x7fn", "\b\x7fy")
+    assert setup.ask_confirm("allow managed services", default_yes=False) is True
+    assert setup.ask_confirm("allow managed services") is False
+    assert setup.ask_confirm("allow managed services", default_yes=False) is True
+    assert "answer y or n" not in capsys.readouterr().out
+
+
 def test_a_half_erased_letter_does_not_reach_a_password(
     setup: ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
