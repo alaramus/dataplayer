@@ -837,4 +837,10 @@ describe("what ticked nodes admit, by kind", () => {
 
     expect(tickableKinds([remove, createFolder, report])).toEqual(new Set(["file", "directory"]))
   })
+
+  it("draws a tick box for a node the source describes, which Details acts on", () => {
+    const items = [{ kind: "table", summarizable: true }, { kind: "report", summarizable: false }]
+
+    expect(tickableKinds([], items)).toEqual(new Set(["table"]))
+  })
 })

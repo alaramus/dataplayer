@@ -250,13 +250,20 @@ export function byKind(vocabulary: ActionInfo[], kinds: string[]): ActionInfo[] 
  * The kinds a tick box is drawn for: what some command of the catalog's menu
  * acts on. A section of reports and the reports in it are what a connection
  * says about itself, and nothing in the menu is done to them.
+ *
+ * Details is the client's and is ticked too: a node the source describes keeps
+ * its box when no action of the source applies to its kind.
  */
-export function tickableKinds(vocabulary: ActionInfo[]): Set<string> {
-  return new Set(
-    vocabulary
+export function tickableKinds(
+  vocabulary: ActionInfo[],
+  items: readonly { kind: string; summarizable?: boolean | null }[] = []
+): Set<string> {
+  return new Set([
+    ...vocabulary
       .filter((action) => action.offered_in === "catalog" && (action.acts_on === "node" || action.acts_on === "group"))
-      .flatMap((action) => action.applies_to as string[])
-  )
+      .flatMap((action) => action.applies_to as string[]),
+    ...items.filter((node) => node.summarizable === true).map((node) => node.kind),
+  ])
 }
 
 /** Why a line is off when its subject is empty, keyed by what it acts on. */

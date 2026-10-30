@@ -42,11 +42,20 @@ export async function createColleague(page: Page, email: string) {
   await openAdmin(page)
   await page.getByTestId("new-user").click()
   await page.getByTestId("user-email").fill(email)
-  await page.getByTestId("user-password").fill(COLLEAGUE_PASSWORD)
   await page.getByTestId("user-save").click()
   await expect(page.getByTestId(`edit-user-${email}`)).toBeVisible()
-  await page.getByTestId("back-to-workspace").click()
-  await page.waitForURL("/")
+  // An account is created without a password; its owner chooses one through
+  // the link the superuser is handed. The page takes the token alone, so the
+  // superuser's session in this tab is left as it was.
+  const link = new URL(await page.getByTestId("invitation-url").inputValue())
+  await page.getByTestId("invitation-done").click()
+  await page.goto(`/set-password${link.search}`)
+  await expect(page.getByTestId("set-password-holder")).toContainText(email)
+  await page.getByTestId("set-password-new").fill(COLLEAGUE_PASSWORD)
+  await page.getByTestId("set-password-repeat").fill(COLLEAGUE_PASSWORD)
+  await page.getByTestId("set-password-submit").click()
+  await expect(page.getByTestId("set-password-done")).toBeVisible()
+  await page.goto("/")
 }
 
 export async function removeColleague(page: Page, email: string) {

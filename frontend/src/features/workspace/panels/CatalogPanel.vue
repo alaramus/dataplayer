@@ -81,7 +81,7 @@ const vocabulary = useNodeActions(
   connectorId,
   computed(() => (level.currentId.value === null || level.currentId.value === "" ? null : [level.currentId.value]))
 )
-const tickable = computed(() => (vocabulary.data.value ? tickableKinds(vocabulary.data.value) : null))
+const tickable = computed(() => (vocabulary.data.value ? tickableKinds(vocabulary.data.value, level.items.value) : null))
 
 /**
  * The colour of the connection this catalog belongs to, if it was given one.

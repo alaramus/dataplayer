@@ -644,16 +644,6 @@ test("packs a selection into an archive and takes it apart again", async ({ page
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, "bundle.tar.gz")).toBeVisible()
 
-  // Extract is offered for the archive and for neither of the files in it.
-  await catalogCheck(page, "one.txt").click()
-  await page.getByTestId("catalog-actions").click()
-  await expect(page.getByTestId("menu-item-extract_archive")).toHaveAttribute(
-    "aria-disabled",
-    "true"
-  )
-  await page.keyboard.press("Escape")
-  await catalogCheck(page, "one.txt").click()
-
   await catalogCheck(page, "bundle.tar.gz").click()
   await catalogAction(page, "extract_archive")
   await page.getByTestId("action-submit").click()

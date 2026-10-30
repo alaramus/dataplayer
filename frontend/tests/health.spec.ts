@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { signedApi } from "./utils/search"
 import { connectorRow, deleteConnector, editConnector } from "./utils/workspace"
 
 /**
@@ -17,6 +18,28 @@ import { connectorRow, deleteConnector, editConnector } from "./utils/workspace"
 // or three rounds. The default budget of thirty seconds is for the whole test,
 // not for one assertion, so it runs out while the dot is still right.
 test.describe.configure({ timeout: 120_000 })
+
+/**
+ * Run with probes every fifteen seconds, then give the account back its own
+ * choice. A connection switched back on is probed when its turn comes round,
+ * which on an account set to every fifteen minutes is after the test is over.
+ */
+async function withQuickChecks(page: import("@playwright/test").Page, body: () => Promise<void>) {
+  const { base, headers } = await signedApi(page)
+  const read = await page.request.get(`${base}/users/me/preferences`, { headers })
+  expect(read.ok(), await read.text()).toBe(true)
+  const chosen = ((await read.json()) as { connector_checks: string }).connector_checks
+  const set = async (connector_checks: string) => {
+    const saved = await page.request.patch(`${base}/users/me/preferences`, { headers, data: { connector_checks } })
+    expect(saved.ok(), await saved.text()).toBe(true)
+  }
+  await set("15s")
+  try {
+    await body()
+  } finally {
+    await set(chosen)
+  }
+}
 
 function stateDot(page: import("@playwright/test").Page, name: string) {
   return page.getByTestId(`connector-state-${name}`)
@@ -39,29 +62,31 @@ test("a working connection turns green on its own", async ({ page }) => {
 test("a connection switched off goes yellow and will not open", async ({ page }) => {
   const name = `e2e-off-${Date.now()}`
   await login(page)
-  await createPostgresConnector(page, name)
-  await expect(stateDot(page, name)).toHaveAttribute("data-state", "ok", {
-    timeout: 30_000,
+  await withQuickChecks(page, async () => {
+    await createPostgresConnector(page, name)
+    await expect(stateDot(page, name)).toHaveAttribute("data-state", "ok", {
+      timeout: 30_000,
+    })
+
+    await editConnector(page, name)
+    await page.getByTestId("connector-enabled").click()
+    await page.getByTestId("save-connector").click()
+
+    await expect(stateDot(page, name)).toHaveAttribute("data-state", "disabled")
+
+    // Still listed and still reachable for editing — switching off is not
+    // deleting — but pressing it no longer loads a catalog.
+    await connectorRow(page, name).click()
+    await expect(page.locator('[data-testid^="workspace-tab-catalog:"]')).toHaveCount(0)
+
+    // And back on again, which is the whole difference from deleting it.
+    await editConnector(page, name)
+    await page.getByTestId("connector-enabled").click()
+    await page.getByTestId("save-connector").click()
+    await expect(stateDot(page, name)).toHaveAttribute("data-state", "ok", {
+      timeout: 30_000,
+    })
+
+    await deleteConnector(page, name)
   })
-
-  await editConnector(page, name)
-  await page.getByTestId("connector-enabled").click()
-  await page.getByTestId("save-connector").click()
-
-  await expect(stateDot(page, name)).toHaveAttribute("data-state", "disabled")
-
-  // Still listed and still reachable for editing — switching off is not
-  // deleting — but pressing it no longer loads a catalog.
-  await connectorRow(page, name).click()
-  await expect(page.locator('[data-testid^="workspace-tab-catalog:"]')).toHaveCount(0)
-
-  // And back on again, which is the whole difference from deleting it.
-  await editConnector(page, name)
-  await page.getByTestId("connector-enabled").click()
-  await page.getByTestId("save-connector").click()
-  await expect(stateDot(page, name)).toHaveAttribute("data-state", "ok", {
-    timeout: 30_000,
-  })
-
-  await deleteConnector(page, name)
 })

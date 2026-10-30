@@ -53,8 +53,9 @@ test("a check says what the server is and what is installed in it", async ({ pag
     // Checking again is what re-reads it; there is no separate reload.
     installed = false
     await page.getByTestId("check-draft").click()
-    await expect(feature).toContainText("Not installed")
-    await expect(feature).not.toContainText("2.18.0")
+    // An extension that is not installed is simply not in the list.
+    await expect(feature).toHaveCount(0)
+    await expect(page.getByTestId("source-fact-server")).toContainText("17.6")
   } finally {
     await deleteConnector(page, name)
   }

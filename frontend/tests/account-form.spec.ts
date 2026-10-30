@@ -4,7 +4,7 @@ import { login } from "./utils/login"
 import { openAdmin } from "./utils/people"
 
 for (const theme of ["light", "dark"] as const) {
-  test(`account forms keep labels, validation and password meaning in ${theme}`, async ({ page }) => {
+  test(`account forms keep labels and validation, and leave the password to its owner, in ${theme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: theme })
     await login(page)
     const user = { id: "layout-user", email: "layout@example.test", full_name: "Example person", is_active: true, is_superuser: false }
@@ -18,11 +18,14 @@ for (const theme of ["light", "dark"] as const) {
     await page.getByTestId("new-user").click()
     const frame = page.getByRole("dialog", { name: "New user", exact: true })
     const before = await frame.boundingBox()
-    for (const [field, name] of [["user-email", "Email"], ["user-name", "Name"], ["user-password", "Password"]] as const) {
+    // Nobody types a password for somebody else: the owner chooses it through
+    // the link handed out after saving.
+    await expect(page.getByTestId("user-password")).toHaveCount(0)
+    for (const [field, name] of [["user-email", "Email"], ["user-name", "Name"]] as const) {
       const input = page.getByTestId(field)
       await expect(input).toHaveValue("")
       await expect(input).toHaveAccessibleName(name)
-      await expect(input).toHaveAttribute("autocomplete", field === "user-password" ? "new-password" : "off")
+      await expect(input).toHaveAttribute("autocomplete", "off")
       const labelBox = await frame.getByText(name, { exact: true }).boundingBox()
       const inputBox = await input.boundingBox()
       if (!labelBox || !inputBox) throw new Error("Missing field or label")
@@ -31,8 +34,6 @@ for (const theme of ["light", "dark"] as const) {
     }
     await page.getByTestId("user-save").click()
     await expect(page.getByTestId("user-email")).toHaveAttribute("aria-invalid", "true")
-    await expect(page.getByTestId("user-password")).toHaveAttribute("aria-invalid", "true")
-    await expect(frame.getByText("A password is required", { exact: true })).toBeVisible()
     expect(await frame.boundingBox()).toEqual(before)
     await frame.screenshot({ path: `test-results/account-form-${theme}.png` })
     await page.setViewportSize({ width: 390, height: 500 })
@@ -54,9 +55,7 @@ for (const theme of ["light", "dark"] as const) {
     const edit = page.getByRole("dialog", { name: "Edit user — layout@example.test", exact: true })
     const editBody = page.getByTestId("user-dialog").locator(".window-dialog__content")
     await expect.poll(() => editBody.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true)
-    await expect(page.getByTestId("user-password")).toHaveValue("")
-    await expect(page.getByTestId("user-password")).toHaveAccessibleName("New password")
-    await expect(edit.getByText("Leave empty to keep the current password", { exact: true })).toBeVisible()
+    await expect(page.getByTestId("user-password")).toHaveCount(0)
     await page.getByTestId("user-name").fill("Updated person")
     await page.getByTestId("user-active").uncheck()
     await page.getByTestId("user-superuser").check()
