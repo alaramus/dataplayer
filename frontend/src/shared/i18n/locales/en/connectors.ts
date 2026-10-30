@@ -145,4 +145,8 @@ export const connectors = {
     apply: "Apply",
     ok: "OK",
   },
+  tunnel: {
+    directly: "Directly",
+    someone_elses: "The owner's SSH connection",
+  },
 }

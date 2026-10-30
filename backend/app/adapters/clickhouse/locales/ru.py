@@ -141,4 +141,6 @@ MESSAGES: dict[str, str] = {
     '{engine} needs a {parameter}': '{engine} требует параметр «{parameter}»',
     '{engine} takes nothing called "{parameter}"': 'У {engine} нет параметра «{parameter}»',
     '{parameter} is one column': '«{parameter}» — это один столбец',
+    # Reaching a server through an SSH connection (D282).
+    "Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already": "Через SSH-туннель подключайтесь без HTTPS: туннель уже шифрует соединение",
 }

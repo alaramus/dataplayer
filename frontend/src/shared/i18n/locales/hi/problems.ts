@@ -15,6 +15,7 @@ export const problems: Record<ProblemCode, string> = {
   "users.superuser_cannot_delete_self": "सुपरयूज़र स्वयं को हटा नहीं सकता",
   "connectors.not_found": "कनेक्शन नहीं मिला",
   "connectors.disabled": "कनेक्शन निष्क्रिय है",
+  "connectors.tunnel_in_use": "ये कनेक्शन इस SSH कनेक्शन से होकर जाते हैं: {names}। पहले उन्हें बदलें",
   "connectors.content_not_found": "सामग्री नहीं मिली",
   "connectors.download_not_found": "डाउनलोड के लिए फ़ाइल नहीं मिली",
   "connectors.export_not_found": "निर्यात नहीं मिला",

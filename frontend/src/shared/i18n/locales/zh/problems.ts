@@ -15,6 +15,7 @@ export const problems: Record<ProblemCode, string> = {
   "users.superuser_cannot_delete_self": "超级用户不能删除自己",
   "connectors.not_found": "找不到连接",
   "connectors.disabled": "连接已停用",
+  "connectors.tunnel_in_use": "以下连接经由此 SSH 连接：{names}。请先修改它们",
   "connectors.content_not_found": "找不到内容",
   "connectors.download_not_found": "找不到要下载的文件",
   "connectors.export_not_found": "找不到导出",

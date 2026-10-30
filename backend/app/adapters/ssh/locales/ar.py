@@ -83,4 +83,7 @@ MESSAGES: dict[str, str] = {
     "Filesystem available inodes": "عُقد inode المتاحة في نظام الملفات",
     "This report cannot be filtered that way": "لا يمكن تصفية هذا التقرير بهذه الطريقة",
     "This report cannot be sorted that way": "لا يمكن ترتيب هذا التقرير بهذه الطريقة",
+    # Reaching a server through an SSH connection (D282).
+    "The SSH server does not forward connections; AllowTcpForwarding is off there": "لا يمرّر خادم SSH الاتصالات؛ إذ إن AllowTcpForwarding معطّل فيه",
+    "The SSH server could not reach {host}:{port}": "تعذّر على خادم SSH الوصول إلى {host}:{port}",
 }

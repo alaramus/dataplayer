@@ -24,6 +24,7 @@ from app.adapters.clickhouse.pool import client_for, make_client
 from app.adapters.clickhouse.types import decode_line
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
+from app.adapters.tunnels import TunnelAccess, reach, tunnel_of
 from app.core.logs import record_failure, with_ref
 from app.core.translation import N_, say
 
@@ -290,9 +291,17 @@ def _parse(body: str) -> Answer:
 class ClickhouseSession:
     """How to talk to one ClickHouse server."""
 
-    def __init__(self, options: ClickhouseOptions, pooling: Pooling | None = None) -> None:
+    def __init__(
+        self,
+        options: ClickhouseOptions,
+        pooling: Pooling | None = None,
+        tunnels: TunnelAccess | None = None,
+    ) -> None:
         self._options = options
         self._pooling = pooling
+        self._tunnels = tunnels
+        # Where requests go once `_reach` has asked; the address itself until.
+        self._address = (options.host, options.port)
         self._profile: ServerProfile | None = None
 
     @property
@@ -304,11 +313,23 @@ class ClickhouseSession:
             return ""
         return self._options.password.get_secret_value()
 
+    async def _reach(self) -> None:
+        """Ask where requests go now: through the tunnel when there is one (D282)."""
+        options = self._options
+        if options.secure and tunnel_of(options.ssh_tunnel) is not None:
+            # A certificate names the server, not a port on this loopback.
+            raise AdapterError(
+                "config",
+                say("Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already"),
+            )
+        self._address = await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
+
     def _base_url(self) -> str:
         options = self._options
         scheme = "https" if options.secure else "http"
-        host = f"[{options.host}]" if ":" in options.host else options.host
-        return f"{scheme}://{host}:{options.port}/"
+        address, port = self._address
+        host = f"[{address}]" if ":" in address else address
+        return f"{scheme}://{host}:{port}/"
 
     def connection_string(self) -> str:
         options = self._options
@@ -327,6 +348,7 @@ class ClickhouseSession:
     @asynccontextmanager
     async def _client(self) -> AsyncIterator[httpx.AsyncClient]:
         """A client to send on: the connector's kept one when there is one."""
+        await self._reach()
         kept = None
         if self._pooling is not None:
             options = self._options
@@ -404,10 +426,15 @@ class ClickhouseSession:
         started = time.perf_counter()
         client = make_client(verify=self._options.secure, read_timeout=CHECK_TIMEOUT_SECONDS)
         try:
+            await self._reach()
             body = await self._send(
                 client, "SELECT version() AS version", {}, {}, read=True
             )
             version = str(_parse(body).rows[0][0])
+        except AdapterError as failure:
+            return ConnectionCheckResult(
+                ok=False, message=failure.message, error_kind=failure.error_kind
+            )
         except Exception as exc:
             error_kind, message = classify(exc)
             return ConnectionCheckResult(ok=False, message=message, error_kind=error_kind)

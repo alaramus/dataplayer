@@ -76,6 +76,7 @@ from app.adapters.search import (
     SearchedField,
     SourceCost,
 )
+from app.adapters.tunnels import TunnelAccess
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -100,9 +101,9 @@ class RedisAdapter:
     module composed here rather than another hundred lines in this class.
     """
 
-    def __init__(self, options: Any) -> None:
+    def __init__(self, options: Any, tunnels: TunnelAccess | None = None) -> None:
         self._options = options
-        self._session = RedisSession(options)
+        self._session = RedisSession(options, tunnels)
         self._keyspace = RedisKeyspace(self._session)
         self._search = RedisSearch(self._session, self._keyspace)
         self._fetch = RedisFetch(self._session, self._keyspace)
@@ -311,10 +312,10 @@ class RedisAdapter:
     options_schema=RedisOptions,
     adapter_class=RedisAdapter,
 )
-def _build(options: Any, _context: AdapterContext) -> RedisAdapter:
+def _build(options: Any, context: AdapterContext) -> RedisAdapter:
     # No home directory and no pooling: everything this source does is a
     # handful of round trips against a server that answers in microseconds.
-    return RedisAdapter(options)
+    return RedisAdapter(options, context.tunnels)
 
 
 def _as_number(value: Any) -> int | None:

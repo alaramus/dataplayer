@@ -86,4 +86,7 @@ MESSAGES: dict[str, str] = {
     "Filesystem available inodes": "Доступные индексные дескрипторы файлов",
     "This report cannot be filtered that way": "Этот отчёт нельзя так фильтровать",
     "This report cannot be sorted that way": "Этот отчёт нельзя так сортировать",
+    # Reaching a server through an SSH connection (D282).
+    "The SSH server does not forward connections; AllowTcpForwarding is off there": "SSH-сервер не пробрасывает подключения: у него выключен AllowTcpForwarding",
+    "The SSH server could not reach {host}:{port}": "SSH-сервер не смог подключиться к {host}:{port}",
 }

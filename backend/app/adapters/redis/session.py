@@ -32,6 +32,7 @@ from redis.exceptions import (
 
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.redis.options import RedisOptions, RedisPassword
+from app.adapters.tunnels import TunnelAccess, reach
 from app.core.logs import record_failure, with_ref
 from app.core.translation import say
 
@@ -51,14 +52,20 @@ ENCODING = "utf-8"
 class RedisSession:
     """A way to reach one Redis server, opened per operation."""
 
-    def __init__(self, options: RedisOptions) -> None:
+    def __init__(self, options: RedisOptions, tunnels: TunnelAccess | None = None) -> None:
         self._options = options
+        self._tunnels = tunnels
+
+    async def _address(self) -> tuple[str, int]:
+        """Where to dial now: through the tunnel when there is one (D282)."""
+        options = self._options
+        return await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
 
     @property
     def database(self) -> int:
         return self._options.database
 
-    def _client(self, database: int | None = None) -> redis.Redis:
+    def _client(self, address: tuple[str, int], database: int | None = None) -> redis.Redis:
         """A client on one of the server's key spaces.
 
         Which one is asked for per call rather than fixed at construction: the
@@ -72,9 +79,10 @@ class RedisSession:
             if isinstance(self._options, RedisPassword)
             else None
         )
+        host, port = address
         return redis.Redis(
-            host=self._options.host,
-            port=self._options.port,
+            host=host,
+            port=port,
             db=self._options.database if database is None else database,
             password=password,
             socket_connect_timeout=TIMEOUT_SECONDS,
@@ -96,7 +104,7 @@ class RedisSession:
         lifetime to manage for no gain, and `check_connection` deliberately
         opens its own anyway.
         """
-        client = self._client(database)
+        client = self._client(await self._address(), database)
         try:
             yield client
         except RedisError as failure:
@@ -112,7 +120,10 @@ class RedisSession:
         which was asked for. Never worth failing over — whether the connection
         works is what the caller asked, and this is a line beside the answer.
         """
-        client = self._client()
+        try:
+            client = self._client(await self._address())
+        except AdapterError:
+            return None
         try:
             info: dict[str, object] = await client.info("server")
         except RedisError:
@@ -124,7 +135,10 @@ class RedisSession:
 
     async def check(self) -> ConnectionCheckResult:
         """Say hello, and say what happened in words that name no address."""
-        client = self._client()
+        try:
+            client = self._client(await self._address())
+        except AdapterError as failure:
+            return _refused(failure.error_kind, failure.message)
         started = time.perf_counter()
         try:
             await client.ping()

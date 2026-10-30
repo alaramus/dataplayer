@@ -15,6 +15,7 @@ export const problems: Record<ProblemCode, string> = {
   "users.superuser_cannot_delete_self": "El superusuario no puede eliminarse a sí mismo",
   "connectors.not_found": "No se encontró la conexión",
   "connectors.disabled": "La conexión está desactivada",
+  "connectors.tunnel_in_use": "Estas conexiones pasan por esta conexión SSH: {names}. Cámbielas primero",
   "connectors.content_not_found": "No se encontró el contenido",
   "connectors.download_not_found": "No se encontró el archivo para la descarga",
   "connectors.export_not_found": "No se encontró la exportación",

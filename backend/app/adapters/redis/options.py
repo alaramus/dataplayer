@@ -12,6 +12,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_
 
 
@@ -33,6 +34,8 @@ class _RedisBase(BaseModel):
     port: int = Field(
         default=6379, ge=1, le=65535, title=N_("Port"), json_schema_extra=layout(row="address")
     )
+    # The SSH connection this server is reached through, if any (D282).
+    ssh_tunnel: str = ssh_tunnel_field()
     # Redis calls them databases and numbers them; there are sixteen by
     # default and they have no names, so this is a number rather than a name.
     # Where the catalog opens rather than what it is confined to: the others

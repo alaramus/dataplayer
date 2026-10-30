@@ -148,4 +148,8 @@ export const connectors: Messages["connectors"] = {
     apply: "تطبيق",
     ok: "حسنًا",
   },
+  tunnel: {
+    directly: "مباشرةً",
+    someone_elses: "اتصال SSH الخاص بالمالك",
+  },
 }

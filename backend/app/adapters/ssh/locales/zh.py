@@ -85,4 +85,7 @@ MESSAGES: dict[str, str] = {
     "Filesystem available inodes": "可用 inode 数",
     "This report cannot be filtered that way": "无法使用此条件筛选报告",
     "This report cannot be sorted that way": "无法使用此条件排序报告",
+    # Reaching a server through an SSH connection (D282).
+    "The SSH server does not forward connections; AllowTcpForwarding is off there": "该 SSH 服务器不转发连接：其 AllowTcpForwarding 已关闭",
+    "The SSH server could not reach {host}:{port}": "SSH 服务器无法连接到 {host}:{port}",
 }

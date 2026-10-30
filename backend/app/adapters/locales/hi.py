@@ -84,4 +84,9 @@ MESSAGES: dict[str, str] = {
     "Time ran out after {count} entries were looked at; there may be more": "{count} प्रविष्टियाँ देखने के बाद समय समाप्त हो गया; और भी हो सकती हैं",
     "Time ran out after {count} keys were looked at; there may be more": "{count} कुंजियाँ देखने के बाद समय समाप्त हो गया; और भी हो सकती हैं",
     "Time ran out after {count} files were looked at; there may be more": "{count} फ़ाइलें देखने के बाद समय समाप्त हो गया; और भी हो सकती हैं",
+    # Reaching a server through an SSH connection (D282).
+    "SSH tunnel": "SSH टनल",
+    "Reach the server through one of your SSH connections; the host is then as that server sees it": "अपने किसी SSH कनेक्शन के ज़रिए सर्वर तक पहुँचें; तब होस्ट वैसा लिखें जैसा वह SSH सर्वर उसे देखता है",
+    "This connection goes through an SSH tunnel, and none is at hand": "यह कनेक्शन एक SSH टनल से होकर जाता है, जो यहाँ उपलब्ध नहीं है",
+    "A backup does not go through an SSH tunnel yet": "बैकअप अभी SSH टनल से होकर नहीं जा सकता",
 }

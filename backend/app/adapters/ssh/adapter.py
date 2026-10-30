@@ -52,6 +52,7 @@ from app.adapters.ssh.reports import (
 from app.adapters.ssh.session import SshSession, identity_of, server_key
 from app.adapters.ssh.storage import SftpStorage
 from app.adapters.ssh.terminal import SshTerminal
+from app.adapters.ssh.tunnel import TUNNELS
 from app.adapters.terminal import Terminal, TerminalSize
 from app.core.translation import N_, say
 
@@ -79,6 +80,11 @@ class SshAdapter(Explorer):
         if value is None:  # pragma: no cover - validated options always have a host
             raise ValueError(say("The SSH connection has no host"))
         return value
+
+    async def forward(self, host: str, port: int) -> tuple[str, int]:
+        """A local address reaching `host:port` from this server (D282)."""
+        signing = await self._session.signing_key()
+        return await TUNNELS.endpoint(self._session.options, signing, host, port)
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()

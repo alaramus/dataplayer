@@ -81,4 +81,9 @@ MESSAGES: dict[str, str] = {
     "Time ran out after {count} entries were looked at; there may be more": "انتهى الوقت بعد فحص {count} مدخلًا؛ وقد يكون هناك المزيد",
     "Time ran out after {count} keys were looked at; there may be more": "انتهى الوقت بعد فحص {count} مفتاحًا؛ وقد يكون هناك المزيد",
     "Time ran out after {count} files were looked at; there may be more": "انتهى الوقت بعد فحص {count} ملفًا؛ وقد يكون هناك المزيد",
+    # Reaching a server through an SSH connection (D282).
+    "SSH tunnel": "نفق SSH",
+    "Reach the server through one of your SSH connections; the host is then as that server sees it": "الوصول إلى الخادم عبر أحد اتصالات SSH الخاصة بك؛ ويُكتب المضيف حينئذٍ كما يراه ذلك الخادم",
+    "This connection goes through an SSH tunnel, and none is at hand": "يمر هذا الاتصال عبر نفق SSH غير متاح هنا",
+    "A backup does not go through an SSH tunnel yet": "لا يمكن للنسخة الاحتياطية بعدُ أن تمر عبر نفق SSH",
 }

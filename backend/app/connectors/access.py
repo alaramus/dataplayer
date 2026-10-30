@@ -20,6 +20,7 @@ from app.adapters.resources import Pooling, ResourceStore
 from app.connectors import crud, service
 from app.connectors.models import Connector
 from app.connectors.ssh_keys import OwnerKeys
+from app.connectors.tunnels import OwnerTunnels
 from app.core.access import Access, at_least
 from app.core.problems import Problem, ProblemCode
 from app.core.translation import say
@@ -103,12 +104,14 @@ def context_for(
 
     Always the owner's: a grantee reading a connection signs in with the
     owner's credentials and reads the owner's storage (D33), and a key is a
-    credential like the rest (D146).
+    credential like the rest (D146), as is the SSH connection a database is
+    reached through (D282).
     """
     return AdapterContext(
         home_dir=storage.home_dir(owner_id),
         pooling=pooling,
         keys=OwnerKeys(owner_id),
+        tunnels=OwnerTunnels(owner_id),
     )
 
 

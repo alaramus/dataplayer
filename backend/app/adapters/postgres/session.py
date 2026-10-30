@@ -19,6 +19,7 @@ from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.pool import pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
+from app.adapters.tunnels import TunnelAccess, reach, tunnel_of
 from app.core.logs import record_failure, with_ref
 from app.core.translation import N_, say
 
@@ -339,19 +340,31 @@ class PostgresSession:
     """
 
     def __init__(
-        self, options: PostgresOptions, pooling: Pooling | None = None
+        self,
+        options: PostgresOptions,
+        pooling: Pooling | None = None,
+        tunnels: TunnelAccess | None = None,
     ) -> None:
         self._options = options
         # Absent for a draft being checked, and for a session a test builds by
         # hand: then every query connects on its own, as everything did before
         # sub-project 4b.
         self._pooling = pooling
+        self._tunnels = tunnels
 
-    def conninfo(self) -> str:
+    async def _conninfo(self) -> str:
+        """The conninfo to dial now: through the tunnel when there is one (D282)."""
         options = self._options
+        return self.conninfo(
+            await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
+        )
+
+    def conninfo(self, address: tuple[str, int] | None = None) -> str:
+        options = self._options
+        host, port = address or (options.host, options.port)
         parts: dict[str, Any] = {
-            "host": options.host,
-            "port": options.port,
+            "host": host,
+            "port": port,
             "dbname": options.database,
             "user": options.user,
             # Without this psycopg waits about two minutes on an unreachable
@@ -390,7 +403,10 @@ class PostgresSession:
     def database(self) -> str:
         """Which database this reaches, whoever signs in to it (D182)."""
         options = self._options
-        return f"{options.host}:{options.port}/{options.database}"
+        # A host seen from an SSH server is not the same host seen from here.
+        tunnel = tunnel_of(options.ssh_tunnel)
+        through = "" if tunnel is None else f"ssh:{tunnel}/"
+        return f"{through}{options.host}:{options.port}/{options.database}"
 
     def connection_string(self) -> str:
         """The same address as `conninfo`, as a URL and without the password.
@@ -410,11 +426,15 @@ class PostgresSession:
         started = time.perf_counter()
         try:
             connection = await asyncio.wait_for(
-                psycopg.AsyncConnection.connect(self.conninfo()),
+                psycopg.AsyncConnection.connect(await self._conninfo()),
                 CHECK_TIMEOUT_SECONDS,
             )
             async with connection:
                 await connection.execute("SELECT 1")
+        except AdapterError as failure:
+            return ConnectionCheckResult(
+                ok=False, message=failure.message, error_kind=failure.error_kind
+            )
         except Exception as exc:
             error_kind, message = classify(exc)
             return ConnectionCheckResult(
@@ -428,10 +448,11 @@ class PostgresSession:
     @asynccontextmanager
     async def _connection(self) -> AsyncIterator[psycopg.AsyncConnection[Any]]:
         """A connection to work on: from the pool when there is one."""
-        pool = None if self._pooling is None else await pool_for(self._pooling, self.conninfo())
+        conninfo = await self._conninfo()
+        pool = None if self._pooling is None else await pool_for(self._pooling, conninfo)
         if pool is None:
             connection = await asyncio.wait_for(
-                psycopg.AsyncConnection.connect(self.conninfo()),
+                psycopg.AsyncConnection.connect(conninfo),
                 CHECK_TIMEOUT_SECONDS,
             )
             async with connection:
@@ -815,11 +836,13 @@ class PostgresSession:
         """
         try:
             connection = await asyncio.wait_for(
-                psycopg.AsyncConnection.connect(self.conninfo()),
+                psycopg.AsyncConnection.connect(await self._conninfo()),
                 CHECK_TIMEOUT_SECONDS,
             )
             async with connection:
                 pass
+        except AdapterError as failure:
+            return failure.error_kind, failure.message
         except Exception as exc:
             return classify(exc, fallback_message=N_("Query failed"))
         # The server is reachable and the credentials work, so the wait was for

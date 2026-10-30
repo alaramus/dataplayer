@@ -18,6 +18,7 @@ from collections.abc import Sequence
 from app.adapters.mysql.options import MysqlOptions, MysqlUserPassword
 from app.adapters.mysql.session import MysqlSession, ServerProfile
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
+from app.adapters.tunnels import backup_through
 from app.core.translation import say
 
 # The first lines a dump begins with: MariaDB's newer programs put a line that
@@ -37,6 +38,8 @@ class MysqlBackup:
         self._flavour: str | None = None
 
     async def backup_availability(self) -> BackupAvailability:
+        if (through := backup_through(self._options.ssh_tunnel)) is not None:
+            return through
         if not self._options.database:
             return BackupAvailability(
                 available=False,

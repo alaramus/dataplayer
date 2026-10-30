@@ -142,4 +142,6 @@ MESSAGES: dict[str, str] = {
     '{engine} needs a {parameter}': '{engine} को {parameter} चाहिए',
     '{engine} takes nothing called "{parameter}"': '{engine} "{parameter}" नाम का कुछ नहीं लेता',
     '{parameter} is one column': '{parameter} एक ही कॉलम है',
+    # Reaching a server through an SSH connection (D282).
+    "Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already": "SSH टनल से HTTPS के बिना कनेक्ट करें: टनल पहले से ही कनेक्शन एन्क्रिप्ट करती है",
 }

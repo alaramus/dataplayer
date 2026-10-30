@@ -147,4 +147,8 @@ export const connectors: Messages["connectors"] = {
     apply: "Anwenden",
     ok: "OK",
   },
+  tunnel: {
+    directly: "Direkt",
+    someone_elses: "SSH-Verbindung des Eigentümers",
+  },
 }

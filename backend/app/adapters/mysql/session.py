@@ -22,6 +22,7 @@ from app.adapters.mysql.options import MysqlOptions, MysqlUserPassword
 from app.adapters.mysql.pool import PoolExhausted, pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
+from app.adapters.tunnels import TunnelAccess, reach
 from app.core.logs import record_failure, with_ref
 from app.core.translation import N_, say
 
@@ -329,9 +330,15 @@ class Inspection:
 class MysqlSession:
     """How to talk to one MySQL or MariaDB server."""
 
-    def __init__(self, options: MysqlOptions, pooling: Pooling | None = None) -> None:
+    def __init__(
+        self,
+        options: MysqlOptions,
+        pooling: Pooling | None = None,
+        tunnels: TunnelAccess | None = None,
+    ) -> None:
         self._options = options
         self._pooling = pooling
+        self._tunnels = tunnels
         self._profile: ServerProfile | None = None
 
     @property
@@ -346,11 +353,17 @@ class MysqlSession:
         # those bytes spelt as Latin-1 makes its encoding produce them back.
         return self._options.password.get_secret_value().encode().decode("latin-1")
 
-    def _connect_arguments(self) -> dict[str, Any]:
+    async def _address(self) -> tuple[str, int]:
+        """Where to dial now: through the tunnel when there is one (D282)."""
+        options = self._options
+        return await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
+
+    def _connect_arguments(self, address: tuple[str, int]) -> dict[str, Any]:
+        host, port = address
         options = self._options
         return {
-            "host": options.host,
-            "port": options.port,
+            "host": host,
+            "port": port,
             "user": options.user,
             "password": self._password(),
             "db": options.database or None,
@@ -377,7 +390,8 @@ class MysqlSession:
 
     async def _direct(self) -> aiomysql.Connection:
         return await asyncio.wait_for(
-            aiomysql.connect(**self._connect_arguments()), CHECK_TIMEOUT_SECONDS
+            aiomysql.connect(**self._connect_arguments(await self._address())),
+            CHECK_TIMEOUT_SECONDS,
         )
 
     @asynccontextmanager
@@ -386,12 +400,14 @@ class MysqlSession:
         pool = None
         if self._pooling is not None:
             options = self._options
-            # What makes two pools different, and nothing about the request.
+            address = await self._address()
+            # What makes two pools different, and nothing about the request:
+            # the tunnel's port among it, so a port opened again is a new pool.
             fingerprint = (
                 f"{options.host}:{options.port}:{options.user}:{options.database}:"
-                f"{self._password()}"
+                f"{options.ssh_tunnel}:{address}:{self._password()}"
             )
-            pool = await pool_for(self._pooling, fingerprint, self._connect_arguments())
+            pool = await pool_for(self._pooling, fingerprint, self._connect_arguments(address))
         if pool is None:
             connection = await self._direct()
             try:
@@ -526,6 +542,10 @@ class MysqlSession:
                     version = (await cursor.fetchone())[0]
             finally:
                 connection.close()
+        except AdapterError as failure:
+            return ConnectionCheckResult(
+                ok=False, message=failure.message, error_kind=failure.error_kind
+            )
         except Exception as exc:
             error_kind, message = classify(exc)
             return ConnectionCheckResult(ok=False, message=message, error_kind=error_kind)

@@ -143,4 +143,8 @@ export const connectors: Messages["connectors"] = {
     apply: "应用",
     ok: "确定",
   },
+  tunnel: {
+    directly: "直接连接",
+    someone_elses: "所有者的 SSH 连接",
+  },
 }

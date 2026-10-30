@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from app.adapters.clickhouse.options import ClickhouseOptions, ClickhouseUserPassword
 from app.adapters.clickhouse.session import ClickhouseSession, read_profile
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
+from app.adapters.tunnels import backup_through
 from app.core.translation import say
 
 IMAGE = "python:3.14-slim"
@@ -253,6 +254,8 @@ class ClickhouseBackup:
         self._release: tuple[int, ...] | None = None
 
     async def backup_availability(self) -> BackupAvailability:
+        if (through := backup_through(self._options.ssh_tunnel)) is not None:
+            return through
         if not self._options.database:
             return BackupAvailability(
                 available=False,

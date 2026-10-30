@@ -27,6 +27,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_
 
 
@@ -66,6 +67,8 @@ class _PostgresBase(BaseModel):
         le=65535,
         json_schema_extra=layout(row="address"),
     )
+    # The SSH connection this server is reached through, if any (D282).
+    ssh_tunnel: str = ssh_tunnel_field()
 
 
 class PostgresUserPassword(_PostgresBase):

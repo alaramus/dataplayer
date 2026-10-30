@@ -9,6 +9,7 @@ import ShareDialog from "@/features/shares/ShareDialog.vue"
 import {
   useAdapterTypes,
   useCheckConnector,
+  useConnectors,
   useCheckDraft,
   useCreateConnector,
   useDeleteConnector,
@@ -24,6 +25,7 @@ import {
   windowApplies,
 } from "@/features/connectors/cacheWindow"
 import { mergeParsedOptions } from "@/features/connectors/parsedOptions"
+import { withTunnelChoices } from "@/features/connectors/tunnels"
 import { windowPages } from "@/features/connectors/windowPages"
 import ServerKeyField from "@/features/sshKeys/ServerKeyField.vue"
 import SshKeyDialog from "@/features/sshKeys/SshKeyDialog.vue"
@@ -337,8 +339,18 @@ const allFields = computed<FieldSpec[]>(() => {
 const wantsKeys = computed(() => allFields.value.some((field) => field.purpose === "ssh-key"))
 const sshKeys = useSshKeys(wantsKeys)
 
+// The person's SSH connections, for a database that may go through one (D282).
+const connections = useConnectors()
+
 const groups = computed(() =>
-  fieldGroups(withKeyChoices(activeFields.value, sshKeys.data.value ?? []))
+  fieldGroups(
+    withTunnelChoices(
+      withKeyChoices(activeFields.value, sshKeys.data.value ?? []),
+      connections.data.value?.data ?? [],
+      optionValues.value,
+      { directly: t("connectors.tunnel.directly"), someone_elses: t("connectors.tunnel.someone_elses") }
+    )
+  )
 )
 
 /** The key this form signs in with, when it signs in with one of the owner's. */

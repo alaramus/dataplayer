@@ -152,7 +152,7 @@ class SshSession:
         kept connection happens to close (D147). `kept=False` signs in afresh
         whatever the connector keeps, which is what a check is for (D10).
         """
-        signing = await self._signing_key()
+        signing = await self.signing_key()
         pooling = self._context.pooling if kept else None
         try:
             if pooling is None:
@@ -191,13 +191,13 @@ class SshSession:
         shell runs, and the kept one is made again whenever the server drops
         it, which would take the shell along (D149).
         """
-        signing = await self._signing_key()
+        signing = await self.signing_key()
         try:
             return await connect(self._options, signing)
         except (asyncssh.Error, OSError, TimeoutError) as failure:
             raise reduced(failure) from None
 
-    async def _signing_key(self) -> SigningKey | None:
+    async def signing_key(self) -> SigningKey | None:
         if not isinstance(self._options, SshKeyAuth):
             return None
         if self._context.keys is None:

@@ -38,7 +38,7 @@ documentation.
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
 | A source action too long for a request: its plan, review and outcomes | [sources/operations.md](docs/architecture/sources/operations.md) |
 | A source made of files, the storage it brings, the explorer over it | [sources/explorer.md](docs/architecture/sources/explorer.md) |
-| An SSH server, the server key it trusts, SSH keys and their passphrases | [sources/ssh.md](docs/architecture/sources/ssh.md) |
+| An SSH server, the server key it trusts, SSH keys and their passphrases, a database reached through an SSH tunnel | [sources/ssh.md](docs/architecture/sources/ssh.md) |
 | A terminal, its socket, who may open one | [terminals.md](docs/architecture/terminals.md) |
 | Reading a relation, changing the rows in it | [sources/relations.md](docs/architecture/sources/relations.md) |
 | Copying rows between sources, pasting into another connection, copying tables with their structure, a transfer job, loading a file in, exporting every row | [sources/transfer.md](docs/architecture/sources/transfer.md) |
@@ -112,7 +112,7 @@ file; `D247–D262` is every number between, all in that file.
 | [dashboards](docs/architecture/dashboards.md) | D125–D130 |
 | [ai](docs/architecture/ai.md) | D133–D139, D141, D142, D158, D159, D223 |
 | [ai-models](docs/architecture/ai-models.md) | D140, D156, D157 |
-| [sources/ssh](docs/architecture/sources/ssh.md) | D144–D147, D153, D154, D266 |
+| [sources/ssh](docs/architecture/sources/ssh.md) | D144–D147, D153, D154, D266, D282 |
 | [terminals](docs/architecture/terminals.md) | D148, D149 |
 | [sources/explorer](docs/architecture/sources/explorer.md) | D150–D152 |
 | [pipelines](docs/architecture/pipelines.md) | D174–D180 |

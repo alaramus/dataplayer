@@ -15,6 +15,7 @@ from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.restore_inventory import validate_inventory
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
+from app.adapters.tunnels import backup_through
 from app.core.translation import say
 
 # The oldest image family this will ask for. A server older than this is a
@@ -30,6 +31,8 @@ class PostgresBackup:
         self._options = options
 
     async def backup_availability(self) -> BackupAvailability:
+        if (through := backup_through(self._options.ssh_tunnel)) is not None:
+            return through
         try:
             installed = await self._session.query(
                 "SELECT extname FROM pg_catalog.pg_extension WHERE extname = %s",

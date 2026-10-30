@@ -16,6 +16,8 @@ OPTIONS = {
     "database": "analytics",
     "user": "reader",
     "password": "s3cret",
+    # Directly: every source with an address stores its tunnel (D282).
+    "ssh_tunnel": "",
 }
 
 
@@ -33,6 +35,7 @@ def test_secret_fields_are_kept_out_of_config() -> None:
         "port": 6432,
         "database": "analytics",
         "user": "reader",
+        "ssh_tunnel": "",
     }
 
 
@@ -104,6 +107,7 @@ NO_AUTH_OPTIONS = {
     "port": 6432,
     "database": "analytics",
     "user": "reader",
+    "ssh_tunnel": "",
 }
 
 

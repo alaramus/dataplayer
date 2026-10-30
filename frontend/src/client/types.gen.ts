@@ -9460,6 +9460,7 @@ export type ProblemDetail = {
     | "users.superuser_cannot_delete_self"
     | "connectors.not_found"
     | "connectors.disabled"
+    | "connectors.tunnel_in_use"
     | "connectors.content_not_found"
     | "connectors.download_not_found"
     | "connectors.export_not_found"

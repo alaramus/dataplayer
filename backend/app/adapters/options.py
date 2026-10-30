@@ -122,6 +122,17 @@ def server_key_names(schema: OptionsSchema) -> set[str]:
     return _named_for(schema, SERVER_KEY)
 
 
+# What a field holding the id of one of the owner's SSH connections says it is
+# for (D282), so the form offers them and the store finds the databases that
+# go through one without a list.
+TUNNEL_REFERENCE = "ssh-connection"
+
+
+def tunnel_reference_names(schema: OptionsSchema) -> set[str]:
+    """Names of fields that name the SSH connection a database is reached through."""
+    return _named_for(schema, TUNNEL_REFERENCE)
+
+
 def _named_for(schema: OptionsSchema, purpose: str) -> set[str]:
     return {
         name

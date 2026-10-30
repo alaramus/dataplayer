@@ -108,6 +108,7 @@ from app.adapters.table_copy import (
     TableRows,
 )
 from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
+from app.adapters.tunnels import TunnelAccess
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -145,8 +146,13 @@ class ClickhouseAdapter:
     arrives as a module composed here, and the registry reads it off the class.
     """
 
-    def __init__(self, options: ClickhouseOptions, pooling: Pooling | None = None) -> None:
-        self._session = ClickhouseSession(options, pooling)
+    def __init__(
+        self,
+        options: ClickhouseOptions,
+        pooling: Pooling | None = None,
+        tunnels: TunnelAccess | None = None,
+    ) -> None:
+        self._session = ClickhouseSession(options, pooling, tunnels)
         self._features = ClickhouseFeatures(self._session)
         self._catalog = ClickhouseCatalog(self._session)
         self._relation = ClickhouseRelation(self._session)
@@ -442,4 +448,4 @@ class ClickhouseAdapter:
     adapter_class=ClickhouseAdapter,
 )
 def _build(options: ClickhouseOptions, context: AdapterContext) -> ClickhouseAdapter:
-    return ClickhouseAdapter(options, context.pooling)
+    return ClickhouseAdapter(options, context.pooling, context.tunnels)

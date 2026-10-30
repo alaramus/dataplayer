@@ -147,4 +147,8 @@ export const connectors: Messages["connectors"] = {
     apply: "लागू करें",
     ok: "ठीक है",
   },
+  tunnel: {
+    directly: "सीधे",
+    someone_elses: "मालिक का SSH कनेक्शन",
+  },
 }

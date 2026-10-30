@@ -146,7 +146,9 @@ class MysqlTableCopy:
         """The server, by the address it is reached at: one MySQL server is one
         place a foreign key can reach across, whatever database it is in."""
         options = self._session.options
-        return f"mysql://{options.host.lower()}:{options.port}"
+        # A host seen from an SSH server is not the same host seen from here.
+        through = f"ssh:{options.ssh_tunnel}/" if options.ssh_tunnel else ""
+        return f"mysql://{through}{options.host.lower()}:{options.port}"
 
     # The source's half.
 

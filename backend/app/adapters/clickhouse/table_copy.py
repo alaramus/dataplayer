@@ -146,7 +146,9 @@ class ClickhouseTableCopy:
     def table_copy_database(self) -> str:
         """The server, by the address it is reached at."""
         options = self._session.options
-        return f"clickhouse://{options.host.lower()}:{options.port}"
+        # A host seen from an SSH server is not the same host seen from here.
+        through = f"ssh:{options.ssh_tunnel}/" if options.ssh_tunnel else ""
+        return f"clickhouse://{through}{options.host.lower()}:{options.port}"
 
     # The source's half.
 

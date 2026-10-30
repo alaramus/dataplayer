@@ -142,4 +142,6 @@ MESSAGES: dict[str, str] = {
     '{engine} needs a {parameter}': 'يحتاج {engine} إلى {parameter}',
     '{engine} takes nothing called "{parameter}"': 'لا يقبل {engine} شيئًا باسم "{parameter}"',
     '{parameter} is one column': '{parameter} عمود واحد',
+    # Reaching a server through an SSH connection (D282).
+    "Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already": "عبر نفق SSH، اتصل دون HTTPS: فالنفق يشفّر الاتصال أصلًا",
 }

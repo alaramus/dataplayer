@@ -84,4 +84,9 @@ MESSAGES: dict[str, str] = {
     "Time ran out after {count} entries were looked at; there may be more": "Время вышло, просмотрено элементов: {count}; могут быть и другие",
     "Time ran out after {count} keys were looked at; there may be more": "Время вышло, просмотрено ключей: {count}; могут быть и другие",
     "Time ran out after {count} files were looked at; there may be more": "Время вышло, просмотрено файлов: {count}; могут быть и другие",
+    # Reaching a server through an SSH connection (D282).
+    "SSH tunnel": "SSH-туннель",
+    "Reach the server through one of your SSH connections; the host is then as that server sees it": "Подключаться к серверу через одно из ваших SSH-подключений; хост тогда указывается так, как его видит SSH-сервер",
+    "This connection goes through an SSH tunnel, and none is at hand": "Это подключение идёт через SSH-туннель, а открыть его здесь нечем",
+    "A backup does not go through an SSH tunnel yet": "Резервная копия пока не умеет идти через SSH-туннель",
 }

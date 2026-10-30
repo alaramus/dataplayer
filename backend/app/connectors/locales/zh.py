@@ -205,4 +205,8 @@ MESSAGES: dict[str, str] = {
     "Save as a file": "另存为文件",
     "Save one table at a time": "一次保存一个表",
     "The file would exceed 10 GB": "文件将超过 10 GB",
+    # Reaching a server through an SSH connection (D282).
+    "The SSH connection this goes through is gone; choose another": "此连接所经过的 SSH 连接已不存在，请另选一个",
+    "The SSH connection this goes through is switched off": "此连接所经过的 SSH 连接已停用",
+    "{name} cannot carry a tunnel": "{name} 无法用作隧道",
 }

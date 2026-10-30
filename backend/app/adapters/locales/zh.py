@@ -84,4 +84,9 @@ MESSAGES: dict[str, str] = {
     "Time ran out after {count} entries were looked at; there may be more": "在查看 {count} 个条目后超时；可能还有更多",
     "Time ran out after {count} keys were looked at; there may be more": "在查看 {count} 个键后超时；可能还有更多",
     "Time ran out after {count} files were looked at; there may be more": "在查看 {count} 个文件后超时；可能还有更多",
+    # Reaching a server through an SSH connection (D282).
+    "SSH tunnel": "SSH 隧道",
+    "Reach the server through one of your SSH connections; the host is then as that server sees it": "通过您的某个 SSH 连接访问服务器；此时主机按该 SSH 服务器所见填写",
+    "This connection goes through an SSH tunnel, and none is at hand": "此连接需经过 SSH 隧道，但此处无法使用",
+    "A backup does not go through an SSH tunnel yet": "备份暂不支持经由 SSH 隧道进行",
 }

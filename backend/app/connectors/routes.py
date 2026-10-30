@@ -211,6 +211,7 @@ from app.connectors import (
     imports,
     ranges,
     service,
+    tunnels,
 )
 from app.connectors.access import (
     adapter_for,
@@ -764,6 +765,10 @@ async def delete_connector(
     connector = await get_or_404(
         session, connector_id, current_user, requires="own"
     )
+    carried = (await tunnels.uses(session, current_user.id)).get(connector.id, [])
+    if carried:
+        names = ", ".join(use.name for use in carried)
+        raise Problem(409, "connectors.tunnel_in_use", names=names)
     await crud.delete(session, connector=connector)
     await data_cache.invalidate_connector(connector_id)
     return Message(message=say("Connector deleted successfully"))

@@ -140,6 +140,7 @@ from app.adapters.table_design import (
     TablePlan,
     TablePlanRequest,
 )
+from app.adapters.tunnels import TunnelAccess
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -183,9 +184,12 @@ class PostgresAdapter:
     """
 
     def __init__(
-        self, options: PostgresOptions, pooling: Pooling | None = None
+        self,
+        options: PostgresOptions,
+        pooling: Pooling | None = None,
+        tunnels: TunnelAccess | None = None,
     ) -> None:
-        self._session = PostgresSession(options, pooling)
+        self._session = PostgresSession(options, pooling, tunnels)
         self._features = PostgresFeatures(self._session)
         self._metrics = PostgresMetrics(self._session)
         self._relation_context = PostgresRelationContext(
@@ -556,4 +560,4 @@ class PostgresAdapter:
     adapter_class=PostgresAdapter,
 )
 def _build(options: PostgresOptions, context: AdapterContext) -> PostgresAdapter:
-    return PostgresAdapter(options, context.pooling)
+    return PostgresAdapter(options, context.pooling, context.tunnels)

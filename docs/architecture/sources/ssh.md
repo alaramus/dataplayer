@@ -1,10 +1,11 @@
 # SSH
 
 A server reached over SSH as a source, the server key a connection trusts,
-and the SSH keys a person signs in with. Read this before changing how an SSH
-connection signs in, what it trusts, or where a private key is kept.
+the SSH keys a person signs in with, and a database reached through an SSH
+connection. Read this before changing how an SSH connection signs in, what it
+trusts, where a private key is kept, or how a tunnel is opened.
 
-Decisions here: D144, D145, D146, D147, D153, D154, D266.
+Decisions here: D144, D145, D146, D147, D153, D154, D266, D282.
 
 ```
 backend/app/adapters/
@@ -16,8 +17,11 @@ backend/app/adapters/
     ├── reports.py      read-only System reports from the authenticated session
     ├── storage.py      SftpStorage: the server's files for the explorer (explorer.md)
     ├── terminal.py     the login shell in a pty (D149, ../terminals.md)
+    ├── tunnel.py       forwarders on loopback for a database's tunnel (D282)
     └── adapter.py      SshAdapter(Explorer), the terminal, registration
+backend/app/adapters/tunnels.py  the tunnel field, TunnelAccess, `reach`
 backend/app/connectors/
+├── tunnels.py          OwnerTunnels, which databases go through a connection
 ├── ssh_keys.py         SshKey, OwnerKeys, which connections use a key
 ├── keyring.py          passphrases held in memory for a while
 └── ssh_key_routes.py   /ssh-keys
@@ -295,3 +299,47 @@ remote shell commands, preserving D144's boundary that only a person-typed
 terminal opens a shell.
 
 Spec: [SSH system reports](../../decisions/2026-10-25-ssh-system-reports-design.md)
+
+## D282. A database names one of its owner's SSH connections as its tunnel
+
+PostgreSQL and TimescaleDB, MySQL and MariaDB, ClickHouse and Redis declare
+`ssh_tunnel`: the id of an SSH connection, or empty for directly. Rejected:
+SSH fields in every database form, which would pin a bastion's key once per
+database and make replacing a key as many edits as there are databases.
+
+- **The host is the database's as the SSH server sees it.** The connection
+  string, a copy's "same server" and every sentence name it; what a database
+  is called internally adds the tunnel, because `db` seen from a bastion is
+  not `db` seen from here.
+- **A driver asks `AdapterContext.tunnels` where to dial** before every
+  connection, and gets the address or a port on `127.0.0.1`. It never holds an
+  SSH session; `asyncssh` stays in its adapter.
+- **One forwarder per SSH server, account and target**, each connection to it
+  a `direct-tcpip` channel of one signed-in session. Signing in and one probe
+  channel happen when the address is asked for, so a refused key, a server
+  with `AllowTcpForwarding no` or a target it cannot reach is said there. A
+  dropped session is signed into again on the same port, so a pool keeps
+  working; a forwarder unused for ten minutes closes.
+- **Always the owner's SSH connection**, switched on and of type SSH; a
+  grantee goes through it without being able to open it (D33, D146). A locked
+  key answers `locked` before anything dials (D147).
+- **An SSH connection a database goes through is not deleted**, and the
+  refusal names the databases.
+- **The development `sshd` forwards**: `deploy/sshd/allow-forwarding.sh`
+  turns `AllowTcpForwarding` on, and CI does the same to its service.
+
+Known deviations:
+
+- **The forwarders are a module, as the keyring is.** The health monitor, the
+  metrics collector and the search-keeper build sources with no resource
+  store, and a forwarded port must outlive the pool that dials it. Each is
+  bound to the event loop that made it.
+- **A forwarded port is open to anything inside the backend's container**,
+  as DBeaver's local forward is to the machine; the database still asks for
+  its own credentials.
+- **A backup does not go through a tunnel**: its program runs in a container
+  of its own, which cannot reach this process's loopback. Neither does
+  ClickHouse over HTTPS, whose certificate names the server, nor a tunnel
+  through another tunnel.
+
+Spec: [A database reached through an SSH connection](../../decisions/2026-10-30-ssh-tunnel-design.md)

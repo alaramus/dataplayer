@@ -180,6 +180,14 @@ jobs:
       # Use the fixtures bundled with the PostgreSQL adapter.
       - working-directory: backend
         run: uv run python -m app.seed_database
+      # The SSH server ships with AllowTcpForwarding off, and the tunnel tests
+      # reach the other services through it (D282). A service starts before
+      # the checkout, so it cannot mount the script the compose file does;
+      # it is run inside it instead, and sshd re-reads its configuration.
+      - run: |
+          docker cp deploy/sshd/allow-forwarding.sh ${{ job.services.sshd.id }}:/tmp/allow-forwarding.sh
+          docker exec ${{ job.services.sshd.id }} sh /tmp/allow-forwarding.sh
+          docker exec ${{ job.services.sshd.id }} pkill -HUP -f 'sshd.pam -D'
       # A failure prints one line per test rather than a full traceback, so
       # one broken fixture cannot bury the cause under pages of repeats.
       # --require-services: a developer's run skips the tests of a server that

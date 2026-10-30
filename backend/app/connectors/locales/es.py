@@ -207,4 +207,8 @@ MESSAGES: dict[str, str] = {
     "Save as a file": "Guardar como archivo",
     "Save one table at a time": "Guarde una tabla cada vez",
     "The file would exceed 10 GB": "El archivo superaría los 10 GB",
+    # Reaching a server through an SSH connection (D282).
+    "The SSH connection this goes through is gone; choose another": "La conexión SSH por la que pasaba esto ya no existe; elija otra",
+    "The SSH connection this goes through is switched off": "La conexión SSH por la que pasa esto está desactivada",
+    "{name} cannot carry a tunnel": "{name} no puede servir de túnel",
 }

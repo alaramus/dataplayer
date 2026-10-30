@@ -15,6 +15,7 @@ export const problems: Record<ProblemCode, string> = {
   "users.superuser_cannot_delete_self": "Суперпользователь не может удалить сам себя",
   "connectors.not_found": "Подключение не найдено",
   "connectors.disabled": "Подключение отключено",
+  "connectors.tunnel_in_use": "Через это SSH-подключение идут: {names}. Сначала переключите их",
   "connectors.content_not_found": "Содержимое не найдено",
   "connectors.download_not_found": "Файл для скачивания не найден",
   "connectors.export_not_found": "Выгрузка не найдена",

@@ -142,4 +142,6 @@ MESSAGES: dict[str, str] = {
     '{engine} needs a {parameter}': '{engine} 需要{parameter}',
     '{engine} takes nothing called "{parameter}"': '{engine} 不接受名为“{parameter}”的参数',
     '{parameter} is one column': '{parameter}只能是一列',
+    # Reaching a server through an SSH connection (D282).
+    "Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already": "经 SSH 隧道连接时请勿使用 HTTPS：隧道本身已加密连接",
 }

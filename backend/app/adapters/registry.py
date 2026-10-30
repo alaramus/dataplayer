@@ -34,6 +34,7 @@ from app.adapters.protocol import (
 )
 from app.adapters.resources import Pooling
 from app.adapters.terminal import SupportsTerminal
+from app.adapters.tunnels import TunnelAccess
 from app.core.translation import N_, say
 
 
@@ -61,6 +62,8 @@ class AdapterContext:
     # Absent where nothing could sign in with a key, and a driver that needs
     # one then refuses rather than guessing.
     keys: KeyAccess | None = None
+    # The owner's SSH connections, for a database reached through one (D282).
+    tunnels: TunnelAccess | None = None
 
 
 Factory = Callable[[Any, AdapterContext], DataAdapter]

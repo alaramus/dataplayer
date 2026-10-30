@@ -15,6 +15,7 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "users.superuser_cannot_delete_self": "لا يمكن للمستخدم الفائق حذف نفسه",
   "connectors.not_found": "لم يتم العثور على الاتصال",
   "connectors.disabled": "الاتصال معطّل",
+  "connectors.tunnel_in_use": "تمر عبر اتصال SSH هذا: {names}. غيّرها أولًا",
   "connectors.content_not_found": "لم يتم العثور على المحتوى",
   "connectors.download_not_found": "لم يتم العثور على التنزيل",
   "connectors.export_not_found": "لم يتم العثور على التصدير",

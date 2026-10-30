@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_
 
 
@@ -51,6 +52,8 @@ class _ClickhouseBase(BaseModel):
         description=N_("HTTPS, with the server's certificate verified"),
         json_schema_extra=layout(),
     )
+    # The SSH connection this server is reached through, if any (D282).
+    ssh_tunnel: str = ssh_tunnel_field()
 
 
 class ClickhouseUserPassword(_ClickhouseBase):
