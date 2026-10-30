@@ -32,12 +32,14 @@ const strategies = computed(() => [
   >
     <div class="inspector__row">
       <AppSelect
+        v-if="persistence.length > 1"
         v-model="design.draft.persistence"
         :options="persistence"
         :label="t('table_design.options.persistence')"
         data-testid="table-persistence"
       />
       <AppInput
+        v-if="design.abilities.value.tablespaces"
         model-value=""
         :label="t('table_design.options.tablespace')"
         disable
@@ -49,6 +51,7 @@ const strategies = computed(() => [
 
     <div class="inspector__row">
       <AppInput
+        v-if="design.abilities.value.tablespaces"
         model-value=""
         :label="t('table_design.options.owner')"
         disable
@@ -57,6 +60,7 @@ const strategies = computed(() => [
         <AppTooltip>{{ t('table_design.options.owner_later') }}</AppTooltip>
       </AppInput>
       <AppSelect
+        v-if="strategies.length > 1"
         v-model="design.draft.partitionStrategy"
         :options="strategies"
         :label="t('table_design.options.partition_by')"

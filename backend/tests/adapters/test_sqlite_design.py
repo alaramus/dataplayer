@@ -83,6 +83,9 @@ async def test_main_offers_the_designer(adapter: SqliteAdapter) -> None:
     assert offered.collations == ["BINARY", "NOCASE", "RTRIM"]
     assert "set_default" in {choice.code for choice in offered.reference_actions}
     assert offered.hypertable.offered is False
+    # SQLite keeps no comments and defers a foreign key but never a unique one.
+    assert offered.abilities.partial_indexes and not offered.abilities.comments
+    assert offered.abilities.deferrable_foreign_keys and not offered.abilities.deferrable_unique
     assert "create_table" in [action.name for action in await adapter.available("main")]
     assert "create_table" not in [action.name for action in await adapter.available("main.items")]
 

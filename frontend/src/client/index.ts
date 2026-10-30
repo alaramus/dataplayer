@@ -721,6 +721,7 @@ export type {
   DeleteRowsResult,
   DeleteSelected,
   DelimitedContents,
+  DesignAbilities,
   DesignCheck,
   DesignChoice,
   DesignColumn,

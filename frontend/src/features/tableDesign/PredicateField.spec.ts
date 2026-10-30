@@ -18,6 +18,7 @@ describe("compact predicate field", () => {
     registerDesign("predicate-field-test", {
       draft,
       options: computed(() => null),
+      abilities: computed(() => ({})),
       columnChoices: computed(() =>
         draft.columns.map((column) => ({ label: column.name, value: column.id }))
       ),

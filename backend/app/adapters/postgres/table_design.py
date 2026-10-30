@@ -77,6 +77,7 @@ from app.adapters.postgres.timescale.design_state import UniqueKey
 from app.adapters.relation import IndexMethodOption, RefAction, RelationModel
 from app.adapters.specializations import TimescaleHypertable
 from app.adapters.table_design import (
+    DesignAbilities,
     DesignCheck,
     DesignColumn,
     DesignForeignKey,
@@ -302,6 +303,18 @@ class PostgresTableDesign:
             partition_strategies=worded_titles(PARTITION_CHOICES),
             nulls_not_distinct_supported=await self._nulls_not_distinct(),
             hypertable=await hypertable_offer(self._session),
+            abilities=DesignAbilities(
+                unique_constraints=True,
+                foreign_keys=True,
+                deferrable_unique=True,
+                deferrable_foreign_keys=True,
+                index_direction=True,
+                index_nulls_order=True,
+                index_include=True,
+                partial_indexes=True,
+                comments=True,
+                tablespaces=True,
+            ),
             limits=DesignLimits(),
         )
 

@@ -180,6 +180,34 @@ class HypertableOffer(BaseModel):
     uuid_time: bool = False
 
 
+class DesignAbilities(BaseModel):
+    """Which parts of a definition this source has at all.
+
+    The editor leaves out what is false rather than showing it and waiting for
+    the plan to refuse it, the way a hypertable is left out everywhere but
+    PostgreSQL. False by default, so a new source shows what it declared and
+    nothing it forgot. What depends on a value rather than on the source — a
+    method that cannot be unique, a type that cannot be an identity — stays on
+    that value; the composer still refuses all of it, whatever a form showed.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    unique_constraints: bool = False
+    foreign_keys: bool = False
+    deferrable_unique: bool = False
+    deferrable_foreign_keys: bool = False
+    # Ordering of an index key, and where its nulls go.
+    index_direction: bool = False
+    index_nulls_order: bool = False
+    # Columns an index carries without sorting by them, and a predicate.
+    index_include: bool = False
+    partial_indexes: bool = False
+    comments: bool = False
+    # Tablespace and owner, shown as fields not built yet.
+    tablespaces: bool = False
+
+
 class TableDesignOptions(BaseModel):
     """What one destination will accept a designed table with.
 
@@ -209,6 +237,7 @@ class TableDesignOptions(BaseModel):
     # a form that offered it everywhere would be offering a syntax error.
     nulls_not_distinct_supported: bool = False
     hypertable: HypertableOffer = Field(default_factory=HypertableOffer)
+    abilities: DesignAbilities = Field(default_factory=DesignAbilities)
     limits: DesignLimits = Field(default_factory=DesignLimits)
 
 

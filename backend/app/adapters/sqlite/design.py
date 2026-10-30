@@ -46,6 +46,7 @@ from app.adapters.sqlite.session import Reading, SqliteSession
 from app.adapters.sqlite.sql import quoted_name
 from app.adapters.sqlite.types import build_column_type
 from app.adapters.table_design import (
+    DesignAbilities,
     DesignChoice,
     DesignColumn,
     DesignColumnType,
@@ -308,6 +309,13 @@ class SqliteTableDesign:
             match_modes=worded_titles(MATCH_CHOICES),
             persistence_options=worded_titles(PERSISTENCE_CHOICES),
             hypertable=HypertableOffer(offered=False),
+            abilities=DesignAbilities(
+                unique_constraints=True,
+                foreign_keys=True,
+                deferrable_foreign_keys=True,
+                index_direction=True,
+                partial_indexes=True,
+            ),
             limits=DesignLimits(name_bytes=NAME_LIMIT),
         )
 

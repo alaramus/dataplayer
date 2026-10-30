@@ -84,6 +84,11 @@ async def test_a_database_offers_the_designer_and_the_server_s_own_do_not() -> N
     assert {option.code for option in offered.types} >= {"uint64", "text", "decimal", "datetime64"}
     assert not any(option.identity_supported for option in offered.types)
     assert not offered.reference_actions and not offered.hypertable.offered
+    # What ClickHouse has none of is not drawn at all, rather than refused.
+    abilities = offered.abilities
+    assert not abilities.unique_constraints and not abilities.foreign_keys
+    assert not abilities.index_direction and not abilities.partial_indexes
+    assert abilities.comments
     assert not refused.supported and refused.reason
     assert "create_table" in [action.name for action in await source.available(NODE)]
     assert "create_table" not in [action.name for action in await source.available(database_id("system"))]

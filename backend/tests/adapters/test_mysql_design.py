@@ -94,6 +94,8 @@ async def test_a_database_offers_the_designer_and_the_server_s_own_do_not(target
     assert "utf8mb4_bin" in offered.collations
     # Not offered at all, rather than offered and unavailable.
     assert offered.hypertable.offered is False
+    assert offered.abilities.foreign_keys and not offered.abilities.deferrable_foreign_keys
+    assert not offered.abilities.partial_indexes and not offered.abilities.index_include
     assert not refused.supported and refused.reason
     assert "create_table" in [action.name for action in await adapter.available(NODE)]
     assert [action.name for action in await adapter.available(ids.database_id("mysql"))] == [

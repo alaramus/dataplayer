@@ -43,6 +43,7 @@ from app.adapters.mysql.session import MysqlSession, quoted_name
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import IndexMethodOption, RefAction
 from app.adapters.table_design import (
+    DesignAbilities,
     DesignChoice,
     DesignColumn,
     DesignColumnType,
@@ -384,6 +385,9 @@ class MysqlTableDesign:
             match_modes=worded_titles(MATCH_CHOICES),
             persistence_options=worded_titles(PERSISTENCE_CHOICES),
             hypertable=HypertableOffer(offered=False),
+            abilities=DesignAbilities(
+                unique_constraints=True, foreign_keys=True, index_direction=True, comments=True
+            ),
             limits=DesignLimits(name_bytes=NAME_LIMIT),
         )
 

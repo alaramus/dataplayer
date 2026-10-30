@@ -181,13 +181,18 @@ function changeDefault(value: string): void {
     >
       {{ t('table_design.column.key_needs_value') }}
     </AppBanner>
-    <div class="inspector__row">
+    <div
+      v-if="collations.length > 1 || design.abilities.value.comments"
+      class="inspector__row"
+    >
       <AppSelect
+        v-if="collations.length > 1"
         v-model="column.collation"
         :options="collations"
         :label="t('table_design.column.collation')"
       />
       <AppInput
+        v-if="design.abilities.value.comments"
         v-model="column.comment"
         :label="t('table_design.comment')"
       />

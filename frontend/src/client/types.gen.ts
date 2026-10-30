@@ -3681,6 +3681,61 @@ export type DelimitedContents = {
 }
 
 /**
+ * DesignAbilities
+ *
+ * Which parts of a definition this source has at all.
+ *
+ * The editor leaves out what is false rather than showing it and waiting for
+ * the plan to refuse it, the way a hypertable is left out everywhere but
+ * PostgreSQL. False by default, so a new source shows what it declared and
+ * nothing it forgot. What depends on a value rather than on the source — a
+ * method that cannot be unique, a type that cannot be an identity — stays on
+ * that value; the composer still refuses all of it, whatever a form showed.
+ */
+export type DesignAbilities = {
+  /**
+   * Unique Constraints
+   */
+  unique_constraints?: boolean
+  /**
+   * Foreign Keys
+   */
+  foreign_keys?: boolean
+  /**
+   * Deferrable Unique
+   */
+  deferrable_unique?: boolean
+  /**
+   * Deferrable Foreign Keys
+   */
+  deferrable_foreign_keys?: boolean
+  /**
+   * Index Direction
+   */
+  index_direction?: boolean
+  /**
+   * Index Nulls Order
+   */
+  index_nulls_order?: boolean
+  /**
+   * Index Include
+   */
+  index_include?: boolean
+  /**
+   * Partial Indexes
+   */
+  partial_indexes?: boolean
+  /**
+   * Comments
+   */
+  comments?: boolean
+  /**
+   * Tablespaces
+   */
+  tablespaces?: boolean
+}
+
+/**
  * DesignCheck
  */
 export type DesignCheck = {
@@ -13110,6 +13165,7 @@ export type TableDesignOptions = {
    */
   nulls_not_distinct_supported?: boolean
   hypertable?: HypertableOffer
+  abilities?: DesignAbilities
   limits?: DesignLimits
 }
 

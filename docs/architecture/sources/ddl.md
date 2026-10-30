@@ -309,6 +309,14 @@ the composition before anything runs.
   methods and their limits, functions with the contexts each may appear in,
   operator classes and collations read from `pg_catalog`, and whether this
   version can treat nulls as equal in a unique constraint.
+- **What a source has none of is not drawn.** Beside the vocabulary the source
+  declares its abilities — unique and foreign keys, deferrable ones, a key's
+  order and nulls, an index's carried columns and predicate, comments,
+  tablespaces — false unless declared, and the editor leaves out every field
+  and section it lacks, as it leaves out the hypertable outside PostgreSQL. An
+  empty or single-valued list (collations, persistence, partitioning, match) is
+  left out the same way. The composer still refuses each of them: a hidden
+  field is a courtesy, never the rule.
 - Expressions are a closed model — literals, draft column references,
   comparisons, boolean groups, null tests, bounded membership, arithmetic,
   casts and published function codes. A function's contexts are published
@@ -345,7 +353,7 @@ Known deviations:
   because MySQL commits each structure statement by itself (D236).
 - **A ClickHouse plan is one `CREATE TABLE … ENGINE = MergeTree`**, its primary
   key the sorting key and said to be no promise of uniqueness; unique keys,
-  foreign keys and identities are problems on their objects (D274).
+  foreign keys and identities are not drawn, and refused if sent (D274).
 
 - **Exclusion constraints are not implemented.** They need operator metadata per
   method and type beyond the operator classes published here, and the design

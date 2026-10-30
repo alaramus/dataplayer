@@ -1,6 +1,11 @@
 import type { ComputedRef } from "vue"
 
-import type { DesignTypeOption, FunctionOption, TableDesignOptions } from "@/client"
+import type {
+  DesignAbilities,
+  DesignTypeOption,
+  FunctionOption,
+  TableDesignOptions,
+} from "@/client"
 import type { SelectOption } from "@/shared/ui"
 
 import type { Draft } from "./draft"
@@ -21,6 +26,8 @@ import type { Draft } from "./draft"
 export interface DesignContext {
   draft: Draft
   options: ComputedRef<TableDesignOptions | null>
+  /** What the source has at all; a panel leaves out what it lacks. */
+  abilities: ComputedRef<DesignAbilities>
   /** Every column of the draft as a choice, in the order they are declared. */
   columnChoices: ComputedRef<SelectOption[]>
   typeChoices: ComputedRef<SelectOption[]>

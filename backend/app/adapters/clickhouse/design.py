@@ -42,6 +42,7 @@ from app.adapters.expressions import (
     too_large,
 )
 from app.adapters.table_design import (
+    DesignAbilities,
     DesignColumn,
     DesignColumnType,
     DesignIndex,
@@ -318,6 +319,7 @@ class ClickhouseTableDesign:
             index_methods=worded_titles(CLICKHOUSE_INDEX_METHODS),
             functions=worded_titles(item.option for item in DESIGN_FUNCTIONS.values()),
             hypertable=HypertableOffer(offered=False),
+            abilities=DesignAbilities(comments=True),
             limits=DesignLimits(name_bytes=NAME_LIMIT),
         )
 

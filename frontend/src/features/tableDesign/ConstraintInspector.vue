@@ -13,6 +13,7 @@ const props = defineProps<{ designId: string }>()
 const emit = defineEmits<{ remove: [id: string] }>()
 const design = useDesign(props.designId)
 const { draft } = design
+const abilities = design.abilities
 const nullsMayRepeat = computed(() => design.options.value?.nulls_not_distinct_supported === true)
 
 function membership(ids: string[], id: string, checked: boolean): void {
@@ -46,7 +47,7 @@ function addUnique(): void {
       </div>
     </section>
     <section
-      v-for="unique in draft.uniques"
+      v-for="unique in abilities.unique_constraints ? draft.uniques : []"
       :key="unique.id"
       class="constraints__rule"
       data-testid="unique-inspector"
@@ -68,10 +69,10 @@ function addUnique(): void {
           :placeholder="t('table_design.automatic_name')"
         />
         <AppCheckbox
+          v-if="nullsMayRepeat"
           v-model="unique.nullsNotDistinct"
           :label="t('table_design.constraints.nulls_not_distinct')"
           dense
-          :disable="!nullsMayRepeat"
         />
       </div>
       <div class="constraints__badges">
@@ -84,7 +85,10 @@ function addUnique(): void {
           @update:model-value="membership(unique.columnIds, column.id, $event)"
         />
       </div>
-      <details class="constraints__advanced dp-disclosure">
+      <details
+        v-if="abilities.deferrable_unique"
+        class="constraints__advanced dp-disclosure"
+      >
         <summary>{{ t('table_design.constraints.deferrability') }}</summary>
         <AppCheckbox
           v-model="unique.deferrable"
@@ -100,6 +104,7 @@ function addUnique(): void {
       </details>
     </section>
     <AppButton
+      v-if="abilities.unique_constraints"
       variant="quiet"
       :icon="appIcons.add"
       :label="t('table_design.constraints.unique_constraint')"

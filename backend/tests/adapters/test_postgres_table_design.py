@@ -230,6 +230,7 @@ async def test_a_schema_publishes_the_vocabulary_this_server_has(
     assert types["bigint"].identity_supported is True
     assert types["text"].identity_supported is False
     assert {method.code for method in options.index_methods} >= {"btree", "gin"}
+    assert all(options.abilities.model_dump().values())
     functions = {option.code: option for option in options.functions}
     # `now()` fills a column and cannot index one: an index expression must be
     # immutable, and the server is what says so.

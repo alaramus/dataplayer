@@ -124,6 +124,7 @@ const designId = newDesignId()
 registerDesign(designId, {
   draft,
   options: computed(() => options.data.value ?? null),
+  abilities: computed(() => options.data.value?.abilities ?? {}),
   columnChoices,
   typeChoices,
   types,
@@ -459,6 +460,7 @@ function moveColumn(by: number): void {
             data-testid="table-name"
           />
           <AppInput
+            v-if="options.data.value?.abilities?.comments"
             v-model="draft.comment"
             class="designer__comment"
             :label="t('table_design.comment')"

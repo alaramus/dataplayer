@@ -144,6 +144,7 @@ function chooseKey(value: string): void {
         @update:model-value="chooseKey(String($event))"
       />
       <AppSelect
+        v-if="matches.length > 1"
         v-model="foreign.match"
         :options="matches"
         :label="t('table_design.foreign.match')"
@@ -218,11 +219,13 @@ function chooseKey(value: string): void {
         :label="t('table_design.foreign.on_update')"
       />
       <AppCheckbox
+        v-if="design.abilities.value.deferrable_foreign_keys"
         v-model="foreign.deferrable"
         :label="t('table_design.deferrable')"
         dense
       />
       <AppCheckbox
+        v-if="design.abilities.value.deferrable_foreign_keys"
         v-model="foreign.initiallyDeferred"
         :label="t('table_design.initially_deferred')"
         dense

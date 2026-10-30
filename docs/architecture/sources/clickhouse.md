@@ -261,8 +261,9 @@ name is derived from the table when none is given.
 
 A unique key, a foreign key, an identity column, a collation, an index with an
 order, extra columns or a predicate, a partition by range, list or hash, an
-unlogged table and a hypertable are each a problem on the object that asks for
-it. Create table is the source's catalog action on a database the server does
+unlogged table and a hypertable are not drawn by the designer, which reads
+what the source declares it has (D117); a definition that asks for one anyway
+is refused with a problem on the object that asks for it. Create table is the source's catalog action on a database the server does
 not own.
 
 A table made from rows is a MergeTree with `ORDER BY tuple()` and every column

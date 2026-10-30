@@ -45,7 +45,14 @@ const operatorClasses = computed(() => [
 // Whether this method can carry columns it does not sort by. Read off the
 // options rather than decided here: which methods take INCLUDE is a fact about
 // the server.
-const carries = computed(() => ["btree", "gist"].includes(index.value?.method ?? ""))
+const abilities = design.abilities
+const carries = computed(
+  () => abilities.value.index_include === true && ["btree", "gist"].includes(index.value?.method ?? "")
+)
+// How many of order and nulls a key row shows, for its grid.
+const keyOrders = computed(
+  () => Number(abilities.value.index_direction === true) + Number(abilities.value.index_nulls_order === true)
+)
 
 const directions = computed(() => [
   { label: t("table_design.index.default"), value: "" },
@@ -118,10 +125,10 @@ function include(columnId: string, checked: boolean): void {
         data-testid="index-method"
       />
       <AppCheckbox
+        v-if="method?.unique_supported !== false"
         v-model="index.unique"
         :label="t('table_design.unique')"
         dense
-        :disable="method?.unique_supported === false"
         data-testid="index-unique"
       />
     </div>
@@ -141,6 +148,7 @@ function include(columnId: string, checked: boolean): void {
       v-for="(key, at) in index.keys"
       :key="key.id"
       class="inspector__key"
+      :style="{ '--key-orders': keyOrders }"
     >
       <AppSelect
         v-model="key.columnId"
@@ -149,11 +157,13 @@ function include(columnId: string, checked: boolean): void {
         :data-testid="`index-key-column-${String(at)}`"
       />
       <AppSelect
+        v-if="abilities.index_direction"
         v-model="key.direction"
         :options="directions"
         :label="t('table_design.index.order')"
       />
       <AppSelect
+        v-if="abilities.index_nulls_order"
         v-model="key.nulls"
         :options="nullsOrders"
         :label="t('table_design.index.nulls')"
@@ -167,6 +177,7 @@ function include(columnId: string, checked: boolean): void {
       />
     </div>
     <PredicateField
+      v-if="abilities.partial_indexes"
       :design-id="designId"
       owner="index"
       :owner-id="index.id"
@@ -189,7 +200,7 @@ function include(columnId: string, checked: boolean): void {
       </div>
     </template>
     <details class="inspector__advanced dp-disclosure">
-      <summary>{{ t('table_design.index.advanced') }}</summary>
+      <summary>{{ operatorClasses.length > 1 ? t('table_design.index.advanced') : t('table_design.expression') }}</summary>
       <div
         v-for="(key, at) in index.keys"
         :key="key.id"
@@ -212,6 +223,7 @@ function include(columnId: string, checked: boolean): void {
             :label="t('table_design.function')"
           />
           <AppSelect
+            v-if="operatorClasses.length > 1"
             v-model="key.operatorClass"
             :options="operatorClasses"
             :label="t('table_design.index.operator_class')"
@@ -261,7 +273,7 @@ function include(columnId: string, checked: boolean): void {
    their choices ("Default") fit into, so the row never clips them. */
 .inspector__key {
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) 104px 104px 26px;
+  grid-template-columns: minmax(140px, 1fr) repeat(var(--key-orders), 104px) 26px;
   gap: var(--dp-space-2);
   align-items: end;
 }
