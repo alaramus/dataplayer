@@ -98,7 +98,8 @@ def test_it_claims_only_what_it_does() -> None:
         SupportsContent,
     ):
         assert isinstance(source, capability)
-    assert not isinstance(source, SupportsQuery)
+    # Shell syntax read as driver calls (D296).
+    assert isinstance(source, SupportsQuery)
     assert isinstance(source, SupportsUpdate)
 
 

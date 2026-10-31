@@ -117,6 +117,7 @@ export const queries: Messages["queries"] = {
     chart: "Diese Seite als Diagramm",
     empty: "Keine Zeilen in diesem Ergebnis",
     previous: "Vorheriges Ergebnis",
+    document: "Ein Dokument, wie der Server geantwortet hat",
     capped: "Begrenzt auf {n} Zeile | Begrenzt auf {n} Zeilen",
   },
   transaction: {

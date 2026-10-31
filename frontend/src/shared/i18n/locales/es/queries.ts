@@ -117,6 +117,7 @@ export const queries: Messages["queries"] = {
     chart: "Ver esta página como gráfico",
     empty: "No hay filas en este resultado",
     previous: "Resultado anterior",
+    document: "Un documento, tal como respondió el servidor",
     capped: "Limitado a {n} fila | Limitado a {n} filas",
   },
   transaction: {

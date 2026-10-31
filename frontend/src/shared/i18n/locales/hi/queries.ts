@@ -115,6 +115,7 @@ export const queries: Messages["queries"] = {
     chart: "इस पृष्ठ का चार्ट बनाएँ",
     empty: "इस परिणाम में कोई पंक्ति नहीं",
     previous: "पिछला परिणाम",
+    document: "एक दस्तावेज़, जैसा सर्वर ने उत्तर दिया",
     capped: "{n} पंक्ति तक सीमित | {n} पंक्तियों तक सीमित",
   },
   transaction: {

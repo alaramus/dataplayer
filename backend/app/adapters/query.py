@@ -15,6 +15,7 @@ from typing import Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from app.adapters.content import JsonValue
 from app.adapters.relation import ColumnType
 
 # The closed class of one prepared statement. "unknown" is a refusal rather
@@ -71,8 +72,12 @@ class QueryProfile(BaseModel):
     # colon outright. A parameter is a binding either way, never text put into
     # the statement, and the browser reads the spelling from here rather than
     # assuming one (D77). ClickHouse's own `{name:Type}` also names the type the
-    # server parses the value as (D270).
-    parameter_syntax: Literal["named_colon", "named_dollar", "named_braces"]
+    # server parses the value as (D270). MongoDB's shell syntax has none: a
+    # value is written into the call itself (D296).
+    parameter_syntax: Literal["named_colon", "named_dollar", "named_braces", "none"]
+    # The language the editor highlights the text as. MongoDB is written in
+    # the shell's syntax, which reads as JavaScript (D296).
+    editor_language: Literal["sql", "javascript"] = "sql"
     statement_modes: list[ExecutionMode]
     supports_cancel: bool
     # The five below are filled in from what the adapter actually implements,
@@ -253,6 +258,9 @@ class MaterialisedResult(BaseModel):
     # that, and it is not in `rows`.
     truncated: bool = False
     bytes_used: int = 0
+    # An answer that is one document rather than rows — a MongoDB command's,
+    # an explained plan — drawn as a tree, with no columns or rows (D296).
+    document: JsonValue | None = None
 
 
 class QueryDiagnostic(BaseModel):

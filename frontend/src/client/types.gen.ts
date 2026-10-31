@@ -10327,7 +10327,11 @@ export type QueryProfile = {
   /**
    * Parameter Syntax
    */
-  parameter_syntax: "named_colon" | "named_dollar" | "named_braces"
+  parameter_syntax: "named_colon" | "named_dollar" | "named_braces" | "none"
+  /**
+   * Editor Language
+   */
+  editor_language?: "sql" | "javascript"
   /**
    * Statement Modes
    */
@@ -11458,6 +11462,20 @@ export type ResultPage = {
    * Truncated
    */
   truncated: boolean
+  /**
+   * Document
+   */
+  document?:
+    | ({
+        kind: "boolean" | "null" | "number" | "string"
+      } & JsonScalar)
+    | ({
+        kind: "array"
+      } & JsonArray)
+    | ({
+        kind: "object"
+      } & JsonObject)
+    | null
 }
 
 /**

@@ -759,6 +759,7 @@ async def read_result(
         limit=limit,
         total_rows=len(result.rows),
         truncated=result.truncated,
+        document=result.document,
     )
 
 
@@ -785,6 +786,7 @@ async def read_result_page(
         limit=body.limit,
         total_rows=len(rows),
         truncated=result.truncated,
+        document=result.document,
     )
 
 

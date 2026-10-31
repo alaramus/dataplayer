@@ -15,6 +15,7 @@ from sqlalchemy import Column, DateTime, Index, LargeBinary
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
+from app.adapters.content import JsonValue
 from app.adapters.query import (
     ExecutionMode,
     QueryDiagnostic,
@@ -371,3 +372,6 @@ class ResultPage(BaseModel):
     # produced when `truncated` is true.
     total_rows: int
     truncated: bool
+    # The one document the statement answered with, when it answered with one
+    # rather than rows; there are then no columns and no rows (D296).
+    document: JsonValue | None = None

@@ -897,7 +897,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
         (browse_catalog, "browse_catalog", f"List one level of a connection catalog, at most {MAX_NODES} nodes from offset. Use opaque ids exactly as returned."),
         (describe_node, "describe_node", "Describe a node's columns, constraints, indexes and summary where supported."),
         (read_rows, "read_rows", f"Read at most {MAX_ROWS} rows from one opaque node id."),
-        (run_query, "run_query", "Run a query. Reads are free; statements that change data ask the person first and run as one committed transaction."),
+        (run_query, "run_query", "Run a query in the connection's own language: SQL, or mongosh's syntax for MongoDB. Reads are free; statements that change data ask the person first and run as one committed transaction."),
         (list_actions, "list_actions", "List source-declared actions and their parameter schemas without running them."),
         (run_action, "run_action", "Run one source-declared action with validated parameters. A change asks the person first."),
         (open_in_workspace, "open_in_workspace", "Open a connection or node in the person's Data workspace."),

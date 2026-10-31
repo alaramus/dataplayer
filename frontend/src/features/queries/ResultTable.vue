@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue"
 
 import type { FetchColumn, ResultColumn, Sort } from "@/client"
 import ChartView from "@/features/charts/ChartView.vue"
+import JsonTreeNode from "@/features/content/JsonTreeNode.vue"
 import DownloadDialog from "@/features/grid/DownloadDialog.vue"
 import TabularGrid from "@/features/grid/TabularGrid.vue"
 import { defaultColumnLayout } from "@/features/grid/columnLayout"
@@ -73,6 +74,9 @@ const rows = computed<GridRow[]>(() =>
   }))
 )
 const total = computed(() => snapshot.data.value?.total_rows ?? 0)
+// A MongoDB command or plan answers with one document, drawn as a tree with
+// the viewer the catalog uses (D295, D296): it has no rows to page or filter.
+const answer = computed(() => snapshot.data.value?.document ?? null)
 const hasMore = computed(() => (page.value + 1) * pageSize.value < total.value)
 const error = computed(() =>
   snapshot.isError.value
@@ -232,7 +236,29 @@ async function save(scope: DownloadScope, destination: DownloadDestination) {
 
 <template>
   <div
-    v-if="charting"
+    v-if="answer !== null"
+    class="result-table__chart"
+    data-testid="result-tree"
+  >
+    <div class="result-table__chart-bar">
+      <span class="result-table__note">{{ t("queries.result.document") }}</span>
+      <span
+        v-if="stale"
+        class="result-table__stale"
+        data-testid="result-previous"
+      >{{ t("queries.result.previous") }}</span>
+      <slot name="commands-end" />
+    </div>
+    <div class="result-table__tree">
+      <JsonTreeNode
+        :value="answer"
+        :open-levels="2"
+        root
+      />
+    </div>
+  </div>
+  <div
+    v-else-if="charting"
     class="result-table__chart"
   >
     <div class="result-table__chart-bar">
@@ -394,6 +420,12 @@ async function save(scope: DownloadScope, destination: DownloadDestination) {
 .result-table__chart-body {
   flex: 1;
   min-height: 0;
+}
+.result-table__tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--dp-space-2);
 }
 .result-table__note {
   padding-inline: var(--dp-space-2);

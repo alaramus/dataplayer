@@ -41,6 +41,7 @@ from app.adapters.mongodb.fetch import MongodbFetch
 from app.adapters.mongodb.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.mongodb.metrics import MongodbMetrics
 from app.adapters.mongodb.options import MongodbOptions
+from app.adapters.mongodb.query import MongodbExecution, MongodbQuery
 from app.adapters.mongodb.relation import MongodbRelation
 from app.adapters.mongodb.report_pages import report_page
 from app.adapters.mongodb.reports import in_section, report_for
@@ -62,6 +63,15 @@ from app.adapters.protocol import (
     BackupAvailability,
     BackupProgram,
     ConnectionCheckResult,
+)
+from app.adapters.query import (
+    GeneratedQuery,
+    GenerateQueryRequest,
+    PreparedScript,
+    QueryMetadata,
+    QueryMetadataRequest,
+    QueryProfile,
+    QueryRequest,
 )
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
@@ -163,6 +173,7 @@ class MongodbAdapter:
         self._metrics = MongodbMetrics(self._session)
         self._samples = MongodbSamples(self._session)
         self._summaries = MongodbSummaries(self._relation)
+        self._query = MongodbQuery(self._session, self._relation)
 
     table_copy_dialect = DIALECT
 
@@ -327,6 +338,22 @@ class MongodbAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    def query_profile(self) -> QueryProfile:
+        return self._query.profile()
+
+    def prepare_query(self, text: str) -> PreparedScript:
+        """The shell's syntax read as driver calls, never run as JavaScript (D296)."""
+        return self._query.prepare(text)
+
+    def open_query(self, request: QueryRequest) -> MongodbExecution:
+        return self._query.open(request)
+
+    async def query_metadata(self, request: QueryMetadataRequest) -> QueryMetadata:
+        return await self._query.metadata(request)
+
+    async def generate_query(self, request: GenerateQueryRequest) -> GeneratedQuery:
+        return await self._query.generate(request)
 
     async def read_documents(self, request: DocumentsRequest) -> DocumentsPage:
         return await self._documents.read_documents(request)

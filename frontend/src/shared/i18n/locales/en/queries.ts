@@ -115,6 +115,7 @@ export const queries = {
     chart: "Chart this page",
     empty: "No rows in this result",
     previous: "Previous result",
+    document: "One document, as the server answered",
     capped: "Capped at {n} row | Capped at {n} rows",
   },
   transaction: {

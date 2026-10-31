@@ -5,6 +5,7 @@ the same server reached the way the catalog, the grid and the details panel
 reach it, its client kept and its answers cached as they are.
 """
 
+import asyncio
 import json
 import uuid
 from collections.abc import AsyncIterator
@@ -180,3 +181,55 @@ async def test_a_document_is_read_whole_and_changed_through_the_routes(
         },
     )
     assert stale.status_code == 409, stale.text
+
+
+async def _ran(client: AsyncClient, headers: dict[str, str], connector: str, text: str) -> Any:
+    queries = f"{settings.API_V1_STR}/queries"
+    started = await client.post(
+        f"{queries}/runs",
+        headers=headers,
+        json={"run_id": str(uuid.uuid4()), "connector_id": connector, "text": text},
+    )
+    assert started.status_code == 200, started.text
+    run_id = started.json()["id"]
+    deadline = asyncio.get_running_loop().time() + 15
+    while True:
+        run = (await client.get(f"{queries}/runs/{run_id}", headers=headers)).json()
+        if run["status"] not in {"accepted", "running", "cancelling"}:
+            return run
+        assert asyncio.get_running_loop().time() < deadline, run
+        await asyncio.sleep(0.05)
+
+
+@pytest.mark.usefixtures("server")
+async def test_the_console_runs_shell_syntax_into_rows_and_trees(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers)
+    queries = f"{settings.API_V1_STR}/queries"
+
+    profile = await client.get(f"{queries}/connectors/{connector}/profile", headers=headers)
+    assert profile.status_code == 200, profile.text
+    assert profile.json()["editor_language"] == "javascript"
+    assert profile.json()["supports_generated_query"] is True
+
+    rows = await _ran(client, headers, connector, "db.numbers.find({ n: 3 }).sort({ _id: 1 }).limit(2)")
+    assert rows["status"] == "succeeded", rows
+    [found] = rows["statements"]
+    page = await client.get(f"{queries}/results/{found['result_id']}", headers=headers)
+    assert page.json()["rows"] == [["3", "3", "row 003"], ["10", "3", "row 010"]]
+    assert page.json()["document"] is None
+
+    tree = await _ran(client, headers, connector, "db.runCommand({ ping: 1 })")
+    [pinged] = tree["statements"]
+    page = await client.get(f"{queries}/results/{pinged['result_id']}", headers=headers)
+    assert page.json()["columns"] == []
+    assert page.json()["document"]["kind"] == "object"
+
+    refused = await client.post(
+        f"{queries}/runs",
+        headers=headers,
+        json={"run_id": str(uuid.uuid4()), "connector_id": connector, "text": "db.numbers.count()"},
+    )
+    assert refused.status_code == 422, refused.text

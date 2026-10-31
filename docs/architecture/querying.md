@@ -53,6 +53,12 @@ connection and the write mode is not offered at all. Explain, metadata and a
 generated SELECT are there; formatting and transactions are not, and the profile
 says so because it is derived from what the adapter implements.
 
+MongoDB has no SQL. Its console reads a part of the shell's syntax as driver
+calls and never runs JavaScript; its profile says the editor highlights
+JavaScript and that there are no parameters, and a command's answer arrives as
+one document, drawn as a tree instead of rows (D296, in
+[sources/mongodb.md](sources/mongodb.md)).
+
 Three things are process-local and stated as such: captured results, the runs
 being carried out and open transactions (D66). They hold what cannot cross a
 process — memory and a connection — and are correct only because the backend

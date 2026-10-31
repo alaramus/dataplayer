@@ -4,14 +4,14 @@ What a MongoDB source is, how it reaches the server, what its catalog shows,
 how a collection becomes columns, how its documents cross to the grid and
 how they are changed there, and how a collection's fields and indexes are
 changed, its reports, search, export and catalog actions, and how its collections are
-copied, backed up and measured and a server started here. Its
-console is `mongosh` in a terminal, run in a container (D286, in
-[terminals.md](../terminals.md)). The
+copied, backed up and measured and a server started here. It runs in
+the query console in the shell's syntax (D296), and `mongosh` itself runs in a
+terminal, in a container (D286, in [terminals.md](../terminals.md)). The
 contract every source type follows is in [contract.md](contract.md); reading a
 relation in general is in [relations.md](relations.md). Read this before
 changing the `mongodb` adapter.
 
-Decisions here: D283, D284, D285, D287, D288, D289, D290, D291, D292, D293, D294.
+Decisions here: D283, D284, D285, D287, D288, D289, D290, D291, D292, D293, D294, D296.
 
 ## D283. A MongoDB source speaks to one server through pymongo
 
@@ -295,3 +295,34 @@ unique and a hashed index, twenty thousand page views as a time series, and a
 view adding orders up.
 
 Spec: [MongoDB copies, backups, metrics and the lab](../../decisions/2026-10-31-mongodb-copy-design.md)
+
+## D296. The query console reads the shell's syntax as driver calls
+
+The query console runs MongoDB as it runs SQL (D62–D65): a part of the
+shell's syntax — `db.c.find({…}).sort({…})`, `aggregate`, the writes, the
+index and collection commands, `runCommand`, `use`, `show` — with values spelt
+the shell's way and its constructors, read by `shell.py` into one driver call
+per statement. JavaScript is never run; variables, functions and the rest of
+`mongosh` stay in the terminal (D286).
+
+The class comes from the method, since the server has no read-only session:
+a pipeline ending in `$out` or `$merge` is a change, `explain` is a read, a
+command is classed by its name and an unknown one is structure, asked about
+every time. Users, roles and server administration are refused. Documents are
+rows with columns found as a page finds them (D284); a command's answer, a
+plan and a write's acknowledgement are one document, drawn as D295's tree.
+Nothing holds a transaction: a change runs alone and there is no manual mode,
+as on ClickHouse (D271). The limit is pymongo's `timeout`, and Stop kills the
+operation by the comment it carried. The database is the context's, else the
+connection's, else `use` or `getSiblingDB`.
+
+Known deviations:
+
+- **The shell has no parameters.** The profile's syntax is `none`; a value is
+  written into the call.
+- **There is no Explain command.** `explain()` is written in the text and
+  answers as a document, because the console's plan view is a tree of costs
+  MongoDB does not give.
+- **`use` lasts one run.** A console's next run starts in its context again.
+
+Spec: [MongoDB queries in the query console](../../decisions/2026-10-31-mongodb-query-console-design.md)

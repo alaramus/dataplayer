@@ -115,6 +115,7 @@ export const queries: Messages["queries"] = {
     chart: "绘制本页图表",
     empty: "此结果中没有行",
     previous: "上一个结果",
+    document: "一个文档，即服务器的回答",
     capped: "上限为 {n} 行",
   },
   transaction: {

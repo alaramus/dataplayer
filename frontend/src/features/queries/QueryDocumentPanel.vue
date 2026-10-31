@@ -199,6 +199,9 @@ const connectorId = computed(
   () => server.value === undefined ? props.connectorId ?? null : server.value.connector_id
 )
 const profile = useQueryProfile(connectorId)
+// The source says what its text is: MongoDB is written in the shell's syntax,
+// which highlights as JavaScript (D296).
+const editorLanguage = computed(() => profile.data.value?.editor_language ?? "sql")
 const transaction = useTransaction(transactionId)
 /**
  * What this connection holds, asked for progressively (D65).
@@ -1203,8 +1206,8 @@ onBeforeUnmount(() => {
       >
         <CodeEditor
           :model-value="draft.body"
-          filename="query.sql"
-          language-hint="sql"
+          :filename="editorLanguage === 'javascript' ? 'query.js' : 'query.sql'"
+          :language-hint="editorLanguage"
           :wrap="draft.wrap"
           :suggestions="offered"
           :marks="editorMarks"
