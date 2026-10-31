@@ -174,6 +174,7 @@ Backend checks, from `backend/`:
 ```bash
 uv sync
 uv run pytest tests/ -q
+uv run pytest tests/adapters/test_postgres_fetch.py::test_name -q   # one test
 uv run mypy app
 uv run ruff check app tests
 uv run lint-imports
@@ -194,10 +195,12 @@ Frontend checks, from `frontend/`:
 ```bash
 bun run dev
 bun run test:unit
+bunx vitest run src/shared/ui/layers.spec.ts   # one spec file
 bun run type-check
 bun run lint
 bun run build
 bunx playwright test
+bunx playwright test tests/actions.spec.ts      # one scenario file
 ```
 
 E2E scenarios that use the optional Redis, SSH and metrics services skip when
