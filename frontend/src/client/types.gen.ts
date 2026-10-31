@@ -5339,6 +5339,12 @@ export type FieldHints = {
   integers?: {
     [key: string]: string
   }
+  /**
+   * Values
+   */
+  values?: {
+    [key: string]: string
+  }
 }
 
 /**

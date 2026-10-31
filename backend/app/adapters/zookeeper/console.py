@@ -47,7 +47,7 @@ def console_program(options: ZookeeperOptions) -> ConsoleProgram:
         "CLIENT_JVMFLAGS": _FLAGS,
         SERVER_VARIABLE: compose_url(
             host=options.host, port=options.port, chroot=options.chroot
-        )
+        ),
     }
     if isinstance(options, ZookeeperDigest):
         environment[NOTE_VARIABLE] = say(

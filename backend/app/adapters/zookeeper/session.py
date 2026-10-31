@@ -31,6 +31,7 @@ from kazoo.exceptions import (
 from kazoo.handlers.threading import KazooTimeoutError
 from starlette.concurrency import run_in_threadpool
 
+from app.adapters.actions import ActionRefused
 from app.adapters.content import ContentConflict
 from app.adapters.protocol import (
     AdapterError,
@@ -88,7 +89,7 @@ class ZookeeperSession:
         try:
             client.start(timeout=TIMEOUT_SECONDS)
             return work(client)
-        except NodeNotFound, ContentConflict, AdapterError, ValueError:
+        except NodeNotFound, ContentConflict, AdapterError, ActionRefused, ValueError:
             raise
         except NoNodeError:
             raise NodeNotFound(node_id) from None

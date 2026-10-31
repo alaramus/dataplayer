@@ -319,6 +319,18 @@ watch(failure, (message) => {
   if (message !== "") answering.value = true
 })
 
+// What the node already holds opens in its field, once the source has said
+// (D300); a field somebody has typed into keeps what they typed.
+watch(
+  () => fieldHints.data.value?.values,
+  (held) => {
+    for (const [name, value] of Object.entries(held ?? {})) {
+      const current = values.value[name]
+      if (current === undefined || current === null || current === "") values.value[name] = value
+    }
+  }
+)
+
 // The answer is about the parameters, so it is asked again when they change.
 // Deeply, because the form holds one object for every field it has.
 watch(values, schedulePreview, { deep: true, flush: "sync" })

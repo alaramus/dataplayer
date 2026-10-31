@@ -119,3 +119,40 @@ async def test_a_connect_string_fills_the_form(
     )
     assert response.status_code == 200, response.text
     assert response.json()["options"]["chroot"] == "/apps"
+
+
+async def test_znodes_are_made_and_deleted_through_the_routes(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], root: str
+) -> None:
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers, root)
+
+    offered = await client.post(
+        f"{BASE}/{connector}/actions", headers=headers, json={}
+    )
+    assert offered.status_code == 200, offered.text
+    names = {action["name"] for action in offered.json()}
+    assert {"new_top_znode", "new_child_znode", "delete_subtree", "change_acl"} <= names
+
+    made = await client.post(
+        f"{BASE}/{connector}/actions/new_child_znode",
+        headers=headers,
+        json={"node_id": "/services", "params": {"name": "via-route", "data": "x"}},
+    )
+    assert made.status_code == 200, made.text
+    assert made.json()["created_node_id"] == "/services/via-route"
+
+    hints = await client.post(
+        f"{BASE}/{connector}/actions/change_acl/hints",
+        headers=headers,
+        json={"node_id": "/services/via-route", "params": {}},
+    )
+    assert hints.status_code == 200, hints.text
+    assert hints.json()["values"]["acl"] == "world:anyone:cdrwa"
+
+    gone = await client.post(
+        f"{BASE}/{connector}/actions/delete_znode",
+        headers=headers,
+        json={"node_id": "/services/via-route", "params": {}},
+    )
+    assert gone.status_code == 200, gone.text

@@ -160,7 +160,9 @@ thread pool, under an optional root path (D297): the znode tree expanded in
 place, a znode opened for its data as JSON or text with its stat and ACL beside
 it and walked into for its children, its data edited against the version read,
 its children as rows in name order (D298). zkCli in a terminal, opened
-anonymous with a note on `addauth` for a digest connection (D299).
+anonymous with a note on `addauth` for a digest connection (D299). Znodes made
+at the top or inside one, deleted alone or with their subtree after a preview,
+and their ACLs changed as zkCli's text (D300).
 
 ## Where the code is
 

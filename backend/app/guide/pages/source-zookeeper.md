@@ -16,6 +16,9 @@ connections work in general is on the [Connections](connections.md) page.
 ## What you can change
 
 - A znode's data, written whole against the version you read
+- New znodes, at the top or inside another, plain or sequential
+- Znodes deleted, alone or with everything under them
+- A znode's ACL, and the ACL of everything under it
 - Anything zkCli can change, typed into its terminal
 
 ## Connecting
@@ -74,6 +77,26 @@ Select a znode in the tree and choose **Details** in the catalog's menu.
 - The session an ephemeral znode belongs to.
 - One line per entry of its ACL: the scheme, the id, and what it may do.
 
+## Making and deleting znodes
+
+Select a znode in the tree and open the catalog's menu.
+
+- **New znode at the top** makes one at the top of the tree, or of the root
+  path. **New znode inside** makes one under the selected znode. Give it a
+  name and, if you like, its data as text. **Sequential** makes ZooKeeper add a
+  ten-digit number to the name; the znode made opens. Ephemeral znodes are not
+  offered: one would disappear as soon as it was made.
+- **Delete** removes the selected znodes. One with children is not deleted.
+- **Delete with children** first says how many znodes will go and names the
+  first of them. More than ten thousand are not deleted from here; use
+  `deleteall` in zkCli. `/zookeeper` belongs to the server and is not deleted.
+- **Change ACL** opens with the ACL the znode has, one entry per line as zkCli
+  writes them: `scheme:id:permissions`, the permissions letters from `cdrwa`
+  — create, delete, read, write, admin. For example `world:anyone:r` lets
+  anyone read and nothing else. **Also every znode under it** applies it to the
+  whole subtree. Before you apply it, you are warned if this connection would
+  no longer be allowed to change the ACL again.
+
 ## zkCli
 
 **Terminal** on a ZooKeeper connection opens `zkCli`, the client that comes
@@ -89,6 +112,5 @@ user. The password is not filled in for you and is never shown by DataPlayer.
 
 ## What ZooKeeper does not have here yet
 
-- Creating and deleting znodes and changing an ACL
 - The server's reports and metrics
 - Watching a znode for changes: refresh by hand

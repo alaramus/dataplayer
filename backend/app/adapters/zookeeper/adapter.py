@@ -7,6 +7,7 @@ already follows: a driver upgrade has one place to change (D297).
 from collections.abc import Mapping
 from typing import Any
 
+from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.content import (
     ContentRequest,
@@ -23,6 +24,7 @@ from app.adapters.registry import AdapterContext, register
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
+from app.adapters.zookeeper.actions import ZOOKEEPER_ACTION_TYPES, build_actions
 from app.adapters.zookeeper.children import ZookeeperChildren
 from app.adapters.zookeeper.console import console_program
 from app.adapters.zookeeper.data import ZookeeperData
@@ -53,6 +55,7 @@ class ZookeeperAdapter:
         self._children = ZookeeperChildren(self._session)
         self._data = ZookeeperData(self._session)
         self._summaries = ZookeeperSummaries(self._session)
+        self._actions = ActionSet(build_actions(self._session))
 
     # --- how to reach it, in one line ---------------------------------------
 
@@ -130,6 +133,24 @@ class ZookeeperAdapter:
         """The whole data, if the znode is still at the version read (D298)."""
         return await self._data.update_content(request)
 
+    # --- what may be done to znodes (D300) ------------------------------------
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return ZOOKEEPER_ACTION_TYPES
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.get(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return list(self._actions)
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        """Every one, wherever: the tree's level is its top, and the ones that
+        act on a znode are switched on by what is selected (D300)."""
+        del node_id
+        return list(self._actions)
+
     async def console_program(self) -> ConsoleProgram:
         """zkCli, connected to this server and root path, in a container (D299)."""
         return console_program(self._session.options)
@@ -146,7 +167,7 @@ class ZookeeperAdapter:
     description=N_(
         "A ZooKeeper server. Walk its znode tree, read a znode's data as text "
         "or as JSON with its stat and ACL, edit the data against the version "
-        "read, page through a znode's children as rows, and work in zkCli in a "
+        "read, make and delete znodes and change their ACLs, page through a znode's children as rows, and work in zkCli in a "
         "terminal."
     ),
     options_schema=ZookeeperOptions,

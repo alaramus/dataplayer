@@ -367,6 +367,9 @@ class FieldHints(BaseModel):
     # Fields declared as instants that take a whole number on this node, each
     # with what the number is: a hypertable cut along an integer column.
     integers: dict[str, str] = Field(default_factory=dict)
+    # What the node already holds in a field, which the form opens with: the
+    # ACL a znode has, to be edited rather than typed again (D300).
+    values: dict[str, str] = Field(default_factory=dict)
 
 
 @runtime_checkable

@@ -945,3 +945,29 @@ describe("an action with nothing to fill in", () => {
     wrapper.unmount()
   })
 })
+
+describe("what a node already holds in a field (D300)", () => {
+  const ACL: ActionCommand = {
+    ...RENAME,
+    name: "change_acl",
+    label: "Change ACL",
+    offersHints: true,
+    fields: [
+      { name: "acl", label: "ACL", kind: "text", required: true, group: "general" },
+    ],
+  }
+
+  it("opens the field with it once the source has said", async () => {
+    const hints = vi.spyOn(ConnectorsService, "actionFieldHints").mockResolvedValue({
+      data: { choices: {}, integers: {}, values: { acl: "world:anyone:cdrwa" } },
+    } as never)
+    const wrapper = mountDialog(ACL, ["/app"])
+    await settle()
+
+    expect(hints).toHaveBeenCalled()
+    const field = document.body.querySelector<HTMLInputElement>('[data-testid="field-acl"]')
+      ?? document.body.querySelector<HTMLInputElement>("input, textarea")
+    expect(field?.value).toBe("world:anyone:cdrwa")
+    wrapper.unmount()
+  })
+})

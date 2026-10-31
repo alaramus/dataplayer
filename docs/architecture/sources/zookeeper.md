@@ -2,11 +2,12 @@
 
 What a ZooKeeper source is, how it reaches the server, what its catalog shows
 of the znode tree, and how a znode's data, stat, ACL and children are read and
-its data written, and zkCli in a terminal (D299, run as D286 says in
+its data written, znodes made and deleted and their ACLs changed (D300), and
+zkCli in a terminal (D299, run as D286 says in
 [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `zookeeper` adapter.
 
-Decisions here: D297, D298, D299.
+Decisions here: D297, D298, D299, D300.
 
 ## D297. A ZooKeeper source speaks to one server through kazoo, a session per operation
 
@@ -120,3 +121,39 @@ Known deviations:
   container.
 
 Spec: [2026-10-31-zookeeper-console-design.md](../../decisions/2026-10-31-zookeeper-console-design.md)
+
+## D300. Znodes are made, deleted and re-ACLed from the catalog's menu
+
+Five actions, all offered at the tree's level, which is always its top (D298);
+the four that act on a znode are switched on by the selection:
+
+- **New znode at the top** and **New znode inside** the selected one: a name
+  that is one part of a path, data as UTF-8 text, and whether it is
+  sequential — ZooKeeper then adds a ten-digit number to the name and the
+  znode made is the one opened. Not ephemeral: one would end with the session
+  of the request that made it (D297). The ACL is open; it is changed after.
+- **Delete** a znode with no children, any number at once; one with children
+  is refused and pointed at the next.
+- **Delete with children**, after a preview naming how many znodes and the
+  first twenty paths. The subtree is walked first, deepest first, and refused
+  past ten thousand znodes, under `/zookeeper`, at the top, and wherever a
+  child cannot be listed. A znode made under it meanwhile stops the delete at
+  its parent, which says so.
+- **Change ACL**: one `scheme:id:permissions` per line, as zkCli writes them,
+  permissions from `cdrwa`. The form opens with the ACL the znode has, sent
+  as a field hint's `values` — what a node already holds in a field, filled
+  in where nothing was typed yet. It may be applied to every znode under the
+  one selected, deepest first. The preview lists the new ACL and warns, without
+  refusing, when no entry leaves this connection admin: anyone, `auth`, or the
+  digest user it signs in as.
+
+Known deviations:
+
+- Deleting a subtree is a znode at a time, not one transaction: a failure
+  part way leaves the deeper znodes deleted.
+- An ACL is set at whatever version it is; two people changing one at once
+  is the last one's.
+- A grid of a znode's children is not read again when one of them is made or
+  deleted; refresh it.
+
+Spec: [2026-10-31-zookeeper-writes-design.md](../../decisions/2026-10-31-zookeeper-writes-design.md)
