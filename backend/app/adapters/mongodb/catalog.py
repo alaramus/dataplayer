@@ -71,6 +71,12 @@ def report_node(report: ServerReport) -> ReportNode:
     )
 
 
+def is_buckets(name: str) -> bool:
+    """Where a time series keeps its documents. Read through the series, which
+    is the thing a person made, so not listed beside it."""
+    return name.startswith("system.buckets.")
+
+
 def is_system_database(name: str) -> bool:
     return name in SYSTEM_DATABASES
 
@@ -161,9 +167,12 @@ class MongodbCatalog:
         async with self._session.client() as client:
             with self._session.failures():
                 cursor = await client[database].list_collections()
-                infos = sorted(await cursor.to_list(), key=lambda info: str(info["name"]))
+                infos = sorted(
+                    (info for info in await cursor.to_list() if not is_buckets(str(info["name"]))),
+                    key=lambda info: str(info["name"]),
+                )
                 stored = [
-                    str(info["name"]) for info in infos if collection_type(info) != "view"
+                    str(info["name"]) for info in infos if collection_type(info) == "collection"
                 ]
                 counts: dict[str, tuple[int | None, int | None]] = {}
                 if len(stored) <= MAX_COUNTED:
@@ -198,7 +207,7 @@ class MongodbCatalog:
                     raise NodeNotFound(node_id)
                 counted = (
                     await statistics(client, database, collection)
-                    if collection_type(info) != "view"
+                    if collection_type(info) == "collection"
                     else (None, None)
                 )
         path.append(collection_node(database, info, counted))

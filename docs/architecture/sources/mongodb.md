@@ -45,7 +45,9 @@ does a collection named `system.*`. Inside a database are its collections and
 time series, tables to everything else here named as collections
 (`TableNode.term`), and its views. A collection's count and size are
 `$collStats`, asked for each collection in one gather, and not at all past two
-hundred collections.
+hundred collections; a time series states none, since its count is of its
+buckets. The `system.buckets.*` collection a time series keeps its documents
+in is not listed beside it: it is read through the series.
 
 A collection has no DDL. Its definition is what `listCollections` says of it —
 type, options with the validator, a view's source and pipeline — and its

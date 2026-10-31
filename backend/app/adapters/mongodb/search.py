@@ -15,6 +15,7 @@ from app.adapters.mongodb.catalog import (
     MongodbCatalog,
     collection_node,
     database_node,
+    is_buckets,
     report_node,
 )
 from app.adapters.mongodb.reports import (
@@ -69,7 +70,8 @@ class MongodbSearch:
                     cursor = await client[name].list_collections()
                     infos = await cursor.to_list()
                 for info in infos:
-                    yield collection_node(name, info), database_id(name), name
+                    if not is_buckets(str(info["name"])):
+                        yield collection_node(name, info), database_id(name), name
 
     async def search_nodes(
         self, request: NodeSearchRequest, bounds: SearchBounds | None = None

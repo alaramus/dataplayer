@@ -245,3 +245,14 @@ async def test_the_lab_is_made_and_the_same_every_time() -> None:
     assert {key: value for key, value in first.items() if key != "_id"} == {
         key: value for key, value in again.items() if key != "_id"
     }
+
+
+@pytest.mark.usefixtures("server")
+async def test_a_time_series_is_listed_once_and_without_its_buckets_count() -> None:
+    await adapter().install_sample_data()
+
+    nodes = {node.name: node for node in await adapter().list_children(database_id(SAMPLE_DATABASE))}
+
+    assert not any(name.startswith("system.buckets.") for name in nodes)
+    assert getattr(nodes["page_views"], "row_count_estimate", 0) is None
+    assert getattr(nodes["orders"], "row_count_estimate", 0) == 2000
