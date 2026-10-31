@@ -2,12 +2,13 @@
 
 What a ZooKeeper source is, how it reaches the server, what its catalog shows
 of the znode tree, and how a znode's data, stat, ACL and children are read and
-its data written, znodes made and deleted and their ACLs changed (D300), and
-zkCli in a terminal (D299, run as D286 says in
+its data written, znodes made and deleted and their ACLs changed (D300), the server's reports
+and metrics, finding znodes and exporting children (D301), and zkCli in a
+terminal (D299, run as D286 says in
 [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `zookeeper` adapter.
 
-Decisions here: D297, D298, D299, D300.
+Decisions here: D297, D298, D299, D300, D301.
 
 ## D297. A ZooKeeper source speaks to one server through kazoo, a session per operation
 
@@ -157,3 +158,41 @@ Known deviations:
   deleted; refresh it.
 
 Spec: [2026-10-31-zookeeper-writes-design.md](../../decisions/2026-10-31-zookeeper-writes-design.md)
+
+## D301. The server's four-letter words are reports and metrics; znodes are found by walking
+
+A **Server** section heads the top of the tree, as Redis's System section does.
+Its reports are ZooKeeper's four-letter words sent on the session's own
+connection, each answer read as setting-and-value rows: Server (`srvr`),
+Monitoring (`mntr`), Connections (`cons`), Watches (`wchs`) and Configuration
+(`conf`). The first four are read again every ten seconds. A word the server's
+`4lw.commands.whitelist` leaves out answers with one row saying so, since the
+others may still be allowed; ZooKeeper 3.5 and later allow only `srvr` unless
+told otherwise. Report ids start with `\server`, so they never meet a znode's
+path. Reports offer no actions.
+
+Metrics are one `mntr` per poll: connections, outstanding requests, latency,
+packets as counters, znodes and ephemeral ones, watches, data size and open
+files, with a ready-made dashboard. A server that refuses `mntr` gives no
+samples.
+
+Searching by name walks the tree below where it starts, breadth first, a level
+at a time, matching each znode's own name by D202's classes and keeping the
+best. It is bounded by fifty thousand znodes looked at and by the search's
+clock, never by matches. A level this connection may not list is passed over
+and the answer says it is not complete. A found znode carries the paths above
+it as its ancestors, so the tree shows it in place (D91). The same walk reads
+every name for a kept list (D213), the whole tree one scope. A search is always
+costly: there is no index to ask.
+
+A znode's children are exported whole, a page of five hundred per session, in
+name order; a request to filter or sort is refused, as the grid offers neither.
+A report is exported as its rows.
+
+Known deviations:
+
+- The walk runs in the thread pool's own limit rather than under the search's
+  limiter.
+- A found znode's ancestors are drawn as folders until the tree reads them.
+
+Spec: [2026-10-31-zookeeper-reports-design.md](../../decisions/2026-10-31-zookeeper-reports-design.md)

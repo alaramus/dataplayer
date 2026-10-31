@@ -12,6 +12,10 @@ connections work in general is on the [Connections](connections.md) page.
 - A znode's ACL: who may read, write, create, delete and administer it
 - A znode's children as rows, a page at a time
 - zkCli, connected to the server and root path, in a terminal
+- The server's reports: mode, counters, clients, watches, settings
+- The server's counters, on a dashboard
+- Znodes found by name
+- Every child of a znode, downloaded as a file
 
 ## What you can change
 
@@ -77,6 +81,36 @@ Select a znode in the tree and choose **Details** in the catalog's menu.
 - The session an ephemeral znode belongs to.
 - One line per entry of its ACL: the scheme, the id, and what it may do.
 
+## The Server section
+
+At the top of the tree, **Server** holds what the server says about itself:
+**Server** (version, mode, latency, connections, number of znodes),
+**Monitoring** (every counter it keeps), **Connections** (each client),
+**Watches** and **Configuration**. The first four refresh every ten seconds.
+
+ZooKeeper answers these only if its `4lw.commands.whitelist` setting allows
+them; since ZooKeeper 3.5 only `srvr` is allowed unless the server says
+otherwise. A report the server will not answer shows one row naming the word to
+add, for example `4lw.commands.whitelist=srvr,mntr,cons,wchs,conf`.
+
+The same counters can be drawn on a dashboard: the **ZooKeeper server** layout
+shows packets, znodes, latency, connections, outstanding requests and watches.
+It needs `mntr` to be allowed.
+
+## Finding znodes
+
+Type into the field above the tree and press the search button to look through
+the names of every znode below the top, or below the one selected. ZooKeeper
+keeps no index of names, so the search walks the tree; it stops after fifty
+thousand znodes or when its time is up, and says so. Levels this connection may
+not list are skipped, and the answer says the search may be incomplete. Found
+znodes are shown where they are in the tree.
+
+## Downloading
+
+The children table of a znode can be downloaded whole, in the order of names.
+A report can be downloaded as well.
+
 ## Making and deleting znodes
 
 Select a znode in the tree and open the catalog's menu.
@@ -112,5 +146,4 @@ user. The password is not filled in for you and is never shown by DataPlayer.
 
 ## What ZooKeeper does not have here yet
 
-- The server's reports and metrics
 - Watching a znode for changes: refresh by hand

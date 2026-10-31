@@ -5,12 +5,15 @@ stats, so the columns can be neither sorted nor filtered, and a grid that
 offered either would be offering to read every child here.
 """
 
+from collections.abc import AsyncIterator
 from datetime import datetime
+from functools import partial
 from typing import Any
 
 from kazoo.client import KazooClient
 from kazoo.exceptions import NoAuthError, NoNodeError
 
+from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.relation import ColumnType, TypeCategory
 from app.adapters.zookeeper.session import ZookeeperSession
@@ -22,6 +25,7 @@ from app.adapters.zookeeper.znodes import (
     stat_of,
     text_of,
 )
+from app.core.translation import say
 
 # Characters of data shown in a cell; the znode opens for the rest.
 PREVIEW_CHARACTERS = 200
@@ -129,3 +133,27 @@ class ZookeeperChildren:
             has_more=has_more,
             page_commands=["download", "share"],
         )
+
+    async def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        """Every child, a page of them per session, in the grid's order (D301).
+
+        There is nothing to filter or sort by on the server, so a request asking
+        for either is refused rather than answered with every row.
+        """
+        if request.filters or request.sort:
+            raise ValueError(say("The children of a znode are exported in the order of their names"))
+        names = [column.name for column in COLUMNS]
+        unknown = [column for column in request.columns if column not in names]
+        if unknown:
+            raise ValueError(say("Unknown column: {column}", column=unknown[0]))
+        picked = [names.index(column) for column in request.columns]
+        path = checked_path(request.node_id)
+        offset = 0
+        while True:
+            rows, has_more = await self._session.run(
+                partial(read_page, parent=path, offset=offset, limit=EXPORT_BATCH_SIZE), path
+            )
+            yield ExportBatch(rows=[[row[index] for index in picked] for row in rows])
+            if not has_more:
+                return
+            offset += EXPORT_BATCH_SIZE

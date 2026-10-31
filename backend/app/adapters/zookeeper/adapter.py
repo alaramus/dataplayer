@@ -4,7 +4,7 @@
 already follows: a driver upgrade has one place to change (D297).
 """
 
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
@@ -17,10 +17,21 @@ from app.adapters.content import (
     EditorContentRequest,
     UpdateContentRequest,
 )
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, register
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
@@ -28,7 +39,19 @@ from app.adapters.zookeeper.actions import ZOOKEEPER_ACTION_TYPES, build_actions
 from app.adapters.zookeeper.children import ZookeeperChildren
 from app.adapters.zookeeper.console import console_program
 from app.adapters.zookeeper.data import ZookeeperData
+from app.adapters.zookeeper.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.zookeeper.metrics import ZookeeperMetrics
 from app.adapters.zookeeper.options import ZookeeperOptions
+from app.adapters.zookeeper.reports import (
+    REPORTS,
+    ZookeeperReports,
+    in_section,
+    is_section,
+    report_for,
+    report_node,
+    section_node,
+)
+from app.adapters.zookeeper.search import ZookeeperSearch
 from app.adapters.zookeeper.session import (
     ZookeeperSession,
     compose_url,
@@ -56,6 +79,9 @@ class ZookeeperAdapter:
         self._data = ZookeeperData(self._session)
         self._summaries = ZookeeperSummaries(self._session)
         self._actions = ActionSet(build_actions(self._session))
+        self._reports = ZookeeperReports(self._session)
+        self._metrics = ZookeeperMetrics(self._session)
+        self._search = ZookeeperSearch(self._session)
 
     # --- how to reach it, in one line ---------------------------------------
 
@@ -94,11 +120,19 @@ class ZookeeperAdapter:
     # --- the tree (D298) ------------------------------------------------------
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
+        if is_section(node_id):
+            return [report_node(report) for report in REPORTS]
+        if in_section(node_id):
+            if report_for(node_id) is None:
+                raise NodeNotFound(node_id or "")
+            return []
         path = "/" if node_id is None else checked_path(node_id)
         try:
-            return list(
+            znodes: list[CatalogNode] = list(
                 await self._session.run(lambda client: read_level(client, path), path)
             )
+            # The server's own section first, as Redis puts its own (D301).
+            return [section_node(), *znodes] if node_id is None else znodes
         except NodeNotFound as gone:
             # A level that is not there is a node id the source cannot reach,
             # by the catalog's contract, rather than a 404.
@@ -116,7 +150,37 @@ class ZookeeperAdapter:
         )
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
+        if in_section(request.node_id):
+            return await self._reports.fetch(request)
         return await self._children.fetch(request)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        if in_section(request.node_id):
+            return self._reports.export_rows(request)
+        return self._children.export_rows(request)
+
+    # --- the server's counters and finding znodes (D301) ----------------------
+
+    async def metric_samples(self) -> list[MetricSample]:
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """A walk of the tree, with no index to ask: never cheap (D301)."""
+        del field, last
+        return "costly"
 
     async def node_summary(self, node_id: str) -> NodeSummary:
         return await self._summaries.node_summary(node_id)
@@ -148,7 +212,8 @@ class ZookeeperAdapter:
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         """Every one, wherever: the tree's level is its top, and the ones that
         act on a znode are switched on by what is selected (D300)."""
-        del node_id
+        if is_section(node_id) or in_section(node_id):
+            return []
         return list(self._actions)
 
     async def console_program(self) -> ConsoleProgram:

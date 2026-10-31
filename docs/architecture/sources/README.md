@@ -162,7 +162,9 @@ it and walked into for its children, its data edited against the version read,
 its children as rows in name order (D298). zkCli in a terminal, opened
 anonymous with a note on `addauth` for a digest connection (D299). Znodes made
 at the top or inside one, deleted alone or with their subtree after a preview,
-and their ACLs changed as zkCli's text (D300).
+and their ACLs changed as zkCli's text (D300). A Server section of reports
+from the four-letter words, metrics from `mntr`, znodes found by walking the
+tree, and a level's children exported whole (D301).
 
 ## Where the code is
 
