@@ -8,7 +8,7 @@ propre de Redis et reste en latin : « clé hash », comme un type de colonne
 MESSAGES: dict[str, str] = {
     # La source et son formulaire de connexion.
     "Redis": "Redis",
-    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, and set or clear an expiry.": "Un serveur clé-valeur en mémoire. Passer d'une base de données à l'autre, parcourir un espace de clés grâce aux deux-points des noms, lire ce que contient une clé, en écrire une de n'importe quel type et définir ou supprimer une expiration.",
+    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, set or clear an expiry, and work in redis-cli in a terminal.": "Un serveur clé-valeur en mémoire. Passer d'une base de données à l'autre, parcourir un espace de clés grâce aux deux-points des noms, lire ce que contient une clé, en écrire une de n'importe quel type, définir ou supprimer une expiration et travailler dans redis-cli dans un terminal.",
     "Authentication": "Authentification",
     "Host": "Hôte",
     "Port": "Port",
@@ -138,4 +138,5 @@ MESSAGES: dict[str, str] = {
     "This report cannot be sorted that way": "Ce rapport ne peut pas être trié ainsi",
     "INFO is unavailable for this Redis user": "INFO n'est pas disponible pour cet utilisateur Redis",
     "Configuration commands are unavailable on this server": "Les commandes de configuration ne sont pas disponibles sur ce serveur",
+    "A console does not go through an SSH tunnel yet": "Une console ne passe pas encore par un tunnel SSH",
 }

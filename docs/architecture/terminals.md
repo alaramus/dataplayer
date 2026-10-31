@@ -12,7 +12,8 @@ backend/app/
 │   ├── terminal.py        TerminalSize, Terminal, SupportsTerminal,
 │   │                      ConsoleProgram, SupportsConsoleProgram
 │   ├── ssh/terminal.py    the login shell of the account, in a pty on the server
-│   └── mongodb/console.py mongosh, signed in from its environment
+│   ├── mongodb/console.py mongosh, signed in from its environment
+│   └── redis/console.py   redis-cli, its password in REDISCLI_AUTH
 ├── services/consoles.py   a program in a container, attached as a terminal
 └── terminals/
     ├── consoles.py        ConsoleRunner: what runs a program, as the socket sees it
@@ -36,8 +37,8 @@ frontend/src/features/terminals/
 WS     /api/v1/terminals
 ```
 
-SSH has a shell; MongoDB has `mongosh`, a client program the server runs in a
-container (D286). A terminal on personal storage was asked for and postponed;
+SSH has a shell; MongoDB has `mongosh` and Redis has `redis-cli`, client
+programs the server runs in a container (D286). A terminal on personal storage was asked for and postponed;
 it would be a second driver implementing `SupportsTerminal`, and nothing above
 the adapter would change.
 
@@ -117,7 +118,7 @@ Spec: [A terminal on an SSH connection](../decisions/2026-09-19-terminal-design.
 ## D286. A source's client program is a terminal too, run in a container
 
 A source whose console is a client program rather than a login — MongoDB's
-`mongosh` — says what to run, and the server runs it the way it runs a backup
+`mongosh`, Redis's `redis-cli` — says what to run, and the server runs it the way it runs a backup
 (D87): `SupportsConsoleProgram` answers with an image, an argv and an
 environment, and the socket hands that to a `ConsoleRunner`, which the
 application wires to its container engine at start-up (`app.state.
@@ -134,7 +135,9 @@ sees the same `terminal` capability and the same frames as for SSH.
   is the program's bytes both ways; a resize is the API's resize.
 - **The password is in the environment, never in the arguments**, by D87's
   rule. `mongosh` starts with `--nodb` and makes its connection from an address
-  in its environment, which it then deletes.
+  in its environment, which it then deletes; `redis-cli` reads its password
+  from `REDISCLI_AUTH` itself, and is given the host, port and database
+  number as arguments.
 - **On the service network**, so the program reaches the host the connection
   names as a backup does; not through an SSH tunnel (D282), whose end is a port
   on this process's loopback.

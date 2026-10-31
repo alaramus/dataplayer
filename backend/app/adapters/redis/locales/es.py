@@ -8,7 +8,7 @@ columna se queda `integer`.
 MESSAGES: dict[str, str] = {
     # La fuente y su formulario de conexión.
     "Redis": "Redis",
-    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, and set or clear an expiry.": "Un servidor de clave-valor en memoria. Cambiar entre sus bases de datos, recorrer un espacio de claves por los dos puntos de los nombres, leer lo que contiene una clave, escribir una de cualquier tipo y establecer o quitar una caducidad.",
+    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, set or clear an expiry, and work in redis-cli in a terminal.": "Un servidor de clave-valor en memoria. Cambiar entre sus bases de datos, recorrer un espacio de claves por los dos puntos de los nombres, leer lo que contiene una clave, escribir una de cualquier tipo, establecer o quitar una caducidad y trabajar en redis-cli en un terminal.",
     "Authentication": "Autenticación",
     "Host": "Host",
     "Port": "Puerto",
@@ -138,4 +138,5 @@ MESSAGES: dict[str, str] = {
     "This report cannot be sorted that way": "Este informe no se puede ordenar de esa manera",
     "INFO is unavailable for this Redis user": "INFO no está disponible para este usuario de Redis",
     "Configuration commands are unavailable on this server": "Los comandos de configuración no están disponibles en este servidor",
+    "A console does not go through an SSH tunnel yet": "Una consola todavía no pasa por un túnel SSH",
 }

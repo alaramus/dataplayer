@@ -8,7 +8,7 @@ Spaltentyp `integer` bleibt.
 MESSAGES: dict[str, str] = {
     # Die Quelle und ihr Verbindungsformular.
     "Redis": "Redis",
-    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, and set or clear an expiry.": "Ein In-Memory-Schlüssel-Wert-Server. Zwischen seinen Datenbanken wechseln, den Schlüsselraum anhand der Doppelpunkte in den Namen durchlaufen, lesen, was ein Schlüssel enthält, einen beliebigen Typ schreiben und eine Ablauffrist setzen oder aufheben.",
+    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, set or clear an expiry, and work in redis-cli in a terminal.": "Ein In-Memory-Schlüssel-Wert-Server. Zwischen seinen Datenbanken wechseln, den Schlüsselraum anhand der Doppelpunkte in den Namen durchlaufen, lesen, was ein Schlüssel enthält, einen beliebigen Typ schreiben, eine Ablauffrist setzen oder aufheben und in redis-cli in einem Terminal arbeiten.",
     "Authentication": "Authentifizierung",
     "Host": "Host",
     "Port": "Port",
@@ -138,4 +138,5 @@ MESSAGES: dict[str, str] = {
     "This report cannot be sorted that way": "Dieser Bericht lässt sich nicht so sortieren",
     "INFO is unavailable for this Redis user": "INFO ist für diesen Redis-Benutzer nicht verfügbar",
     "Configuration commands are unavailable on this server": "Konfigurationsbefehle sind auf diesem Server nicht verfügbar",
+    "A console does not go through an SSH tunnel yet": "Eine Konsole läuft noch nicht durch einen SSH-Tunnel",
 }

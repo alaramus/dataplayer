@@ -117,10 +117,16 @@ verdrängte Schlüssel, Netzwerkverkehr und Schlüssel pro Datenbank. Der Eigent
 schaltet dies im Fenster **Quellen** des Bereichs **Dashboards** ein und wählt,
 wie oft. Das fertige Layout dafür heißt **Redis-Server**.
 
+## redis-cli
+
+**Terminal öffnen** auf einer eigenen Redis-Verbindung startet `redis-cli`,
+angemeldet wie die Verbindung und in ihrer Datenbank. Es läuft in einem
+Container, den dieser Server dafür startet, und nur dort, wo er Container
+starten darf; nicht über einen SSH-Tunnel. Das Schließen des Terminals oder
+`quit` beendet es.
+
 ## Was Redis hier nicht hat
 
-- Es gibt keine Befehlskonsole: Redis nimmt Befehle statt Anweisungen an, und
-  eine Konsole dafür wäre eine Shell auf dem Server.
 - Ein Schlüssel, der abläuft, während sein Tab geöffnet ist, bleibt auf dem
   Bildschirm, bis das Tab erneut gelesen wird.
 - Werte werden als Text gezeigt. Ein Schlüssel, der ein Bild enthält, erscheint

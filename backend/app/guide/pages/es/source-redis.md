@@ -108,10 +108,14 @@ expulsadas, tráfico de red y claves por base de datos. El propietario lo activa
 en la ventana **Fuentes** del espacio **Cuadros de mando**, y elige la
 frecuencia. El diseño preparado para ello se llama **Servidor Redis**.
 
+## redis-cli
+
+**Abrir un terminal** en una conexión Redis tuya inicia `redis-cli`, con la
+sesión de la conexión y en su base de datos, en un contenedor que inicia este
+servidor; no a través de un túnel SSH. Cerrar el terminal o `quit` lo termina.
+
 ## Lo que Redis no tiene aquí
 
-- No hay consola de comandos: Redis recibe comandos en lugar de instrucciones, y
-  una consola para ellos sería un Shell en el servidor.
 - Una clave que caduca mientras su pestaña está abierta permanece en pantalla
   hasta que se vuelve a leer la pestaña.
 - Los valores se muestran como texto. Una clave que contiene una imagen se muestra

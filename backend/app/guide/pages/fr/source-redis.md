@@ -115,10 +115,15 @@ réseau et clés par base de données. Le propriétaire l'active dans la fenêtr
 **Sources** de l'espace **Tableaux de bord**, et choisit la fréquence. La
 disposition prête à l'emploi s'appelle **Serveur Redis**.
 
+## redis-cli
+
+**Ouvrir un terminal** sur une connexion Redis à vous lance `redis-cli`,
+connecté comme la connexion et dans sa base de données, dans un conteneur que
+ce serveur démarre ; pas à travers un tunnel SSH. Fermer le terminal ou `quit`
+l'arrête.
+
 ## Ce que Redis n'a pas ici
 
-- Il n'y a pas de console de commandes : Redis prend des commandes plutôt que des
-  instructions, et une console pour elles serait un shell sur le serveur.
 - Une clé qui expire alors que son onglet est ouvert reste à l'écran jusqu'à ce
   que l'onglet soit relu.
 - Les valeurs sont affichées comme du texte. Une clé qui contient une image

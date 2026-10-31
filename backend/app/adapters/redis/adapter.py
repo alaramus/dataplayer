@@ -8,8 +8,7 @@ people do to keys by hand — write one, take one away, give one a deadline,
 take the deadline off.
 
 What is deliberately not here is a query language. Redis has commands, not
-statements, and a console that accepted them would be a shell on somebody's
-server rather than a way of reading data (D65).
+statements; they are typed into `redis-cli`, which runs in a terminal (D286).
 
 Redis keys, folders and databases can be copied or exported as CSV (D171).
 
@@ -28,6 +27,7 @@ from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.redis.actions import REDIS_ACTION_TYPES
+from app.adapters.redis.console import console_program
 from app.adapters.redis.export import RedisExport
 from app.adapters.redis.fetch import RedisFetch
 from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key
@@ -76,6 +76,7 @@ from app.adapters.search import (
     SearchedField,
     SourceCost,
 )
+from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -292,6 +293,10 @@ class RedisAdapter:
             return []
         return self._actions.for_kind("directory")
 
+    async def console_program(self) -> ConsoleProgram:
+        """redis-cli, signed in as this connection, in a container (D286)."""
+        return console_program(self._options)
+
 
 @register(
     name="redis",
@@ -307,7 +312,8 @@ class RedisAdapter:
     description=N_(
         "An in-memory key-value server. Switch between its databases, walk a "
         "key space by the colons in the names, read what a key holds, write "
-        "one of any type, and set or clear an expiry."
+        "one of any type, set or clear an expiry, and work in redis-cli in a "
+        "terminal."
     ),
     options_schema=RedisOptions,
     adapter_class=RedisAdapter,

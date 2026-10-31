@@ -7,7 +7,7 @@ name and stays in Latin: “hash कुंजी”, as a column type stays `int
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "Redis": "Redis",
-    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, and set or clear an expiry.": "इन-मेमोरी कुंजी-मान सर्वर। इसके डेटाबेस के बीच बदलें, नामों में कोलन के अनुसार कुंजी स्थान में चलें, कुंजी में संग्रहीत सामग्री पढ़ें, किसी भी प्रकार की कुंजी लिखें, और समाप्ति सेट या साफ़ करें।",
+    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, set or clear an expiry, and work in redis-cli in a terminal.": "इन-मेमोरी कुंजी-मान सर्वर। इसके डेटाबेस के बीच बदलें, नामों में कोलन के अनुसार कुंजी स्थान में चलें, कुंजी में संग्रहीत सामग्री पढ़ें, किसी भी प्रकार की कुंजी लिखें, समाप्ति सेट या साफ़ करें, और टर्मिनल में redis-cli में काम करें।",
     "Authentication": "प्रमाणीकरण",
     "Host": "होस्ट",
     "Port": "पोर्ट",
@@ -137,4 +137,5 @@ MESSAGES: dict[str, str] = {
     "This report cannot be sorted that way": "इस रिपोर्ट को इस तरह सॉर्ट नहीं किया जा सकता",
     "INFO is unavailable for this Redis user": "इस Redis उपयोगकर्ता के लिए INFO उपलब्ध नहीं है",
     "Configuration commands are unavailable on this server": "इस सर्वर पर कॉन्फ़िगरेशन कमांड उपलब्ध नहीं हैं",
+    "A console does not go through an SSH tunnel yet": "कंसोल अभी SSH टनल से होकर नहीं चलता",
 }

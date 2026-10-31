@@ -7,7 +7,7 @@ name and stays in Latin: «ключ hash», as a column type stays `integer`.
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "Redis": "Redis",
-    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, and set or clear an expiry.": "Сервер «ключ — значение» в памяти. Переключение между базами данных, обход пространства ключей по двоеточиям в именах, чтение содержимого ключа, запись ключа любого типа, установка и снятие срока жизни.",
+    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, set or clear an expiry, and work in redis-cli in a terminal.": "Сервер «ключ — значение» в памяти. Переключение между базами данных, обход пространства ключей по двоеточиям в именах, чтение содержимого ключа, запись ключа любого типа, установка и снятие срока жизни и работа в redis-cli в терминале.",
     "Authentication": "Аутентификация",
     "Host": "Хост",
     "Port": "Порт",
@@ -137,4 +137,5 @@ MESSAGES: dict[str, str] = {
     "This report cannot be sorted that way": "Этот отчёт нельзя так сортировать",
     "INFO is unavailable for this Redis user": "Команда INFO недоступна этому пользователю Redis",
     "Configuration commands are unavailable on this server": "На этом сервере недоступны команды чтения конфигурации",
+    "A console does not go through an SSH tunnel yet": "Консоль пока не работает через SSH-туннель",
 }

@@ -1,8 +1,9 @@
 """A source whose terminal is a client program run by the server (D286).
 
 The runtime is played by a runner that records what it was asked to run and
-answers with a terminal of its own; the program a MongoDB connection asks for
-is checked here as well, since it reaches no server until it is run.
+answers with a terminal of its own; the programs a MongoDB and a Redis
+connection ask for are checked here as well, since they reach no server until
+they are run.
 """
 
 import uuid
@@ -84,6 +85,29 @@ async def _mongodb(client: AsyncClient, headers: dict[str, str], **options: Any)
     return str(created.json()["id"])
 
 
+async def _redis(client: AsyncClient, headers: dict[str, str], **options: Any) -> str:
+    given = {
+        "auth_method": "password",
+        "host": "redis",
+        "port": 6380,
+        "database": 3,
+        "password": "secret-password",
+        **options,
+    }
+    created = await client.post(
+        f"{CONNECTORS}/",
+        headers=headers,
+        json={
+            "name": f"redis {uuid.uuid4().hex[:8]}",
+            "adapter_type": "redis",
+            # A None drops a field the other way of signing in does not have.
+            "options": {key: value for key, value in given.items() if value is not None},
+        },
+    )
+    assert created.status_code == 200, created.text
+    return str(created.json()["id"])
+
+
 def _opening(headers: dict[str, str], connector_id: str) -> dict[str, Any]:
     return {
         "type": "open",
@@ -129,6 +153,48 @@ async def test_mongosh_runs_signed_in_and_without_its_password_in_the_arguments(
     assert runner.screens[0].closed
 
 
+async def test_redis_cli_runs_signed_in_and_without_its_password_in_the_arguments(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _Runner()
+    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    connector_id = await _redis(client, normal_user_token_headers)
+
+    async with open_socket(TERMINALS) as ws:
+        await ws.send_json(_opening(normal_user_token_headers, connector_id))
+        assert (await ws.receive_json(timeout=10))["type"] == "ready"
+        event = await ws.receive(timeout=10)
+        assert isinstance(event, BytesMessage)
+        await ws.receive(timeout=10)
+
+    [program] = runner.programs
+    assert program.argv == ("redis-cli", "-h", "redis", "-p", "6380", "-n", "3")
+    assert dict(program.environment) == {"REDISCLI_AUTH": "secret-password"}
+
+
+async def test_redis_cli_without_a_password_is_given_none(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _Runner()
+    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    connector_id = await _redis(
+        client, normal_user_token_headers, auth_method="no_auth", password=None
+    )
+
+    async with open_socket(TERMINALS) as ws:
+        await ws.send_json(_opening(normal_user_token_headers, connector_id))
+        assert (await ws.receive_json(timeout=10))["type"] == "ready"
+        await ws.receive(timeout=10)
+        await ws.receive(timeout=10)
+
+    [program] = runner.programs
+    assert program.environment == {}
+
+
 async def test_a_server_that_runs_no_containers_says_so(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
@@ -157,16 +223,16 @@ async def test_without_a_runner_there_is_no_console(
     assert frame["code"] == "unsupported"
 
 
+@pytest.mark.parametrize("make", [_mongodb, _redis])
 async def test_a_console_does_not_go_through_a_tunnel(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
+    make: Any,
 ) -> None:
     runner = _Runner()
     monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
-    connector_id = await _mongodb(
-        client, normal_user_token_headers, ssh_tunnel=str(uuid.uuid4())
-    )
+    connector_id = await make(client, normal_user_token_headers, ssh_tunnel=str(uuid.uuid4()))
 
     frame = await _refused(_opening(normal_user_token_headers, connector_id))
 
@@ -174,7 +240,7 @@ async def test_a_console_does_not_go_through_a_tunnel(
     assert runner.programs == []
 
 
-async def test_the_type_offers_a_terminal(
+async def test_the_types_offer_a_terminal(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     types = await client.get(
@@ -182,5 +248,6 @@ async def test_the_type_offers_a_terminal(
     )
 
     assert types.status_code == 200, types.text
-    [mongodb] = [item for item in types.json() if item["name"] == "mongodb"]
-    assert "terminal" in {capability["code"] for capability in mongodb["capabilities"]}
+    for name in ("mongodb", "redis"):
+        [found] = [item for item in types.json() if item["name"] == name]
+        assert "terminal" in {capability["code"] for capability in found["capabilities"]}

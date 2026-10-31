@@ -104,10 +104,21 @@ per database. The owner switches this on in the
 **Sources** window of the **Dashboards** space, and chooses how often. The
 ready-made layout for it is called **Redis server**.
 
+## redis-cli
+
+**Open a terminal** on a Redis connection of your own starts `redis-cli`,
+signed in as the connection and in its database, in the terminal panel. It is
+the real client, with all its commands: `MONITOR`, `SUBSCRIBE`, `MULTI` and the
+rest.
+
+- It runs in a container this server starts for it, so it opens only where the
+  server may start containers. The first one waits while the image is fetched.
+- It reaches the server by the host the connection names; not through an SSH
+  tunnel.
+- Closing the terminal ends it. `quit` ends it too.
+
 ## What Redis does not have here
 
-- There is no command console: Redis takes commands rather than statements, and
-  a console for them would be a shell on the server.
 - A key that expires while its tab is open stays on screen until the tab is
   read again.
 - Values are shown as text. A key that holds a picture shows as unreadable

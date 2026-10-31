@@ -4,7 +4,7 @@ MESSAGES: dict[str, str] = {
     # المصدر ونموذج اتصاله. نوع المفتاح - string و hash و list و set و
     # sorted set و stream - اسم خاص بـ Redis ويبقى لاتينيًا، كما نوع العمود.
     "Redis": "Redis",
-    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, and set or clear an expiry.": "خادم مفتاح-قيمة في الذاكرة. تنقّل بين قواعد بياناته، وتجوّل في فضاء المفاتيح عبر النقطتين في الأسماء، واقرأ ما يحمله مفتاح، واكتب مفتاحًا من أي نوع، واضبط مدة انتهاء أو أزلها.",
+    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, set or clear an expiry, and work in redis-cli in a terminal.": "خادم مفتاح-قيمة في الذاكرة. تنقّل بين قواعد بياناته، وتجوّل في فضاء المفاتيح عبر النقطتين في الأسماء، واقرأ ما يحمله مفتاح، واكتب مفتاحًا من أي نوع، واضبط مدة انتهاء أو أزلها، واعمل في redis-cli داخل طرفية.",
     "Authentication": "المصادقة",
     "Host": "المضيف",
     "Port": "المنفذ",
@@ -134,4 +134,5 @@ MESSAGES: dict[str, str] = {
     "This report cannot be sorted that way": "لا يمكن ترتيب هذا التقرير بهذه الطريقة",
     "INFO is unavailable for this Redis user": "INFO غير متاح لمستخدم Redis هذا",
     "Configuration commands are unavailable on this server": "أوامر الإعداد غير متاحة على هذا الخادم",
+    "A console does not go through an SSH tunnel yet": "لا تمر وحدة التحكم عبر نفق SSH بعد",
 }

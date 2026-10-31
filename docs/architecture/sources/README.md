@@ -58,7 +58,8 @@ actions: a key of each of the six types Redis has, written where the catalog
 is standing and with an optional expiry, then delete, set an expiry and take
 one off. An address is composed and parsed the way PostgreSQL's is. No sorting
 and no filtering, because Redis has no index over values, and no query
-console, because Redis has commands rather than statements. Everything scans;
+console, because Redis has commands rather than statements: they are typed into
+`redis-cli` in a terminal, run in a container (D286). Everything scans;
 nothing runs `KEYS`. A System section leads the catalog with read-only Server
 and Settings reports: a fixed selection from `INFO` and a safe allowlist of
 `CONFIG GET` values (D265).

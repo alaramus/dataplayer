@@ -7,7 +7,7 @@
 MESSAGES: dict[str, str] = {
     # 数据源及其连接表单。
     "Redis": "Redis",
-    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, and set or clear an expiry.": "内存中的键值服务器。可在各数据库之间切换，按名称中的冒号遍历键空间，读取键中的内容，写入任意类型的键，并设置或清除过期时间。",
+    "An in-memory key-value server. Switch between its databases, walk a key space by the colons in the names, read what a key holds, write one of any type, set or clear an expiry, and work in redis-cli in a terminal.": "内存中的键值服务器。可在各数据库之间切换，按名称中的冒号遍历键空间，读取键中的内容，写入任意类型的键，设置或清除过期时间，并在终端中使用 redis-cli。",
     "Authentication": "身份验证",
     "Host": "主机",
     "Port": "端口",
@@ -137,4 +137,5 @@ MESSAGES: dict[str, str] = {
     "This report cannot be sorted that way": "无法使用此条件排序报告",
     "INFO is unavailable for this Redis user": "此 Redis 用户无法使用 INFO",
     "Configuration commands are unavailable on this server": "此服务器不允许使用配置读取命令",
+    "A console does not go through an SSH tunnel yet": "控制台暂不支持通过 SSH 隧道连接",
 }
