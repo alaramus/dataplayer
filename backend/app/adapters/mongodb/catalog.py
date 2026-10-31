@@ -4,10 +4,26 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
-from app.adapters.catalog import CatalogNode, SchemaNode, TableNode, ViewNode
+from app.adapters.catalog import (
+    CatalogNode,
+    ReportNode,
+    SchemaNode,
+    TableNode,
+    ViewNode,
+)
 from app.adapters.content import NodeRepresentation
 from app.adapters.database_ids import database_id, parse, relation_id
 from app.adapters.mongodb.inspection import collection_info, collection_type, statistics
+from app.adapters.mongodb.reports import (
+    REPORTS,
+    SECTION_DESCRIPTION,
+    SECTION_ID,
+    SECTION_TITLE,
+    ServerReport,
+    in_section,
+    is_section,
+    report_for,
+)
 from app.adapters.mongodb.session import MongodbSession
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.words import worded_titles
@@ -27,6 +43,32 @@ OPTIONS_REPRESENTATION = NodeRepresentation(kind="json", title=N_("View the defi
 # Every document whole, a page at a time (D287).
 DOCUMENTS_REPRESENTATION = NodeRepresentation(kind="jsonl", title=N_("View as documents"))
 REPRESENTATIONS = [TABLE_REPRESENTATION, DOCUMENTS_REPRESENTATION, OPTIONS_REPRESENTATION]
+
+
+# A report has no definition of its own; the pipeline it runs answers the
+# same question.
+REPORT_DEFINITION = NodeRepresentation(kind="json", title=N_("View the pipeline"))
+
+
+def section_node() -> ReportNode:
+    """The server's own section of reports, listed after the databases."""
+    return ReportNode(
+        id=SECTION_ID,
+        name=say(SECTION_TITLE),
+        description=say(SECTION_DESCRIPTION),
+        has_children=True,
+        representations=[],
+    )
+
+
+def report_node(report: ServerReport) -> ReportNode:
+    return ReportNode(
+        id=report.node_id,
+        name=say(report.title),
+        description=say(report.description),
+        has_children=False,
+        representations=worded_titles([TABLE_REPRESENTATION, REPORT_DEFINITION]),
+    )
 
 
 def is_system_database(name: str) -> bool:
@@ -104,7 +146,12 @@ class MongodbCatalog:
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
-            return [database_node(name) for name in await self.database_names()]
+            return [*(database_node(name) for name in await self.database_names()), section_node()]
+        if is_section(node_id):
+            return [report_node(report) for report in REPORTS]
+        if in_section(node_id):
+            await self.path_to(node_id)
+            return []
         database, collection = parse(node_id)
         if collection is not None:
             await self.path_to(node_id)
@@ -131,6 +178,13 @@ class MongodbCatalog:
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         """Every node from the root down to node_id, each confirmed on the server."""
+        if is_section(node_id):
+            return [section_node()]
+        if in_section(node_id):
+            report = report_for(node_id)
+            if report is None:
+                raise NodeNotFound(node_id)
+            return [section_node(), report_node(report)]
         database, collection = parse(node_id)
         if database not in await self.database_names():
             raise NodeNotFound(node_id)

@@ -14,12 +14,16 @@ documents. How connections work in general is on the
 - Every document whole, as JSON, a page at a time
 - How many documents a collection holds and how much space it takes
 - mongosh, signed in as the connection, in a terminal
+- Every matching document, downloaded as a file
+- The server's operations, connections, users and roles
 
 ## What you can change
 
 - Documents: edit fields, paste blocks, add and delete documents
 - A field in every document: add, drop, rename, convert to another type
 - Indexes: ascending, descending, hashed, text and geospatial; unique or not
+- Databases and collections: create, rename, move, drop; load a CSV
+- A running operation: stop it from its report
 - Anything mongosh can change, typed into its terminal
 
 ## Connecting
@@ -107,6 +111,21 @@ changes every document at once:
   how many values repeat.
 - A view, a time series and the server's own collections keep their
   structure. A validator is changed in mongosh.
+
+## The catalog's actions and the Server section
+
+- **New database** asks for the name of its first collection too: MongoDB
+  keeps a database only while it holds something.
+- A collection is renamed, moved to another database with its documents and
+  indexes, or dropped. A view can only be dropped.
+- Dropping says first which views read what goes, and how many documents it
+  holds. A database that still holds anything is dropped only when you ask
+  for everything in it to go.
+- **Load from CSV** makes a collection of the file's rows; every value is
+  text, and an empty one is no field.
+- The **Server** section after the databases holds Operations, Connections,
+  Users and Roles. **Stop operation** stops what you picked in Operations.
+- Search finds databases, collections and reports by name, not by field.
 
 ## mongosh
 

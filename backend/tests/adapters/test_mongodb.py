@@ -297,6 +297,7 @@ async def test_a_password_outside_latin1_signs_in() -> None:
             for node in await adapter(
                 user=user, password=SecretStr("пароль-ü"), auth_source=DATABASE
             ).list_children(None)
+            if node.kind == "schema"
         ]
     finally:
         await client[DATABASE].command("dropUser", user)

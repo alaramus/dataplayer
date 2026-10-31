@@ -3,14 +3,14 @@
 What a MongoDB source is, how it reaches the server, what its catalog shows,
 how a collection becomes columns, how its documents cross to the grid and
 how they are changed there, and how a collection's fields and indexes are
-changed. Its
+changed, its reports, search, export and catalog actions. Its
 console is `mongosh` in a terminal, run in a container (D286, in
 [terminals.md](../terminals.md)). The
 contract every source type follows is in [contract.md](contract.md); reading a
 relation in general is in [relations.md](relations.md). Read this before
 changing the `mongodb` adapter.
 
-Decisions here: D283, D284, D285, D287, D288.
+Decisions here: D283, D284, D285, D287, D288, D289, D290.
 
 ## D283. A MongoDB source speaks to one server through pymongo
 
@@ -190,3 +190,51 @@ Known deviations:
   a collection's `$jsonSchema` is changed in `mongosh` (D286).
 
 Spec: [MongoDB structure](../../decisions/2026-10-31-mongodb-structure-design.md)
+
+## D289. Reports are pipelines; names are listed and classed here; every row streams
+
+Four reports sit in a Server section after the databases (D55): Operations
+(`$currentOp`, active ones, refreshed every five seconds), Connections
+(`$currentOp` with idle connections), Users (`admin.system.users`) and Roles
+(`admin.system.roles`). Each is a pipeline written here, with its columns and
+their types written beside it, since a report has no documents to learn them
+from first; the reader's filters, order and page are stages appended after it,
+built as a collection's are (D285). A report's id starts with a backslash,
+which no database id does (D229). Its definition is its pipeline, as JSON. Stop
+operation, on the Operations report, runs `killOp` on the `opid` of each row
+picked, a number checked as one (D70).
+
+MongoDB keeps no catalog to narrow by a word, so a search lists the databases
+and each one's collections by name and classes them by the shared word rule
+(D202), at most twenty thousand names and within the search's clock; reports
+are found by their titles. A kept list (D213) is the same listing, the whole
+server one scope. Collections are not found by their fields: those are read
+from documents (D284).
+
+An export (D45) is the page's query as one `find`, projected to the columns
+asked for and read in batches of five hundred; a report's export is its
+pipeline.
+
+Known deviations:
+
+- A user without `inprog` or read on `admin` sees the Server section and gets
+  the server's refusal when opening a report.
+
+Spec: [MongoDB reports and actions](../../decisions/2026-10-31-mongodb-reports-design.md)
+
+## D290. Databases and collections are made, moved and dropped from the catalog
+
+A database exists once it holds something, so one is made with the name of its
+first collection. A collection is made in a database, renamed and moved to
+another database by `renameCollection`, which takes its documents and indexes
+along; a view is not renamed or moved, as the server refuses. Collections and
+views are dropped together, after a preview that names the views reading what
+is dropped and the documents it holds; a database is dropped only with
+"everything in it" asked for once it holds anything. Names are checked as the
+server checks them: a database's 1 to 63 bytes without spaces, dots or
+`/\"$*<>:|?`; a collection's without `$` and not `system.`; the two together at
+most 255 bytes. A CSV becomes a collection whose values are strings, an empty
+value no field. The model of what is selected is written as code (D73) from
+its fields. The server's own databases and collections offer only that.
+
+Spec: [MongoDB reports and actions](../../decisions/2026-10-31-mongodb-reports-design.md)

@@ -17,6 +17,7 @@ from app.adapters.fetch import (
     InFilter,
     NullFilter,
     ScalarFilter,
+    Sort,
 )
 from app.adapters.mongodb.inspection import CollectionFacts
 from app.adapters.mongodb.relation import MongodbRelation
@@ -103,28 +104,43 @@ def _condition(filter_: Filter, column: FetchColumn, tag: Tag) -> dict[str, Any]
             assert_never(unreachable)
 
 
-def prepare(facts: CollectionFacts, request: FetchRequest) -> PreparedRead:
-    columns, tags = columns_of(facts)
+def query_of(
+    columns: list[FetchColumn],
+    tags: dict[str, Tag],
+    filters: list[Filter],
+    sort: list[Sort],
+    *,
+    stable: tuple[str, ...],
+) -> tuple[dict[str, Any], list[tuple[str, int]]]:
+    """A query document and an order, from a reader's filters and sort.
+
+    Every name is checked against the columns first. `stable` follows the
+    reader's own order, so a page is the same page every time it is read.
+    """
     known = {column.name: column for column in columns}
-    for used in [item.column for item in request.filters] + [item.column for item in request.sort]:
+    for used in [item.column for item in filters] + [item.column for item in sort]:
         if used not in known:
             raise ValueError(say('Relation has no column "{column}"', column=used))
-    for item in request.sort:
+    for item in sort:
         if not known[item.column].sortable:
             raise ValueError(say('Cannot sort column "{column}"', column=item.column))
     clauses = [
         {item.column: _condition(item, known[item.column], tags[item.column])}
-        for item in request.filters
+        for item in filters
     ]
     query: dict[str, Any] = {}
     if len(clauses) == 1:
         query = clauses[0]
     elif clauses:
         query = {"$and": clauses}
-    sort = [(item.column, -1 if item.descending else 1) for item in request.sort]
-    # `_id` last, so a page is the same page every time it is read.
-    if "_id" in known and all(name != "_id" for name, _ in sort):
-        sort.append(("_id", 1))
+    order = [(item.column, -1 if item.descending else 1) for item in sort]
+    order += [(name, 1) for name in stable if name in known and all(name != used for used, _ in order)]
+    return query, order
+
+
+def prepare(facts: CollectionFacts, request: FetchRequest) -> PreparedRead:
+    columns, tags = columns_of(facts)
+    query, sort = query_of(columns, tags, request.filters, request.sort, stable=("_id",))
     return PreparedRead(facts=facts, columns=columns, tags=tags, query=query, sort=sort)
 
 

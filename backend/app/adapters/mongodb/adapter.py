@@ -1,6 +1,7 @@
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
+from app.adapters.actions import Action, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
@@ -12,6 +13,7 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
@@ -20,12 +22,18 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
+from app.adapters.mongodb.actions import MONGODB_ACTION_TYPES, MongodbActions
 from app.adapters.mongodb.catalog import MongodbCatalog
 from app.adapters.mongodb.console import console_program
 from app.adapters.mongodb.content import MongodbContent
+from app.adapters.mongodb.export import MongodbExport
 from app.adapters.mongodb.fetch import MongodbFetch
 from app.adapters.mongodb.options import MongodbOptions
 from app.adapters.mongodb.relation import MongodbRelation
+from app.adapters.mongodb.report_pages import report_page
+from app.adapters.mongodb.reports import in_section, report_for
+from app.adapters.mongodb.row_commands import MongodbRowCommands
+from app.adapters.mongodb.search import MongodbSearch
 from app.adapters.mongodb.session import (
     MongodbSession,
     compose_url,
@@ -39,6 +47,16 @@ from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.resources import Pooling
+from app.adapters.row_commands import RowCommand, RowCommandResult
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
@@ -55,7 +73,7 @@ from app.adapters.update import (
     UpdateCellsResult,
 )
 from app.core.schemas import get_datetime_utc
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 
 def _as_text(value: Any) -> str:
@@ -108,6 +126,10 @@ class MongodbAdapter:
         self._content = MongodbContent(self._session, self._relation)
         self._update = MongodbUpdate(self._session, self._relation)
         self._structure = MongodbStructure(self._session, self._relation)
+        self._export = MongodbExport(self._session, self._fetch)
+        self._row_commands = MongodbRowCommands(self._session)
+        self._search = MongodbSearch(self._session, self._catalog)
+        self._actions = MongodbActions(self._session, self._catalog)
         self._summaries = MongodbSummaries(self._relation)
 
     @classmethod
@@ -158,7 +180,52 @@ class MongodbAdapter:
         return await self._catalog.path_to(node_id)
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
+        report = report_for(request.node_id)
+        if report is not None:
+            return await report_page(self._session, report, request)
+        if in_section(request.node_id):
+            raise ValueError(
+                say('"{node_id}" is not a report of this source', node_id=request.node_id)
+            )
         return await self._fetch.fetch(request)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        return self._export.export_rows(request)
+
+    def row_commands(self, node_id: str) -> list[RowCommand]:
+        return self._row_commands.for_node(node_id)
+
+    async def run_row_command(
+        self, node_id: str, name: str, keys: Sequence[str]
+    ) -> RowCommandResult:
+        """Stop an operation from its report (D289)."""
+        return await self._row_commands.run(node_id, name, keys)
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names are a listing per database; fields are not searched (D289)."""
+        return "cheap" if field == "names" else "costly"
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return MONGODB_ACTION_TYPES
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return await self._actions.available(node_id)
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.action(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return await self._actions.all_actions()
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)
