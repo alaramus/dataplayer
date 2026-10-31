@@ -90,6 +90,13 @@ from app.adapters.content import (
     UpdateContentRequest,
 )
 from app.adapters.credentials import PinsServerKey, ServerKey
+from app.adapters.documents import (
+    DocumentChanged,
+    DocumentChangeRequest,
+    DocumentsPage,
+    DocumentsRequest,
+    SupportsDocuments,
+)
 from app.adapters.export import ExportRequest
 from app.adapters.features import SourceFeatures, SupportsSourceFeatures
 from app.adapters.fetch import (
@@ -1576,6 +1583,81 @@ def _exporting_adapter(adapter: object) -> SupportsExport:
     if not isinstance(adapter, SupportsExport):
         raise Problem(501, "connectors.no_export_all", error_kind="config")
     return adapter
+
+
+@router.post("/{connector_id}/documents", response_model=DocumentsPage)
+async def read_documents(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: DocumentsRequest,
+) -> Any:
+    """
+    Read a page of whole documents under the grid's own filters and order (D295).
+
+    Not cached: a page here is opened to be edited, and an edit must start from
+    the document as it is.
+    """
+    source = await resolve_source(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    adapter, access = source.adapter, source.access
+    if not isinstance(adapter, SupportsDocuments):
+        raise Problem(501, "connectors.no_reading_rows", error_kind="config")
+    try:
+        page = await adapter.read_documents(request)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+    if not at_least(access, "write"):
+        return page.model_copy(
+            update={
+                "change_supported": False,
+                "change_reason": say("You have read-only access to this connection"),
+            }
+        )
+    return page
+
+
+@router.patch("/{connector_id}/documents", response_model=DocumentChanged)
+async def change_document(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: DocumentChangeRequest,
+) -> Any:
+    """Change the fields of one document that differ, if it is still the one read (D295)."""
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="write"
+    )
+    if not isinstance(adapter, SupportsDocuments):
+        raise Problem(501, "connectors.no_row_editing", error_kind="config")
+    try:
+        return await _invalidate_after(
+            lambda: adapter.change_document(request), data_cache, connector_id
+        )
+    except RowConflict:
+        raise Problem(409, "connectors.row_changed") from None
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
 
 
 @router.patch("/{connector_id}/rows/cell", response_model=UpdateCellResult)

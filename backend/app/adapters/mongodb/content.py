@@ -10,27 +10,19 @@ from typing import Any
 
 from app.adapters import jsontext
 from app.adapters.content import ContentRequest, ContentResult, JsonContent, json_tree
-from app.adapters.mongodb.documents import read_documents
 from app.adapters.mongodb.relation import MongodbRelation
 from app.adapters.mongodb.reports import report_for
-from app.adapters.mongodb.session import MongodbSession
 from app.adapters.mongodb.values import relaxed_json
 from app.core.translation import say
 
 
 class MongodbContent:
-    def __init__(self, session: MongodbSession, relation: MongodbRelation) -> None:
-        self._session = session
+    def __init__(self, relation: MongodbRelation) -> None:
         self._relation = relation
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
-        if request.representation == "jsonl":
-            facts = await self._relation.facts(request.node_id, structure=False)
-            return await read_documents(
-                self._session, facts, limit=request.limit, offset=request.offset
-            )
         report = report_for(request.node_id)
-        if report is not None and request.representation == "json":
+        if report is not None and request.representation == "tree":
             # What the report runs, as it is written here.
             source = {
                 "database": report.database,
@@ -38,7 +30,7 @@ class MongodbContent:
                 "pipeline": list(report.pipeline),
             }
             return JsonContent(value=json_tree(jsontext.load(relaxed_json(source))))
-        if request.representation != "json":
+        if request.representation != "tree":
             raise ValueError(
                 say(
                     'This MongoDB source does not offer the "{representation}" content representation',

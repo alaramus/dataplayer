@@ -97,7 +97,12 @@ connection is checked, with its version named.
   A block of new documents goes in whole or not at all.
 - A view, a time series and the server's own collections are not changed
   here; a time series takes new documents.
-- **View as documents** shows every document whole, every level of it.
+- **View as documents** shows the documents the table shows, with its
+  filters and order, each as a tree you open level by level, with every
+  value's BSON type. **Edit as JSON** opens one as text; saving writes only the
+  fields you changed, so values you did not touch keep their type.
+- The documents tab also opens the collection's definition: its options,
+  validator and indexes.
 
 ## Structure
 

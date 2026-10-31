@@ -23,9 +23,14 @@ RepresentationKind = Literal[
     "pdf",
     "sql",
     "database",
+    # A JSON value drawn as a tree, read only: a source's own description of
+    # a node, where `json` is a file's text to edit (D295).
+    "tree",
+    # A relation's rows read as whole documents, a page at a time (D295).
+    "documents",
 ]
 ContentRepresentationKind = Literal[
-    "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf", "sql", "database"
+    "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf", "sql", "database", "tree"
 ]
 # The representations whose bytes a client reads through the ranged transport
 # of D52 rather than holding whole.

@@ -39,15 +39,15 @@ MAX_COUNTED = 200
 TABLE_REPRESENTATION = NodeRepresentation(kind="table", title=N_("View as table"))
 # A collection has no DDL; its options, validator, indexes and a view's
 # pipeline answer the same question (D55), as the JSON they are.
-OPTIONS_REPRESENTATION = NodeRepresentation(kind="json", title=N_("View the definition"))
+OPTIONS_REPRESENTATION = NodeRepresentation(kind="tree", title=N_("View the definition"))
 # Every document whole, a page at a time (D287).
-DOCUMENTS_REPRESENTATION = NodeRepresentation(kind="jsonl", title=N_("View as documents"))
+DOCUMENTS_REPRESENTATION = NodeRepresentation(kind="documents", title=N_("View as documents"))
 REPRESENTATIONS = [TABLE_REPRESENTATION, DOCUMENTS_REPRESENTATION, OPTIONS_REPRESENTATION]
 
 
 # A report has no definition of its own; the pipeline it runs answers the
 # same question.
-REPORT_DEFINITION = NodeRepresentation(kind="json", title=N_("View the pipeline"))
+REPORT_DEFINITION = NodeRepresentation(kind="tree", title=N_("View the pipeline"))
 
 
 def section_node() -> ReportNode:

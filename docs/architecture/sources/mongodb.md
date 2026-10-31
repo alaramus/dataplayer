@@ -51,7 +51,7 @@ in is not listed beside it: it is read through the series.
 
 A collection has no DDL. Its definition is what `listCollections` says of it —
 type, options with the validator, a view's source and pipeline — and its
-indexes, offered as the `json` representation.
+indexes, offered as the read-only `tree` representation (D295).
 
 MongoDB 5.0 and later; the check refuses an older one with its version named.
 
@@ -147,9 +147,8 @@ A view's documents come from its pipeline and are not changed; a time series
 takes new documents and changes none; the server's own collections take
 nothing.
 
-A collection is also offered as its documents whole (`jsonl`, "View as
-documents"): a page of documents by `_id` as relaxed Extended JSON trees, one
-past 256 KB shown as the beginning of its text.
+A collection is also offered as its documents whole ("View as documents"),
+read and edited as JSON field by field (D295, in [content.md](content.md)).
 
 Known deviations:
 

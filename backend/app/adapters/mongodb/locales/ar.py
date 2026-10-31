@@ -97,4 +97,8 @@ MESSAGES: dict[str, str] = {
     "Two documents share a value a unique index allows once": "يشترك مستندان في قيمة لا يسمح بها الفهرس الفريد إلا مرة واحدة",
     "only collections are copied with their documents": "تُنسخ المجموعات فقط مع مستنداتها",
     "{schema}: {tables} collections": "{schema}: {tables} مجموعات",
+    "A document is a JSON object": "المستند كائن JSON",
+    "A field set needs a value": "يحتاج الحقل المعيَّن إلى قيمة",
+    "That is not valid JSON": "هذا ليس JSON صالحًا",
+    "Two changes touch the same field": "يمسّ تغييران الحقل نفسه",
 }

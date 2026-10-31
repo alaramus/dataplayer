@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 import pytest
 from bson import Decimal128, Int64, ObjectId
 
-from app.adapters.content import ContentRequest, JsonLinesContent, JsonObject
 from app.adapters.database_ids import relation_id
 from app.adapters.fetch import FetchRequest, ScalarFilter
 from app.adapters.mongodb.rows import (
@@ -335,28 +334,3 @@ async def test_a_view_takes_no_document() -> None:
                 node_id=relation_id(DATABASE, "adults"), values=[InsertValue(column="name", value="x")]
             )
         )
-
-
-# --- Documents whole ------------------------------------------------------------
-
-
-@pytest.mark.usefixtures("server")
-async def test_documents_are_read_whole_as_json_lines() -> None:
-    content = await adapter().read_content(
-        ContentRequest(node_id=NUMBERS, representation="jsonl", limit=10, offset=240)
-    )
-
-    assert isinstance(content, JsonLinesContent)
-    assert [item.line_number for item in content.items] == list(range(241, 251))
-    assert not content.has_more
-    first = content.items[0].value
-    assert isinstance(first, JsonObject)
-    assert [entry.name for entry in first.entries] == ["_id", "n", "label"]
-
-    people = await adapter().read_content(ContentRequest(node_id=PEOPLE, representation="jsonl"))
-    assert isinstance(people, JsonLinesContent)
-    ann = people.items[0].value
-    assert isinstance(ann, JsonObject)
-    born = next(entry.value for entry in ann.entries if entry.name == "born")
-    assert isinstance(born, JsonObject)
-    assert born.entries[0].name == "$date"

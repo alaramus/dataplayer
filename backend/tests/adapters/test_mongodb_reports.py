@@ -106,7 +106,7 @@ async def test_a_running_operation_is_listed_and_stopped() -> None:
 @pytest.mark.usefixtures("server")
 async def test_a_report_s_pipeline_is_its_definition() -> None:
     content = await adapter().read_content(
-        ContentRequest(node_id=f"{SECTION_ID}/operations", representation="json")
+        ContentRequest(node_id=f"{SECTION_ID}/operations", representation="tree")
     )
 
     assert isinstance(content, JsonContent)

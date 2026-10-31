@@ -14,6 +14,12 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.documents import (
+    DocumentChanged,
+    DocumentChangeRequest,
+    DocumentsPage,
+    DocumentsRequest,
+)
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
@@ -29,6 +35,7 @@ from app.adapters.mongodb.backup import MongodbBackup
 from app.adapters.mongodb.catalog import MongodbCatalog
 from app.adapters.mongodb.console import console_program
 from app.adapters.mongodb.content import MongodbContent
+from app.adapters.mongodb.documents import MongodbDocuments
 from app.adapters.mongodb.export import MongodbExport
 from app.adapters.mongodb.fetch import MongodbFetch
 from app.adapters.mongodb.metrics import PRESETS as METRIC_PRESETS
@@ -143,7 +150,8 @@ class MongodbAdapter:
         self._catalog = MongodbCatalog(self._session)
         self._relation = MongodbRelation(self._session)
         self._fetch = MongodbFetch(self._session, self._relation)
-        self._content = MongodbContent(self._session, self._relation)
+        self._content = MongodbContent(self._relation)
+        self._documents = MongodbDocuments(self._session, self._relation, self._fetch)
         self._update = MongodbUpdate(self._session, self._relation)
         self._structure = MongodbStructure(self._session, self._relation)
         self._export = MongodbExport(self._session, self._fetch)
@@ -319,6 +327,13 @@ class MongodbAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    async def read_documents(self, request: DocumentsRequest) -> DocumentsPage:
+        return await self._documents.read_documents(request)
+
+    async def change_document(self, request: DocumentChangeRequest) -> DocumentChanged:
+        """The fields that differ, if the document is still the one read (D295)."""
+        return await self._documents.change_document(request)
 
     async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
         """One field of one document, if it is still the document read (D287)."""

@@ -97,4 +97,8 @@ MESSAGES: dict[str, str] = {
     "Two documents share a value a unique index allows once": "两个文档共用了唯一索引只允许出现一次的值",
     "only collections are copied with their documents": "只有集合会连同文档一起复制",
     "{schema}: {tables} collections": "{schema}：{tables} 个集合",
+    "A document is a JSON object": "文档必须是 JSON 对象",
+    "A field set needs a value": "设置字段需要一个值",
+    "That is not valid JSON": "这不是有效的 JSON",
+    "Two changes touch the same field": "两处更改涉及同一字段",
 }

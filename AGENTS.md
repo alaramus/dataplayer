@@ -45,7 +45,7 @@ documentation.
 | Copying rows between sources, pasting into another connection, copying tables with their structure, a transfer job, loading a file in, exporting every row | [sources/transfer.md](docs/architecture/sources/transfer.md) |
 | A reference somebody drew by hand between two columns or two sources, a table declared over Redis keys | [sources/declared.md](docs/architecture/sources/declared.md) |
 | Columns, indexes, constraints, renaming a node | [sources/ddl.md](docs/architecture/sources/ddl.md) |
-| Opening a node as anything but rows: documents, media, archives | [sources/content.md](docs/architecture/sources/content.md) |
+| Opening a node as anything but rows: documents, media, archives, a source's JSON as a tree, rows read and changed as whole documents | [sources/content.md](docs/architecture/sources/content.md) |
 | Actions and action previews | [sources/actions.md](docs/architecture/sources/actions.md) |
 | Downloads, what a download asks first, reports a source publishes | [sources/downloads.md](docs/architecture/sources/downloads.md) |
 | A share link, what it opens, an access request | [sharing.md](docs/architecture/sharing.md) |
@@ -95,7 +95,7 @@ file; `D247–D262` is every number between, all in that file.
 | [grid](docs/architecture/grid.md) | D24, D28, D35, D67, D111, D116 |
 | [sources/ddl](docs/architecture/sources/ddl.md) | D27, D29, D30, D32, D37–D40, D117 |
 | [sources/transfer](docs/architecture/sources/transfer.md) | D43–D45, D161, D163–D166, D168, D169, D171, D182 |
-| [sources/content](docs/architecture/sources/content.md) | D47, D48, D51–D53, D57, D71 |
+| [sources/content](docs/architecture/sources/content.md) | D47, D48, D51–D53, D57, D71, D295 |
 | [sources/downloads](docs/architecture/sources/downloads.md) | D49, D55, D73 |
 | [sharing](docs/architecture/sharing.md) | D58–D61 |
 | [querying](docs/architecture/querying.md) | D62–D66, D160, D206 |

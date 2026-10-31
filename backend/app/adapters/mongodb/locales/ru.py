@@ -97,4 +97,8 @@ MESSAGES: dict[str, str] = {
     "Two documents share a value a unique index allows once": "Два документа имеют значение, которое уникальный индекс допускает лишь однажды",
     "only collections are copied with their documents": "с документами копируются только коллекции",
     "{schema}: {tables} collections": "{schema}: коллекций — {tables}",
+    "A document is a JSON object": "Документ — это объект JSON",
+    "A field set needs a value": "Для записи поля нужно значение",
+    "That is not valid JSON": "Это не корректный JSON",
+    "Two changes touch the same field": "Два изменения затрагивают одно поле",
 }

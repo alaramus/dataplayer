@@ -75,6 +75,8 @@ export const CONTENT_REPRESENTATIONS = [
   "pdf",
   "sql",
   "database",
+  "tree",
+  "documents",
 ] as const
 export type ContentRepresentation = (typeof CONTENT_REPRESENTATIONS)[number]
 
@@ -343,6 +345,14 @@ const DatabasePanelView = defineAsyncComponent(
 )
 const PdfPanelView = defineAsyncComponent(
   () => import("@/features/content/PdfPanel.vue")
+)
+// A source's own JSON, read only, and a collection's documents (D295): not a
+// file's text, so not the editor a file's JSON opens in.
+const TreePanelView = defineAsyncComponent(
+  () => import("@/features/content/TreePanel.vue")
+)
+const DocumentsPanelView = defineAsyncComponent(
+  () => import("@/features/content/DocumentsPanel.vue")
 )
 
 const SearchTabView = defineAsyncComponent(
@@ -725,6 +735,28 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
             connectorId: panel.connectorId,
             nodeId: panel.nodeId,
             title: panel.title,
+          })
+        )
+      }
+      if (representation === "tree" || representation === "documents") {
+        if (representation === "tree") {
+          return bind(key, () =>
+            h(TreePanelView, {
+              panelId: panel.id,
+              connectorId: panel.connectorId,
+              nodeId: panel.nodeId,
+              title: panel.title,
+            })
+          )
+        }
+        return bind(key, () =>
+          h(DocumentsPanelView, {
+            panelId: panel.id,
+            connectorId: panel.connectorId,
+            nodeId: panel.nodeId,
+            title: panel.title,
+            connectorName: panel.connectorName,
+            adapterType: panel.adapterType,
           })
         )
       }

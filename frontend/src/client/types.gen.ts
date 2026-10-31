@@ -2737,6 +2737,7 @@ export type ContentRequest = {
     | "pdf"
     | "sql"
     | "database"
+    | "tree"
   /**
    * Limit
    */
@@ -4283,6 +4284,153 @@ export type DirectoryNode = {
 }
 
 /**
+ * DocumentChangeRequest
+ */
+export type DocumentChangeRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Row Handle
+   */
+  row_handle: string
+  /**
+   * Change
+   */
+  change:
+    | ({
+        kind: "document"
+      } & DocumentText)
+    | ({
+        kind: "fields"
+      } & FieldChanges)
+}
+
+/**
+ * DocumentChanged
+ */
+export type DocumentChanged = {
+  /**
+   * Changed
+   */
+  changed: number
+  item: DocumentItem
+}
+
+/**
+ * DocumentItem
+ */
+export type DocumentItem = {
+  /**
+   * Row Handle
+   */
+  row_handle?: string | null
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Value
+   */
+  value?:
+    | ({
+        kind: "boolean" | "null" | "number" | "string"
+      } & JsonScalar)
+    | ({
+        kind: "array"
+      } & JsonArray)
+    | ({
+        kind: "object"
+      } & JsonObject)
+    | null
+  /**
+   * Truncated
+   */
+  truncated?: boolean
+}
+
+/**
+ * DocumentText
+ *
+ * The whole document as edited; the source changes the fields that differ.
+ */
+export type DocumentText = {
+  /**
+   * Kind
+   */
+  kind?: "document"
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * DocumentsPage
+ */
+export type DocumentsPage = {
+  /**
+   * Items
+   */
+  items: Array<DocumentItem>
+  /**
+   * Has More
+   */
+  has_more: boolean
+  /**
+   * Offset
+   */
+  offset: number
+  /**
+   * Change Supported
+   */
+  change_supported?: boolean
+  /**
+   * Change Reason
+   */
+  change_reason?: string | null
+}
+
+/**
+ * DocumentsRequest
+ *
+ * A page of documents, as `FetchRequest` names a page of rows.
+ */
+export type DocumentsRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Limit
+   */
+  limit?: number
+  /**
+   * Offset
+   */
+  offset?: number
+  /**
+   * Filters
+   */
+  filters?: Array<
+    | ({
+        op: "contains" | "eq" | "gt" | "gte" | "lt" | "lte" | "ne" | "starts_with"
+      } & ScalarFilter)
+    | ({
+        op: "in"
+      } & InFilter)
+    | ({
+        op: "is_not_null" | "is_null"
+      } & NullFilter)
+  >
+  /**
+   * Sort
+   */
+  sort?: Array<Sort>
+}
+
+/**
  * DownloadActionTargets
  *
  * The non-empty selection one download action receives, and its form.
@@ -5116,6 +5264,43 @@ export type FetchResult = {
    * Picked Rows Actions
    */
   picked_rows_actions?: Array<PickedRowsAction>
+}
+
+/**
+ * FieldChange
+ *
+ * One field of a document set to a value, or removed.
+ *
+ * A path rather than a dotted name: a key may hold a dot, and only the
+ * source knows whether such a key can be addressed.
+ */
+export type FieldChange = {
+  /**
+   * Path
+   */
+  path: Array<string>
+  /**
+   * Op
+   */
+  op: "set" | "unset"
+  /**
+   * Value
+   */
+  value?: string | null
+}
+
+/**
+ * FieldChanges
+ */
+export type FieldChanges = {
+  /**
+   * Kind
+   */
+  kind?: "fields"
+  /**
+   * Changes
+   */
+  changes: Array<FieldChange>
 }
 
 /**
@@ -7851,6 +8036,8 @@ export type NodeRepresentation = {
     | "pdf"
     | "sql"
     | "database"
+    | "tree"
+    | "documents"
   /**
    * Title
    */
@@ -16441,6 +16628,70 @@ export type connectorsKeepAllRowsResponses = {
 
 export type connectorsKeepAllRowsResponse =
   connectorsKeepAllRowsResponses[keyof connectorsKeepAllRowsResponses]
+
+export type connectorsChangeDocumentData = {
+  body: DocumentChangeRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/documents"
+}
+
+export type connectorsChangeDocumentErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsChangeDocumentError =
+  connectorsChangeDocumentErrors[keyof connectorsChangeDocumentErrors]
+
+export type connectorsChangeDocumentResponses = {
+  /**
+   * Successful Response
+   */
+  200: DocumentChanged
+}
+
+export type connectorsChangeDocumentResponse =
+  connectorsChangeDocumentResponses[keyof connectorsChangeDocumentResponses]
+
+export type connectorsReadDocumentsData = {
+  body: DocumentsRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/documents"
+}
+
+export type connectorsReadDocumentsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsReadDocumentsError =
+  connectorsReadDocumentsErrors[keyof connectorsReadDocumentsErrors]
+
+export type connectorsReadDocumentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: DocumentsPage
+}
+
+export type connectorsReadDocumentsResponse =
+  connectorsReadDocumentsResponses[keyof connectorsReadDocumentsResponses]
 
 export type connectorsUpdateCellData = {
   body: UpdateCellRequest

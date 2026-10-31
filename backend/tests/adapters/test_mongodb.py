@@ -355,7 +355,7 @@ async def test_a_database_lists_collections_and_views() -> None:
     assert people.term == "collection"
     assert people.row_count_estimate == 3
     assert people.describable and people.summarizable
-    assert [item.kind for item in people.representations] == ["table", "jsonl", "json"]
+    assert [item.kind for item in people.representations] == ["table", "documents", "tree"]
     assert isinstance(by_name["adults"], ViewNode)
     assert by_name[DOTTED].id == relation_id(DATABASE, DOTTED)
 
@@ -587,7 +587,7 @@ async def test_the_summary_counts_the_model() -> None:
 @pytest.mark.usefixtures("server")
 async def test_the_definition_is_what_the_server_keeps() -> None:
     content = await adapter().read_content(
-        ContentRequest(node_id=relation_id(DATABASE, "books"), representation="json")
+        ContentRequest(node_id=relation_id(DATABASE, "books"), representation="tree")
     )
 
     assert isinstance(content, JsonContent)

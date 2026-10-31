@@ -216,6 +216,8 @@ export const REPRESENTATION_ICONS: Record<NodeRepresentation["kind"], string> = 
   pdf: "picture_as_pdf",
   sql: "code",
   database: "storage",
+  tree: "account_tree",
+  documents: "data_object",
 }
 
 /**

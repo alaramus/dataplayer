@@ -4,7 +4,7 @@ For adding a way to open a node that is not a page of rows — a document, an
 image, a recording, a container walked into. Rows are
 [relations.md](relations.md).
 
-Decisions here: D47, D48, D52, D51, D53, D71, D57.
+Decisions here: D47, D48, D52, D51, D53, D71, D57, D295.
 
 ## D47. A node declares its ordered representations
 
@@ -410,3 +410,43 @@ Known deviations:
   silently picking the first forever.
 
 Spec: [PostgreSQL relation DDL](../../decisions/2026-08-31-postgres-relation-ddl-design.md)
+
+## D295. A source's JSON is a read-only tree, and documents are read and changed whole
+
+D48 makes `json` a file's text, opened in the editor that saves it. A source
+that describes a node in JSON of its own, or whose rows are documents, has no
+file behind either, and the editor answered it with "this source does not
+support editing content". So two kinds were added beside it:
+
+- **`tree`** — a JSON value drawn as a tree, read only, from `read_content`
+  as a `JsonContent`. A one-field object named by `$` is relaxed Extended
+  JSON's way of writing a BSON value (`{"$oid": …}`, `{"$date": …}`) and is
+  drawn as that value with its type, the way `mongosh` and Compass show it.
+  MongoDB's collection definition and a report's pipeline are `tree`.
+- **`documents`** — a relation's rows read as whole documents, a page at a
+  time, through `SupportsDocuments` rather than `read_content`:
+  `POST /connectors/{id}/documents` takes a `FetchRequest`'s node, filters,
+  order and page, and answers each document as its text and its tree with the
+  handle a grid row has (D287). The panel reads the filters and order the grid
+  over the same node was left with, so the two show the same documents. Not
+  cached: a page here is opened to be edited.
+- **A change is field by field.** `PATCH /connectors/{id}/documents` takes the
+  handle and either the whole edited text or a list of paths to set or remove;
+  the source compares the text with the document as stored and writes only
+  what differs, descending into objects, under the conflict check of D287.
+  A value nobody touched is never written back, so a type JSON cannot spell —
+  an `Int64` read back as a bare number — survives an edit beside it. `_id`
+  is never changed. A tree that edits one field sends the same list later;
+  the route already takes it.
+
+A document too large to draw (256 KB of text) shows its beginning and is not
+edited. The documents panel opens the `tree` of the same node, since the
+grid offers only one content alternative (D57).
+
+Known deviations:
+
+- **Editing is of the text only.** A field cannot yet be changed in the tree
+  itself, though the route takes such a change.
+- **A paste of many documents is not offered here;** the grid's paste is.
+
+Spec: [MongoDB documents as documents](../../decisions/2026-10-31-mongodb-document-viewer-design.md)

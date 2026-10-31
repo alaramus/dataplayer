@@ -3,7 +3,13 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { ContentRequest, EditorContentRequest, UpdateContentRequest } from "@/client"
+import type {
+  ContentRequest,
+  DocumentChangeRequest,
+  DocumentsRequest,
+  EditorContentRequest,
+  UpdateContentRequest,
+} from "@/client"
 
 export const contentKey = (connectorId: string, request: ContentRequest) =>
   ["content", connectorId, request] as const
@@ -78,6 +84,44 @@ export function useUpdateContent(connectorId: Ref<string>) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["editor-content", connectorId.value] }),
         queryClient.invalidateQueries({ queryKey: ["content", connectorId.value] }),
+        queryClient.invalidateQueries({ queryKey: ["rows", connectorId.value] }),
+      ])
+    },
+  })
+}
+
+export const documentsKey = (connectorId: string, request: DocumentsRequest) =>
+  ["documents", connectorId, request] as const
+
+/** A page of whole documents, under the grid's own filters and order (D295). */
+export function useDocuments(connectorId: Ref<string>, request: Readonly<Ref<DocumentsRequest>>) {
+  return useQuery({
+    queryKey: computed(() => documentsKey(connectorId.value, request.value)),
+    queryFn: async ({ signal }) =>
+      (
+        await ConnectorsService.readDocuments({
+          path: { connector_id: connectorId.value },
+          body: request.value,
+          signal,
+        })
+      ).data,
+  })
+}
+
+export function useChangeDocument(connectorId: Ref<string>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: DocumentChangeRequest) =>
+      (
+        await ConnectorsService.changeDocument({
+          path: { connector_id: connectorId.value },
+          body,
+        })
+      ).data,
+    // A changed document is a changed row of the grid over the same collection.
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["documents", connectorId.value] }),
         queryClient.invalidateQueries({ queryKey: ["rows", connectorId.value] }),
       ])
     },

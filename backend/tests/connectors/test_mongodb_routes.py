@@ -5,6 +5,7 @@ the same server reached the way the catalog, the grid and the details panel
 reach it, its client kept and its answers cached as they are.
 """
 
+import json
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -83,7 +84,7 @@ async def test_a_connection_is_checked_browsed_read_and_described(
     assert model["columns"][0]["name"] == "_id"
     summary = await get("node-summary", node_id=PEOPLE)
     assert summary["contents"]["schema_name"] == DATABASE
-    definition = await post("content", {"node_id": PEOPLE, "representation": "json"})
+    definition = await post("content", {"node_id": PEOPLE, "representation": "tree"})
     assert definition["kind"] == "json"
     features = await get("features")
     assert features["server_version"].startswith("MongoDB ")
@@ -139,3 +140,43 @@ async def test_a_field_is_edited_and_a_document_deleted_through_the_routes(
     )
     assert deleted.status_code == 200, deleted.text
     assert deleted.json()["deleted"] == 1
+
+
+@pytest.mark.usefixtures("server")
+async def test_a_document_is_read_whole_and_changed_through_the_routes(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Read as a page of documents, changed by its edited text (D295)."""
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers)
+    numbers = relation_id(DATABASE, "numbers")
+
+    page = await client.post(
+        f"{BASE}/{connector}/documents", headers=headers, json={"node_id": numbers, "limit": 1, "offset": 5}
+    )
+    assert page.status_code == 200, page.text
+    [item] = page.json()["items"]
+    assert page.json()["change_supported"] is True
+
+    edited = json.dumps({**json.loads(item["text"]), "label": "five"})
+    changed = await client.patch(
+        f"{BASE}/{connector}/documents",
+        headers=headers,
+        json={
+            "node_id": numbers,
+            "row_handle": item["row_handle"],
+            "change": {"kind": "document", "text": edited},
+        },
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["changed"] == 1
+    stale = await client.patch(
+        f"{BASE}/{connector}/documents",
+        headers=headers,
+        json={
+            "node_id": numbers,
+            "row_handle": item["row_handle"],
+            "change": {"kind": "document", "text": edited},
+        },
+    )
+    assert stale.status_code == 409, stale.text

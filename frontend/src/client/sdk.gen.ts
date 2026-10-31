@@ -138,6 +138,9 @@ import type {
   connectorsChangeColumnTypeData,
   connectorsChangeColumnTypeErrors,
   connectorsChangeColumnTypeResponses,
+  connectorsChangeDocumentData,
+  connectorsChangeDocumentErrors,
+  connectorsChangeDocumentResponses,
   connectorsCheckConnectorData,
   connectorsCheckConnectorErrors,
   connectorsCheckConnectorResponses,
@@ -267,6 +270,9 @@ import type {
   connectorsReadContentData,
   connectorsReadContentErrors,
   connectorsReadContentResponses,
+  connectorsReadDocumentsData,
+  connectorsReadDocumentsErrors,
+  connectorsReadDocumentsResponses,
   connectorsReadEditorContentData,
   connectorsReadEditorContentErrors,
   connectorsReadEditorContentResponses,
@@ -1912,6 +1918,57 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/downloads/export/keep",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Change Document
+   *
+   * Change the fields of one document that differ, if it is still the one read (D295).
+   */
+  public static changeDocument<ThrowOnError extends boolean = true>(
+    options: Options<connectorsChangeDocumentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      connectorsChangeDocumentResponses,
+      connectorsChangeDocumentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/documents",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Documents
+   *
+   * Read a page of whole documents under the grid's own filters and order (D295).
+   *
+   * Not cached: a page here is opened to be edited, and an edit must start from
+   * the document as it is.
+   */
+  public static readDocuments<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadDocumentsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsReadDocumentsResponses,
+      connectorsReadDocumentsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/documents",
       ...options,
       headers: {
         "Content-Type": "application/json",

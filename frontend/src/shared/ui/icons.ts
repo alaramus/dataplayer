@@ -52,6 +52,7 @@ export const appIcons = {
   duplicate: "tab_duplicate",
   downloadForOffline: "download_for_offline",
   edit: "edit",
+  expandMore: "keyboard_arrow_down",
   enterFullscreen: "fullscreen",
   exitFullscreen: "fullscreen_exit",
   filterAlt: "filter_alt",
