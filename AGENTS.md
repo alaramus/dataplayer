@@ -34,7 +34,7 @@ documentation.
 | MySQL and MariaDB, their catalog, values, pages, row and structure edits, console, reports, search, catalog actions, copying tables, backups, metrics | [sources/mysql.md](docs/architecture/sources/mysql.md) |
 | SQLite, the file it opens and how, its catalog, what is read from a table's text, values, pages, row edits, structure changes, the table designer, reports, search, catalog actions and console | [sources/sqlite.md](docs/architecture/sources/sqlite.md) |
 | ClickHouse, its HTTP interface, its catalog, values, pages, row edits, structure changes, the table designer, reports, search, export, catalog actions and console | [sources/clickhouse.md](docs/architecture/sources/clickhouse.md) |
-| ZooKeeper, the server it reaches, its znode tree, a znode's data, stat, ACL and children | [sources/zookeeper.md](docs/architecture/sources/zookeeper.md) |
+| ZooKeeper, the server it reaches, its znode tree, a znode's data, stat, ACL and children, zkCli | [sources/zookeeper.md](docs/architecture/sources/zookeeper.md) |
 | MongoDB, the server it reaches, its catalog, its query console, how a collection becomes columns, how documents are read and changed, fields and indexes, reports, search, export, catalog actions, copying collections, backups, metrics, its service and lab | [sources/mongodb.md](docs/architecture/sources/mongodb.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
@@ -125,7 +125,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/sqlite](docs/architecture/sources/sqlite.md) | D247–D263 |
 | [sources/clickhouse](docs/architecture/sources/clickhouse.md) | D267–D280 |
 | [sources/mongodb](docs/architecture/sources/mongodb.md) | D283–D285, D287–D294, D296 |
-| [sources/zookeeper](docs/architecture/sources/zookeeper.md) | D297, D298 |
+| [sources/zookeeper](docs/architecture/sources/zookeeper.md) | D297–D299 |
 
 ## Working rules
 

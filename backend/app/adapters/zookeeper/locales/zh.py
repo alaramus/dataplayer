@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "ZooKeeper": "ZooKeeper",
-    "A ZooKeeper server. Walk its znode tree, read a znode's data as text or as JSON with its stat and ACL, edit the data against the version read, and page through a znode's children as rows.": "ZooKeeper 服务器。浏览 znode 树，以文本或 JSON 读取 znode 的数据及其 stat 和 ACL，按读取时的版本编辑数据，并以行的形式分页查看 znode 的子节点。",
+    "A ZooKeeper server. Walk its znode tree, read a znode's data as text or as JSON with its stat and ACL, edit the data against the version read, page through a znode's children as rows, and work in zkCli in a terminal.": "ZooKeeper 服务器。浏览 znode 树，以文本或 JSON 读取 znode 的数据及其 stat 和 ACL，按读取时的版本编辑数据，以行的形式分页查看 znode 的子节点，并在终端中使用 zkCli。",
     "Anonymous": "匿名",
     "Digest": "Digest",
     "Root path": "根路径",
@@ -28,4 +28,5 @@ MESSAGES: dict[str, str] = {
     "The data is not JSON": "数据不是 JSON",
     "The data is not UTF-8 text, so it is shown as hex": "数据不是 UTF-8 文本，因此以十六进制显示",
     "The data is not UTF-8 text, so it is shown as hex and not edited here": "数据不是 UTF-8 文本，因此以十六进制显示，且不能在此编辑",
+    "zkCli is not signed in. To read znodes with a digest ACL, type: addauth digest {user}:<password>": "zkCli 尚未认证。要读取带 digest ACL 的 znode，请输入：addauth digest {user}:<密码>",
 }

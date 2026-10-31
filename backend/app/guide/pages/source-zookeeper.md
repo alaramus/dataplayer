@@ -11,10 +11,12 @@ connections work in general is on the [Connections](connections.md) page.
 - A znode's stat: versions, zxids, children, the session of an ephemeral one
 - A znode's ACL: who may read, write, create, delete and administer it
 - A znode's children as rows, a page at a time
+- zkCli, connected to the server and root path, in a terminal
 
 ## What you can change
 
 - A znode's data, written whole against the version you read
+- Anything zkCli can change, typed into its terminal
 
 ## Connecting
 
@@ -72,9 +74,21 @@ Select a znode in the tree and choose **Details** in the catalog's menu.
 - The session an ephemeral znode belongs to.
 - One line per entry of its ACL: the scheme, the id, and what it may do.
 
+## zkCli
+
+**Terminal** on a ZooKeeper connection opens `zkCli`, the client that comes
+with ZooKeeper, connected to the server and the root path of the connection.
+It runs in a container the server starts, so the server must be allowed to
+run containers, and it does not go through an SSH tunnel.
+
+zkCli cannot be given a digest password when it starts: it only takes one
+typed as a command. On a connection with a **Digest** user the terminal opens
+connected but not signed in, and the first line says so. Type
+`addauth digest user:password` to read and change znodes whose ACL needs that
+user. The password is not filled in for you and is never shown by DataPlayer.
+
 ## What ZooKeeper does not have here yet
 
 - Creating and deleting znodes and changing an ACL
-- zkCli in a terminal
 - The server's reports and metrics
 - Watching a znode for changes: refresh by hand

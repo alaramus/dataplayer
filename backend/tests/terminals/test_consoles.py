@@ -130,6 +130,29 @@ async def _postgres(client: AsyncClient, headers: dict[str, str], **options: Any
     return str(created.json()["id"])
 
 
+async def _zookeeper(client: AsyncClient, headers: dict[str, str], **options: Any) -> str:
+    given = {
+        "auth_method": "digest",
+        "host": "zookeeper",
+        "port": 2181,
+        "chroot": "/apps",
+        "user": "ann",
+        "password": "secret-password",
+        **options,
+    }
+    created = await client.post(
+        f"{CONNECTORS}/",
+        headers=headers,
+        json={
+            "name": f"zookeeper {uuid.uuid4().hex[:8]}",
+            "adapter_type": "zookeeper",
+            "options": {key: value for key, value in given.items() if value is not None},
+        },
+    )
+    assert created.status_code == 200, created.text
+    return str(created.json()["id"])
+
+
 def _opening(headers: dict[str, str], connector_id: str) -> dict[str, Any]:
     return {
         "type": "open",
@@ -241,6 +264,56 @@ async def test_psql_runs_signed_in_and_without_its_password_in_the_arguments(
     assert dict(program.environment) == {"PGPASSWORD": "secret-password"}
 
 
+async def _program_of(
+    headers: dict[str, str], connector_id: str, runner: _Runner
+) -> ConsoleProgram:
+    async with open_socket(TERMINALS) as ws:
+        await ws.send_json(_opening(headers, connector_id))
+        assert (await ws.receive_json(timeout=10))["type"] == "ready"
+        await ws.receive(timeout=10)
+        await ws.receive(timeout=10)
+    [program] = runner.programs
+    return program
+
+
+async def test_zkcli_runs_at_the_root_path_and_says_how_to_sign_in(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _Runner()
+    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    connector_id = await _zookeeper(client, normal_user_token_headers)
+
+    program = await _program_of(normal_user_token_headers, connector_id, runner)
+
+    assert program.image.startswith("zookeeper:")
+    assert program.argv[:2] == ("sh", "-c")
+    assert "zkCli.sh -server" in program.argv[2]
+    assert program.environment["ZK_SERVER"] == "zookeeper:2181/apps"
+    # zkCli takes a digest identity only as `addauth`: the note says how, and
+    # the password is nowhere (D299).
+    assert "addauth digest ann:" in program.environment["ZK_NOTE"]
+    assert "secret-password" not in repr(program.argv) + repr(dict(program.environment))
+
+
+async def test_zkcli_for_an_anonymous_connection_has_no_note(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _Runner()
+    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    connector_id = await _zookeeper(
+        client, normal_user_token_headers, auth_method="anonymous", user=None, password=None
+    )
+
+    program = await _program_of(normal_user_token_headers, connector_id, runner)
+
+    assert set(program.environment) == {"ZK_SERVER", "CLIENT_JVMFLAGS"}
+    assert program.environment["ZK_SERVER"] == "zookeeper:2181/apps"
+
+
 async def test_a_server_that_runs_no_containers_says_so(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
@@ -269,7 +342,7 @@ async def test_without_a_runner_there_is_no_console(
     assert frame["code"] == "unsupported"
 
 
-@pytest.mark.parametrize("make", [_mongodb, _redis, _postgres])
+@pytest.mark.parametrize("make", [_mongodb, _redis, _postgres, _zookeeper])
 async def test_a_console_does_not_go_through_a_tunnel(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
@@ -294,6 +367,6 @@ async def test_the_types_offer_a_terminal(
     )
 
     assert types.status_code == 200, types.text
-    for name in ("mongodb", "redis", "postgres"):
+    for name in ("mongodb", "redis", "postgres", "zookeeper"):
         [found] = [item for item in types.json() if item["name"] == name]
         assert "terminal" in {capability["code"] for capability in found["capabilities"]}

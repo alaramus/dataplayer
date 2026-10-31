@@ -21,8 +21,10 @@ from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, register
 from app.adapters.summary import NodeSummary
+from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
 from app.adapters.zookeeper.children import ZookeeperChildren
+from app.adapters.zookeeper.console import console_program
 from app.adapters.zookeeper.data import ZookeeperData
 from app.adapters.zookeeper.options import ZookeeperOptions
 from app.adapters.zookeeper.session import (
@@ -128,6 +130,10 @@ class ZookeeperAdapter:
         """The whole data, if the znode is still at the version read (D298)."""
         return await self._data.update_content(request)
 
+    async def console_program(self) -> ConsoleProgram:
+        """zkCli, connected to this server and root path, in a container (D299)."""
+        return console_program(self._session.options)
+
 
 @register(
     name="zookeeper",
@@ -140,7 +146,8 @@ class ZookeeperAdapter:
     description=N_(
         "A ZooKeeper server. Walk its znode tree, read a znode's data as text "
         "or as JSON with its stat and ACL, edit the data against the version "
-        "read, and page through a znode's children as rows."
+        "read, page through a znode's children as rows, and work in zkCli in a "
+        "terminal."
     ),
     options_schema=ZookeeperOptions,
     adapter_class=ZookeeperAdapter,

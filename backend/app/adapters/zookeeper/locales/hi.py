@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "ZooKeeper": "ZooKeeper",
-    "A ZooKeeper server. Walk its znode tree, read a znode's data as text or as JSON with its stat and ACL, edit the data against the version read, and page through a znode's children as rows.": "एक ZooKeeper सर्वर। उसके znode ट्री में घूमें, किसी znode का डेटा उसके stat और ACL के साथ टेक्स्ट या JSON के रूप में पढ़ें, पढ़े गए संस्करण के आधार पर डेटा संपादित करें, और किसी znode के चाइल्ड को पंक्तियों के रूप में पृष्ठ-दर-पृष्ठ देखें।",
+    "A ZooKeeper server. Walk its znode tree, read a znode's data as text or as JSON with its stat and ACL, edit the data against the version read, page through a znode's children as rows, and work in zkCli in a terminal.": "एक ZooKeeper सर्वर। उसके znode ट्री में घूमें, किसी znode का डेटा उसके stat और ACL के साथ टेक्स्ट या JSON के रूप में पढ़ें, पढ़े गए संस्करण के आधार पर डेटा संपादित करें, किसी znode के चाइल्ड को पंक्तियों के रूप में पृष्ठ-दर-पृष्ठ देखें, और टर्मिनल में zkCli में काम करें।",
     "Anonymous": "अनाम",
     "Digest": "Digest",
     "Root path": "रूट पथ",
@@ -28,4 +28,5 @@ MESSAGES: dict[str, str] = {
     "The data is not JSON": "डेटा JSON नहीं है",
     "The data is not UTF-8 text, so it is shown as hex": "डेटा UTF-8 टेक्स्ट नहीं है, इसलिए हेक्स में दिखाया गया है",
     "The data is not UTF-8 text, so it is shown as hex and not edited here": "डेटा UTF-8 टेक्स्ट नहीं है, इसलिए हेक्स में दिखाया गया है और यहाँ संपादित नहीं होता",
+    "zkCli is not signed in. To read znodes with a digest ACL, type: addauth digest {user}:<password>": "zkCli साइन इन नहीं है। digest ACL वाले znode पढ़ने के लिए टाइप करें: addauth digest {user}:<पासवर्ड>",
 }

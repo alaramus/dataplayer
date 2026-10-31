@@ -2,10 +2,11 @@
 
 What a ZooKeeper source is, how it reaches the server, what its catalog shows
 of the znode tree, and how a znode's data, stat, ACL and children are read and
-its data written. The contract every source type follows is in
+its data written, and zkCli in a terminal (D299, run as D286 says in
+[terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `zookeeper` adapter.
 
-Decisions here: D297, D298.
+Decisions here: D297, D298, D299.
 
 ## D297. A ZooKeeper source speaks to one server through kazoo, a session per operation
 
@@ -91,3 +92,31 @@ Known deviations:
 - Nothing is watched: what is shown is what was read, refreshed by hand.
 
 Spec: [2026-10-31-zookeeper-source-design.md](../../decisions/2026-10-31-zookeeper-source-design.md)
+
+## D299. zkCli is the terminal, opened anonymous with a note for a digest connection
+
+A ZooKeeper connection's terminal is `zkCli.sh` from the `zookeeper:3.9`
+image, run as D286 runs a client program: on the service network, not through
+an SSH tunnel. It connects to the host, port and root path of the connection,
+which reach the shell in `ZK_SERVER` and are expanded in double quotes, never
+read as shell syntax.
+
+zkCli takes a digest identity only as the interactive `addauth digest`; it has
+no environment variable, argument or configuration for one. So a digest
+connection's zkCli opens connected and anonymous, with one line above it,
+from `ZK_NOTE`, naming the user and saying to type `addauth digest
+user:<password>`. The password is in neither the environment nor the
+arguments, and is never printed.
+
+Rejected, with the user: typing `addauth` into zkCli from a wrapper around it.
+The echo would print the password unless the output were filtered, and the
+wrapper would stand between the terminal and zkCli, so a resize would not reach
+it. Also rejected: no terminal at all for a digest connection.
+
+Known deviations:
+
+- A digest connection's zkCli is not signed in until `addauth` is typed.
+- zkCli runs a JLine prompt of its own; its history lives and dies with the
+  container.
+
+Spec: [2026-10-31-zookeeper-console-design.md](../../decisions/2026-10-31-zookeeper-console-design.md)

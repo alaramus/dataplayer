@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "ZooKeeper": "ZooKeeper",
-    "A ZooKeeper server. Walk its znode tree, read a znode's data as text or as JSON with its stat and ACL, edit the data against the version read, and page through a znode's children as rows.": "Un servidor ZooKeeper. Recorrer su árbol de znodes, leer los datos de un znode como texto o como JSON con su stat y su ACL, editar los datos frente a la versión leída y recorrer por páginas los hijos de un znode como filas.",
+    "A ZooKeeper server. Walk its znode tree, read a znode's data as text or as JSON with its stat and ACL, edit the data against the version read, page through a znode's children as rows, and work in zkCli in a terminal.": "Un servidor ZooKeeper. Recorrer su árbol de znodes, leer los datos de un znode como texto o como JSON con su stat y su ACL, editar los datos frente a la versión leída, recorrer por páginas los hijos de un znode como filas y trabajar en zkCli en un terminal.",
     "Anonymous": "Anónimo",
     "Digest": "Digest",
     "Root path": "Ruta raíz",
@@ -28,4 +28,5 @@ MESSAGES: dict[str, str] = {
     "The data is not JSON": "Los datos no son JSON",
     "The data is not UTF-8 text, so it is shown as hex": "Los datos no son texto UTF-8, así que se muestran en hexadecimal",
     "The data is not UTF-8 text, so it is shown as hex and not edited here": "Los datos no son texto UTF-8, así que se muestran en hexadecimal y no se editan aquí",
+    "zkCli is not signed in. To read znodes with a digest ACL, type: addauth digest {user}:<password>": "zkCli no ha iniciado sesión. Para leer znodes con una ACL digest, escriba: addauth digest {user}:<contraseña>",
 }

@@ -159,7 +159,8 @@ measured from serverStatus (D293), and a server started here with a lab
 thread pool, under an optional root path (D297): the znode tree expanded in
 place, a znode opened for its data as JSON or text with its stat and ACL beside
 it and walked into for its children, its data edited against the version read,
-its children as rows in name order (D298).
+its children as rows in name order (D298). zkCli in a terminal, opened
+anonymous with a note on `addauth` for a digest connection (D299).
 
 ## Where the code is
 
