@@ -185,8 +185,8 @@ starts it. `pytest --require-services` stops the run instead, as CI does. Redis
 is `docker compose up -d redis` — not `redis-cache`, which publishes no port;
 MySQL and MariaDB are `docker compose up -d mysql mariadb`, ClickHouse is
 `docker compose up -d clickhouse`, MongoDB is `docker compose up -d mongodb`.
-The scenario that provisions the Timescale
-`docker compose -f backend/compatibility/timescale/compose.yml up -d v2_30_pg18`
+The Timescale compatibility scenario needs
+`docker compose -f backend/compatibility/timescale/compose.yml up -d v2_30_pg18`.
 See [backend.md](docs/architecture/backend.md#tests-and-the-servers-they-need).
 
 Frontend checks, from `frontend/`:

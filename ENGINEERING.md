@@ -34,9 +34,10 @@ violated by the time a check was added.
 - Application assembly happens in one place per surface (`api/main.py`);
   dependencies are passed in rather than reached for through module globals.
 
-**Enforced:** `uv run lint-imports` — three contracts in `backend/.importlinter`:
-layer order, `core` importing nothing from the application, and the driver SDK
-staying inside its adapter. All three were checked by introducing a violation.
+**Enforced:** `uv run lint-imports` — the contracts in `backend/.importlinter`:
+layer order, `core` importing nothing from the application, and each driver or
+SDK staying inside the adapter or module that owns it. The first three were
+checked by introducing a violation.
 
 ## Types
 
@@ -168,7 +169,7 @@ and a download ticket are masked in both log formats, a traceback included
 - `src/client` is generated from OpenAPI and never edited by hand. After
   changing routes or schemas, run `bash scripts/generate-client.sh`.
 - Pure logic is separated from components so it can be tested without mounting:
-  `jsonSchema.ts`, `treeNodes.ts`, `rows.ts` are plain functions.
+  `jsonSchema.ts`, `attention.ts`, `rows.ts` are plain functions.
 - Elements are found in tests the way a user finds them — by role, text or
   `data-testid` — not by CSS classes and not by snapshots.
 
