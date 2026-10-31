@@ -192,6 +192,13 @@ au-dessus d'une table en lance une sur cette table.
 - L'éditeur complète les noms de schémas, de tables et de colonnes.
 - Chaque exécution est conservée dans l'historique de la requête.
 
+## psql
+
+**Ouvrir un terminal** sur une connexion PostgreSQL à vous lance `psql`,
+connecté comme la connexion et dans sa base de données, dans un conteneur que
+ce serveur démarre ; pas à travers un tunnel SSH. Fermer le terminal ou `\q`
+l'arrête.
+
 ## Rapports
 
 **Système** dans le catalogue contient six rapports sur le serveur. Ils se lisent

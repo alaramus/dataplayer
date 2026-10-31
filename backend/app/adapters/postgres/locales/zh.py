@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # 数据源及其连接表单。
     "PostgreSQL": "PostgreSQL",
-    "Relational database. Browse schemas, tables and views, and read rows a page at a time with sorting and filtering done by the server.": "关系型数据库。可浏览模式、表和视图，按页读取行，排序和筛选由服务器完成。",
+    "Relational database. Browse schemas, tables and views, read rows a page at a time with sorting and filtering done by the server, and work in psql in a terminal.": "关系型数据库。可浏览模式、表和视图，按页读取行，排序和筛选由服务器完成，并可在终端中使用 psql。",
     "Host": "主机",
     "Port": "端口",
     "Database": "数据库",
@@ -582,4 +582,5 @@ MESSAGES: dict[str, str] = {
     "a temporary table lives only in its own session": "临时表仅存在于其自身的会话中",
     # The table designer's engine.
     'A PostgreSQL table is kept one way here; there is no engine to choose': '此处的 PostgreSQL 表只有一种存储方式，无需选择引擎',
+    "A console does not go through an SSH tunnel yet": "控制台暂不支持通过 SSH 隧道连接",
 }

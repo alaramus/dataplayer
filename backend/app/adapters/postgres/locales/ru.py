@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "PostgreSQL": "PostgreSQL",
-    "Relational database. Browse schemas, tables and views, and read rows a page at a time with sorting and filtering done by the server.": "Реляционная база данных. Просмотр схем, таблиц и представлений, чтение строк постранично с сортировкой и фильтрацией на сервере.",
+    "Relational database. Browse schemas, tables and views, read rows a page at a time with sorting and filtering done by the server, and work in psql in a terminal.": "Реляционная база данных. Просмотр схем, таблиц и представлений, чтение строк постранично с сортировкой и фильтрацией на сервере и работа в psql в терминале.",
     "Host": "Хост",
     "Port": "Порт",
     "Database": "База данных",
@@ -582,4 +582,5 @@ MESSAGES: dict[str, str] = {
     "a temporary table lives only in its own session": "временная таблица живёт только в своём сеансе",
     # The table designer's engine.
     'A PostgreSQL table is kept one way here; there is no engine to choose': 'Таблица PostgreSQL хранится здесь одним способом; движок выбрать нельзя',
+    "A console does not go through an SSH tunnel yet": "Консоль пока не работает через SSH-туннель",
 }

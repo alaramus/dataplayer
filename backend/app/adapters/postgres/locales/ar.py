@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # المصدر ونموذج اتصاله.
     "PostgreSQL": "PostgreSQL",
-    "Relational database. Browse schemas, tables and views, and read rows a page at a time with sorting and filtering done by the server.": "قاعدة بيانات علائقية. تصفّح المخططات والجداول والعروض، واقرأ الصفوف صفحة بصفحة مع قيام الخادم بالفرز والتصفية.",
+    "Relational database. Browse schemas, tables and views, read rows a page at a time with sorting and filtering done by the server, and work in psql in a terminal.": "قاعدة بيانات علائقية. تصفّح المخططات والجداول والعروض، واقرأ الصفوف صفحة بصفحة مع قيام الخادم بالفرز والتصفية، واعمل في psql داخل طرفية.",
     "Host": "المضيف",
     "Port": "المنفذ",
     "Database": "قاعدة البيانات",
@@ -582,4 +582,5 @@ MESSAGES: dict[str, str] = {
     "a temporary table lives only in its own session": "الجدول المؤقت يعيش في جلسته فقط",
     # The table designer's engine.
     'A PostgreSQL table is kept one way here; there is no engine to choose': 'يُحفظ جدول PostgreSQL هنا بطريقة واحدة؛ ولا يوجد محرك للاختيار',
+    "A console does not go through an SSH tunnel yet": "لا تمر وحدة التحكم عبر نفق SSH بعد",
 }

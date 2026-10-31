@@ -1,9 +1,9 @@
 """A source whose terminal is a client program run by the server (D286).
 
 The runtime is played by a runner that records what it was asked to run and
-answers with a terminal of its own; the programs a MongoDB and a Redis
-connection ask for are checked here as well, since they reach no server until
-they are run.
+answers with a terminal of its own; the programs a MongoDB, a Redis and a
+PostgreSQL connection ask for are checked here as well, since they reach no
+server until they are run.
 """
 
 import uuid
@@ -108,6 +108,28 @@ async def _redis(client: AsyncClient, headers: dict[str, str], **options: Any) -
     return str(created.json()["id"])
 
 
+async def _postgres(client: AsyncClient, headers: dict[str, str], **options: Any) -> str:
+    created = await client.post(
+        f"{CONNECTORS}/",
+        headers=headers,
+        json={
+            "name": f"postgres {uuid.uuid4().hex[:8]}",
+            "adapter_type": "postgres",
+            "options": {
+                "auth_method": "user_password",
+                "host": "db",
+                "port": 5433,
+                "database": "shop",
+                "user": "ann",
+                "password": "secret-password",
+                **options,
+            },
+        },
+    )
+    assert created.status_code == 200, created.text
+    return str(created.json()["id"])
+
+
 def _opening(headers: dict[str, str], connector_id: str) -> dict[str, Any]:
     return {
         "type": "open",
@@ -195,6 +217,30 @@ async def test_redis_cli_without_a_password_is_given_none(
     assert program.environment == {}
 
 
+async def test_psql_runs_signed_in_and_without_its_password_in_the_arguments(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _Runner()
+    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    connector_id = await _postgres(client, normal_user_token_headers)
+
+    async with open_socket(TERMINALS) as ws:
+        await ws.send_json(_opening(normal_user_token_headers, connector_id))
+        assert (await ws.receive_json(timeout=10))["type"] == "ready"
+        await ws.receive(timeout=10)
+        await ws.receive(timeout=10)
+
+    [program] = runner.programs
+    assert program.argv[0] == "psql"
+    [conninfo] = program.argv[1:]
+    for part in ("host=db", "port=5433", "dbname=shop", "user=ann"):
+        assert part in conninfo
+    assert "secret-password" not in conninfo
+    assert dict(program.environment) == {"PGPASSWORD": "secret-password"}
+
+
 async def test_a_server_that_runs_no_containers_says_so(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
@@ -223,7 +269,7 @@ async def test_without_a_runner_there_is_no_console(
     assert frame["code"] == "unsupported"
 
 
-@pytest.mark.parametrize("make", [_mongodb, _redis])
+@pytest.mark.parametrize("make", [_mongodb, _redis, _postgres])
 async def test_a_console_does_not_go_through_a_tunnel(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
@@ -248,6 +294,6 @@ async def test_the_types_offer_a_terminal(
     )
 
     assert types.status_code == 200, types.text
-    for name in ("mongodb", "redis"):
+    for name in ("mongodb", "redis", "postgres"):
         [found] = [item for item in types.json() if item["name"] == name]
         assert "terminal" in {capability["code"] for capability in found["capabilities"]}

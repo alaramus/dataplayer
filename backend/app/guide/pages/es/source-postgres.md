@@ -182,6 +182,12 @@ consulta** sobre una tabla inicia una en esa tabla.
 - El editor completa nombres de esquemas, tablas y columnas.
 - Cada ejecución se conserva en el historial de la consulta.
 
+## psql
+
+**Abrir un terminal** en una conexión PostgreSQL tuya inicia `psql`, con la
+sesión de la conexión y en su base de datos, en un contenedor que inicia este
+servidor; no a través de un túnel SSH. Cerrar el terminal o `\q` lo termina.
+
 ## Informes
 
 **Sistema** en el catálogo contiene seis informes sobre el servidor. Se leen como

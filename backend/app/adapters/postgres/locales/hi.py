@@ -3,7 +3,7 @@
 MESSAGES: dict[str, str] = {
     # स्रोत और उसका कनेक्शन फ़ॉर्म।
     "PostgreSQL": "PostgreSQL",
-    "Relational database. Browse schemas, tables and views, and read rows a page at a time with sorting and filtering done by the server.": "संबंधपरक डेटाबेस। स्कीमा, टेबल और व्यू ब्राउज़ करें, और पंक्तियाँ एक-एक पृष्ठ में पढ़ें; सॉर्टिंग और फ़िल्टरिंग सर्वर करता है।",
+    "Relational database. Browse schemas, tables and views, read rows a page at a time with sorting and filtering done by the server, and work in psql in a terminal.": "संबंधपरक डेटाबेस। स्कीमा, टेबल और व्यू ब्राउज़ करें, पंक्तियाँ एक-एक पृष्ठ में पढ़ें; सॉर्टिंग और फ़िल्टरिंग सर्वर करता है; और टर्मिनल में psql में काम करें।",
     "Host": "होस्ट",
     "Port": "पोर्ट",
     "Database": "डेटाबेस",
@@ -582,4 +582,5 @@ MESSAGES: dict[str, str] = {
     "a temporary table lives only in its own session": "अस्थायी टेबल केवल अपने सत्र में रहती है",
     # The table designer's engine.
     'A PostgreSQL table is kept one way here; there is no engine to choose': 'यहाँ PostgreSQL तालिका एक ही तरह रखी जाती है; चुनने को कोई इंजन नहीं',
+    "A console does not go through an SSH tunnel yet": "कंसोल अभी SSH टनल से होकर नहीं चलता",
 }

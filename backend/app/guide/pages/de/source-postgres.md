@@ -193,6 +193,14 @@ einer Tabelle startet eine auf dieser Tabelle.
 - Der Editor vervollständigt Schema-, Tabellen- und Spaltennamen.
 - Jede Ausführung wird im Verlauf der Abfrage behalten.
 
+## psql
+
+**Terminal öffnen** auf einer eigenen PostgreSQL-Verbindung startet `psql`,
+angemeldet wie die Verbindung und in ihrer Datenbank. Es läuft in einem
+Container, den dieser Server dafür startet, und nur dort, wo er Container
+starten darf; nicht über einen SSH-Tunnel. Das Schließen des Terminals oder
+`\q` beendet es.
+
 ## Berichte
 
 **System** im Katalog enthält sechs Berichte über den Server. Sie werden wie

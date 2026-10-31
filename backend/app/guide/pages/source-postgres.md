@@ -172,6 +172,18 @@ that table.
 - The editor completes schema, table and column names.
 - Every run is kept in the query's history.
 
+## psql
+
+**Open a terminal** on a PostgreSQL connection of your own starts `psql`,
+signed in as the connection and in its database, in the terminal panel. It is
+the real client, with its meta-commands: `\d`, `\watch`, `\x` and the rest.
+
+- It runs in a container this server starts for it, so it opens only where the
+  server may start containers. The first one waits while the image is fetched.
+- It reaches the server by the host the connection names; not through an SSH
+  tunnel.
+- Closing the terminal ends it. `\q` ends it too.
+
 ## Reports
 
 **System** in the catalog holds six reports about the server. They are read

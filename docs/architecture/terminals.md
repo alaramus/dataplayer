@@ -13,6 +13,7 @@ backend/app/
 │   │                      ConsoleProgram, SupportsConsoleProgram
 │   ├── ssh/terminal.py    the login shell of the account, in a pty on the server
 │   ├── mongodb/console.py mongosh, signed in from its environment
+│   ├── postgres/console.py psql, its password in PGPASSWORD
 │   └── redis/console.py   redis-cli, its password in REDISCLI_AUTH
 ├── services/consoles.py   a program in a container, attached as a terminal
 └── terminals/
@@ -37,8 +38,10 @@ frontend/src/features/terminals/
 WS     /api/v1/terminals
 ```
 
-SSH has a shell; MongoDB has `mongosh` and Redis has `redis-cli`, client
-programs the server runs in a container (D286). A terminal on personal storage was asked for and postponed;
+SSH has a shell; MongoDB has `mongosh`, Redis `redis-cli` and PostgreSQL
+`psql`, client programs the server runs in a container (D286). MySQL, MariaDB
+and ClickHouse have none, by choice: each would need a second client or a port
+the connection does not know, and their query console covers what is typed. A terminal on personal storage was asked for and postponed;
 it would be a second driver implementing `SupportsTerminal`, and nothing above
 the adapter would change.
 
@@ -118,7 +121,7 @@ Spec: [A terminal on an SSH connection](../decisions/2026-09-19-terminal-design.
 ## D286. A source's client program is a terminal too, run in a container
 
 A source whose console is a client program rather than a login — MongoDB's
-`mongosh`, Redis's `redis-cli` — says what to run, and the server runs it the way it runs a backup
+`mongosh`, Redis's `redis-cli`, PostgreSQL's `psql` — says what to run, and the server runs it the way it runs a backup
 (D87): `SupportsConsoleProgram` answers with an image, an argv and an
 environment, and the socket hands that to a `ConsoleRunner`, which the
 application wires to its container engine at start-up (`app.state.
@@ -137,7 +140,8 @@ sees the same `terminal` capability and the same frames as for SSH.
   rule. `mongosh` starts with `--nodb` and makes its connection from an address
   in its environment, which it then deletes; `redis-cli` reads its password
   from `REDISCLI_AUTH` itself, and is given the host, port and database
-  number as arguments.
+  number as arguments; `psql` reads `PGPASSWORD`, as `pg_dump` does, and is
+  given a connection string without it.
 - **On the service network**, so the program reaches the host the connection
   names as a backup does; not through an SSH tunnel (D282), whose end is a port
   on this process's loopback.

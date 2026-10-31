@@ -44,6 +44,7 @@ from app.adapters.postgres.actions import (
 from app.adapters.postgres.backup import PostgresBackup
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
+from app.adapters.postgres.console import console_program
 from app.adapters.postgres.constraints import PostgresConstraints
 from app.adapters.postgres.content import PostgresContent
 from app.adapters.postgres.explain import PostgresExplain
@@ -140,6 +141,7 @@ from app.adapters.table_design import (
     TablePlan,
     TablePlanRequest,
 )
+from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -218,6 +220,7 @@ class PostgresAdapter:
             self._session, self._catalog, self._relation
         )
         self._backup = PostgresBackup(self._session, options)
+        self._options = options
         self._samples = PostgresSamples(self._session)
         self._table_copy = PostgresTableCopy(self._session, self._relations)
 
@@ -251,6 +254,10 @@ class PostgresAdapter:
     async def backup_program(self, *, into: str) -> BackupProgram:
         """What copies this server out, in the version that can (D87)."""
         return await self._backup.backup_program(into=into)
+
+    async def console_program(self) -> ConsoleProgram:
+        """psql, signed in as this connection, in a container (D286)."""
+        return console_program(self._session, self._options)
 
     async def restore_program(self, *, from_file: str) -> BackupProgram:
         return await self._backup.restore_program(from_file=from_file)
@@ -553,8 +560,9 @@ class PostgresAdapter:
     title=N_("PostgreSQL"),
     category="sql",
     description=N_(
-        "Relational database. Browse schemas, tables and views, and read "
-        "rows a page at a time with sorting and filtering done by the server."
+        "Relational database. Browse schemas, tables and views, read rows a "
+        "page at a time with sorting and filtering done by the server, and "
+        "work in psql in a terminal."
     ),
     options_schema=PostgresOptions,
     adapter_class=PostgresAdapter,
