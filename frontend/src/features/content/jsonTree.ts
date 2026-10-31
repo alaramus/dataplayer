@@ -84,8 +84,10 @@ export function scalarOf(value: JsonValue): TreeScalar | null {
     case "string":
       return { type: "string", text: JSON.stringify(value.value ?? ""), tone: "string" }
     case "array":
-      return null
+      // Nothing to open: drawn as what it is.
+      return value.items.length === 0 ? { type: "array", text: "[ ]", tone: "word" } : null
     case "object":
+      if (value.entries.length === 0) return { type: "object", text: "{ }", tone: "word" }
       return typedScalar(value)
   }
 }

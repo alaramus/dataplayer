@@ -39,6 +39,11 @@ describe("a value of a JSON tree", () => {
     expect(scalarOf({ kind: "null", value: null })?.tone).toBe("word")
   })
 
+  it("draws an empty object or array as itself, with nothing to open", () => {
+    expect(scalarOf(object({}))?.text).toBe("{ }")
+    expect(scalarOf({ kind: "array", items: [] })?.text).toBe("[ ]")
+  })
+
   it("names an array's children by position and says how much is closed inside", () => {
     const array: JsonValue = { kind: "array", items: [text("a"), text("b")] }
 

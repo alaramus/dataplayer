@@ -46,10 +46,14 @@ useReloadable(() => props.panelId, async () => {
   <div class="tree-panel">
     <div class="tree-panel__head">
       <span class="tree-panel__kind">{{ t("content.tree.kind") }}</span>
-      <PanelCommands
-        :panel-id="panelId"
-        :reveal="{ connectorId, nodeId, label: title }"
-      />
+      <!-- One block, so the head puts it at the end as the other panels do;
+           the commands are several elements, each a flex item of their own. -->
+      <div class="tree-panel__commands">
+        <PanelCommands
+          :panel-id="panelId"
+          :reveal="{ connectorId, nodeId, label: title }"
+        />
+      </div>
     </div>
     <SourceErrorBanner
       v-if="error"
@@ -94,6 +98,11 @@ useReloadable(() => props.panelId, async () => {
 .tree-panel__kind {
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-xs);
+}
+.tree-panel__commands {
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-half);
 }
 .tree-panel__body {
   flex: 1;
