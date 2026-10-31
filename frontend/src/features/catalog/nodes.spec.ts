@@ -9,6 +9,8 @@ import {
   MATERIALIZED_VIEW_ICON,
   REPORT_SECTION_ICON,
   TIMESCALE_ICON,
+  ZNODE_BRANCH_ICON,
+  ZNODE_LOCKED_ICON,
   groupTitle,
   groupsOf,
   levelPath,
@@ -177,6 +179,54 @@ describe("a key-value database", () => {
     expect(groupTitle(toListNodes([shop]))).toBe("Databases")
     expect(callsDatabases([shop])).toBe(true)
     expect(callsDatabases([{ ...shop, term: "schema" as const }])).toBe(false)
+  })
+})
+
+describe("a ZooKeeper znode (D298)", () => {
+  const znode = (over: Partial<Extract<CatalogNode, { kind: "znode" }>> = {}) =>
+    ({
+      kind: "znode" as const,
+      id: "/app/config",
+      name: "config",
+      has_children: false,
+      representations: [{ kind: "text" as const, title: "Edit the data" }],
+      data_length: 2048,
+      children: 0,
+      ...over,
+    })
+
+  it("opens for its data and holds its children as well", () => {
+    const withChildren = znode({ has_children: true, children: 3 })
+
+    expect(roleOf(withChildren)).toBe("leaf")
+    expect(first(toListNodes([withChildren])).holdsNodes).toBe(true)
+  })
+
+  it("says how much data it holds and how many children", () => {
+    expect(first(toListNodes([znode()])).caption).toBe("2.0 KB")
+    expect(
+      first(toListNodes([znode({ data_length: 0, children: 1, has_children: true })])).caption
+    ).toBe("1 child")
+    expect(first(toListNodes([znode({ ephemeral: true, children: 2 })])).caption).toBe(
+      "2.0 KB · 2 children · ephemeral"
+    )
+  })
+
+  it("is drawn as a branch with no data, and locked when it cannot be read", () => {
+    expect(first(toListNodes([znode()])).icon).toBe(ICONS.znode)
+    expect(
+      first(toListNodes([znode({ data_length: 0, children: 1, has_children: true })])).icon
+    ).toBe(ZNODE_BRANCH_ICON)
+    const locked = first(
+      toListNodes([znode({ readable: false, representations: [], data_length: 0 })])
+    )
+    expect(locked.icon).toBe(ZNODE_LOCKED_ICON)
+    expect(locked.caption).toBe("no access")
+    expect(locked.readable).toBe(false)
+  })
+
+  it("keeps ZooKeeper's own subtree marked as the server's", () => {
+    expect(first(toListNodes([znode({ id: "/zookeeper", is_system: true })])).system).toBe(true)
   })
 })
 
@@ -745,7 +795,13 @@ describe("the icons a catalog row draws", () => {
     const keyOf = (name: string) =>
       "symOutlined" + name.split("_").map((part) => part[0]?.toUpperCase() + part.slice(1)).join("")
 
-    const used = [...Object.values(ICONS), REPORT_SECTION_ICON, MATERIALIZED_VIEW_ICON]
+    const used = [
+      ...Object.values(ICONS),
+      REPORT_SECTION_ICON,
+      MATERIALIZED_VIEW_ICON,
+      ZNODE_BRANCH_ICON,
+      ZNODE_LOCKED_ICON,
+    ]
     expect(used.length).toBeGreaterThan(0)
     expect(used.filter((name) => !known.has(keyOf(name)))).toEqual([])
   })

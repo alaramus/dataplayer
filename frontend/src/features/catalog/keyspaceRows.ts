@@ -28,9 +28,9 @@ export interface TreeRow {
 /**
  * A level's children as tree rows.
  *
- * A branch is lazy and a leaf is not: what is under a folder is asked for at
- * the moment it is opened, and a key has nothing under it — it is opened in a
- * tab instead.
+ * A branch is lazy and so is a leaf that holds nodes: what is under a folder
+ * is asked for at the moment it is opened, and a key has nothing under it — it
+ * is opened in a tab instead.
  */
 export function toTreeRows(nodes: ListNode[]): TreeRow[] {
   return nodes.map((node) => ({
@@ -39,7 +39,9 @@ export function toTreeRows(nodes: ListNode[]): TreeRow[] {
     caption: node.caption,
     icon: node.icon,
     node,
-    lazy: node.role === "container" || node.role === "group",
+    // A leaf that holds nodes opens on a click and expands by its arrow, as a
+    // znode with children does (D298).
+    lazy: node.role === "container" || node.role === "group" || node.holdsNodes,
   }))
 }
 

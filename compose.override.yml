@@ -155,6 +155,19 @@ services:
     ports:
       - "127.0.0.1:27018:27017"
 
+  # A ZooKeeper for the backend suite and for a person to point a ZooKeeper
+  # connection at: no authentication, host `zookeeper` port 2181 from the
+  # backend, 127.0.0.1:2182 from this machine. Every four-letter word is
+  # allowed, because the reports read `mntr`, `srvr`, `cons` and `wchs`.
+  # Behind the `tools` profile.
+  zookeeper:
+    image: zookeeper:3.9
+    profiles: ["tools"]
+    environment:
+      ZOO_4LW_COMMANDS_WHITELIST: "*"
+    ports:
+      - "127.0.0.1:2182:2181"
+
   # dataplayer-monitor-agent reporting the machine Docker runs on to the
   # metrics process, started with
   # `docker compose --profile monitor-agent up -d monitor-agent`. It signs

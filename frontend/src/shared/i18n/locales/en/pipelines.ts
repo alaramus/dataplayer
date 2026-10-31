@@ -88,6 +88,7 @@ export const pipelines = {
       report: "report",
       database: "database",
       key: "key",
+      znode: "znode",
     },
   },
   card_picker: {

@@ -16,6 +16,7 @@ const ICONS: Record<string, string> = {
   sqlite: "img:/icons/services/sqlite.svg",
   clickhouse: "img:/icons/services/clickhouse.svg",
   mongodb: "img:/icons/services/mongodb.svg",
+  zookeeper: "img:/icons/services/zookeeper.svg",
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",

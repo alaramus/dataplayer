@@ -1852,4 +1852,7 @@ export type {
   WidgetLayout,
   WorkbookContents,
   WorksheetDataset,
+  ZnodeAccess,
+  ZnodeContents,
+  ZnodeNode,
 } from "./types.gen"

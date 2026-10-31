@@ -212,6 +212,8 @@ export const catalog: Messages["catalog"] = {
     expires_in: "ينتهي خلال {duration}",
     link: "رابط",
     encrypted: "مشفّر",
+    no_access: "لا وصول",
+    ephemeral: "مؤقت",
   },
   count: {
     row: "لا صفوف | صف واحد | صفان | {n} صفوف | {n} صفًا | {n} صف",
@@ -222,6 +224,7 @@ export const catalog: Messages["catalog"] = {
     item: "لا عناصر | عنصر واحد | عنصران | {n} عناصر | {n} عنصرًا | {n} عنصر",
     member: "لا عناصر | عنصر واحد | عنصران | {n} عناصر | {n} عنصرًا | {n} عنصر",
     entry: "لا مداخل | مدخل واحد | مدخلان | {n} مداخل | {n} مدخلًا | {n} مدخل",
+    child: "لا أبناء | ابن واحد | ابنان | {n} أبناء | {n} ابنًا | {n} ابن",
   },
   size: {
     b: "{n} B",

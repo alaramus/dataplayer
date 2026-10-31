@@ -8,8 +8,13 @@ from app.search.engine import _Inflight
 from app.search.providers import Found
 
 KEY = ("person", "objects:saved_queries/contents", ("orders",), 50)
-# One deadline for every waiter: a later one would get a task of its own.
-DEADLINE = time.monotonic() + 600
+
+
+def _deadline() -> float:
+    """One deadline for every waiter of a test: a later one would get a task of
+    its own. Taken when the test runs, not at import: a full suite outlasts ten
+    minutes, and a deadline already past ends every task at once."""
+    return time.monotonic() + 600
 
 
 class _Slow:
@@ -39,13 +44,14 @@ async def _settle() -> None:
 async def test_a_newcomer_never_joins_a_task_its_last_waiter_left() -> None:
     inflight = _Inflight()
     start = _Slow()
-    first = asyncio.create_task(inflight.run(KEY, start, mode="search", deadline=DEADLINE))
+    deadline = _deadline()
+    first = asyncio.create_task(inflight.run(KEY, start, mode="search", deadline=deadline))
     await _settle()
 
     first.cancel()
     await _settle()
     # The first task is still ending: it was cancelled, and is not done.
-    found = await asyncio.wait_for(inflight.run(KEY, start, mode="search", deadline=DEADLINE), 1)
+    found = await asyncio.wait_for(inflight.run(KEY, start, mode="search", deadline=deadline), 1)
 
     assert found.notice == "answer 2"
     assert start.stops[0]() is True
@@ -56,8 +62,9 @@ async def test_a_newcomer_never_joins_a_task_its_last_waiter_left() -> None:
 async def test_a_shared_task_is_told_to_stop_only_when_nobody_waits_for_it() -> None:
     inflight = _Inflight()
     start = _Slow()
-    one = asyncio.create_task(inflight.run(KEY, start, mode="search", deadline=DEADLINE))
-    other = asyncio.create_task(inflight.run(KEY, start, mode="search", deadline=DEADLINE))
+    deadline = _deadline()
+    one = asyncio.create_task(inflight.run(KEY, start, mode="search", deadline=deadline))
+    other = asyncio.create_task(inflight.run(KEY, start, mode="search", deadline=deadline))
     await _settle()
     assert len(start.stops) == 1
 

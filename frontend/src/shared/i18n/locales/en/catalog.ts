@@ -207,6 +207,8 @@ export const catalog = {
     expires_in: "expires in {duration}",
     link: "link",
     encrypted: "encrypted",
+    no_access: "no access",
+    ephemeral: "ephemeral",
   },
   count: {
     row: "{n} row | {n} rows",
@@ -217,6 +219,7 @@ export const catalog = {
     item: "{n} item | {n} items",
     member: "{n} member | {n} members",
     entry: "{n} entry | {n} entries",
+    child: "{n} child | {n} children",
   },
   size: {
     b: "{n} B",

@@ -25,6 +25,7 @@ export const content: Messages["content"] = {
     source_aria: "{name} 的来源",
   },
   tree: {
+    heading: "JSON",
     kind: "定义",
     could_not_open: "无法读取此定义",
   },

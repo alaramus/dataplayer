@@ -8,6 +8,7 @@ from app.adapters import (  # noqa: F401
     redis,
     sqlite,
     ssh,
+    zookeeper,
 )
 from app.adapters.locales.ar import MESSAGES as AR
 from app.adapters.locales.de import MESSAGES as DE

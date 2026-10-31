@@ -25,6 +25,7 @@ export const content: Messages["content"] = {
     source_aria: "Source de {name}",
   },
   tree: {
+    heading: "JSON",
     kind: "Définition",
     could_not_open: "Impossible de lire cette définition",
   },

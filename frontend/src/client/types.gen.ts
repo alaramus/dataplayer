@@ -158,6 +158,7 @@ export type ActionInfo = {
     | "report"
     | "database"
     | "key"
+    | "znode"
   >
   /**
    * Bulk
@@ -1524,6 +1525,7 @@ export type CardRow = {
     | "report"
     | "database"
     | "key"
+    | "znode"
     | null
   /**
    * Trail
@@ -7950,6 +7952,9 @@ export type NodeMatch = {
     | ({
         kind: "key"
       } & KeyNode)
+    | ({
+        kind: "znode"
+      } & ZnodeNode)
   /**
    * Parent Id
    */
@@ -8111,6 +8116,7 @@ export type NodeSummary = {
     | "report"
     | "database"
     | "key"
+    | "znode"
   /**
    * Representations
    */
@@ -8178,6 +8184,9 @@ export type NodeSummary = {
     | ({
         kind: "relation"
       } & RelationContents)
+    | ({
+        kind: "znode"
+      } & ZnodeContents)
     | null
   /**
    * Notice
@@ -8265,6 +8274,9 @@ export type NodeTarget = {
     | ({
         kind: "key"
       } & KeyNode)
+    | ({
+        kind: "znode"
+      } & ZnodeNode)
     | null
 }
 
@@ -10738,6 +10750,9 @@ export type ReferencedRows = {
     | ({
         kind: "key"
       } & KeyNode)
+    | ({
+        kind: "znode"
+      } & ZnodeNode)
   connector?: ReferenceConnection | null
   /**
    * Filters
@@ -11013,6 +11028,9 @@ export type RelationCreated = {
     | ({
         kind: "key"
       } & KeyNode)
+    | ({
+        kind: "znode"
+      } & ZnodeNode)
   /**
    * Inserted
    */
@@ -11510,6 +11528,7 @@ export type ResultRow = {
     | "report"
     | "database"
     | "key"
+    | "znode"
 }
 
 /**
@@ -14900,6 +14919,145 @@ export type WorksheetDataset = {
 }
 
 /**
+ * ZnodeAccess
+ *
+ * One entry of a znode's ACL: who, by which scheme, may do what.
+ */
+export type ZnodeAccess = {
+  /**
+   * Scheme
+   */
+  scheme: string
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Permissions
+   */
+  permissions: Array<"read" | "write" | "create" | "delete" | "admin">
+}
+
+/**
+ * ZnodeContents
+ *
+ * What ZooKeeper states about a znode with every read, and its ACL (D298).
+ *
+ * The zxids are ZooKeeper's transaction ids, written in hex as its own tools
+ * print them; a number this long read as a JavaScript number would round.
+ */
+export type ZnodeContents = {
+  /**
+   * Kind
+   */
+  kind?: "znode"
+  /**
+   * Version
+   */
+  version: number
+  /**
+   * Child Version
+   */
+  child_version: number
+  /**
+   * Acl Version
+   */
+  acl_version: number
+  /**
+   * Created Zxid
+   */
+  created_zxid: string
+  /**
+   * Modified Zxid
+   */
+  modified_zxid: string
+  /**
+   * Children Zxid
+   */
+  children_zxid: string
+  /**
+   * Children
+   */
+  children: number
+  /**
+   * Ephemeral Owner
+   */
+  ephemeral_owner?: string | null
+  /**
+   * Acl
+   */
+  acl?: Array<ZnodeAccess>
+}
+
+/**
+ * ZnodeNode
+ *
+ * One znode of a ZooKeeper tree, which holds data and children at once.
+ *
+ * Not a key: a key has no children, and a znode's place in the tree is its
+ * name rather than a separator read into it. Not a directory either, for it
+ * is opened as well as walked into — the way a workbook is (D298).
+ */
+export type ZnodeNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "znode"
+  /**
+   * Data Length
+   */
+  data_length?: number
+  /**
+   * Children
+   */
+  children?: number
+  /**
+   * Ephemeral
+   */
+  ephemeral?: boolean
+  /**
+   * Version
+   */
+  version?: number
+  /**
+   * Modified At
+   */
+  modified_at?: string | null
+  /**
+   * Is System
+   */
+  is_system?: boolean
+  /**
+   * Readable
+   */
+  readable?: boolean
+}
+
+/**
  * ChosenPassword
  *
  * This one, because the person asking will type it somewhere else.
@@ -16482,6 +16640,9 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "key"
       } & KeyNode)
+    | ({
+        kind: "znode"
+      } & ZnodeNode)
   >
 }
 
@@ -17762,6 +17923,9 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "key"
       } & KeyNode)
+    | ({
+        kind: "znode"
+      } & ZnodeNode)
   >
 }
 

@@ -190,6 +190,30 @@ class KeyNode(BaseNode):
     length: int | None = None
 
 
+class ZnodeNode(BaseNode):
+    """One znode of a ZooKeeper tree, which holds data and children at once.
+
+    Not a key: a key has no children, and a znode's place in the tree is its
+    name rather than a separator read into it. Not a directory either, for it
+    is opened as well as walked into — the way a workbook is (D298).
+    """
+
+    kind: Literal["znode"] = "znode"
+    # Bytes of data it holds; ZooKeeper says this with every stat.
+    data_length: int = 0
+    children: int = 0
+    # Gone when the session that made it ends. The owner is in its summary.
+    ephemeral: bool = False
+    # How many times its data has been written; a write names the one it read.
+    version: int = 0
+    modified_at: datetime | None = None
+    # ZooKeeper's own subtree, /zookeeper: quotas and the ensemble's config.
+    is_system: bool = False
+    # Whether this connection may read it. Its stat needs READ as well, so an
+    # unreadable znode is a name and nothing else (D298).
+    readable: bool = True
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
@@ -202,7 +226,8 @@ CatalogNode = Annotated[
     | EntryNode
     | ReportNode
     | DatabaseNode
-    | KeyNode,
+    | KeyNode
+    | ZnodeNode,
     Field(discriminator="kind"),
 ]
 
@@ -222,6 +247,7 @@ NodeKind = Literal[
     "report",
     "database",
     "key",
+    "znode",
 ]
 
 

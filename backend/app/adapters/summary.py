@@ -219,6 +219,41 @@ class RelationContents(BaseModel):
 
 # Adding a format means adding a member here and a branch to the one place that
 # renders them, which is a type error until it is written.
+ZnodePermission = Literal["read", "write", "create", "delete", "admin"]
+
+
+class ZnodeAccess(BaseModel):
+    """One entry of a znode's ACL: who, by which scheme, may do what."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scheme: str
+    id: str
+    permissions: list[ZnodePermission]
+
+
+class ZnodeContents(BaseModel):
+    """What ZooKeeper states about a znode with every read, and its ACL (D298).
+
+    The zxids are ZooKeeper's transaction ids, written in hex as its own tools
+    print them; a number this long read as a JavaScript number would round.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["znode"] = "znode"
+    version: int
+    child_version: int
+    acl_version: int
+    created_zxid: str
+    modified_zxid: str
+    children_zxid: str
+    children: int = Field(ge=0)
+    # The session an ephemeral znode lives and dies with, or nothing.
+    ephemeral_owner: str | None = None
+    acl: list[ZnodeAccess] = Field(default_factory=list)
+
+
 NodeContents = Annotated[
     TextContents
     | DelimitedContents
@@ -232,7 +267,8 @@ NodeContents = Annotated[
     | VideoContents
     | PdfContents
     | DirectoryContents
-    | RelationContents,
+    | RelationContents
+    | ZnodeContents,
     Field(discriminator="kind"),
 ]
 

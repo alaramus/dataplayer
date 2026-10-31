@@ -209,6 +209,8 @@ export const catalog: Messages["catalog"] = {
     expires_in: "{duration} 后过期",
     link: "链接",
     encrypted: "已加密",
+    no_access: "无访问权限",
+    ephemeral: "临时",
   },
   count: {
     row: "{n} 行",
@@ -219,6 +221,7 @@ export const catalog: Messages["catalog"] = {
     item: "{n} 项",
     member: "{n} 个成员",
     entry: "{n} 个条目",
+    child: "{n} 个子节点",
   },
   size: {
     b: "{n} B",

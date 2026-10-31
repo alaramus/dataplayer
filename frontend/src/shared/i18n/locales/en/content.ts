@@ -23,6 +23,7 @@ export const content = {
     source_aria: "{name} source",
   },
   tree: {
+    heading: "JSON",
     kind: "Definition",
     could_not_open: "Could not read this definition",
   },

@@ -545,7 +545,7 @@ function showSearchIndex() {
 }
 
 function showDetails() {
-  const node = describedNode.value
+  const node = asTree.value ? treeDescribed.value : describedNode.value
   if (node === null) return
   workspace.openSummary({
     connectorId: props.connectorId,
@@ -667,6 +667,11 @@ const treeLevelId = computed(() =>
 const treeChecked = computed(() =>
   picked.value !== null && !pickedIsPlace.value ? [picked.value] : []
 )
+/** The selected node of a tree, when the source will describe it (D75): a znode (D298). */
+const treeDescribed = computed(() => {
+  const node = treeChecked.value[0]
+  return node !== undefined && node.summarizable ? node : null
+})
 const tree = ref<InstanceType<typeof KeyspaceTree> | null>(null)
 
 /** Where this catalog stands and what is ticked, for a pair to read (D167). */
@@ -1060,8 +1065,8 @@ async function afterAction(outcome: ActionOutcome) {
             :checked-nodes="treeChecked.map((node) => ({ label: node.label, kind: node.kind }))"
             :place-label="picked && pickedIsPlace ? picked.label : groupLabel"
             :checked-label="treeChecked[0]?.label ?? ''"
-            :describes-nodes="false"
-            :described-node="null"
+            :describes-nodes="treeDescribed !== null"
+            :described-node="treeDescribed"
             :draws-nodes="drawsNodes"
             :drawable-nodes="true"
             :adapter-type="adapterType"

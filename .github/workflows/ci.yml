@@ -124,6 +124,13 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+      # The ZooKeeper the ZooKeeper source tests read (D297).
+      zookeeper:
+        image: zookeeper:3.9
+        env:
+          ZOO_4LW_COMMANDS_WHITELIST: "*"
+        ports:
+          - 2182:2181
     env:
       PROJECT_NAME: DataPlayer
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
@@ -152,6 +159,7 @@ jobs:
       TEST_MARIADB_URL: mysql://root:dataplayer@127.0.0.1:3308
       TEST_CLICKHOUSE_URL: clickhouse://default:dataplayer@127.0.0.1:8124
       TEST_MONGODB_URL: mongodb://root:dataplayer@127.0.0.1:27018/?authSource=admin
+      TEST_ZOOKEEPER_URL: zookeeper://127.0.0.1:2182
       # backend/scripts/test.sh runs the suite this way, and the private routes
       # exist only in development: without it their tests get a 404.
       FASTAPI_ENV: development

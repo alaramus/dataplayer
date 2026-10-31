@@ -209,6 +209,8 @@ export const catalog: Messages["catalog"] = {
     expires_in: "{duration} में समाप्त होगा",
     link: "लिंक",
     encrypted: "एन्क्रिप्टेड",
+    no_access: "पहुँच नहीं",
+    ephemeral: "अस्थायी",
   },
   count: {
     row: "{n} पंक्ति | {n} पंक्तियाँ",
@@ -219,6 +221,7 @@ export const catalog: Messages["catalog"] = {
     item: "{n} आइटम | {n} आइटम",
     member: "{n} सदस्य | {n} सदस्य",
     entry: "{n} प्रविष्टि | {n} प्रविष्टियाँ",
+    child: "{n} चाइल्ड | {n} चाइल्ड",
   },
   size: {
     b: "{n} B",

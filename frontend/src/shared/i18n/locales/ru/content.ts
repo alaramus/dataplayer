@@ -24,6 +24,7 @@ export const content: Messages["content"] = {
     source_aria: "Исходный текст «{name}»",
   },
   tree: {
+    heading: "JSON",
     kind: "Определение",
     could_not_open: "Не удалось прочитать определение",
   },

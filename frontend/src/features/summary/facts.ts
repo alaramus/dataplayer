@@ -196,6 +196,8 @@ function contentsFacts(contents: NodeContents): Fact[] {
     }
     case "pdf":
       return [{ label: t("summary.facts.format"), value: `PDF ${contents.version}` }]
+    case "znode":
+      return znodeFacts(contents)
     case "directory": {
       const facts: Fact[] = []
       addCount(facts, t("summary.facts.entries"), contents.entries)
@@ -269,6 +271,36 @@ function contentsFacts(contents: NodeContents): Fact[] {
 }
 
 /** Why a count is missing, for the members that can hit a ceiling. */
+/**
+ * What ZooKeeper states with every read, and who may do what to the znode
+ * (D298): one line per entry of the ACL, its scheme and id as ZooKeeper
+ * prints them.
+ */
+function znodeFacts(contents: Extract<NodeContents, { kind: "znode" }>): Fact[] {
+  const facts: Fact[] = [
+    { label: t("summary.facts.znode_version"), value: String(contents.version) },
+    { label: t("summary.facts.znode_child_version"), value: String(contents.child_version) },
+    { label: t("summary.facts.znode_acl_version"), value: String(contents.acl_version) },
+    { label: t("summary.facts.znode_children"), value: String(contents.children) },
+    { label: t("summary.facts.znode_created_zxid"), value: contents.created_zxid },
+    { label: t("summary.facts.znode_modified_zxid"), value: contents.modified_zxid },
+    { label: t("summary.facts.znode_children_zxid"), value: contents.children_zxid },
+  ]
+  if (contents.ephemeral_owner !== null && contents.ephemeral_owner !== undefined) {
+    facts.push({ label: t("summary.facts.znode_ephemeral_owner"), value: contents.ephemeral_owner })
+  }
+  for (const entry of contents.acl ?? []) {
+    const permissions = entry.permissions.map((one) => t(`summary.values.permission_${one}`))
+    facts.push({
+      label: t("summary.facts.znode_acl"),
+      value: `${entry.scheme}:${entry.id} — ${
+        permissions.length > 0 ? permissions.join(", ") : t("summary.values.no_permissions")
+      }`,
+    })
+  }
+  return facts
+}
+
 function notCounted(contents: NodeContents): string | null {
   if (contents.kind === "text" || contents.kind === "delimited" || contents.kind === "directory") {
     return contents.not_counted ?? null

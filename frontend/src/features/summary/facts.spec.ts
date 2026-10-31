@@ -32,6 +32,40 @@ suite("describe", () => {
     expect(labelled(described.facts, "Opens as")).toBe("View as text")
   })
 
+  it("prints a znode's stat and one line per entry of its ACL (D298)", () => {
+    const described = describe(
+      summary({
+        node_id: "/app",
+        name: "app",
+        kind: "znode",
+        contents: {
+          kind: "znode",
+          version: 4,
+          child_version: 2,
+          acl_version: 0,
+          created_zxid: "0x1a",
+          modified_zxid: "0x2b",
+          children_zxid: "0x2c",
+          children: 2,
+          ephemeral_owner: "0x100000abc",
+          acl: [
+            { scheme: "world", id: "anyone", permissions: ["read"] },
+            { scheme: "digest", id: "ann:hash", permissions: [] },
+          ],
+        },
+      })
+    )
+
+    expect(labelled(described.facts, "Kind")).toBe("Znode")
+    expect(labelled(described.contents, "Version")).toBe("4")
+    expect(labelled(described.contents, "Created zxid")).toBe("0x1a")
+    expect(labelled(described.contents, "Ephemeral owner")).toBe("0x100000abc")
+    expect(described.contents.filter((fact) => fact.label === "ACL").map((fact) => fact.value)).toEqual([
+      "world:anyone — read",
+      "digest:ann:hash — none",
+    ])
+  })
+
   it("leaves out a time the platform did not state", () => {
     const described = describe(summary({ created_at: null, accessed_at: null }))
 

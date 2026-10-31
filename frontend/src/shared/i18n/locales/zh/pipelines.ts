@@ -90,6 +90,7 @@ export const pipelines: Messages["pipelines"] = {
       report: "报告",
       database: "数据库",
       key: "键",
+      znode: "znode",
     },
   },
   card_picker: {

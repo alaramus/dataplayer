@@ -50,6 +50,14 @@ describe("a catalog level as rows of a tree", () => {
 
     expect(rows.map((row) => row.lazy)).toEqual([true, true, false])
   })
+
+  it("offers to expand a leaf that holds nodes, which still opens on a click", () => {
+    // A znode has data to open and children to walk into (D298).
+    const [row] = toTreeRows([node({ id: "/app", kind: "znode", holdsNodes: true })])
+
+    expect(row?.lazy).toBe(true)
+    expect(row?.node.role).toBe("leaf")
+  })
 })
 
 describe("putting a loaded branch into the tree", () => {

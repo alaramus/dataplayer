@@ -25,6 +25,7 @@ export const content: Messages["content"] = {
     source_aria: "شيفرة {name}",
   },
   tree: {
+    heading: "JSON",
     kind: "التعريف",
     could_not_open: "تعذّرت قراءة هذا التعريف",
   },

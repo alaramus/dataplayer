@@ -7,23 +7,63 @@ import { useContent } from "@/features/content/api"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
+import { useWorkspaceActions } from "@/features/workspace/state"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
-import { AppSpinner } from "@/shared/ui"
+import { AppButton, AppSpinner, appIcons } from "@/shared/ui"
 
 /**
  * A source's own description of a node, drawn as a JSON tree (D295).
  *
  * Read only: what a MongoDB collection's options, validator and indexes are,
- * or the pipeline a report runs. A file's JSON is its text, and opens in the
- * editor instead.
+ * the pipeline a report runs, or a znode's data (D298). A file's JSON is its
+ * text, and opens in the editor instead. Where the node also opens as text or
+ * as rows, the source's titles for those are given, and each is a button.
  */
 const props = defineProps<{
   panelId: string
   connectorId: string
   nodeId: string
   title: string
+  connectorName?: string
+  adapterType?: string
+  sourceTitle?: string
+  tableTitle?: string
 }>()
+
+const workspace = useWorkspaceActions()
+
+function showSource() {
+  if (props.sourceTitle === undefined) return
+  workspace.openRepresentation({
+    connectorId: props.connectorId,
+    nodeId: props.nodeId,
+    title: props.title,
+    connectorName: props.connectorName ?? "",
+    adapterType: props.adapterType ?? "",
+    representations: [
+      { kind: "text", title: props.sourceTitle },
+      ...(props.tableTitle === undefined ? [] : [{ kind: "table" as const, title: props.tableTitle }]),
+    ],
+    describable: false,
+  })
+}
+
+function showTable() {
+  if (props.tableTitle === undefined) return
+  workspace.openRows({
+    connectorId: props.connectorId,
+    nodeId: props.nodeId,
+    title: props.title,
+    connectorName: props.connectorName ?? "",
+    adapterType: props.adapterType ?? "",
+    describable: false,
+    representations: [
+      { kind: "table", title: props.tableTitle },
+      ...(props.sourceTitle === undefined ? [] : [{ kind: "text" as const, title: props.sourceTitle }]),
+    ],
+  })
+}
 
 const connectorId = computed(() => props.connectorId)
 const request = computed<ContentRequest>(() => ({ node_id: props.nodeId, representation: "tree" }))
@@ -45,10 +85,33 @@ useReloadable(() => props.panelId, async () => {
 <template>
   <div class="tree-panel">
     <div class="tree-panel__head">
-      <span class="tree-panel__kind">{{ t("content.tree.kind") }}</span>
+      <!-- What is drawn, as the text editor names its own: a tree is a
+           source's definition for MongoDB and a znode's data for ZooKeeper
+           (D298), and JSON is true of both. -->
+      <span class="tree-panel__kind">{{ t("content.tree.heading") }}</span>
       <!-- One block, so the head puts it at the end as the other panels do;
            the commands are several elements, each a flex item of their own. -->
       <div class="tree-panel__commands">
+        <AppButton
+          v-if="sourceTitle"
+          variant="quiet"
+          size="sm"
+          :icon="appIcons.code"
+          :label="sourceTitle"
+          layout="toolbar"
+          data-testid="tree-view-source"
+          @click="showSource"
+        />
+        <AppButton
+          v-if="tableTitle"
+          variant="quiet"
+          size="sm"
+          :icon="appIcons.gridOn"
+          :label="tableTitle"
+          layout="toolbar"
+          data-testid="tree-view-table"
+          @click="showTable"
+        />
         <PanelCommands
           :panel-id="panelId"
           :reveal="{ connectorId, nodeId, label: title }"

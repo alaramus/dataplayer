@@ -210,6 +210,8 @@ export const catalog: Messages["catalog"] = {
     expires_in: "läuft in {duration} ab",
     link: "Verknüpfung",
     encrypted: "verschlüsselt",
+    no_access: "kein Zugriff",
+    ephemeral: "flüchtig",
   },
   count: {
     row: "{n} Zeile | {n} Zeilen",
@@ -220,6 +222,7 @@ export const catalog: Messages["catalog"] = {
     item: "{n} Element | {n} Elemente",
     member: "{n} Mitglied | {n} Mitglieder",
     entry: "{n} Eintrag | {n} Einträge",
+    child: "{n} Kind | {n} Kinder",
   },
   size: {
     b: "{n} B",

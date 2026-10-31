@@ -20,6 +20,7 @@ file holds which decision.
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
+| [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
 | [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed, its fields and indexes, its reports, search or catalog actions, or how its collections are copied, backed up and measured |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
@@ -153,6 +154,12 @@ collections made, renamed, moved and dropped, a CSV loaded (D290). Collections c
 documents and indexes (D291), the database backed up by mongodump (D292),
 measured from serverStatus (D293), and a server started here with a lab
 (D294).
+
+**ZooKeeper** — one server through kazoo, a session per operation in the
+thread pool, under an optional root path (D297): the znode tree expanded in
+place, a znode opened for its data as JSON or text with its stat and ACL beside
+it and walked into for its children, its data edited against the version read,
+its children as rows in name order (D298).
 
 ## Where the code is
 

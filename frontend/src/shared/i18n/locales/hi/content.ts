@@ -26,6 +26,7 @@ export const content: Messages["content"] = {
     source_aria: "{name} स्रोत",
   },
   tree: {
+    heading: "JSON",
     kind: "परिभाषा",
     could_not_open: "यह परिभाषा पढ़ी नहीं जा सकी",
   },

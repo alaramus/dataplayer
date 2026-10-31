@@ -48,6 +48,8 @@ dependencies = [
     "aiomysql>=0.3.2,<0.4",
     # MongoDB's own driver, its asynchronous client (D283).
     "pymongo>=4.19,<5",
+    # ZooKeeper's client, synchronous, called through the thread pool (D297).
+    "kazoo>=2.10,<3",
 ]
 
 [dependency-groups]
@@ -86,6 +88,13 @@ ignore_missing_imports = true
 # which is typed through types-PyMySQL.
 [[tool.mypy.overrides]]
 module = ["aiomysql.*", "aiomysql"]
+ignore_missing_imports = true
+
+# kazoo ships no type information and has no stub package. The ZooKeeper
+# session is the only module that calls it, and it converts every stat, ACL and
+# failure into this repository's own types before handing anything on.
+[[tool.mypy.overrides]]
+module = ["kazoo.*", "kazoo"]
 ignore_missing_imports = true
 
 [tool.ruff]

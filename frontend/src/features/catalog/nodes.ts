@@ -51,6 +51,9 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   // A key is opened and read as whatever it holds. The namespace above it is
   // a directory, because that is what a namespace is.
   key: "leaf",
+  // Opened for its data and walked into for its children, as a workbook is
+  // (D298); the rule below makes one with nothing to open a place instead.
+  znode: "leaf",
 }
 
 export interface ListNode {
@@ -139,7 +142,12 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   report: "analytics",
   database: "storage",
   key: "vpn_key",
+  znode: "data_object",
 }
+
+/** A znode with no data of its own, and one this connection may not read. */
+export const ZNODE_BRANCH_ICON = "account_tree"
+export const ZNODE_LOCKED_ICON = "lock"
 
 /** The section of reports, which is a report with children rather than a folder. */
 export const REPORT_SECTION_ICON = "dns"
@@ -265,6 +273,10 @@ export function iconOf(node: CatalogNode): string {
   if (node.kind === "table" && node.specialization?.kind === "timescale_hypertable") {
     return TIMESCALE_ICON
   }
+  if (node.kind === "znode") {
+    if (node.readable === false) return ZNODE_LOCKED_ICON
+    return node.data_length === 0 && node.has_children ? ZNODE_BRANCH_ICON : ICONS.znode
+  }
   if (node.kind === "view") {
     if (node.specialization?.kind === "timescale_continuous_aggregate") {
       return TIMESCALE_ICON
@@ -304,6 +316,8 @@ function captionOf(node: CatalogNode): string | undefined {
       return entryCaption(node)
     case "key":
       return keyCaption(node)
+    case "znode":
+      return znodeCaption(node)
     case "database":
       // Said even when it is nothing: a database with no keys in it is a fact
       // about the server, and an empty caption reads as one nobody counted.
@@ -384,6 +398,16 @@ function keyCaption(node: Extract<CatalogNode, { kind: "key" }>): string | undef
   return parts.join(" · ")
 }
 
+/** What a znode says about itself before it is opened: its data and its children. */
+function znodeCaption(node: Extract<CatalogNode, { kind: "znode" }>): string | undefined {
+  if (node.readable === false) return t("catalog.nodes.no_access")
+  const parts: string[] = []
+  if ((node.data_length ?? 0) > 0) parts.push(formatSize(node.data_length ?? 0))
+  if ((node.children ?? 0) > 0) parts.push(counted(node.children ?? 0, "child"))
+  if (node.ephemeral === true) parts.push(t("catalog.nodes.ephemeral"))
+  return parts.length === 0 ? undefined : parts.join(" · ")
+}
+
 /** A number of seconds in the largest unit that still says something. */
 export function formatDuration(seconds: number): string {
   if (seconds < 60) return t("catalog.duration.seconds", { n: seconds })
@@ -403,7 +427,16 @@ function entryCaption(node: Extract<CatalogNode, { kind: "entry" }>): string | u
 }
 
 /** What a caption counts, each a plural message of its own. */
-type Noun = "row" | "column" | "key" | "character" | "field" | "item" | "member" | "entry"
+type Noun =
+  | "row"
+  | "column"
+  | "key"
+  | "character"
+  | "field"
+  | "item"
+  | "member"
+  | "entry"
+  | "child"
 
 function counted(count: number, noun: Noun): string {
   return t(`catalog.count.${noun}`, { n: count }, count)
@@ -418,6 +451,7 @@ function isSystem(node: CatalogNode): boolean {
     case "schema":
     case "table":
     case "view":
+    case "znode":
       return node.is_system ?? false
     default:
       return false

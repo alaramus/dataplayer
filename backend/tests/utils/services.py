@@ -64,6 +64,9 @@ _PROTOCOLS = {
     "clickhouse": _Protocol(8123, b"GET /ping HTTP/1.0\r\n\r\n", (b"H",)),
     # MongoDB waits to be asked; its reply starts with its length.
     "mongodb": _Protocol(27017, _mongodb_hello(), (b"",)),
+    # ZooKeeper answers `srvr` on its client port before any session, with
+    # "Zookeeper version: ...".
+    "zookeeper": _Protocol(2181, b"srvr", (b"Z",)),
 }
 
 _required = False
@@ -187,7 +190,16 @@ MONGODB = Server(
     ),
 )
 
-SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH, MYSQL, MARIADB, CLICKHOUSE, MONGODB)
+# The development ZooKeeper (`zookeeper` in compose.override.yml), which asks
+# for no authentication (D297).
+ZOOKEEPER = Server(
+    name="ZooKeeper",
+    variable="TEST_ZOOKEEPER_URL",
+    start="docker compose up -d zookeeper",
+    read=lambda: os.environ.get("TEST_ZOOKEEPER_URL", "zookeeper://127.0.0.1:2182"),
+)
+
+SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH, MYSQL, MARIADB, CLICKHOUSE, MONGODB, ZOOKEEPER)
 
 
 def require_all() -> None:

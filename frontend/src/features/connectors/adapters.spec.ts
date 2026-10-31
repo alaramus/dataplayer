@@ -4,7 +4,7 @@ import { adapterIcon, categoryIcon, UNKNOWN_CATEGORY_ICON, UNKNOWN_ADAPTER_ICON 
 
 describe("the icon of a source type", () => {
   it("tells the types apart", () => {
-    const drawn = ["postgres", "mongodb", "redis", "file", "ssh"].map(adapterIcon)
+    const drawn = ["postgres", "mongodb", "redis", "zookeeper", "file", "ssh"].map(adapterIcon)
     expect(new Set(drawn).size).toBe(drawn.length)
   })
 

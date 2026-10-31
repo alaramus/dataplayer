@@ -89,6 +89,7 @@ export const pipelines: Messages["pipelines"] = {
       report: "отчёт",
       database: "база данных",
       key: "ключ",
+      znode: "узел ZooKeeper",
     },
   },
   card_picker: {
