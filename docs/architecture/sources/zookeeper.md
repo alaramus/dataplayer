@@ -8,7 +8,7 @@ lab (D302), and zkCli in a terminal (D299, run as D286 says in
 [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `zookeeper` adapter.
 
-Decisions here: D297, D298, D299, D300, D301, D302.
+Decisions here: D297, D298, D299, D300, D301, D302, D303.
 
 ## D297. A ZooKeeper source speaks to one server through kazoo, a session per operation
 
@@ -91,7 +91,6 @@ to the text.
 Known deviations:
 
 - A level past a thousand children shows the first thousand in the tree.
-- Nothing is watched: what is shown is what was read, refreshed by hand.
 
 Spec: [2026-10-31-zookeeper-source-design.md](../../decisions/2026-10-31-zookeeper-source-design.md)
 
@@ -224,3 +223,40 @@ Known deviations:
   the database sources.
 
 Spec: [2026-10-31-zookeeper-service-design.md](../../decisions/2026-10-31-zookeeper-service-design.md)
+
+## D303. What a screen shows is watched, and read again when it changes
+
+A source may implement `SupportsChangeWatch` (`app/adapters/changes.py`): given
+a sink, it opens a watch, is told which nodes to follow, and tells the sink
+which levels and nodes changed. ZooKeeper is the first. The capability's code
+is `live_changes`.
+
+The catalog of such a source says, through
+`POST /connectors/{id}/changes/follow`, which nodes it shows: the top, the
+levels open in its tree and the tabs open on that connection. It says it again
+when that changes and every thirty seconds; an empty list stops the watch.
+The `source.changes` topic (`app/connectors/changes.py`) keeps one watch per
+person and connection, closes one not renewed within ninety seconds, gathers
+changes for a third of a second and tells every socket of that person
+`{connector_id, levels, nodes, everything}` — everything past two hundred.
+The catalog reads those levels again, keeping open branches open, and the
+workspace reloads the tabs on those nodes; an editor with an unsaved change
+is left alone without a word.
+
+ZooKeeper holds one session per watch, the only one it keeps past a request
+(D297), reconnecting by itself. kazoo's DataWatch and ChildrenWatch recipes
+set each watch again after it fires and after a reconnect: a level is watched
+for its children, a znode for its data and its deletion. A recipe no longer
+wanted stops the next time it fires, since ZooKeeper cannot take a watch back.
+kazoo 2.11 has no persistent recursive watch, so the tree is not watched
+whole.
+
+Known deviations:
+
+- What one tab shows replaces what another asked for on the same connection;
+  the other refreshes by hand.
+- A watch holds the session it opened with; changed connection settings apply
+  once the lease runs out.
+- `everything` reloads the tree from the top, closing its branches.
+
+Spec: [2026-10-31-zookeeper-watch-design.md](../../decisions/2026-10-31-zookeeper-watch-design.md)

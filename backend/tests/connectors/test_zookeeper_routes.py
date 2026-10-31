@@ -156,3 +156,28 @@ async def test_znodes_are_made_and_deleted_through_the_routes(
         json={"node_id": "/services/via-route", "params": {}},
     )
     assert gone.status_code == 200, gone.text
+
+
+async def test_a_screen_says_what_it_shows_and_may_stop(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], root: str
+) -> None:
+    """The watch itself is tested in tests/adapters/test_zookeeper_watch.py (D303)."""
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers, root)
+
+    followed = await client.post(
+        f"{BASE}/{connector}/changes/follow",
+        headers=headers,
+        json={"node_ids": [None, "/services"]},
+    )
+    assert followed.status_code == 204, followed.text
+    stopped = await client.post(
+        f"{BASE}/{connector}/changes/follow", headers=headers, json={"node_ids": []}
+    )
+    assert stopped.status_code == 204, stopped.text
+
+    types = await client.get(f"{settings.API_V1_STR}/adapter-types/", headers=headers)
+    [zookeeper] = [one for one in types.json() if one["name"] == "zookeeper"]
+    assert "live_changes" in {one["code"] for one in zookeeper["capabilities"]}
+    [redis] = [one for one in types.json() if one["name"] == "redis"]
+    assert "live_changes" not in {one["code"] for one in redis["capabilities"]}

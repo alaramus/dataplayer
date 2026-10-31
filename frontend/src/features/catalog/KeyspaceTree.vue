@@ -3,7 +3,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from "vue"
 
 import { useCatalogLoader } from "@/features/catalog/api"
 import type { NodeMatch } from "@/client"
-import { filterTree, foundTree, toTreeRows, rowAt, withChildren } from "@/features/catalog/keyspaceRows"
+import { filterTree, foundTree, keepRead, toTreeRows, rowAt, withChildren } from "@/features/catalog/keyspaceRows"
 import type { TreeRow } from "@/features/catalog/keyspaceRows"
 import { toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
@@ -96,8 +96,38 @@ watch(
   { immediate: true }
 )
 
-async function childrenOf(id: string): Promise<TreeRow[]> {
-  return toTreeRows(toListNodes((await loadChildren(props.connectorId, id)).nodes))
+async function childrenOf(id: string, refresh = false): Promise<TreeRow[]> {
+  return toTreeRows(toListNodes((await loadChildren(props.connectorId, id, refresh)).nodes))
+}
+
+/**
+ * Read these levels again where they have been read, keeping what is open
+ * under them: a source said they changed (D303). The top is the tree's root.
+ */
+async function refreshLevels(ids: readonly (string | null)[]) {
+  try {
+    for (const id of ids) {
+      if (id === props.rootId) {
+        const page = await loadChildren(props.connectorId, props.rootId, true)
+        const sections = rows.value.filter((row) => row.node.kind === "report" && row.node.holdsNodes)
+        const fresh = toTreeRows(toListNodes(page.nodes))
+        const top = props.rootId === null ? fresh : [...sections, ...fresh]
+        rows.value = keepRead(rows.value, top)
+        continue
+      }
+      if (id === null) continue
+      const row = rowAt(rows.value, id)
+      if (row?.children === undefined) continue
+      rows.value = withChildren(rows.value, id, keepRead(row.children, await childrenOf(id, true)))
+    }
+  } catch {
+    // A level gone with the change is read when somebody opens it again.
+  }
+}
+
+/** The branches open now, for a source that watches what is shown. */
+function expandedIds(): string[] {
+  return [...expanded.value]
 }
 
 /** What one branch holds, asked for when it is opened. */
@@ -204,7 +234,7 @@ function reload(): Promise<void> {
   return reading
 }
 
-defineExpose({ reload, reveal })
+defineExpose({ reload, reveal, refreshLevels, expandedIds })
 </script>
 
 <template>

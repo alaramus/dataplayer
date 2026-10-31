@@ -100,7 +100,31 @@ class ZookeeperSession:
         finally:
             _close(client)
 
-    def _client(self, address: str) -> KazooClient:
+    async def held(self) -> KazooClient:
+        """A session kept open for watches (D303), which reconnects by itself.
+
+        The only one this source keeps: the first connection fails fast, as a
+        request's would, and a dropped one is tried again for as long as the
+        watch is wanted.
+        """
+        host, port = await reach(
+            self._tunnels,
+            self._options.ssh_tunnel,
+            self._options.host,
+            self._options.port,
+        )
+        return await run_in_threadpool(self._held, f"{host}:{port}")
+
+    def _held(self, address: str) -> KazooClient:
+        client = self._client(address, held=True)
+        try:
+            client.start(timeout=TIMEOUT_SECONDS)
+        except (KazooException, KazooTimeoutError, OSError) as failure:
+            _close(client)
+            raise reduced(failure) from None
+        return client
+
+    def _client(self, address: str, *, held: bool = False) -> KazooClient:
         options = self._options
         auth: list[tuple[str, str]] = []
         if isinstance(options, ZookeeperDigest):
@@ -112,7 +136,9 @@ class ZookeeperSession:
             timeout=TIMEOUT_SECONDS,
             # One attempt: a person is waiting on the answer, and the retries
             # kazoo would make are a minute of silence about a wrong address.
-            connection_retry={"max_tries": 0, "max_delay": 1},
+            connection_retry=(
+                {"max_tries": -1, "max_delay": 30} if held else {"max_tries": 0, "max_delay": 1}
+            ),
             command_retry={"max_tries": 0},
             auth_data=auth or None,
             use_ssl=options.tls,

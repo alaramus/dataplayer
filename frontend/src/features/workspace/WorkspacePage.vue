@@ -936,7 +936,32 @@ function replaceNode(connectorId: string, replacement: NodeReplacement) {
 /** Two catalogs of two connections in one window (D167). */
 const pairs = usePairs(workspace, openCatalog)
 
+/** The node a tab is on, where it is on one. */
+function nodeOf(panel: (typeof workspace.panels.value)[number]): string | null {
+  return "nodeId" in panel && typeof panel.nodeId === "string" ? panel.nodeId : null
+}
+
+function nodesOpenOn(connectorId: string): string[] {
+  return workspace.panels.value
+    .filter((panel) => "connectorId" in panel && panel.connectorId === connectorId)
+    .map(nodeOf)
+    .filter((nodeId): nodeId is string => nodeId !== null)
+}
+
+/** What a watching source said changed, read again where it is shown (D303). */
+function reloadNodes(connectorId: string, nodeIds: readonly string[], everything: boolean) {
+  const wanted = new Set(nodeIds)
+  for (const panel of workspace.panels.value) {
+    if (!("connectorId" in panel) || panel.connectorId !== connectorId) continue
+    const nodeId = nodeOf(panel)
+    if (nodeId === null || (!everything && !wanted.has(nodeId))) continue
+    void reloads.reload(panel.id, "live")
+  }
+}
+
 const actions: WorkspaceActions = {
+  nodesOpenOn,
+  reloadNodes,
   connectorNameFilter,
   connectorFilterOpen,
   activeConnectorId,

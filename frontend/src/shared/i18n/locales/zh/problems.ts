@@ -56,6 +56,7 @@ export const problems: Record<ProblemCode, string> = {
   "paste.same_connection": "请选择两个不同的连接",
   "connectors.no_content_previews": "此数据源不支持内容预览",
   "connectors.no_content_stream": "此数据源不以流的方式传输内容",
+  "connectors.no_live_changes": "此数据源不会通知变化",
   "connectors.no_connection_string": "此数据源没有连接字符串",
   "connectors.not_made_here": "无法在此服务器上创建此类数据源",
   "connectors.no_server_key": "此数据源不记录服务器密钥",

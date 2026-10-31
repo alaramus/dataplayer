@@ -1456,6 +1456,7 @@ export type Capability = {
     | "terminal"
     | "declared_references"
     | "relationship_graph"
+    | "live_changes"
     | null
 }
 
@@ -5409,6 +5410,18 @@ export type FollowReferenceRequest = {
    * Values
    */
   values: Array<ReferenceValue>
+}
+
+/**
+ * FollowRequest
+ *
+ * The nodes a screen shows on one connection; empty stops the watch.
+ */
+export type FollowRequest = {
+  /**
+   * Node Ids
+   */
+  node_ids?: Array<string | null>
 }
 
 /**
@@ -9706,6 +9719,7 @@ export type ProblemDetail = {
     | "paste.same_connection"
     | "connectors.no_content_previews"
     | "connectors.no_content_stream"
+    | "connectors.no_live_changes"
     | "connectors.no_connection_string"
     | "connectors.not_made_here"
     | "connectors.no_server_key"
@@ -18575,6 +18589,38 @@ export type connectorsClipboardOfferResponses = {
 
 export type connectorsClipboardOfferResponse =
   connectorsClipboardOfferResponses[keyof connectorsClipboardOfferResponses]
+
+export type connectorsFollowChangesData = {
+  body: FollowRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/changes/follow"
+}
+
+export type connectorsFollowChangesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsFollowChangesError =
+  connectorsFollowChangesErrors[keyof connectorsFollowChangesErrors]
+
+export type connectorsFollowChangesResponses = {
+  /**
+   * Successful Response
+   */
+  204: void
+}
+
+export type connectorsFollowChangesResponse =
+  connectorsFollowChangesResponses[keyof connectorsFollowChangesResponses]
 
 export type sshKeysReadSshKeysData = {
   body?: never

@@ -195,6 +195,9 @@ import type {
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
+  connectorsFollowChangesData,
+  connectorsFollowChangesErrors,
+  connectorsFollowChangesResponses,
   connectorsFollowReferenceData,
   connectorsFollowReferenceErrors,
   connectorsFollowReferenceResponses,
@@ -3161,6 +3164,29 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/clipboard/offer",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Follow Changes
+   *
+   * Watch what this screen shows on this connection for half a minute more (D303).
+   */
+  public static followChanges<ThrowOnError extends boolean = true>(
+    options: Options<connectorsFollowChangesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsFollowChangesResponses,
+      connectorsFollowChangesErrors,
+      ThrowOnError
+    >({
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/changes/follow",
       ...options,
       headers: {
         "Content-Type": "application/json",

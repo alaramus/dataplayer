@@ -53,6 +53,10 @@ export interface WorkspaceActions {
    * forward; the pointing is what this adds.
    */
   revealInCatalog: (connectorId: string, nodeId: string, label: string) => void
+  /** The nodes open in tabs on one connection, for a source that watches them (D303). */
+  nodesOpenOn?: (connectorId: string) => string[]
+  /** Read again the tabs on these nodes of a connection, or all of its tabs. */
+  reloadNodes?: (connectorId: string, nodeIds: readonly string[], everything: boolean) => void
   /**
    * The node a catalog has just been asked to point at, or nothing.
    *

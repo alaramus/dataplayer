@@ -83,9 +83,9 @@ async function reload() {
 
 // Re-reading would discard an edit that only exists here, so an unsaved
 // document is left alone and the reason is said rather than guessed at.
-useReloadable(() => props.panelId, async () => {
+useReloadable(() => props.panelId, async (why) => {
   if (dirty.value) {
-    toast.info(t("content.editor.unsaved_before_reload"))
+    if (why !== "live") toast.info(t("content.editor.unsaved_before_reload"))
     return
   }
   await reload()

@@ -6,6 +6,7 @@ import type { DetectedFramework, NodeMatch } from "@/client"
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
+import { useLiveChanges } from "@/features/catalog/liveChanges"
 import { reloadedBy, replacementsOf, tickableKinds, ticksAfter } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { useCatalogLoader, useNodeActions, useNodePathLoader, useNodeSearcher } from "@/features/catalog/api"
@@ -675,6 +676,26 @@ const treeDescribed = computed(() => {
   return node !== undefined && node.summarizable ? node : null
 })
 const tree = ref<InstanceType<typeof KeyspaceTree> | null>(null)
+
+// A source that tells changes refreshes what is on screen by itself (D303):
+// the levels open in the tree and the tabs open on this connection.
+useLiveChanges({
+  connectorId: () => props.connectorId,
+  live: () =>
+    asTree.value &&
+    sourceType.value?.capabilities.some((one) => one.code === "live_changes") === true,
+  shown: () => [
+    treeRoot.value,
+    ...(tree.value?.expandedIds() ?? []),
+    ...(workspace.nodesOpenOn?.(props.connectorId) ?? []),
+  ],
+  onChange: (event) => {
+    if (event.everything) void tree.value?.reload()
+    else void tree.value?.refreshLevels(event.levels)
+    const levels = event.levels.filter((one): one is string => one !== null)
+    workspace.reloadNodes?.(props.connectorId, [...event.nodes, ...levels], event.everything)
+  },
+})
 
 /** Where this catalog stands and what is ticked, for a pair to read (D167). */
 const side = computed<CatalogSide>(() => asTree.value

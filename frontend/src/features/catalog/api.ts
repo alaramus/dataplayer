@@ -60,7 +60,8 @@ export function useCatalogLoader() {
           freshness: freshnessOf(response.headers as Record<string, unknown>),
         }
       },
-      staleTime: 60_000,
+      // A refresh is a fresh read here too, not the minute-old answer.
+      staleTime: refresh ? 0 : 60_000,
     })
   }
 }

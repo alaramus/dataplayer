@@ -64,6 +64,17 @@ export function withChildren(
   })
 }
 
+/**
+ * A level read again, keeping what was already read under rows that are still
+ * there: the branches that were open stay open, with what they held (D303).
+ */
+export function keepRead(old: TreeRow[], fresh: TreeRow[]): TreeRow[] {
+  return fresh.map((row) => {
+    const was = old.find((one) => one.id === row.id)
+    return was?.children === undefined ? row : { ...row, children: was.children, lazy: false }
+  })
+}
+
 /** The row one id names, wherever it is in the tree. */
 export function rowAt(rows: TreeRow[], id: string | null): TreeRow | null {
   if (id === null) return null

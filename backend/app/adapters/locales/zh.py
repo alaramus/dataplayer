@@ -90,4 +90,5 @@ MESSAGES: dict[str, str] = {
     "Reach the server through one of your SSH connections; the host is then as that server sees it": "通过您的某个 SSH 连接访问服务器；此时主机按该 SSH 服务器所见填写",
     "This connection goes through an SSH tunnel, and none is at hand": "此连接需经过 SSH 隧道，但此处无法使用",
     "A backup does not go through an SSH tunnel yet": "备份暂不支持经由 SSH 隧道进行",
+    'Follow changes as they happen': '实时跟踪变化',
 }

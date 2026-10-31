@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.adapters.routes import router as adapter_types_router
 from app.ai import topic as agent_topic
 from app.ai.routes import router as agent_router
+from app.connectors import changes as source_changes
 from app.connectors import health as connector_health
 from app.connectors.declared_routes import router as declared_references_router
 from app.connectors.paste.routes import router as paste_router
@@ -46,6 +47,7 @@ api_router.include_router(logs_router)
 api_router.include_router(connectors_router)
 api_router.include_router(declared_references_router)
 api_router.include_router(paste_router)
+api_router.include_router(source_changes.router)
 api_router.include_router(ssh_keys_router)
 api_router.include_router(adapter_types_router)
 api_router.include_router(guide_router)
@@ -67,6 +69,7 @@ api_router.include_router(terminals_router)
 # Imported for its registration: the health topic is about connectors, so it
 # lives with them, and the socket learns of it here rather than knowing it.
 _ = connector_health.NAME
+_ = source_changes.NAME
 _ = metrics_live.NAME
 _ = agent_topic.NAME
 

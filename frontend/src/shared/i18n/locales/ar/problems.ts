@@ -56,6 +56,7 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "paste.same_connection": "اقرن اتصالين مختلفين",
   "connectors.no_content_previews": "هذا المصدر لا يدعم معاينات المحتوى",
   "connectors.no_content_stream": "هذا المصدر لا يبث المحتوى",
+  "connectors.no_live_changes": "هذا المصدر لا يُبلغ عن التغييرات",
   "connectors.no_connection_string": "هذا المصدر لا يُعنون بسلسلة اتصال",
   "connectors.not_made_here": "لا يمكن إنشاء مصدر من هذا النوع على هذا الخادم",
   "connectors.no_server_key": "هذا المصدر لا يثبّت مفتاح خادم",

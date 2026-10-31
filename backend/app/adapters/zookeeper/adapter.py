@@ -9,6 +9,7 @@ from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.changes import ChangeSink, ChangeWatch
 from app.adapters.content import (
     ContentRequest,
     ContentResult,
@@ -59,6 +60,7 @@ from app.adapters.zookeeper.session import (
     options_from_url,
 )
 from app.adapters.zookeeper.summary import ZookeeperSummaries
+from app.adapters.zookeeper.watch import open_watch
 from app.adapters.zookeeper.znodes import (
     ancestors_of,
     checked_path,
@@ -221,6 +223,10 @@ class ZookeeperAdapter:
         if is_section(node_id) or in_section(node_id):
             return []
         return list(self._actions)
+
+    async def watch_changes(self, sink: ChangeSink) -> ChangeWatch:
+        """Watches on what a screen shows, over a session held open (D303)."""
+        return await open_watch(self._session, sink)
 
     async def console_program(self) -> ConsoleProgram:
         """zkCli, connected to this server and root path, in a container (D299)."""

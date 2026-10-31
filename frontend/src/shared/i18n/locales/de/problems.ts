@@ -56,6 +56,7 @@ export const problems: Record<ProblemCode, string> = {
   "paste.same_connection": "Wählen Sie zwei verschiedene Verbindungen",
   "connectors.no_content_previews": "Die Quelle unterstützt keine Inhaltsvorschau",
   "connectors.no_content_stream": "Die Quelle überträgt Inhalte nicht als Stream",
+  "connectors.no_live_changes": "Diese Quelle meldet keine Änderungen",
   "connectors.no_connection_string": "Die Quelle hat keine Verbindungszeichenfolge",
   "connectors.not_made_here": "Eine Quelle dieser Art kann auf diesem Server nicht erstellt werden",
   "connectors.no_server_key": "Die Quelle merkt sich keinen Serverschlüssel",

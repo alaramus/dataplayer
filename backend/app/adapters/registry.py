@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.adapters.actions import DeclaresActions
 from app.adapters.cache import SourceCacheWindows, SupportsReadCache
+from app.adapters.changes import SupportsChangeWatch
 from app.adapters.credentials import KeyAccess
 from app.adapters.features import FEATURE_TITLES
 from app.adapters.metrics import SupportsMetrics
@@ -119,6 +120,7 @@ CapabilityCode = Literal[
     "terminal",
     "declared_references",
     "relationship_graph",
+    "live_changes",
 ]
 
 
@@ -350,6 +352,12 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
     if issubclass(driver, SupportsTerminal) or issubclass(driver, SupportsConsoleProgram):
         found.append(
             Capability(group="manage", title=say("Open a terminal"), code="terminal")
+        )
+    if issubclass(driver, SupportsChangeWatch):
+        found.append(
+            Capability(
+                group="explore", title=say("Follow changes as they happen"), code="live_changes"
+            )
         )
     if issubclass(driver, DeclaresActions):
         for action_type in driver.action_types():

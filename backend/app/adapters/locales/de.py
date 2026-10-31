@@ -90,4 +90,5 @@ MESSAGES: dict[str, str] = {
     "Reach the server through one of your SSH connections; the host is then as that server sees it": "Den Server über eine Ihrer SSH-Verbindungen erreichen; der Host ist dann so anzugeben, wie dieser Server ihn sieht",
     "This connection goes through an SSH tunnel, and none is at hand": "Diese Verbindung läuft über einen SSH-Tunnel, der hier nicht verfügbar ist",
     "A backup does not go through an SSH tunnel yet": "Eine Sicherung kann noch nicht über einen SSH-Tunnel laufen",
+    'Follow changes as they happen': 'Änderungen verfolgen, sobald sie geschehen',
 }

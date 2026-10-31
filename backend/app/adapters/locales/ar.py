@@ -87,4 +87,5 @@ MESSAGES: dict[str, str] = {
     "Reach the server through one of your SSH connections; the host is then as that server sees it": "الوصول إلى الخادم عبر أحد اتصالات SSH الخاصة بك؛ ويُكتب المضيف حينئذٍ كما يراه ذلك الخادم",
     "This connection goes through an SSH tunnel, and none is at hand": "يمر هذا الاتصال عبر نفق SSH غير متاح هنا",
     "A backup does not go through an SSH tunnel yet": "لا يمكن للنسخة الاحتياطية بعدُ أن تمر عبر نفق SSH",
+    'Follow changes as they happen': 'متابعة التغييرات فور حدوثها',
 }

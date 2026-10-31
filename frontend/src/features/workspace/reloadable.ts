@@ -7,13 +7,18 @@ import type { InjectionKey, MaybeRefOrGetter } from "vue"
  * Not component instance refs held by the engine — that would tie the engine
  * to the insides of panels, which is what D12 exists to prevent.
  */
-export type Reload = () => Promise<void> | void
+/**
+ * `live` is a reload the source asked for (D303) rather than one somebody
+ * pressed: a panel holding an unsaved edit then keeps quiet instead of saying
+ * why it did not reload.
+ */
+export type Reload = (why?: "live") => Promise<void> | void
 
 export interface ReloadRegistry {
   /** Say how this panel is re-read. Returns the way to take it back. */
   register(panelId: string, reload: Reload): () => void
   /** Re-read a panel. False when nothing was registered for it. */
-  reload(panelId: string): Promise<boolean>
+  reload(panelId: string, why?: "live"): Promise<boolean>
 }
 
 export function createReloadRegistry(): ReloadRegistry {
@@ -29,10 +34,10 @@ export function createReloadRegistry(): ReloadRegistry {
     }
   }
 
-  async function reload(panelId: string): Promise<boolean> {
+  async function reload(panelId: string, why?: "live"): Promise<boolean> {
     const known_ = known.get(panelId)
     if (known_ === undefined) return false
-    await known_()
+    await known_(why)
     return true
   }
 

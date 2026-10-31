@@ -125,7 +125,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/sqlite](docs/architecture/sources/sqlite.md) | D247–D263 |
 | [sources/clickhouse](docs/architecture/sources/clickhouse.md) | D267–D280 |
 | [sources/mongodb](docs/architecture/sources/mongodb.md) | D283–D285, D287–D294, D296 |
-| [sources/zookeeper](docs/architecture/sources/zookeeper.md) | D297–D302 |
+| [sources/zookeeper](docs/architecture/sources/zookeeper.md) | D297–D303 |
 
 ## Working rules
 
