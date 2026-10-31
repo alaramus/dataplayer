@@ -146,7 +146,9 @@ const modes = computed(() => [
         data-testid="service-automatic-summary"
       >
         {{ t('services.start.runs') }} <code>{{ template?.image }}</code>
-        {{ t('services.start.automatic_rest') }}
+        <!-- A template with no password to choose has none at all: every one
+             that makes one lets it be chosen (D302). -->
+        {{ asksFor.includes('password') ? t('services.start.automatic_rest') : t('services.start.automatic_rest_open') }}
         <template v-if="offersSampleData">
           {{ t('services.start.sample_note') }}
         </template>

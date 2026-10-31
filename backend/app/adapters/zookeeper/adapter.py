@@ -51,6 +51,7 @@ from app.adapters.zookeeper.reports import (
     report_node,
     section_node,
 )
+from app.adapters.zookeeper.samples import ZookeeperSamples
 from app.adapters.zookeeper.search import ZookeeperSearch
 from app.adapters.zookeeper.session import (
     ZookeeperSession,
@@ -82,6 +83,7 @@ class ZookeeperAdapter:
         self._reports = ZookeeperReports(self._session)
         self._metrics = ZookeeperMetrics(self._session)
         self._search = ZookeeperSearch(self._session)
+        self._samples = ZookeeperSamples(self._session)
 
     # --- how to reach it, in one line ---------------------------------------
 
@@ -160,6 +162,10 @@ class ZookeeperAdapter:
         return self._children.export_rows(request)
 
     # --- the server's counters and finding znodes (D301) ----------------------
+
+    async def install_sample_data(self) -> str:
+        """The lab, for a server started here (D302)."""
+        return await self._samples.install_sample_data()
 
     async def metric_samples(self) -> list[MetricSample]:
         return await self._metrics.metric_samples()

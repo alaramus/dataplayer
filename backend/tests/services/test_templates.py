@@ -224,3 +224,21 @@ def test_a_clickhouse_server_is_signed_into_as_its_default_user() -> None:
     assert isinstance(script, Fixed)
     assert "background_schedule_pool_size" in script.value
     assert script.value.endswith("exec /entrypoint.sh")
+
+
+def test_a_zookeeper_server_asks_for_no_password_and_answers_its_reports() -> None:
+    """Access is per znode in ZooKeeper, so there is nothing to settle (D302)."""
+    template = template_for("zookeeper")
+
+    assert template.image == "zookeeper:3.9"
+    assert template.adapter_type == "zookeeper"
+    assert template.container_port == 2181
+    assert generated_slots(template) == ()
+    assert template.choosable == frozenset()
+    assert template.connector_options["auth_method"] == Fixed("anonymous")
+    # The words the reports and metrics read (D301), and not the ones that
+    # dump every session or reset the counters.
+    allowed = template.environment["ZOO_4LW_COMMANDS_WHITELIST"]
+    assert isinstance(allowed, Fixed)
+    assert set(allowed.value.split(",")) >= {"srvr", "mntr", "cons", "wchs", "conf"}
+    assert not {"dump", "wchp", "crst", "srst"} & set(allowed.value.split(","))

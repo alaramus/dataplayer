@@ -899,7 +899,7 @@ def _credentials_of(service: ManagedService) -> ServiceCredentials:
         port=published,
         user=names.get(USER),
         database=names.get(DATABASE),
-        password_mode=cast(PasswordMode, service.password_mode),
+        password_mode=_password_mode_of(template, service.password_mode),
         url=_url_of(
             registry.get(template.adapter_type), _parts_of(service, names, published)
         )
@@ -907,6 +907,17 @@ def _credentials_of(service: ManagedService) -> ServiceCredentials:
         else None,
         unreachable_reason=None if published is not None else say(NOT_PUBLISHED),
     )
+
+
+def _password_mode_of(template: templates.ServiceTemplate, mode: str) -> PasswordMode:
+    """How the service is signed into, and `none` for a template whose shape
+    settles no password at all: ZooKeeper has none to make up (D302), and the
+    window must not warn about a password it is not handing over."""
+    if mode in ("generated", "chosen") and PASSWORD not in templates.slots_of(
+        shape_for(template, mode)
+    ):
+        return "none"
+    return cast(PasswordMode, mode)
 
 
 def _parts_of(

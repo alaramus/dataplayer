@@ -144,6 +144,21 @@ connected but not signed in, and the first line says so. Type
 `addauth digest user:password` to read and change znodes whose ACL needs that
 user. The password is not filled in for you and is never shown by DataPlayer.
 
+## A ZooKeeper of your own
+
+**Services** can start a ZooKeeper on this machine, if this server may run
+containers. It asks for no password — ZooKeeper has none for the server as a
+whole; who may do what is each znode's ACL — and is reached only from this
+machine. It answers the reports above, and its connection is made for you.
+
+It comes with a lab under `/lab`: configuration as JSON, a registry of service
+instances, an election and a queue of sequential znodes, counters stored as
+bytes, a lock, and `/lab/private`, readable only by the digest user `lab` with
+the password `lab`. Making a Digest connection as that user shows the
+difference.
+
 ## What ZooKeeper does not have here yet
 
 - Watching a znode for changes: refresh by hand
+- Copying znodes to another connection, and backups. ZooKeeper offers neither
+  through its clients: its backups are the snapshot files on the server itself.

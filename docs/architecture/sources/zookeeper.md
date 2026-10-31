@@ -3,12 +3,12 @@
 What a ZooKeeper source is, how it reaches the server, what its catalog shows
 of the znode tree, and how a znode's data, stat, ACL and children are read and
 its data written, znodes made and deleted and their ACLs changed (D300), the server's reports
-and metrics, finding znodes and exporting children (D301), and zkCli in a
-terminal (D299, run as D286 says in
+and metrics, finding znodes and exporting children (D301), a server started here with a
+lab (D302), and zkCli in a terminal (D299, run as D286 says in
 [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `zookeeper` adapter.
 
-Decisions here: D297, D298, D299, D300, D301.
+Decisions here: D297, D298, D299, D300, D301, D302.
 
 ## D297. A ZooKeeper source speaks to one server through kazoo, a session per operation
 
@@ -196,3 +196,31 @@ Known deviations:
 - A found znode's ancestors are drawn as folders until the tree reads them.
 
 Spec: [2026-10-31-zookeeper-reports-design.md](../../decisions/2026-10-31-zookeeper-reports-design.md)
+
+## D302. A ZooKeeper is started here with no password and a lab; nothing is copied or backed up
+
+The service template runs `zookeeper:3.9` with its data in `/data`. It settles
+no credential: ZooKeeper has no password for the server as a whole, access
+being each znode's ACL, and its port is published on the loopback only (D86),
+as an unprotected Redis's is. It allows the four-letter words the reports and
+metrics read (D301) — `srvr`, `mntr`, `cons`, `wchs`, `conf` and `ruok` — and
+not `dump`, `wchp` or the resets. Its connection is anonymous.
+
+A server started here is given a lab under `/lab`, made again from nothing each
+time: configuration as JSON, a registry of service instances, an election and
+a queue of sequential znodes, counters stored as bytes, a lock, and
+`/lab/private` with a digest ACL for the user `lab`, password `lab`, which the
+guide names.
+
+ZooKeeper offers no copy between ensembles and no backup through its clients:
+a copy is a walk that makes every znode again, and a backup is the snapshot
+and log files in the server's own data directory, or the AdminServer's
+`snapshot` on a port the connection does not know. Neither is offered here;
+the user chose to leave them out rather than call a walk either one.
+
+Known deviations:
+
+- No copy of znodes into another connection and no backup or restore, unlike
+  the database sources.
+
+Spec: [2026-10-31-zookeeper-service-design.md](../../decisions/2026-10-31-zookeeper-service-design.md)

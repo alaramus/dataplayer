@@ -164,7 +164,8 @@ anonymous with a note on `addauth` for a digest connection (D299). Znodes made
 at the top or inside one, deleted alone or with their subtree after a preview,
 and their ACLs changed as zkCli's text (D300). A Server section of reports
 from the four-letter words, metrics from `mntr`, znodes found by walking the
-tree, and a level's children exported whole (D301).
+tree, and a level's children exported whole (D301). A server started here with a lab,
+and no copy or backup, which ZooKeeper's clients do not offer (D302).
 
 ## Where the code is
 

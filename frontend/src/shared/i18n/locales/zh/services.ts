@@ -119,6 +119,8 @@ export const services: Messages["services"] = {
     runs: "运行于",
     automatic_rest:
       "在此服务器上，为你命名连接，并设置一个无需任何人选择的密码。它会告诉你如何从自己的工具访问它。",
+    automatic_rest_open:
+      "在此服务器上，并为你命名连接；它不需要密码，且只能从本机访问。它会告诉你如何从自己的工具访问它。",
     sample_note: "它会预置示例数据，这样就有内容可看。",
     name: "名称",
     user: "用户",

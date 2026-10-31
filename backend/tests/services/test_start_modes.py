@@ -571,6 +571,29 @@ async def test_a_service_started_without_one_has_no_password_to_hand_over(
     assert handed.json()["url"] == "redis://127.0.0.1:49219"
 
 
+async def test_a_zookeeper_is_told_as_having_no_password_at_all(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """ZooKeeper has no password to make up, so the window must not warn that
+    one is being handed over for the only time (D302)."""
+    engine.gives_port = 49220
+    accepted = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={"template_key": "zookeeper"}
+    )
+    assert accepted.status_code == 200, accepted.text
+    await _wait(accepted.json()["job"]["id"])
+
+    handed = await client.post(
+        f"{BASE}/{accepted.json()['service']['id']}/credentials/reveal",
+        headers=normal_user_token_headers,
+    )
+
+    assert handed.status_code == 200, handed.text
+    assert handed.json()["password"] is None
+    assert handed.json()["password_mode"] == "none"
+    assert handed.json()["url"] == "127.0.0.1:49220"
+
+
 @pytest.mark.usefixtures("engine")
 async def test_nobody_else_may_ask_for_that_password(
     client: AsyncClient,

@@ -119,6 +119,8 @@ export const services: Messages["services"] = {
     runs: "Exécute",
     automatic_rest:
       "sur ce serveur, nomme la connexion pour vous et lui donne un mot de passe que personne n'a à choisir. Il vous indiquera où l'atteindre depuis vos propres outils.",
+    automatic_rest_open:
+      "sur ce serveur et nomme la connexion pour vous ; il ne demande pas de mot de passe et n'est joignable que depuis cette machine. Il vous indiquera où l'atteindre depuis vos propres outils.",
     sample_note: "Il est fourni rempli de données d'exemple, pour qu'il y ait quelque chose à regarder.",
     name: "Nom",
     user: "Utilisateur",

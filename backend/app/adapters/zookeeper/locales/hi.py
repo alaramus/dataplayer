@@ -82,4 +82,5 @@ MESSAGES: dict[str, str] = {
     "Some levels may not be listed by this connection and were not searched": "कुछ स्तर यह कनेक्शन सूचीबद्ध नहीं कर सकता, और वे खोजे नहीं गए",
     "More than {limit} znodes; the first {limit} are kept": "{limit} से अधिक znode; पहले {limit} रखे गए",
     "The children of a znode are exported in the order of their names": "किसी znode के चाइल्ड उनके नामों के क्रम में निर्यात होते हैं",
+    "{count} znodes under {path}": "{path} के नीचे znode: {count}",
 }

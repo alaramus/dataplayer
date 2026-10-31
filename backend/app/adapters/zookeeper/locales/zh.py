@@ -82,4 +82,5 @@ MESSAGES: dict[str, str] = {
     "Some levels may not be listed by this connection and were not searched": "此连接无权列出某些层级，这些层级未被搜索",
     "More than {limit} znodes; the first {limit} are kept": "超过 {limit} 个 znode；保留前 {limit} 个",
     "The children of a znode are exported in the order of their names": "znode 的子节点按名称顺序导出",
+    "{count} znodes under {path}": "{path} 下的 znode 数：{count}",
 }

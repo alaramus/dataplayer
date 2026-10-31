@@ -117,6 +117,8 @@ export const services = {
     runs: "Runs",
     automatic_rest:
       "on this server, names the connection for you, and gives it a password nobody has to choose. It will tell you where to reach it from your own tools.",
+    automatic_rest_open:
+      "on this server and names the connection for you; it asks for no password, and is reachable from this machine only. It will tell you where to reach it from your own tools.",
     sample_note: "It comes filled with sample data, so there is something to look at.",
     name: "Name",
     user: "User",

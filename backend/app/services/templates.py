@@ -442,6 +442,38 @@ MONGODB = ServiceTemplate(
 # implements a driver, and there is nothing to implement here. A template is
 # data, and data that can be added to at runtime is data a test cannot pin
 # down.
+ZOOKEEPER = ServiceTemplate(
+    key="zookeeper",
+    title=N_("ZooKeeper"),
+    description=N_(
+        "A ZooKeeper server of its own, started on this machine, with a lab "
+        "of znodes to walk through."
+    ),
+    # The release the source type is tested against, and whose zkCli its
+    # terminal runs (D299).
+    image="zookeeper:3.9",
+    container_port=2181,
+    data_path="/data",
+    # ZooKeeper has no password for the server as a whole: access is per
+    # znode, by its ACL. Its port is published on the loopback only (D86),
+    # as an unprotected Redis's is (D302).
+    credentials={},
+    choosable=frozenset(),
+    environment={
+        # The four-letter words the reports and metrics read (D301), and no
+        # others: `wchp`, `dump` and the resets stay off.
+        "ZOO_4LW_COMMANDS_WHITELIST": Fixed("srvr,mntr,cons,wchs,conf,ruok"),
+    },
+    command=(),
+    adapter_type="zookeeper",
+    connector_options={
+        "auth_method": Fixed("anonymous"),
+        "host": HOST,
+        "port": PORT,
+    },
+    startup_timeout_seconds=60,
+)
+
 REDIS = ServiceTemplate(
     key="redis",
     title=N_("Redis"),
@@ -556,7 +588,7 @@ SSH = ServiceTemplate(
 
 
 SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
-    POSTGRES, TIMESCALE, MYSQL, MARIADB, CLICKHOUSE, MONGODB, REDIS, SSH
+    POSTGRES, TIMESCALE, MYSQL, MARIADB, CLICKHOUSE, MONGODB, REDIS, ZOOKEEPER, SSH
 )
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}

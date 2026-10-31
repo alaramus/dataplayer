@@ -88,4 +88,5 @@ MESSAGES: dict[str, str] = {
     'A MariaDB server of its own, started on this machine with a password nobody has to choose.': 'خادم MariaDB مستقل، يعمل على هذا الجهاز بكلمة مرور لا يحتاج أحد إلى اختيارها.',
     "The console could not be attached": "تعذّر الاتصال بوحدة التحكم",
     "A MongoDB server of its own, started on this machine with a password nobody has to choose.": "خادم MongoDB خاص بك، يُشغَّل على هذا الجهاز بكلمة مرور لا يحتاج أحد إلى اختيارها.",
+    'A ZooKeeper server of its own, started on this machine, with a lab of znodes to walk through.': 'خادم ZooKeeper خاص بك يعمل على هذا الجهاز، مع شجرة znode تجريبية للتجوّل فيها.',
 }

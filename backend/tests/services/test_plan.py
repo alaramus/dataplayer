@@ -19,7 +19,7 @@ from app.services.plan import (
     settle_credentials,
     settled_names,
 )
-from app.services.templates import SERVICE_TEMPLATES, template_for
+from app.services.templates import SERVICE_TEMPLATES, generated_slots, template_for
 
 
 def _plan(placement: Placement | None = None):
@@ -190,10 +190,18 @@ def test_the_secret_of_that_connector_is_a_secret_of_the_model() -> None:
         assert generated <= secret_fields, template.key
 
 
-@pytest.mark.parametrize("key", [template.key for template in SERVICE_TEMPLATES])
+@pytest.mark.parametrize(
+    "key",
+    [
+        template.key
+        for template in SERVICE_TEMPLATES
+        # ZooKeeper's has none to print (D302).
+        if "password" in generated_slots(template)
+    ],
+)
 def test_no_template_prints_its_password_anywhere(key: str) -> None:
     """One image takes its password on the command line, so the check is made
-    for every template rather than for the first one."""
+    for every template that makes one rather than for the first one."""
     plan = build_plan(
         template_for(key),
         service_id=uuid4(),

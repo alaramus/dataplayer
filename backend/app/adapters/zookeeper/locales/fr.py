@@ -82,4 +82,5 @@ MESSAGES: dict[str, str] = {
     "Some levels may not be listed by this connection and were not searched": "Certains niveaux ne peuvent pas être listés par cette connexion et n'ont pas été parcourus",
     "More than {limit} znodes; the first {limit} are kept": "Plus de {limit} znodes ; les {limit} premiers sont conservés",
     "The children of a znode are exported in the order of their names": "Les enfants d'un znode sont exportés dans l'ordre de leurs noms",
+    "{count} znodes under {path}": "Znodes sous {path} : {count}",
 }

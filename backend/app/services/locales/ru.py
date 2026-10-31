@@ -88,4 +88,5 @@ MESSAGES: dict[str, str] = {
     "A MariaDB server of its own, started on this machine with a password nobody has to choose.": "Собственный сервер MariaDB, запущенный на этой машине; пароль выбирать не нужно.",
     "The console could not be attached": "Не удалось подключиться к консоли",
     "A MongoDB server of its own, started on this machine with a password nobody has to choose.": "Собственный сервер MongoDB, запущенный на этой машине; пароль выбирать не нужно.",
+    'A ZooKeeper server of its own, started on this machine, with a lab of znodes to walk through.': 'Собственный сервер ZooKeeper, запущенный на этой машине, с демонстрационным деревом узлов.',
 }
