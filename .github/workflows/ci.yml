@@ -109,9 +109,11 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-      # The MongoDB the MongoDB source tests read (D283).
+      # The MongoDB the MongoDB source tests read (D283). 7.0 rather than 8.0:
+      # 8.0's TCMalloc refuses to start on the runner's kernel, 6.19 or newer
+      # (SERVER-121912), and the source type needs only 5.0.
       mongodb:
-        image: mongo:8.0
+        image: mongo:7.0
         env:
           MONGO_INITDB_ROOT_USERNAME: root
           MONGO_INITDB_ROOT_PASSWORD: dataplayer
