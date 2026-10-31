@@ -263,7 +263,7 @@ async def test_the_type_catalog_says_which_sources_can_be_searched(
     assert "search" in codes["postgres"]
     # A tree with no node path still searches its own catalog: its matches
     # carry their ancestors (D91).
-    assert codes["redis"] - {None} == {"metrics", "relation_model", "search"}
+    assert codes["redis"] - {None} == {"metrics", "relation_model", "search", "terminal"}
     # Two promises, so two codes: a source may match names without being able
     # to read what is in them.
     assert "content_search" in codes["file"]

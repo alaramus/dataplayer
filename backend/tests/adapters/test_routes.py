@@ -132,6 +132,8 @@ async def test_reports_what_a_type_can_do(
         # Not an action: a capability read off `SupportsBackup`, which is what
         # greys the Backups button out on a source that has no such program.
         "Copy the whole database out",
+        # psql in a container, read off `SupportsConsoleProgram` (D286).
+        "Open a terminal",
         # Declared with their installation condition (D120), never offered without it.
         *(
             f"{title} (when TimescaleDB is installed)" for title in (
