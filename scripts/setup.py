@@ -460,7 +460,9 @@ def erase_by_character() -> None:
         attributes = termios.tcgetattr(sys.stdin)
         attributes[0] |= flag
         termios.tcsetattr(sys.stdin, termios.TCSANOW, attributes)
-    except termios.error:
+    # OSError and ValueError: a stdin with no descriptor behind it, pytest's
+    # included, raises io.UnsupportedOperation rather than termios.error.
+    except (termios.error, OSError, ValueError):
         pass
 
 
