@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
@@ -22,17 +23,22 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.mongodb.actions import MONGODB_ACTION_TYPES, MongodbActions
+from app.adapters.mongodb.backup import MongodbBackup
 from app.adapters.mongodb.catalog import MongodbCatalog
 from app.adapters.mongodb.console import console_program
 from app.adapters.mongodb.content import MongodbContent
 from app.adapters.mongodb.export import MongodbExport
 from app.adapters.mongodb.fetch import MongodbFetch
+from app.adapters.mongodb.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.mongodb.metrics import MongodbMetrics
 from app.adapters.mongodb.options import MongodbOptions
 from app.adapters.mongodb.relation import MongodbRelation
 from app.adapters.mongodb.report_pages import report_page
 from app.adapters.mongodb.reports import in_section, report_for
 from app.adapters.mongodb.row_commands import MongodbRowCommands
+from app.adapters.mongodb.samples import MongodbSamples
 from app.adapters.mongodb.search import MongodbSearch
 from app.adapters.mongodb.session import (
     MongodbSession,
@@ -42,8 +48,14 @@ from app.adapters.mongodb.session import (
 )
 from app.adapters.mongodb.structure import MongodbStructure
 from app.adapters.mongodb.summary import MongodbSummaries
+from app.adapters.mongodb.table_copy import DIALECT, MongodbTableCopy
 from app.adapters.mongodb.update import MongodbUpdate
-from app.adapters.protocol import AdapterError, ConnectionCheckResult
+from app.adapters.protocol import (
+    AdapterError,
+    BackupAvailability,
+    BackupProgram,
+    ConnectionCheckResult,
+)
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.resources import Pooling
@@ -58,6 +70,14 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.summary import NodeSummary
+from app.adapters.table_copy import (
+    Arrived,
+    CopiedTable,
+    RowsOf,
+    TableCopyPlan,
+    TableCopyRequest,
+    TableRows,
+)
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
 from app.adapters.update import (
@@ -130,7 +150,66 @@ class MongodbAdapter:
         self._row_commands = MongodbRowCommands(self._session)
         self._search = MongodbSearch(self._session, self._catalog)
         self._actions = MongodbActions(self._session, self._catalog)
+        self._table_copy = MongodbTableCopy(self._session)
+        self._backup = MongodbBackup(self._session, options)
+        self._metrics = MongodbMetrics(self._session)
+        self._samples = MongodbSamples(self._session)
         self._summaries = MongodbSummaries(self._relation)
+
+    table_copy_dialect = DIALECT
+
+    @property
+    def table_copy_database(self) -> str:
+        return self._table_copy.table_copy_database
+
+    async def describe_for_copy(self, node_ids: list[str]) -> list[CopiedTable]:
+        return await self._table_copy.describe_for_copy(node_ids)
+
+    async def free_table_names(self, place_node_id: str, wanted: list[str]) -> list[str]:
+        return await self._table_copy.free_table_names(place_node_id, wanted)
+
+    async def plan_table_copy(self, request: TableCopyRequest) -> TableCopyPlan:
+        return await self._table_copy.plan_table_copy(request)
+
+    def reading_tables(self) -> AbstractAsyncContextManager[TableRows]:
+        return self._table_copy.reading_tables()
+
+    async def carry_table_copy(
+        self, request: TableCopyRequest, rows_of: RowsOf, arrived: Arrived
+    ) -> None:
+        """Collections made, documents loaded, indexes built; all dropped on failure (D291)."""
+        await self._table_copy.carry_table_copy(request, rows_of, arrived)
+
+    async def install_sample_data(self) -> str:
+        """The lab, in a database of its own, for a server started here (D294)."""
+        return await self._samples.install_sample_data()
+
+    async def metric_samples(self) -> list[MetricSample]:
+        """serverStatus and the database's size, per poll (D293)."""
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    async def backup_availability(self) -> BackupAvailability:
+        return await self._backup.backup_availability()
+
+    async def backup_program(self, *, into: str) -> BackupProgram:
+        """mongodump of the connection's database into one archive (D292)."""
+        return await self._backup.backup_program(into=into)
+
+    async def restore_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_program(from_file=from_file)
+
+    async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_inventory_program(from_file=from_file)
+
+    def validate_restore_inventory(self, lines: Sequence[str]) -> None:
+        self._backup.validate_restore_inventory(lines)
+
+    def restore_archive_reason(self, head: bytes) -> str | None:
+        return self._backup.restore_archive_reason(head)
 
     @classmethod
     def cache_ttl(cls, area: CacheArea) -> float:

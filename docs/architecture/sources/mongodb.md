@@ -3,14 +3,15 @@
 What a MongoDB source is, how it reaches the server, what its catalog shows,
 how a collection becomes columns, how its documents cross to the grid and
 how they are changed there, and how a collection's fields and indexes are
-changed, its reports, search, export and catalog actions. Its
+changed, its reports, search, export and catalog actions, and how its collections are
+copied, backed up and measured and a server started here. Its
 console is `mongosh` in a terminal, run in a container (D286, in
 [terminals.md](../terminals.md)). The
 contract every source type follows is in [contract.md](contract.md); reading a
 relation in general is in [relations.md](relations.md). Read this before
 changing the `mongodb` adapter.
 
-Decisions here: D283, D284, D285, D287, D288, D289, D290.
+Decisions here: D283, D284, D285, D287, D288, D289, D290, D291, D292, D293, D294.
 
 ## D283. A MongoDB source speaks to one server through pymongo
 
@@ -238,3 +239,58 @@ value no field. The model of what is selected is written as code (D73) from
 its fields. The server's own databases and collections offer only that.
 
 Spec: [MongoDB reports and actions](../../decisions/2026-10-31-mongodb-reports-design.md)
+
+## D291. Collections are copied whole into another MongoDB
+
+MongoDB is a dialect of its own for Copy tables (D182): collections go from
+one MongoDB connection into a database of another, or of the same one. The
+source describes a collection by its options — validator, validation level and
+action, cap, collation — and each index but `_id_` by its key and options, as
+canonical Extended JSON; a view, a time series and the server's own
+collections are refused with the reason. The destination makes each
+collection with those options, loads its documents and builds the indexes
+over them after. The plan shows the `mongosh` lines that would do the same.
+Documents travel whole as canonical Extended JSON lines, so every BSON type
+arrives as itself, and are inserted a thousand at a time. A name taken is
+offered as `name_copy`. Nothing holds the collections still while they are
+read; a failure, a refused document or index included, drops every collection
+the copy made.
+
+Spec: [MongoDB copies, backups, metrics and the lab](../../decisions/2026-10-31-mongodb-copy-design.md)
+
+## D292. A backup is mongodump's archive of the connection's database
+
+A backup (D87) runs `mongodump` from the image the console runs (D286) into
+one gzipped archive in the owner's storage; a restore runs `mongorestore`
+with `--drop`, only the connection's database included. Neither tool reads a
+password from its environment, so a line of shell writes the address from the
+environment into a configuration file only it can read, inside the container,
+and the tool reads that. An archive is one when it starts as gzip does, whole
+when gzip reads it to its end, and restored only into a connection naming the
+database its prelude names. A connection that names no database, or goes
+through an SSH tunnel (D282), is not offered one.
+
+Spec: [MongoDB copies, backups, metrics and the lab](../../decisions/2026-10-31-mongodb-copy-design.md)
+
+## D293. Metrics are serverStatus and dbStats
+
+Every poll (D128) reads `serverStatus` — connections, operations by kind as
+counters, documents returned, inserted, updated and deleted, resident memory,
+network bytes, the WiredTiger cache, user asserts — and `dbStats` of the
+connection's database, or of every database not the server's own: size on
+disk, index size and documents. A "MongoDB server" dashboard draws them.
+
+Spec: [MongoDB copies, backups, metrics and the lab](../../decisions/2026-10-31-mongodb-copy-design.md)
+
+## D294. A MongoDB started here has its root user and, if asked, the lab
+
+The service template starts `mongo:8.0` with its root user made in `admin`
+and a generated password; the database the connection opens on is chosen
+(`dataplayer` unless named). The lab, `demo_lab`, is made by code from a
+seeded generator, so every lab is the same: customers with embedded addresses,
+a `$jsonSchema` validator and fields some lack, products with tags and a text
+index, two thousand orders holding their lines as arrays with a compound, a
+unique and a hashed index, twenty thousand page views as a time series, and a
+view adding orders up.
+
+Spec: [MongoDB copies, backups, metrics and the lab](../../decisions/2026-10-31-mongodb-copy-design.md)

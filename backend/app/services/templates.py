@@ -398,6 +398,45 @@ CLICKHOUSE = ServiceTemplate(
     startup_timeout_seconds=120,
 )
 
+MONGODB = ServiceTemplate(
+    key="mongodb",
+    title=N_("MongoDB"),
+    description=N_(
+        "A MongoDB server of its own, started on this machine with a "
+        "password nobody has to choose."
+    ),
+    # The release the source type is tested against, and whose mongosh and
+    # database tools its console and backups run (D286, D292).
+    image="mongo:8.0",
+    container_port=27017,
+    data_path="/data/db",
+    credentials={
+        # The image's first user, made in `admin` with the root role: the
+        # server is its owner's whole, as MySQL's root is (D294).
+        USER: Fixed("root"),
+        DATABASE: Fixed("dataplayer"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({DATABASE, PASSWORD}),
+    environment={
+        "MONGO_INITDB_ROOT_USERNAME": USER,
+        "MONGO_INITDB_ROOT_PASSWORD": PASSWORD,
+        "MONGO_INITDB_DATABASE": DATABASE,
+    },
+    command=(),
+    adapter_type="mongodb",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "database": DATABASE,
+        "user": USER,
+        "password": PASSWORD,
+        "auth_source": Fixed("admin"),
+    },
+    startup_timeout_seconds=120,
+)
+
 # Everything this server may be asked to start. A tuple rather than a registry
 # with a `register` decorator: an adapter type is registered by the module that
 # implements a driver, and there is nothing to implement here. A template is
@@ -517,7 +556,7 @@ SSH = ServiceTemplate(
 
 
 SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
-    POSTGRES, TIMESCALE, MYSQL, MARIADB, CLICKHOUSE, REDIS, SSH
+    POSTGRES, TIMESCALE, MYSQL, MARIADB, CLICKHOUSE, MONGODB, REDIS, SSH
 )
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}

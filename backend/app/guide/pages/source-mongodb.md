@@ -16,6 +16,7 @@ documents. How connections work in general is on the
 - mongosh, signed in as the connection, in a terminal
 - Every matching document, downloaded as a file
 - The server's operations, connections, users and roles
+- The server's counters, on a dashboard
 
 ## What you can change
 
@@ -24,6 +25,8 @@ documents. How connections work in general is on the
 - Indexes: ascending, descending, hashed, text and geospatial; unique or not
 - Databases and collections: create, rename, move, drop; load a CSV
 - A running operation: stop it from its report
+- Collections copied into another MongoDB connection with their indexes
+- The connection's database: backed up to a file and restored from one
 - Anything mongosh can change, typed into its terminal
 
 ## Connecting
@@ -126,6 +129,20 @@ changes every document at once:
 - The **Server** section after the databases holds Operations, Connections,
   Users and Roles. **Stop operation** stops what you picked in Operations.
 - Search finds databases, collections and reports by name, not by field.
+
+## Copies, backups and a server of your own
+
+- **Copy tables** copies collections into a database of another MongoDB
+  connection, or of this one: their options and validator, every document as
+  it is stored, and their indexes. Views and time series are not copied.
+- A backup is `mongodump`'s archive of the database the connection names; a
+  restore writes it back over that database with `mongorestore`, replacing the
+  collections it holds. It is not offered through an SSH tunnel.
+- **Services** can start a MongoDB of your own, with a password nobody has to
+  choose, and fill it with the lab: a `demo_lab` database of customers,
+  products, orders, page views as a time series and a view.
+- A dashboard made from the **MongoDB server** layout draws connections,
+  operations, documents, memory, network and size.
 
 ## mongosh
 

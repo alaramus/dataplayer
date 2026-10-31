@@ -87,4 +87,5 @@ MESSAGES: dict[str, str] = {
     'A MySQL server of its own, started on this machine with a password nobody has to choose.': 'Un servidor MySQL propio, iniciado en esta máquina con una contraseña que nadie tiene que elegir.',
     'A MariaDB server of its own, started on this machine with a password nobody has to choose.': 'Un servidor MariaDB propio, iniciado en esta máquina con una contraseña que nadie tiene que elegir.',
     "The console could not be attached": "No se pudo conectar a la consola",
+    "A MongoDB server of its own, started on this machine with a password nobody has to choose.": "Un servidor MongoDB propio, iniciado en esta máquina con una contraseña que nadie tiene que elegir.",
 }

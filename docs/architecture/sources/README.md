@@ -20,7 +20,7 @@ file holds which decision.
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
-| [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed, its fields and indexes, its reports, search or catalog actions |
+| [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed, its fields and indexes, its reports, search or catalog actions, or how its collections are copied, backed up and measured |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
 ## Eight source types
@@ -148,7 +148,10 @@ from the closed predicates (D285). `mongosh` in a terminal, run in a container
 converted in every document, and indexes of MongoDB's own kinds made and
 dropped (D288). Four reports as pipelines in a Server section, an operation
 stopped, names searched, every document exported (D289); databases and
-collections made, renamed, moved and dropped, a CSV loaded (D290).
+collections made, renamed, moved and dropped, a CSV loaded (D290). Collections copied into another MongoDB with options,
+documents and indexes (D291), the database backed up by mongodump (D292),
+measured from serverStatus (D293), and a server started here with a lab
+(D294).
 
 ## Where the code is
 
@@ -249,6 +252,7 @@ backend/app/adapters/
 │                       structure.py + vocabulary.py (fields and indexes),
 │                       reports.py + report_pages.py + row_commands.py
 │                       (Server), search.py, export.py, actions.py,
+│                       table_copy.py, backup.py, metrics.py, samples.py,
 │                       console.py (mongosh), summary.py, adapter.py
 ├── database_ids.py     a database and a relation as one node id (D229)
 ├── row_handles.py      a handle of values and a digest of the row (D234, D272)
