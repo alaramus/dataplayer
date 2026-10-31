@@ -33,6 +33,11 @@ const emit = defineEmits<{
   select: [node: ListNode | null]
   /** Open this node the way the list opens one: in a tab of its own. */
   open: [node: ListNode]
+  /**
+   * Whether the source describes the nodes read so far (D75), so the menu
+   * offers Details before anything is selected, as the list's does.
+   */
+  describes: [value: boolean]
 }>()
 
 const loadChildren = useCatalogLoader()
@@ -155,6 +160,12 @@ watch(() => props.found ?? null, (matches) => {
   foundRows.value = built.rows
   expanded.value = built.open
 }, { immediate: true })
+
+watch(
+  rows,
+  (read) => { emit("describes", read.some((row) => row.node.summarizable)) },
+  { immediate: true }
+)
 
 watch(selected, (id) => {
   emit("select", rowAt(shown.value, id)?.node ?? null)

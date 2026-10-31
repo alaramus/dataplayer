@@ -173,3 +173,23 @@ describe("pointing the key space at a key", () => {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
   })
 })
+
+describe("what the tree tells the menu", () => {
+  it("says the source describes its nodes before anything is selected (D75)", async () => {
+    const znode = {
+      kind: "znode",
+      id: "/app",
+      name: "app",
+      has_children: false,
+      summarizable: true,
+      representations: [{ kind: "text", title: "Edit the data" }],
+    }
+    const described = mountTree(() => [znode])
+    await flushPromises()
+    expect(described.emitted("describes")?.at(-1)).toEqual([true])
+
+    const keys = mountTree()
+    await flushPromises()
+    expect(keys.emitted("describes")?.at(-1)).toEqual([false])
+  })
+})

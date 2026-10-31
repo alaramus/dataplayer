@@ -667,6 +667,8 @@ const treeLevelId = computed(() =>
 const treeChecked = computed(() =>
   picked.value !== null && !pickedIsPlace.value ? [picked.value] : []
 )
+/** Whether the tree's source describes its nodes: Details is offered, greyed until one is picked. */
+const treeDescribes = ref(false)
 /** The selected node of a tree, when the source will describe it (D75): a znode (D298). */
 const treeDescribed = computed(() => {
   const node = treeChecked.value[0]
@@ -1065,7 +1067,7 @@ async function afterAction(outcome: ActionOutcome) {
             :checked-nodes="treeChecked.map((node) => ({ label: node.label, kind: node.kind }))"
             :place-label="picked && pickedIsPlace ? picked.label : groupLabel"
             :checked-label="treeChecked[0]?.label ?? ''"
-            :describes-nodes="treeDescribed !== null"
+            :describes-nodes="treeDescribes"
             :described-node="treeDescribed"
             :draws-nodes="drawsNodes"
             :drawable-nodes="true"
@@ -1241,6 +1243,7 @@ async function afterAction(outcome: ActionOutcome) {
       :found="treeFound?.matches ?? null"
       @select="picked = $event"
       @open="onOpen"
+      @describes="treeDescribes = $event"
     />
 
     <CatalogList
