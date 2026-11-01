@@ -118,8 +118,16 @@ function tickableNode(node: ListNode): boolean {
   return props.tickable === null || props.tickable === undefined || props.tickable.has(node.kind)
 }
 
+/**
+ * The rows that are the source's own: what can be ticked, counted and copied.
+ * A section of reports, a report and a level the source draws only to sort its
+ * nodes — Kafka's Topics — are none of the three: they are the catalog's way
+ * around the source, not names in it.
+ */
+const ownItems = computed(() => props.items.filter(tickableNode))
+
 const allChecked = computed(() => {
-  const ticking = props.items.filter(tickableNode)
+  const ticking = ownItems.value
   return ticking.length > 0 && ticking.every((node) => props.checked.includes(node.id))
 })
 
@@ -136,7 +144,8 @@ const countLabel = computed(() => {
   // Before the level is read there is nothing to count, and "0 items" beside
   // the spinner said the level was empty.
   if (props.loading) return t("catalog.list.reading")
-  const total = t("catalog.count.item", { n: props.items.length }, props.items.length)
+  const count = ownItems.value.length
+  const total = t("catalog.count.item", { n: count }, count)
   if (props.checked.length === 0) return total
   return t("catalog.list.selected", { total, n: props.checked.length })
 })
@@ -148,7 +157,13 @@ const countLabel = computed(() => {
     ref="root"
     class="catalog-list"
   >
-    <div class="catalog-list__head">
+    <!-- Nothing to tick, nothing to count: a level of reports or of the
+         catalog's own sections has neither, and "4 items" beside a box that
+         ticks nothing was a promise the level could not keep. -->
+    <div
+      v-if="loading || ownItems.length > 0"
+      class="catalog-list__head"
+    >
       <AppCheckbox
         :model-value="allChecked"
         :indeterminate="someChecked"
@@ -261,6 +276,7 @@ const countLabel = computed(() => {
             size="var(--dp-icon-sm)"
           />
           <AppIconButton
+            v-if="tickableNode(node)"
             class="catalog-list__copy"
             :icon="appIcons.copy"
             :tooltip="copyTooltip(node)"
@@ -439,7 +455,7 @@ const countLabel = computed(() => {
   opacity: 1;
   pointer-events: auto;
 }
-.catalog-list__row:hover .catalog-list__icon,
+.catalog-list__row:hover .catalog-list__mark:has(.catalog-list__copy) .catalog-list__icon,
 .catalog-list__mark:has(.catalog-list__copy:focus-within) .catalog-list__icon {
   opacity: 0;
 }

@@ -277,8 +277,11 @@ Rail width and corner radii live in `metrics.css`; the rails contain no commands
 what cannot, a tick box picks a node without opening it, the first row goes back,
 and the path above starts at a home button. The path's copy button copies the
 level's own id from the root (`/reports/2026`; the root is `/`), never the
-server. One menu in the head carries everything the source can do, live for what
-is ticked and greyed for the rest; see D9 in [sources/actions.md](sources/actions.md).
+server, and is drawn only where folders are the source's own, as a storage's
+are: a level the catalog draws to sort a source's nodes, as Kafka's Topics is,
+has no path to paste. One menu in the head carries everything the source can do,
+live for what is ticked and greyed for the rest, Details on every level of a
+source that describes its nodes; see D9 in [sources/actions.md](sources/actions.md).
 Download and every other action come from there — no screen has an
 adapter-specific button. A destructive action asks one plain question naming its
 target.
@@ -286,8 +289,11 @@ target.
 Rows share one set of columns — tick box, icon, name, grouping, search location,
 measurement — so a name stands under a name. A report is the exception: its
 caption would set the column width for every row, so it lays itself out and
-gives its room up before the name does. A row's icon turns into a copy button of
-the same size under the pointer or focus. A kind is said by the icon and never in
+gives its room up before the name does. A row the source owns — one a tick box
+is drawn for — has its icon turn into a copy button of the same size under the
+pointer or focus; a report, a section of reports or a level the catalog draws
+has none. The head counts only those rows, and a level with none of them shows
+neither the count nor the box that ticks them all. A kind is said by the icon and never in
 words; a Timescale hypertable or continuous aggregate carries the extension's
 mark. What a relation measures is always said: an estimate, or `N/A` with a hint
 saying whether nobody analysed the table or it is a view.

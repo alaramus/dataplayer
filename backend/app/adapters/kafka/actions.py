@@ -83,6 +83,11 @@ def settings_text(settings: Mapping[str, str]) -> str:
     return "\n".join(f"{name}={value}" for name, value in settings.items())
 
 
+# A moment, picked from a calendar or typed; empty is allowed, so the type
+# stays text and only the form is told what the text is.
+INSTANT = {**layout(), "format": "date-time"}
+
+
 def _instant(text: str) -> str:
     if text.strip() != "":
         milliseconds_of(text)
@@ -105,7 +110,7 @@ class NewTopicParams(BaseModel):
         ge=1,
         le=10_000,
         title=N_("Partitions"),
-        json_schema_extra=layout(row="size"),
+        json_schema_extra=layout(),
     )
     replication_factor: int | None = Field(
         default=None,
@@ -113,7 +118,7 @@ class NewTopicParams(BaseModel):
         le=32,
         title=N_("Replication factor"),
         description=N_("Empty for the broker's default"),
-        json_schema_extra=layout(row="size"),
+        json_schema_extra=layout(),
     )
     settings: str = Field(
         default="",
@@ -183,7 +188,7 @@ class DeleteRecordsParams(BaseModel):
             "A date and time, such as 2026-11-01T00:00:00Z; empty for every message"
         ),
         max_length=64,
-        json_schema_extra=layout(),
+        json_schema_extra=INSTANT,
     )
 
     _check = field_validator("before")(_instant)
@@ -200,7 +205,7 @@ class MoveParams(BaseModel):
         title=N_("Time"),
         description=N_("For a time: a date and time, such as 2026-11-01T00:00:00Z"),
         max_length=64,
-        json_schema_extra=layout(),
+        json_schema_extra=INSTANT,
     )
     topic: str = Field(
         default="",

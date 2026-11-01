@@ -29,6 +29,7 @@ from app.adapters.protocol import (
     SupportsInsert,
     SupportsNodePath,
     SupportsNodeSearch,
+    SupportsNodeSummary,
     SupportsReferences,
     SupportsRelationModel,
     SupportsUpdate,
@@ -122,6 +123,7 @@ CapabilityCode = Literal[
     "declared_references",
     "relationship_graph",
     "live_changes",
+    "details",
 ]
 
 
@@ -353,6 +355,13 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
     if issubclass(driver, SupportsTerminal) or issubclass(driver, SupportsConsoleProgram):
         found.append(
             Capability(group="manage", title=say("Open a terminal"), code="terminal")
+        )
+    # Said by the type, so a catalog offers Details on every level, greyed
+    # until something is ticked, rather than only where a level happens to
+    # hold a node it describes.
+    if issubclass(driver, SupportsNodeSummary):
+        found.append(
+            Capability(group="explore", title=say("Show a node's details"), code="details")
         )
     if issubclass(driver, SupportsChangeWatch):
         found.append(

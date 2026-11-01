@@ -1459,6 +1459,7 @@ export type Capability = {
     | "declared_references"
     | "relationship_graph"
     | "live_changes"
+    | "details"
     | null
 }
 

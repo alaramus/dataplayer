@@ -92,4 +92,5 @@ MESSAGES: dict[str, str] = {
     "This connection goes through an SSH tunnel, and none is at hand": "Cette connexion passe par un tunnel SSH, indisponible ici",
     "A backup does not go through an SSH tunnel yet": "Une sauvegarde ne passe pas encore par un tunnel SSH",
     'Follow changes as they happen': "Suivre les changements au fil de l'eau",
+    "Show a node's details": "Afficher les détails d'un nœud",
 }

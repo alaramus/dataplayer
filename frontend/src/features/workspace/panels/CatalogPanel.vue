@@ -437,7 +437,14 @@ const showPath = computed(
 )
 
 /** Whether this level has a path to copy at all: see `isPathTrail`. */
-const pathIsCopyable = computed(() => isPathTrail(level.path.value))
+// And only where folders are the source's own, as a storage's are: Kafka's
+// Topics is a folder the catalog draws, and neither `/topics` nor its root's
+// `/` names anything a reader can paste elsewhere.
+const pathIsCopyable = computed(
+  () =>
+    isPathTrail(level.path.value) &&
+    (tickable.value === null || tickable.value.has("directory"))
+)
 
 /** What the level is called, for a form that acts on the level itself. */
 const levelLabel = computed(
@@ -505,7 +512,13 @@ const describedNode = computed(() => {
   return node !== undefined && node.summarizable ? node : null
 })
 
-const describesNodes = computed(() => level.items.value.some((node) => node.summarizable))
+// Said by the type, so Details is on every level, greyed until a node is
+// ticked, and not only where a level happens to hold one it describes.
+const describesNodes = computed(
+  () =>
+    sourceType.value?.capabilities.some((one) => one.code === "details") === true ||
+    level.items.value.some((node) => node.summarizable)
+)
 
 /**
  * Where we are, in the clipboard.

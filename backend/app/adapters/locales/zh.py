@@ -92,4 +92,5 @@ MESSAGES: dict[str, str] = {
     "This connection goes through an SSH tunnel, and none is at hand": "此连接需经过 SSH 隧道，但此处无法使用",
     "A backup does not go through an SSH tunnel yet": "备份暂不支持经由 SSH 隧道进行",
     'Follow changes as they happen': '实时跟踪变化',
+    "Show a node's details": '显示节点详情',
 }

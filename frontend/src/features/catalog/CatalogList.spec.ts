@@ -65,6 +65,20 @@ function report(id: string, label: string, caption: string): ListNode {
  * pointer must not cost every row a column of its own.
  */
 describe("copying the name of a row", () => {
+  it("is offered only on the source's own rows, not on its reports", () => {
+    const wrapper = mount(CatalogList, {
+      props: {
+        items: [...items, report("report:cluster", "Cluster", "What it says")],
+        checked: [],
+        loading: false,
+        tickable: new Set(["table"]),
+      },
+      global: { plugins: [[Quasar, { plugins: { Notify } }]] },
+    })
+    expect(wrapper.find('[data-testid="catalog-copy-orders"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="catalog-copy-Cluster"]').exists()).toBe(false)
+  })
+
   it("puts the name in the clipboard", async () => {
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
     const wrapper = mountList()
@@ -166,6 +180,30 @@ describe("the head of a level", () => {
   it("adds how much of it is ticked", () => {
     const wrapper = mountList(null, ["public.orders"])
     expect(wrapper.get('[data-testid="catalog-count"]').text()).toBe("2 items (1 selected)")
+  })
+  it("counts only what can be ticked, and draws nothing where nothing can", () => {
+    const mixed = mount(CatalogList, {
+      props: {
+        items: [...items, report("report:cluster", "Cluster", "What it says")],
+        checked: [],
+        loading: false,
+        tickable: new Set(["table"]),
+      },
+      global: { plugins: [[Quasar, { plugins: { Notify } }]] },
+    })
+    expect(mixed.get('[data-testid="catalog-count"]').text()).toBe("2 items")
+
+    const reports = mount(CatalogList, {
+      props: {
+        items: [report("report:cluster", "Cluster", "What it says")],
+        checked: [],
+        loading: false,
+        tickable: new Set(["table"]),
+      },
+      global: { plugins: [[Quasar, { plugins: { Notify } }]] },
+    })
+    expect(reports.find('[data-testid="catalog-count"]').exists()).toBe(false)
+    expect(reports.find('[data-testid="catalog-check-all"]').exists()).toBe(false)
   })
 })
 
