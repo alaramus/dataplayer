@@ -20,16 +20,22 @@ are encrypted at rest and never leave the backend.
 
 **Sources**
 
-- **PostgreSQL**, including TimescaleDB: hypertables, chunks, policies and
-  continuous aggregates.
-- **MySQL** and **MariaDB**: connect to databases and work with their catalogs
+- <img src="frontend/public/icons/services/postgresql.svg" height="20" alt=""> **PostgreSQL**, including <img src="frontend/public/icons/services/timescale.svg" height="20" alt=""> TimescaleDB: hypertables, chunks, policies
+  and continuous aggregates.
+- <img src="frontend/public/icons/services/mysql.svg" height="20" alt=""> **MySQL** and <img src="frontend/public/icons/services/mariadb.svg" height="20" alt=""> **MariaDB**: connect to databases and work with their catalogs
   and tables.
-- **SQLite**: open a database file and browse and edit its tables.
-- **ClickHouse**: A ClickHouse server, over its HTTP interface.
-- **Redis**: the key space as a tree grouped by `:`, every value type read as
-  rows.
-- **Files** on the server, and **SSH servers**: a file explorer with preview,
-  upload and download, and a terminal in the browser.
+- <img src="frontend/public/icons/services/sqlite.svg" height="20" alt=""> **SQLite**: open a database file and browse and edit its tables.
+- <img src="frontend/public/icons/services/clickhouse.svg" height="20" alt=""> **ClickHouse**: A ClickHouse server, over its HTTP interface.
+- <img src="frontend/public/icons/services/mongodb.svg" height="20" alt=""> **MongoDB**: databases and collections, documents read and changed as
+  whole rows, fields and indexes, and a console in the shell's own syntax.
+- <img src="frontend/public/icons/services/redis.svg" height="20" alt=""> **Redis**: the key space as a tree grouped by `:`, every value type read
+  as rows.
+- <img src="frontend/public/icons/services/kafka.svg" height="20" alt=""> **Kafka**: topics and consumer groups with their positions and lag, a
+  topic's messages as rows, and new messages sent from the grid.
+- <img src="frontend/public/icons/services/zookeeper.svg" height="20" alt=""> **ZooKeeper**: the znode tree, each znode's data, stat and ACL, and
+  znodes made, re-ACLed and deleted from the catalog.
+- <img src="frontend/public/icons/services/folder.svg" height="20" alt=""> **Files** on the server, and <img src="frontend/public/icons/services/ssh.svg" height="20" alt=""> **SSH servers**: a file explorer with
+  preview, upload and download, and a terminal in the browser.
 
 A connection is added through a form generated from the source's own schema,
 or by pasting a connection string, and is checked before it is saved.
@@ -53,8 +59,8 @@ or by pasting a connection string, and is checked before it is saved.
   with a history of runs.
 - Dashboards fed by connection polls and by a small metrics agent installed on
   your machines.
-- Managed services: start a database or cache in a container from a template,
-  and back up and restore databases.
+- Managed services: start a database, broker or cache in a container from a
+  template, and back up and restore databases.
 - Share links to a tab, with access requests.
 
 **AI agent**
@@ -140,7 +146,8 @@ The interface is at http://localhost:5173, the API at http://localhost:8000
 and its interactive docs at http://localhost:8000/docs. To fill the connections
 panel with examples — the bundled PostgreSQL under several names, file storage
 and Redis — run `bun run seed:connectors` from the repository root. Adminer,
-Mailcatcher and the test Redis and SSH server start on request:
+Mailcatcher and the servers the tests and examples point at — Redis, SSH,
+MySQL, MariaDB, ClickHouse, MongoDB, ZooKeeper and Kafka — start on request:
 `docker compose --profile tools up -d`.
 
 The backend cannot run natively on Windows: psycopg 3 in async mode is
