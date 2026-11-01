@@ -37,6 +37,13 @@ def _mongodb_hello() -> bytes:
     return struct.pack("<iiii", 16 + len(body), 1, 0, 2013) + body
 
 
+def _kafka_api_versions() -> bytes:
+    """ApiVersions v0, which a broker answers before any authentication."""
+    client = b"dataplayer-probe"
+    body = struct.pack("!hhih", 18, 0, 1, len(client)) + client
+    return struct.pack("!i", len(body)) + body
+
+
 @dataclass(frozen=True)
 class _Protocol:
     port: int
@@ -67,6 +74,8 @@ _PROTOCOLS = {
     # ZooKeeper answers `srvr` on its client port before any session, with
     # "Zookeeper version: ...".
     "zookeeper": _Protocol(2181, b"srvr", (b"Z",)),
+    # Kafka waits to be asked; its reply starts with its length.
+    "kafka": _Protocol(9092, _kafka_api_versions(), (b"",)),
 }
 
 _required = False
@@ -199,7 +208,27 @@ ZOOKEEPER = Server(
     read=lambda: os.environ.get("TEST_ZOOKEEPER_URL", "zookeeper://127.0.0.1:2182"),
 )
 
-SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH, MYSQL, MARIADB, CLICKHOUSE, MONGODB, ZOOKEEPER)
+# The development Kafka (`kafka` in compose.override.yml), at the listener it
+# advertises to this machine; the SASL listener is the next port (D304).
+KAFKA = Server(
+    name="Kafka",
+    variable="TEST_KAFKA_URL",
+    start="docker compose up -d kafka",
+    read=lambda: os.environ.get("TEST_KAFKA_URL", "kafka://127.0.0.1:9094"),
+)
+
+SERVERS = (
+    POSTGRES,
+    REDIS,
+    TIMESCALE,
+    SSH,
+    MYSQL,
+    MARIADB,
+    CLICKHOUSE,
+    MONGODB,
+    ZOOKEEPER,
+    KAFKA,
+)
 
 
 def require_all() -> None:

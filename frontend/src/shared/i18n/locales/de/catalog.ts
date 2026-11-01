@@ -212,6 +212,11 @@ export const catalog: Messages["catalog"] = {
     encrypted: "verschlüsselt",
     no_access: "kein Zugriff",
     ephemeral: "flüchtig",
+    group_stable: "stabil",
+    group_empty: "keine Consumer",
+    group_rebalancing: "Neuverteilung",
+    group_dead: "aufgelöst",
+    group_unknown: "Zustand unbekannt",
   },
   count: {
     row: "{n} Zeile | {n} Zeilen",
@@ -223,6 +228,9 @@ export const catalog: Messages["catalog"] = {
     member: "{n} Mitglied | {n} Mitglieder",
     entry: "{n} Eintrag | {n} Einträge",
     child: "{n} Kind | {n} Kinder",
+    partition: "{n} Partition | {n} Partitionen",
+    message: "{n} Nachricht | {n} Nachrichten",
+    consumer: "{n} Consumer | {n} Consumer",
   },
   size: {
     b: "{n} B",

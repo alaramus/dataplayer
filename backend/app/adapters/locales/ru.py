@@ -7,6 +7,7 @@ MESSAGES: dict[str, str] = {
     # What a source type can do, as the catalog of types lists it.
     "SQL Databases": "SQL-базы данных",
     "Key-Value Stores": "Хранилища «ключ — значение»",
+    "Queues & Streams": "Очереди и потоки",
     "Document Databases": "Документные базы данных",
     "Files & Storage": "Файлы и хранилища",
     "Browse the catalog": "Просматривать каталог",

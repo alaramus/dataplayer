@@ -2,6 +2,7 @@
 from app.adapters import (  # noqa: F401
     clickhouse,
     file,
+    kafka,
     mongodb,
     mysql,
     postgres,

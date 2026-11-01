@@ -19,7 +19,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.adapters.catalog import NodeKind, ReportNode
+from app.adapters.catalog import ConsumerGroupState, NodeKind, ReportNode
 from app.adapters.content import (
     AudioMediaType,
     ImageMediaType,
@@ -254,6 +254,57 @@ class ZnodeContents(BaseModel):
     acl: list[ZnodeAccess] = Field(default_factory=list)
 
 
+class KafkaPartition(BaseModel):
+    """One partition of a topic: who holds it and the offsets it spans (D305).
+
+    Brokers by their ids, as Kafka's own tools print them.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    partition: int = Field(ge=0)
+    leader: int | None = None
+    replicas: list[int] = Field(default_factory=list)
+    in_sync: list[int] = Field(default_factory=list)
+    first_offset: int | None = None
+    end_offset: int | None = None
+
+
+class KafkaSetting(BaseModel):
+    """A topic setting that differs from the broker's default."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    # Nothing for a value the broker keeps secret.
+    value: str | None = None
+
+
+class KafkaTopicContents(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["kafka_topic"] = "kafka_topic"
+    messages: int | None = None
+    partitions: list[KafkaPartition] = Field(default_factory=list)
+    settings: list[KafkaSetting] = Field(default_factory=list)
+
+
+class KafkaGroupContents(BaseModel):
+    """Where a consumer group stands, in a few numbers (D305)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["kafka_group"] = "kafka_group"
+    state: ConsumerGroupState
+    members: int = Field(ge=0)
+    # The broker that keeps the group's positions.
+    coordinator: int | None = None
+    assignor: str | None = None
+    topics: list[str] = Field(default_factory=list)
+    # Messages behind, summed over the partitions it has a position in.
+    lag: int | None = None
+
+
 NodeContents = Annotated[
     TextContents
     | DelimitedContents
@@ -268,7 +319,9 @@ NodeContents = Annotated[
     | PdfContents
     | DirectoryContents
     | RelationContents
-    | ZnodeContents,
+    | ZnodeContents
+    | KafkaTopicContents
+    | KafkaGroupContents,
     Field(discriminator="kind"),
 ]
 

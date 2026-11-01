@@ -50,6 +50,8 @@ dependencies = [
     "pymongo>=4.19,<5",
     # ZooKeeper's client, synchronous, called through the thread pool (D297).
     "kazoo>=2.10,<3",
+    # Kafka's client on librdkafka, synchronous, called through the thread pool (D304).
+    "confluent-kafka>=2.12,<3",
 ]
 
 [dependency-groups]
@@ -73,6 +75,10 @@ build-backend = "hatchling.build"
 [tool.mypy]
 strict = true
 exclude = ["venv", ".venv", "alembic"]
+# confluent-kafka is typed, but a few of its helpers, OffsetSpec's among them,
+# carry no annotations; the Kafka adapter turns what they return into its own
+# types at once.
+untyped_calls_exclude = ["confluent_kafka"]
 
 # pyarrow ships no type information and no stub package this project trusts:
 # the community stubs lag its releases, and a wrong signature is worse than an
@@ -96,6 +102,12 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["kazoo.*", "kazoo"]
 ignore_missing_imports = true
+
+# confluent_kafka.admin re-exports its classes without an __all__, which is how
+# its documentation names them.
+[[tool.mypy.overrides]]
+module = ["confluent_kafka.*", "confluent_kafka"]
+implicit_reexport = true
 
 [tool.ruff]
 target-version = "py314"

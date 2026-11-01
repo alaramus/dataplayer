@@ -18,13 +18,13 @@ describe("the icon of a source type", () => {
   })
 
   it("falls back for a type the backend gained since this build", () => {
-    expect(adapterIcon("kafka")).toBe(UNKNOWN_ADAPTER_ICON)
+    expect(adapterIcon("rabbitmq")).toBe(UNKNOWN_ADAPTER_ICON)
   })
 })
 
 describe("the glyph of a category", () => {
   it("gives each group its own", () => {
-    const drawn = ["sql", "document", "keyvalue", "files"].map(categoryIcon)
+    const drawn = ["sql", "document", "keyvalue", "stream", "files"].map(categoryIcon)
     expect(new Set(drawn).size).toBe(drawn.length)
   })
 

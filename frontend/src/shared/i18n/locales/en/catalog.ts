@@ -209,6 +209,11 @@ export const catalog = {
     encrypted: "encrypted",
     no_access: "no access",
     ephemeral: "ephemeral",
+    group_stable: "stable",
+    group_empty: "no consumers",
+    group_rebalancing: "rebalancing",
+    group_dead: "gone",
+    group_unknown: "state unknown",
   },
   count: {
     row: "{n} row | {n} rows",
@@ -220,6 +225,9 @@ export const catalog = {
     member: "{n} member | {n} members",
     entry: "{n} entry | {n} entries",
     child: "{n} child | {n} children",
+    partition: "{n} partition | {n} partitions",
+    message: "{n} message | {n} messages",
+    consumer: "{n} consumer | {n} consumers",
   },
   size: {
     b: "{n} B",

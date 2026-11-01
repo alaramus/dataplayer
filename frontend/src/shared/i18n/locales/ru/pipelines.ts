@@ -90,6 +90,8 @@ export const pipelines: Messages["pipelines"] = {
       database: "база данных",
       key: "ключ",
       znode: "узел ZooKeeper",
+      topic: "топик",
+      consumer_group: "группа потребителей",
     },
   },
   card_picker: {

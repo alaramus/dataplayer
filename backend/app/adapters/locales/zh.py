@@ -7,6 +7,7 @@ MESSAGES: dict[str, str] = {
     # 数据源类型能做什么，如类型目录所列举。
     "SQL Databases": "SQL 数据库",
     "Key-Value Stores": "键值存储",
+    "Queues & Streams": "队列与流",
     "Document Databases": "文档数据库",
     "Files & Storage": "文件与存储",
     "Browse the catalog": "浏览目录",

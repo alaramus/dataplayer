@@ -212,6 +212,11 @@ export const catalog: Messages["catalog"] = {
     encrypted: "зашифрован",
     no_access: "нет доступа",
     ephemeral: "эфемерный",
+    group_stable: "стабильна",
+    group_empty: "нет потребителей",
+    group_rebalancing: "перебалансировка",
+    group_dead: "удалена",
+    group_unknown: "состояние неизвестно",
   },
   count: {
     row: "{n} строка | {n} строки | {n} строк | {n} строки",
@@ -223,6 +228,9 @@ export const catalog: Messages["catalog"] = {
     member: "{n} элемент | {n} элемента | {n} элементов | {n} элемента",
     entry: "{n} запись | {n} записи | {n} записей | {n} записи",
     child: "{n} дочерний | {n} дочерних | {n} дочерних | {n} дочерних",
+    partition: "{n} партиция | {n} партиции | {n} партиций | {n} партиции",
+    message: "{n} сообщение | {n} сообщения | {n} сообщений | {n} сообщения",
+    consumer: "{n} потребитель | {n} потребителя | {n} потребителей | {n} потребителя",
   },
   size: {
     b: "{n} Б",

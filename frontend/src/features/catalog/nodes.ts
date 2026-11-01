@@ -54,6 +54,10 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   // Opened for its data and walked into for its children, as a workbook is
   // (D298); the rule below makes one with nothing to open a place instead.
   znode: "leaf",
+  // Opened for its messages and its positions; the levels above them are
+  // directories (D305).
+  topic: "leaf",
+  consumer_group: "leaf",
 }
 
 export interface ListNode {
@@ -143,6 +147,8 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   database: "storage",
   key: "vpn_key",
   znode: "data_object",
+  topic: "view_stream",
+  consumer_group: "groups",
 }
 
 /** A znode with no data of its own, and one this connection may not read. */
@@ -318,6 +324,10 @@ function captionOf(node: CatalogNode): string | undefined {
       return keyCaption(node)
     case "znode":
       return znodeCaption(node)
+    case "topic":
+      return topicCaption(node)
+    case "consumer_group":
+      return groupCaption(node)
     case "database":
       // Said even when it is nothing: a database with no keys in it is a fact
       // about the server, and an empty caption reads as one nobody counted.
@@ -408,6 +418,22 @@ function znodeCaption(node: Extract<CatalogNode, { kind: "znode" }>): string | u
   return parts.length === 0 ? undefined : parts.join(" · ")
 }
 
+/** A topic's partitions and the messages they span (D305). */
+function topicCaption(node: Extract<CatalogNode, { kind: "topic" }>): string | undefined {
+  const parts = [counted(node.partitions ?? 0, "partition")]
+  if (node.messages !== null && node.messages !== undefined) {
+    parts.push(counted(node.messages, "message"))
+  }
+  return parts.join(" · ")
+}
+
+/** A group's state and how many are reading in it (D305). */
+function groupCaption(node: Extract<CatalogNode, { kind: "consumer_group" }>): string | undefined {
+  const parts = [t(`catalog.nodes.group_${node.state ?? "unknown"}`)]
+  if ((node.members ?? 0) > 0) parts.push(counted(node.members ?? 0, "consumer"))
+  return parts.join(" · ")
+}
+
 /** A number of seconds in the largest unit that still says something. */
 export function formatDuration(seconds: number): string {
   if (seconds < 60) return t("catalog.duration.seconds", { n: seconds })
@@ -437,6 +463,9 @@ type Noun =
   | "member"
   | "entry"
   | "child"
+  | "partition"
+  | "message"
+  | "consumer"
 
 function counted(count: number, noun: Noun): string {
   return t(`catalog.count.${noun}`, { n: count }, count)
@@ -452,6 +481,7 @@ function isSystem(node: CatalogNode): boolean {
     case "table":
     case "view":
     case "znode":
+    case "topic":
       return node.is_system ?? false
     default:
       return false

@@ -92,6 +92,8 @@ export const pipelines: Messages["pipelines"] = {
       database: "base de datos",
       key: "clave",
       znode: "znode",
+      topic: "topic",
+      consumer_group: "grupo de consumidores",
     },
   },
   card_picker: {

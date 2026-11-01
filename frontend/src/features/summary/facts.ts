@@ -198,6 +198,10 @@ function contentsFacts(contents: NodeContents): Fact[] {
       return [{ label: t("summary.facts.format"), value: `PDF ${contents.version}` }]
     case "znode":
       return znodeFacts(contents)
+    case "kafka_topic":
+      return kafkaTopicFacts(contents)
+    case "kafka_group":
+      return kafkaGroupFacts(contents)
     case "directory": {
       const facts: Fact[] = []
       addCount(facts, t("summary.facts.entries"), contents.entries)
@@ -268,6 +272,55 @@ function contentsFacts(contents: NodeContents): Fact[] {
     default:
       return unknownContents(contents)
   }
+}
+
+/**
+ * A topic's partitions, one line each as Kafka's own tools describe them —
+ * leader, replicas, in-sync replicas by broker id and the offsets spanned —
+ * then the settings made on the topic itself (D305).
+ */
+function kafkaTopicFacts(contents: Extract<NodeContents, { kind: "kafka_topic" }>): Fact[] {
+  const facts: Fact[] = []
+  addCount(facts, t("summary.facts.kafka_messages"), contents.messages)
+  for (const one of contents.partitions ?? []) {
+    const brokers = (ids: number[] | undefined) => (ids ?? []).join(", ") || "—"
+    facts.push({
+      label: t("summary.facts.kafka_partition", { n: one.partition }),
+      value: t("summary.values.kafka_partition", {
+        leader: one.leader ?? "—",
+        replicas: brokers(one.replicas),
+        in_sync: brokers(one.in_sync),
+        first: one.first_offset ?? "—",
+        end: one.end_offset ?? "—",
+      }),
+    })
+  }
+  for (const setting of contents.settings ?? []) {
+    facts.push({
+      label: setting.name,
+      value: setting.value ?? t("summary.values.kafka_secret"),
+    })
+  }
+  return facts
+}
+
+/** Where a consumer group stands, in the numbers its rows add up to (D305). */
+function kafkaGroupFacts(contents: Extract<NodeContents, { kind: "kafka_group" }>): Fact[] {
+  const facts: Fact[] = [
+    { label: t("summary.facts.kafka_state"), value: t(`catalog.nodes.group_${contents.state}`) },
+    { label: t("summary.facts.kafka_members"), value: String(contents.members) },
+  ]
+  addCount(facts, t("summary.facts.kafka_lag"), contents.lag)
+  if (contents.coordinator !== null && contents.coordinator !== undefined) {
+    facts.push({ label: t("summary.facts.kafka_coordinator"), value: String(contents.coordinator) })
+  }
+  if (contents.assignor !== null && contents.assignor !== undefined) {
+    facts.push({ label: t("summary.facts.kafka_assignor"), value: contents.assignor })
+  }
+  if ((contents.topics ?? []).length > 0) {
+    facts.push({ label: t("summary.facts.kafka_topics"), value: (contents.topics ?? []).join(", ") })
+  }
+  return facts
 }
 
 /** Why a count is missing, for the members that can hit a ceiling. */

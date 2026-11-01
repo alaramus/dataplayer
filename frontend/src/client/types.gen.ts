@@ -159,6 +159,8 @@ export type ActionInfo = {
     | "database"
     | "key"
     | "znode"
+    | "topic"
+    | "consumer_group"
   >
   /**
    * Bulk
@@ -348,7 +350,7 @@ export type AdapterTypeInfo = {
   /**
    * Category
    */
-  category: "sql" | "document" | "keyvalue" | "files"
+  category: "sql" | "document" | "keyvalue" | "stream" | "files"
   /**
    * Category Title
    */
@@ -1527,6 +1529,8 @@ export type CardRow = {
     | "database"
     | "key"
     | "znode"
+    | "topic"
+    | "consumer_group"
     | null
   /**
    * Trail
@@ -2714,6 +2718,50 @@ export type ConstraintDropped = {
    * Name
    */
   name: string
+}
+
+/**
+ * ConsumerGroupNode
+ *
+ * One Kafka consumer group: where its readers stand in what they read (D305).
+ */
+export type ConsumerGroupNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "consumer_group"
+  /**
+   * State
+   */
+  state?: "stable" | "empty" | "rebalancing" | "dead" | "unknown"
+  /**
+   * Members
+   */
+  members?: number | null
 }
 
 /**
@@ -7072,6 +7120,114 @@ export type JsonScalar = {
 }
 
 /**
+ * KafkaGroupContents
+ *
+ * Where a consumer group stands, in a few numbers (D305).
+ */
+export type KafkaGroupContents = {
+  /**
+   * Kind
+   */
+  kind?: "kafka_group"
+  /**
+   * State
+   */
+  state: "stable" | "empty" | "rebalancing" | "dead" | "unknown"
+  /**
+   * Members
+   */
+  members: number
+  /**
+   * Coordinator
+   */
+  coordinator?: number | null
+  /**
+   * Assignor
+   */
+  assignor?: string | null
+  /**
+   * Topics
+   */
+  topics?: Array<string>
+  /**
+   * Lag
+   */
+  lag?: number | null
+}
+
+/**
+ * KafkaPartition
+ *
+ * One partition of a topic: who holds it and the offsets it spans (D305).
+ *
+ * Brokers by their ids, as Kafka's own tools print them.
+ */
+export type KafkaPartition = {
+  /**
+   * Partition
+   */
+  partition: number
+  /**
+   * Leader
+   */
+  leader?: number | null
+  /**
+   * Replicas
+   */
+  replicas?: Array<number>
+  /**
+   * In Sync
+   */
+  in_sync?: Array<number>
+  /**
+   * First Offset
+   */
+  first_offset?: number | null
+  /**
+   * End Offset
+   */
+  end_offset?: number | null
+}
+
+/**
+ * KafkaSetting
+ *
+ * A topic setting that differs from the broker's default.
+ */
+export type KafkaSetting = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Value
+   */
+  value?: string | null
+}
+
+/**
+ * KafkaTopicContents
+ */
+export type KafkaTopicContents = {
+  /**
+   * Kind
+   */
+  kind?: "kafka_topic"
+  /**
+   * Messages
+   */
+  messages?: number | null
+  /**
+   * Partitions
+   */
+  partitions?: Array<KafkaPartition>
+  /**
+   * Settings
+   */
+  settings?: Array<KafkaSetting>
+}
+
+/**
  * KeepOverview
  *
  * Every kept list the person can see, and which types can keep one.
@@ -7974,6 +8130,12 @@ export type NodeMatch = {
     | ({
         kind: "znode"
       } & ZnodeNode)
+    | ({
+        kind: "topic"
+      } & TopicNode)
+    | ({
+        kind: "consumer_group"
+      } & ConsumerGroupNode)
   /**
    * Parent Id
    */
@@ -8136,6 +8298,8 @@ export type NodeSummary = {
     | "database"
     | "key"
     | "znode"
+    | "topic"
+    | "consumer_group"
   /**
    * Representations
    */
@@ -8206,6 +8370,12 @@ export type NodeSummary = {
     | ({
         kind: "znode"
       } & ZnodeContents)
+    | ({
+        kind: "kafka_topic"
+      } & KafkaTopicContents)
+    | ({
+        kind: "kafka_group"
+      } & KafkaGroupContents)
     | null
   /**
    * Notice
@@ -8296,6 +8466,12 @@ export type NodeTarget = {
     | ({
         kind: "znode"
       } & ZnodeNode)
+    | ({
+        kind: "topic"
+      } & TopicNode)
+    | ({
+        kind: "consumer_group"
+      } & ConsumerGroupNode)
     | null
 }
 
@@ -10773,6 +10949,12 @@ export type ReferencedRows = {
     | ({
         kind: "znode"
       } & ZnodeNode)
+    | ({
+        kind: "topic"
+      } & TopicNode)
+    | ({
+        kind: "consumer_group"
+      } & ConsumerGroupNode)
   connector?: ReferenceConnection | null
   /**
    * Filters
@@ -11051,6 +11233,12 @@ export type RelationCreated = {
     | ({
         kind: "znode"
       } & ZnodeNode)
+    | ({
+        kind: "topic"
+      } & TopicNode)
+    | ({
+        kind: "consumer_group"
+      } & ConsumerGroupNode)
   /**
    * Inserted
    */
@@ -11549,6 +11737,8 @@ export type ResultRow = {
     | "database"
     | "key"
     | "znode"
+    | "topic"
+    | "consumer_group"
 }
 
 /**
@@ -14246,6 +14436,58 @@ export type Token = {
 }
 
 /**
+ * TopicNode
+ *
+ * One Kafka topic: a log of messages in partitions, read from any position.
+ *
+ * Not a table, though it is read as rows: nothing in it is changed in place,
+ * it has no columns of its own, and a row is named by where it lies rather
+ * than by a key (D305).
+ */
+export type TopicNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "topic"
+  /**
+   * Partitions
+   */
+  partitions?: number
+  /**
+   * Messages
+   */
+  messages?: number | null
+  /**
+   * Is System
+   */
+  is_system?: boolean
+}
+
+/**
  * TransactionEnded
  *
  * What committing or rolling one back settled.
@@ -16663,6 +16905,12 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "znode"
       } & ZnodeNode)
+    | ({
+        kind: "topic"
+      } & TopicNode)
+    | ({
+        kind: "consumer_group"
+      } & ConsumerGroupNode)
   >
 }
 
@@ -17946,6 +18194,12 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "znode"
       } & ZnodeNode)
+    | ({
+        kind: "topic"
+      } & TopicNode)
+    | ({
+        kind: "consumer_group"
+      } & ConsumerGroupNode)
   >
 }
 

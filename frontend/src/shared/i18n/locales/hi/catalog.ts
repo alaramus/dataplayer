@@ -211,6 +211,11 @@ export const catalog: Messages["catalog"] = {
     encrypted: "एन्क्रिप्टेड",
     no_access: "पहुँच नहीं",
     ephemeral: "अस्थायी",
+    group_stable: "स्थिर",
+    group_empty: "कोई कंज़्यूमर नहीं",
+    group_rebalancing: "पुनर्संतुलन",
+    group_dead: "समाप्त",
+    group_unknown: "स्थिति अज्ञात",
   },
   count: {
     row: "{n} पंक्ति | {n} पंक्तियाँ",
@@ -222,6 +227,9 @@ export const catalog: Messages["catalog"] = {
     member: "{n} सदस्य | {n} सदस्य",
     entry: "{n} प्रविष्टि | {n} प्रविष्टियाँ",
     child: "{n} चाइल्ड | {n} चाइल्ड",
+    partition: "{n} पार्टिशन | {n} पार्टिशन",
+    message: "{n} संदेश | {n} संदेश",
+    consumer: "{n} कंज़्यूमर | {n} कंज़्यूमर",
   },
   size: {
     b: "{n} B",

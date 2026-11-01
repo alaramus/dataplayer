@@ -182,6 +182,45 @@ describe("a key-value database", () => {
   })
 })
 
+describe("a Kafka topic and consumer group (D305)", () => {
+  const topic = (over: Partial<Extract<CatalogNode, { kind: "topic" }>> = {}) => ({
+    kind: "topic" as const,
+    id: "topic:orders",
+    name: "orders",
+    has_children: false,
+    representations: [{ kind: "table" as const, title: "View the messages" }],
+    partitions: 3,
+    messages: 1,
+    ...over,
+  })
+  const group = (over: Partial<Extract<CatalogNode, { kind: "consumer_group" }>> = {}) => ({
+    kind: "consumer_group" as const,
+    id: "group:billing",
+    name: "billing",
+    has_children: false,
+    representations: [{ kind: "table" as const, title: "View the positions" }],
+    state: "stable" as const,
+    members: 2,
+    ...over,
+  })
+
+  it("says how many partitions a topic has and the messages they span", () => {
+    expect(first(toListNodes([topic()])).caption).toBe("3 partitions · 1 message")
+    expect(first(toListNodes([topic({ messages: null, partitions: 1 })])).caption).toBe(
+      "1 partition"
+    )
+    expect(first(toListNodes([topic()])).icon).toBe(ICONS.topic)
+  })
+
+  it("says how a group stands and how many are reading", () => {
+    expect(first(toListNodes([group()])).caption).toBe("stable · 2 consumers")
+    expect(first(toListNodes([group({ state: "empty", members: 0 })])).caption).toBe(
+      "no consumers"
+    )
+    expect(roleOf(group())).toBe("leaf")
+  })
+})
+
 describe("a ZooKeeper znode (D298)", () => {
   const znode = (over: Partial<Extract<CatalogNode, { kind: "znode" }>> = {}) =>
     ({

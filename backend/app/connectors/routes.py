@@ -1131,6 +1131,8 @@ async def fetch_rows(
         if not at_least(access, "write"):
             return as_read_only(result, say("You have read-only access to this connection"))
         return result
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValueError as exc:
         # A column the relation does not have. Caught before any SQL is built,
         # so this is a bad request rather than an upstream failure.

@@ -211,6 +211,11 @@ export const catalog: Messages["catalog"] = {
     encrypted: "已加密",
     no_access: "无访问权限",
     ephemeral: "临时",
+    group_stable: "稳定",
+    group_empty: "无消费者",
+    group_rebalancing: "重新平衡中",
+    group_dead: "已失效",
+    group_unknown: "状态未知",
   },
   count: {
     row: "{n} 行",
@@ -222,6 +227,9 @@ export const catalog: Messages["catalog"] = {
     member: "{n} 个成员",
     entry: "{n} 个条目",
     child: "{n} 个子节点",
+    partition: "{n} 个分区",
+    message: "{n} 条消息",
+    consumer: "{n} 个消费者",
   },
   size: {
     b: "{n} B",

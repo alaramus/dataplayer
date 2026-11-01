@@ -214,6 +214,11 @@ export const catalog: Messages["catalog"] = {
     encrypted: "مشفّر",
     no_access: "لا وصول",
     ephemeral: "مؤقت",
+    group_stable: "مستقرة",
+    group_empty: "بلا مستهلكين",
+    group_rebalancing: "إعادة توازن",
+    group_dead: "منتهية",
+    group_unknown: "حالة غير معروفة",
   },
   count: {
     row: "لا صفوف | صف واحد | صفان | {n} صفوف | {n} صفًا | {n} صف",
@@ -225,6 +230,9 @@ export const catalog: Messages["catalog"] = {
     member: "لا عناصر | عنصر واحد | عنصران | {n} عناصر | {n} عنصرًا | {n} عنصر",
     entry: "لا مداخل | مدخل واحد | مدخلان | {n} مداخل | {n} مدخلًا | {n} مدخل",
     child: "لا أبناء | ابن واحد | ابنان | {n} أبناء | {n} ابنًا | {n} ابن",
+    partition: "لا أقسام | قسم واحد | قسمان | {n} أقسام | {n} قسمًا | {n} قسم",
+    message: "لا رسائل | رسالة واحدة | رسالتان | {n} رسائل | {n} رسالة | {n} رسالة",
+    consumer: "لا مستهلكين | مستهلك واحد | مستهلكان | {n} مستهلكين | {n} مستهلكًا | {n} مستهلك",
   },
   size: {
     b: "{n} B",

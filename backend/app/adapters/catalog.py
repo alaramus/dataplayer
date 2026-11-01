@@ -214,6 +214,39 @@ class ZnodeNode(BaseNode):
     readable: bool = True
 
 
+class TopicNode(BaseNode):
+    """One Kafka topic: a log of messages in partitions, read from any position.
+
+    Not a table, though it is read as rows: nothing in it is changed in place,
+    it has no columns of its own, and a row is named by where it lies rather
+    than by a key (D305).
+    """
+
+    kind: Literal["topic"] = "topic"
+    has_children: bool = False
+    partitions: int = 0
+    # The offsets its partitions span, end less start. An upper bound rather
+    # than a count: compaction and transaction markers leave gaps.
+    messages: int | None = None
+    # Kafka's own and its tools': a name that starts with an underscore, as
+    # `__consumer_offsets` and `_schemas` do.
+    is_system: bool = False
+
+
+# A group's state, as the catalog shows it: Kafka's two rebalancing states
+# are one to anybody reading.
+ConsumerGroupState = Literal["stable", "empty", "rebalancing", "dead", "unknown"]
+
+
+class ConsumerGroupNode(BaseNode):
+    """One Kafka consumer group: where its readers stand in what they read (D305)."""
+
+    kind: Literal["consumer_group"] = "consumer_group"
+    has_children: bool = False
+    state: ConsumerGroupState = "unknown"
+    members: int | None = None
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
@@ -227,7 +260,9 @@ CatalogNode = Annotated[
     | ReportNode
     | DatabaseNode
     | KeyNode
-    | ZnodeNode,
+    | ZnodeNode
+    | TopicNode
+    | ConsumerGroupNode,
     Field(discriminator="kind"),
 ]
 
@@ -248,6 +283,8 @@ NodeKind = Literal[
     "database",
     "key",
     "znode",
+    "topic",
+    "consumer_group",
 ]
 
 

@@ -1,6 +1,6 @@
 # Data sources
 
-What the seven existing source types do, where their code sits, and which
+What each source type does, where its code sits, and which
 file holds which decision.
 
 | File | Open it to |
@@ -21,10 +21,11 @@ file holds which decision.
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
+| [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read |
 | [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed, its fields and indexes, its reports, search or catalog actions, or how its collections are copied, backed up and measured |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
-## Eight source types
+## The source types
 
 **PostgreSQL** — schemas and relations, safe schema create/rename/drop and
 relation moves, bounded relation DDL, server-side paging and sorting, streaming
@@ -137,6 +138,16 @@ be cancelled and a stuck mutation stopped; the catalog is searched by name and
 by column, and every matching row is exported (D275). Databases are created and dropped,
 relations renamed, moved and dropped with previews from the system tables, and
 a CSV file loaded (D276).
+
+**Kafka** — a cluster reached through confluent-kafka, a client per operation
+in the thread pool, with SASL PLAIN or SCRAM and TLS and no SSH tunnel (D304).
+Topics, consumer groups and Kafka's own topics are three levels; a topic says
+its partitions and the offsets they span, a group its state and members and
+opens as its position and lag per partition (D305). A topic's messages are
+rows newest first across partitions, JSON values laid out as `value.<field>`
+columns, read by assigned partitions so no group is joined or moved; where
+reading starts and stops is asked of Kafka, every other filter applied to what
+was read under ceilings (D306).
 
 **MongoDB** — one server through pymongo's asynchronous client, spoken to
 directly (D283): databases as schemas, their collections as tables named as

@@ -17,6 +17,7 @@ const ICONS: Record<string, string> = {
   clickhouse: "img:/icons/services/clickhouse.svg",
   mongodb: "img:/icons/services/mongodb.svg",
   zookeeper: "img:/icons/services/zookeeper.svg",
+  kafka: "img:/icons/services/kafka.svg",
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",
@@ -40,6 +41,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   sql: "table_chart",
   document: "data_object",
   keyvalue: "key",
+  stream: "view_stream",
   files: "folder",
 }
 

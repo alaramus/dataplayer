@@ -32,6 +32,64 @@ suite("describe", () => {
     expect(labelled(described.facts, "Opens as")).toBe("View as text")
   })
 
+  it("prints a topic's partitions and its own settings (D305)", () => {
+    const described = describe(
+      summary({
+        node_id: "topic:orders",
+        name: "orders",
+        kind: "topic",
+        size_bytes: null,
+        modified_at: null,
+        permissions: null,
+        contents: {
+          kind: "kafka_topic",
+          messages: 42,
+          partitions: [
+            { partition: 0, leader: 1, replicas: [1, 2], in_sync: [1], first_offset: 0, end_offset: 42 },
+          ],
+          settings: [
+            { name: "retention.ms", value: "86400000" },
+            { name: "sasl.jaas.config", value: null },
+          ],
+        },
+      })
+    )
+
+    expect(labelled(described.facts, "Kind")).toBe("Topic")
+    expect(labelled(described.contents, "Messages")).toBe("42")
+    expect(labelled(described.contents, "Partition 0")).toBe(
+      "leader 1, replicas 1, 2, in sync 1, offsets 0–42"
+    )
+    expect(labelled(described.contents, "retention.ms")).toBe("86400000")
+    expect(labelled(described.contents, "sasl.jaas.config")).toBe("hidden by the broker")
+  })
+
+  it("prints where a consumer group stands (D305)", () => {
+    const described = describe(
+      summary({
+        node_id: "group:billing",
+        name: "billing",
+        kind: "consumer_group",
+        size_bytes: null,
+        modified_at: null,
+        permissions: null,
+        contents: {
+          kind: "kafka_group",
+          state: "empty",
+          members: 0,
+          coordinator: 1,
+          topics: ["orders", "refunds"],
+          lag: 7,
+        },
+      })
+    )
+
+    expect(labelled(described.contents, "State")).toBe("no consumers")
+    expect(labelled(described.contents, "Lag")).toBe("7")
+    expect(labelled(described.contents, "Topics")).toBe("orders, refunds")
+    expect(labelled(described.contents, "Assignor")).toBeUndefined()
+  })
+
   it("prints a znode's stat and one line per entry of its ACL (D298)", () => {
     const described = describe(
       summary({
