@@ -2,7 +2,6 @@
 
 MESSAGES: dict[str, str] = {
     "Kafka": "Kafka",
-    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, and see how far each consumer group lags behind.": "Kafka 集群。列出主题和消费者组，以行的形式读取主题的消息（最新的在前，可从某个时间或偏移量开始），JSON 值按字段分列，查看每个分区的 broker 和偏移量，以及每个消费者组的滞后量。",
     "Brokers": "Broker",
     "host:port of one or more brokers, separated by commas": "一个或多个 broker 的 host:port，用逗号分隔",
     "Encrypted, with the brokers' certificates verified": "加密，并验证 broker 的证书",
@@ -34,4 +33,6 @@ MESSAGES: dict[str, str] = {
     "{column} takes a whole number": "{column} 需要整数",
     "{column} takes a number": "{column} 需要数字",
     "{column} cannot be filtered that way": "{column} 不能这样筛选",
+    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, see how far each consumer group lags behind, and work with Kafka's own tools in a terminal.": "Kafka 集群。列出主题和消费者组，以行的形式读取主题的消息（最新的在前，可从某个时间或偏移量开始），JSON 值按字段分列，查看每个分区的 broker 和偏移量，以及每个消费者组的滞后量，并在终端中使用 Kafka 自带的工具。",
+    "Kafka's tools are set up for this connection. Try: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups": "Kafka 工具已为此连接配置好。试试：kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups",
 }

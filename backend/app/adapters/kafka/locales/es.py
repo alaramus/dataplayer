@@ -2,7 +2,6 @@
 
 MESSAGES: dict[str, str] = {
     "Kafka": "Kafka",
-    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, and see how far each consumer group lags behind.": "Un clúster de Kafka. Listar sus topics y grupos de consumidores, leer los mensajes de un topic como filas, los más recientes primero, desde un momento o un offset, con los valores JSON repartidos en columnas, ver los brokers y offsets de cada partición y cuánto se retrasa cada grupo de consumidores.",
     "Brokers": "Brokers",
     "host:port of one or more brokers, separated by commas": "host:port de uno o varios brokers, separados por comas",
     "Encrypted, with the brokers' certificates verified": "Cifrado, con los certificados de los brokers verificados",
@@ -34,4 +33,6 @@ MESSAGES: dict[str, str] = {
     "{column} takes a whole number": "{column} espera un número entero",
     "{column} takes a number": "{column} espera un número",
     "{column} cannot be filtered that way": "{column} no se puede filtrar así",
+    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, see how far each consumer group lags behind, and work with Kafka's own tools in a terminal.": "Un clúster de Kafka. Listar sus topics y grupos de consumidores, leer los mensajes de un topic como filas, los más recientes primero, desde un momento o un offset, con los valores JSON repartidos en columnas, ver los brokers y offsets de cada partición y cuánto se retrasa cada grupo de consumidores, y trabajar con las herramientas propias de Kafka en un terminal.",
+    "Kafka's tools are set up for this connection. Try: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups": "Las herramientas de Kafka están configuradas para esta conexión. Pruebe: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups",
 }

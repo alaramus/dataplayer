@@ -15,7 +15,8 @@ backend/app/
 │   ├── mongodb/console.py mongosh, signed in from its environment
 │   ├── postgres/console.py psql, its password in PGPASSWORD
 │   ├── redis/console.py   redis-cli, its password in REDISCLI_AUTH
-│   └── zookeeper/console.py zkCli, digest signed in by hand (D299)
+│   ├── zookeeper/console.py zkCli, digest signed in by hand (D299)
+│   └── kafka/console.py   Kafka's tools, each set up for the connection (D307)
 ├── services/consoles.py   a program in a container, attached as a terminal
 └── terminals/
     ├── consoles.py        ConsoleRunner: what runs a program, as the socket sees it
@@ -40,7 +41,7 @@ WS     /api/v1/terminals
 ```
 
 SSH has a shell; MongoDB has `mongosh`, Redis `redis-cli`, PostgreSQL
-`psql` and ZooKeeper `zkCli` (D299), client programs the server runs in a container (D286). MySQL, MariaDB
+`psql`, ZooKeeper `zkCli` (D299) and Kafka its own tools (D307), client programs the server runs in a container (D286). MySQL, MariaDB
 and ClickHouse have none, by choice: each would need a second client or a port
 the connection does not know, and their query console covers what is typed. A terminal on personal storage was asked for and postponed;
 it would be a second driver implementing `SupportsTerminal`, and nothing above

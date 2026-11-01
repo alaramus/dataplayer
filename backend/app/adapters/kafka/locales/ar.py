@@ -2,7 +2,6 @@
 
 MESSAGES: dict[str, str] = {
     "Kafka": "Kafka",
-    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, and see how far each consumer group lags behind.": "عنقود Kafka. اعرض مواضيعه ومجموعات المستهلكين فيه، واقرأ رسائل موضوع كصفوف، الأحدث أولاً، من وقت أو من إزاحة، مع توزيع قيم JSON على أعمدة، واطّلع على وسطاء كل قسم وإزاحاته، وعلى مقدار تأخر كل مجموعة مستهلكين.",
     "Brokers": "الوسطاء",
     "host:port of one or more brokers, separated by commas": "host:port لوسيط واحد أو أكثر، مفصولة بفواصل",
     "Encrypted, with the brokers' certificates verified": "مشفّر، مع التحقق من شهادات الوسطاء",
@@ -34,4 +33,6 @@ MESSAGES: dict[str, str] = {
     "{column} takes a whole number": "يقبل {column} عدداً صحيحاً",
     "{column} takes a number": "يقبل {column} رقماً",
     "{column} cannot be filtered that way": "لا يمكن تصفية {column} بهذه الطريقة",
+    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, see how far each consumer group lags behind, and work with Kafka's own tools in a terminal.": "عنقود Kafka. اعرض مواضيعه ومجموعات المستهلكين فيه، واقرأ رسائل موضوع كصفوف، الأحدث أولاً، من وقت أو من إزاحة، مع توزيع قيم JSON على أعمدة، واطّلع على وسطاء كل قسم وإزاحاته، وعلى مقدار تأخر كل مجموعة مستهلكين، والعمل بأدوات Kafka نفسها في طرفية.",
+    "Kafka's tools are set up for this connection. Try: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups": "أدوات Kafka مهيّأة لهذا الاتصال. جرّب: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups",
 }

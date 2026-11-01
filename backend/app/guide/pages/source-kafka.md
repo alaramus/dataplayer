@@ -12,6 +12,7 @@ in general is on the [Connections](connections.md) page.
 - Each partition of a topic: its leader, replicas and offsets
 - The settings made on a topic
 - Where each consumer group stands in each partition, and its lag
+- Kafka's own tools, set up for the connection, in a terminal
 
 ## Connecting
 
@@ -69,3 +70,19 @@ Select a topic or a group and choose **Details** in the catalog's menu.
   replicas, in-sync replicas and offsets, and the settings made on the topic.
 - A group: its state, consumers, total lag, coordinator broker, assignor and
   topics.
+
+## Kafka's tools
+
+**Terminal** on a Kafka connection opens Kafka's own command-line tools, the
+ones its documentation uses, already pointed at the connection: its brokers,
+its TLS and its user. Type a tool without `--bootstrap-server`:
+
+- `kafka-topics.sh --list` — the topics
+- `kafka-console-consumer.sh --topic NAME --from-beginning` — read a topic;
+  Ctrl+C stops it
+- `kafka-consumer-groups.sh --describe --all-groups` — every group's lag
+
+Give `--bootstrap-server` yourself to point a tool at another cluster. The
+terminal runs in a container on the DataPlayer server, so it needs that server
+to be allowed to start containers, and the brokers must be reachable from
+there.

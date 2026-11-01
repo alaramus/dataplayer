@@ -21,7 +21,7 @@ file holds which decision.
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
-| [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read |
+| [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read, or its console |
 | [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed, its fields and indexes, its reports, search or catalog actions, or how its collections are copied, backed up and measured |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
@@ -147,7 +147,9 @@ opens as its position and lag per partition (D305). A topic's messages are
 rows newest first across partitions, JSON values laid out as `value.<field>`
 columns, read by assigned partitions so no group is joined or moved; where
 reading starts and stops is asked of Kafka, every other filter applied to what
-was read under ceilings (D306).
+was read under ceilings (D306). Kafka's own tools in a terminal, each that
+takes the cluster's address and settings wrapped to add this connection's
+(D307).
 
 **MongoDB** — one server through pymongo's asynchronous client, spoken to
 directly (D283): databases as schemas, their collections as tables named as

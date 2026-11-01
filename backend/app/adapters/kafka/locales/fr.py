@@ -2,7 +2,6 @@
 
 MESSAGES: dict[str, str] = {
     "Kafka": "Kafka",
-    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, and see how far each consumer group lags behind.": "Un cluster Kafka. Lister ses topics et ses groupes de consommateurs, lire les messages d'un topic en lignes, les plus récents d'abord, depuis une date ou un offset, les valeurs JSON réparties en colonnes, voir les brokers et les offsets de chaque partition, et voir le retard de chaque groupe de consommateurs.",
     "Brokers": "Brokers",
     "host:port of one or more brokers, separated by commas": "host:port d'un ou plusieurs brokers, séparés par des virgules",
     "Encrypted, with the brokers' certificates verified": "Chiffré, avec vérification des certificats des brokers",
@@ -34,4 +33,6 @@ MESSAGES: dict[str, str] = {
     "{column} takes a whole number": "{column} attend un nombre entier",
     "{column} takes a number": "{column} attend un nombre",
     "{column} cannot be filtered that way": "{column} ne peut pas être filtrée ainsi",
+    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, see how far each consumer group lags behind, and work with Kafka's own tools in a terminal.": "Un cluster Kafka. Lister ses topics et ses groupes de consommateurs, lire les messages d'un topic en lignes, les plus récents d'abord, depuis une date ou un offset, les valeurs JSON réparties en colonnes, voir les brokers et les offsets de chaque partition, et voir le retard de chaque groupe de consommateurs, et travailler avec les outils de Kafka dans un terminal.",
+    "Kafka's tools are set up for this connection. Try: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups": "Les outils de Kafka sont configurés pour cette connexion. Essayez : kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups",
 }

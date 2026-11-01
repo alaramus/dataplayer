@@ -2,7 +2,6 @@
 
 MESSAGES: dict[str, str] = {
     "Kafka": "Kafka",
-    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, and see how far each consumer group lags behind.": "Кластер Kafka. Список топиков и групп потребителей, сообщения топика в виде строк — сначала новые, с момента времени или с позиции, поля JSON-значений в отдельных колонках, брокеры и позиции каждой партиции и отставание каждой группы потребителей.",
     "Brokers": "Брокеры",
     "host:port of one or more brokers, separated by commas": "host:port одного или нескольких брокеров через запятую",
     "Encrypted, with the brokers' certificates verified": "Шифрование с проверкой сертификатов брокеров",
@@ -34,4 +33,6 @@ MESSAGES: dict[str, str] = {
     "{column} takes a whole number": "{column} принимает целое число",
     "{column} takes a number": "{column} принимает число",
     "{column} cannot be filtered that way": "Колонку {column} так отфильтровать нельзя",
+    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, see how far each consumer group lags behind, and work with Kafka's own tools in a terminal.": "Кластер Kafka. Список топиков и групп потребителей, сообщения топика в виде строк — сначала новые, с момента времени или с позиции, поля JSON-значений в отдельных колонках, брокеры и позиции каждой партиции и отставание каждой группы потребителей, а также работа со штатными инструментами Kafka в терминале.",
+    "Kafka's tools are set up for this connection. Try: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups": "Инструменты Kafka настроены на это подключение. Попробуйте: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups",
 }

@@ -2,7 +2,6 @@
 
 MESSAGES: dict[str, str] = {
     "Kafka": "Kafka",
-    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, and see how far each consumer group lags behind.": "एक Kafka क्लस्टर। इसके टॉपिक और कंज़्यूमर समूह सूचीबद्ध करें, किसी टॉपिक के संदेश पंक्तियों के रूप में पढ़ें — सबसे नए पहले, किसी समय या ऑफ़सेट से, JSON मान कॉलमों में बँटे हुए — हर पार्टिशन के ब्रोकर और ऑफ़सेट देखें, और देखें कि हर कंज़्यूमर समूह कितना पीछे है।",
     "Brokers": "ब्रोकर",
     "host:port of one or more brokers, separated by commas": "एक या अधिक ब्रोकर का host:port, अल्पविराम से अलग",
     "Encrypted, with the brokers' certificates verified": "एन्क्रिप्टेड, ब्रोकरों के प्रमाणपत्र सत्यापित",
@@ -34,4 +33,6 @@ MESSAGES: dict[str, str] = {
     "{column} takes a whole number": "{column} में पूर्ण संख्या चाहिए",
     "{column} takes a number": "{column} में संख्या चाहिए",
     "{column} cannot be filtered that way": "{column} को इस तरह फ़िल्टर नहीं किया जा सकता",
+    "A Kafka cluster. List its topics and consumer groups, read a topic's messages as rows, newest first, from a time or an offset, with JSON values laid out in columns, see each partition's brokers and offsets, see how far each consumer group lags behind, and work with Kafka's own tools in a terminal.": "एक Kafka क्लस्टर। इसके टॉपिक और कंज़्यूमर समूह सूचीबद्ध करें, किसी टॉपिक के संदेश पंक्तियों के रूप में पढ़ें — सबसे नए पहले, किसी समय या ऑफ़सेट से, JSON मान कॉलमों में बँटे हुए — हर पार्टिशन के ब्रोकर और ऑफ़सेट देखें, और देखें कि हर कंज़्यूमर समूह कितना पीछे है, और टर्मिनल में Kafka के अपने टूल के साथ काम करें।",
+    "Kafka's tools are set up for this connection. Try: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups": "Kafka के टूल इस कनेक्शन के लिए तैयार हैं। आज़माएँ: kafka-topics.sh --list · kafka-console-consumer.sh --topic NAME --from-beginning · kafka-consumer-groups.sh --describe --all-groups",
 }

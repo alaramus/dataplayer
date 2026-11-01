@@ -21,6 +21,7 @@ from app.adapters.kafka.catalog import (
     read_topics,
     topic_of,
 )
+from app.adapters.kafka.console import console_program
 from app.adapters.kafka.groups import KafkaGroups
 from app.adapters.kafka.messages import KafkaMessages
 from app.adapters.kafka.options import KafkaOptions
@@ -29,6 +30,7 @@ from app.adapters.kafka.topics import KafkaTopics
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, register
 from app.adapters.summary import NodeSummary
+from app.adapters.terminal import ConsoleProgram
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_
 
@@ -95,6 +97,10 @@ class KafkaAdapter:
             return await self._groups.node_summary(node_id)
         return await self._topics.node_summary(node_id)
 
+    async def console_program(self) -> ConsoleProgram:
+        """Kafka's tools, set up for this connection, in a container (D307)."""
+        return console_program(self._session.options)
+
 
 @register(
     name="kafka",
@@ -106,7 +112,8 @@ class KafkaAdapter:
         "A Kafka cluster. List its topics and consumer groups, read a topic's "
         "messages as rows, newest first, from a time or an offset, with JSON "
         "values laid out in columns, see each partition's brokers and offsets, "
-        "and see how far each consumer group lags behind."
+        "see how far each consumer group lags behind, and work with Kafka's "
+        "own tools in a terminal."
     ),
     options_schema=KafkaOptions,
     adapter_class=KafkaAdapter,

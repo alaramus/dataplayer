@@ -101,14 +101,18 @@ async def _redis(client: AsyncClient, headers: dict[str, str], **options: Any) -
             "name": f"redis {uuid.uuid4().hex[:8]}",
             "adapter_type": "redis",
             # A None drops a field the other way of signing in does not have.
-            "options": {key: value for key, value in given.items() if value is not None},
+            "options": {
+                key: value for key, value in given.items() if value is not None
+            },
         },
     )
     assert created.status_code == 200, created.text
     return str(created.json()["id"])
 
 
-async def _postgres(client: AsyncClient, headers: dict[str, str], **options: Any) -> str:
+async def _postgres(
+    client: AsyncClient, headers: dict[str, str], **options: Any
+) -> str:
     created = await client.post(
         f"{CONNECTORS}/",
         headers=headers,
@@ -130,7 +134,9 @@ async def _postgres(client: AsyncClient, headers: dict[str, str], **options: Any
     return str(created.json()["id"])
 
 
-async def _zookeeper(client: AsyncClient, headers: dict[str, str], **options: Any) -> str:
+async def _zookeeper(
+    client: AsyncClient, headers: dict[str, str], **options: Any
+) -> str:
     given = {
         "auth_method": "digest",
         "host": "zookeeper",
@@ -146,7 +152,32 @@ async def _zookeeper(client: AsyncClient, headers: dict[str, str], **options: An
         json={
             "name": f"zookeeper {uuid.uuid4().hex[:8]}",
             "adapter_type": "zookeeper",
-            "options": {key: value for key, value in given.items() if value is not None},
+            "options": {
+                key: value for key, value in given.items() if value is not None
+            },
+        },
+    )
+    assert created.status_code == 200, created.text
+    return str(created.json()["id"])
+
+
+async def _kafka(client: AsyncClient, headers: dict[str, str], **options: Any) -> str:
+    given = {
+        "auth_method": "scram-sha-512",
+        "bootstrap_servers": "kafka:9092",
+        "user": "ann",
+        "password": r'secret"pass\word',
+        **options,
+    }
+    created = await client.post(
+        f"{CONNECTORS}/",
+        headers=headers,
+        json={
+            "name": f"kafka {uuid.uuid4().hex[:8]}",
+            "adapter_type": "kafka",
+            "options": {
+                key: value for key, value in given.items() if value is not None
+            },
         },
     )
     assert created.status_code == 200, created.text
@@ -305,13 +336,63 @@ async def test_zkcli_for_an_anonymous_connection_has_no_note(
     runner = _Runner()
     monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
     connector_id = await _zookeeper(
-        client, normal_user_token_headers, auth_method="anonymous", user=None, password=None
+        client,
+        normal_user_token_headers,
+        auth_method="anonymous",
+        user=None,
+        password=None,
     )
 
     program = await _program_of(normal_user_token_headers, connector_id, runner)
 
     assert set(program.environment) == {"ZK_SERVER", "CLIENT_JVMFLAGS"}
     assert program.environment["ZK_SERVER"] == "zookeeper:2181/apps"
+
+
+async def test_kafka_s_tools_are_set_up_with_the_password_only_in_the_settings(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _Runner()
+    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    connector_id = await _kafka(client, normal_user_token_headers)
+
+    program = await _program_of(normal_user_token_headers, connector_id, runner)
+
+    assert program.image.startswith("apache/kafka:")
+    assert program.argv[:2] == ("sh", "-c")
+    assert program.environment["KAFKA_BOOTSTRAP"] == "kafka:9092"
+    assert "secret" not in repr(program.argv)
+    # The JAAS line quotes the password, and the properties format escapes
+    # that again, so its quote and backslash cannot end the value (D307).
+    settings_text = program.environment["DP_PROPERTIES"]
+    assert "sasl.mechanism=SCRAM-SHA-512" in settings_text
+    assert r'password="secret\\"pass\\\\word";' in settings_text
+    # The start file drops every variable that carried it before the prompt.
+    assert "unset DP_PROPERTIES" in program.environment["DP_RC"]
+    assert (
+        'kafka-topics.sh() { _dp_run kafka-topics.sh "$@"; }'
+        in program.environment["DP_RC"]
+    )
+
+
+async def test_kafka_s_tools_without_a_user_carry_no_sasl(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _Runner()
+    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    connector_id = await _kafka(
+        client, normal_user_token_headers, auth_method="none", user=None, password=None
+    )
+
+    program = await _program_of(normal_user_token_headers, connector_id, runner)
+
+    assert "sasl" not in program.environment["DP_PROPERTIES"]
+    assert "security.protocol=PLAINTEXT" in program.environment["DP_PROPERTIES"]
+    assert "DP_CA" not in program.environment
 
 
 async def test_a_server_that_runs_no_containers_says_so(
@@ -351,7 +432,9 @@ async def test_a_console_does_not_go_through_a_tunnel(
 ) -> None:
     runner = _Runner()
     monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
-    connector_id = await make(client, normal_user_token_headers, ssh_tunnel=str(uuid.uuid4()))
+    connector_id = await make(
+        client, normal_user_token_headers, ssh_tunnel=str(uuid.uuid4())
+    )
 
     frame = await _refused(_opening(normal_user_token_headers, connector_id))
 
@@ -367,6 +450,8 @@ async def test_the_types_offer_a_terminal(
     )
 
     assert types.status_code == 200, types.text
-    for name in ("mongodb", "redis", "postgres", "zookeeper"):
+    for name in ("mongodb", "redis", "postgres", "zookeeper", "kafka"):
         [found] = [item for item in types.json() if item["name"] == name]
-        assert "terminal" in {capability["code"] for capability in found["capabilities"]}
+        assert "terminal" in {
+            capability["code"] for capability in found["capabilities"]
+        }

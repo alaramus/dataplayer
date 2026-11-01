@@ -2,10 +2,11 @@
 
 What a Kafka source is, how it reaches a cluster, what its catalog shows of
 topics and consumer groups, and how a topic's messages and a group's positions
-are read as rows. The contract every source type follows is in
+are read as rows, and Kafka's own tools in a terminal (D307, run as D286
+says in [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `kafka` adapter.
 
-Decisions here: D304, D305, D306.
+Decisions here: D304, D305, D306, D307.
 
 ## D304. A Kafka source speaks to a cluster through confluent-kafka, a client per operation
 
@@ -107,3 +108,33 @@ Known deviations:
   as a document of its own.
 
 Spec: [A Kafka source](../../decisions/2026-11-01-kafka-source-design.md)
+
+## D307. The console is Kafka's own tools, each set up for the connection
+
+A Kafka connection's terminal is bash in the `apache/kafka` image of the
+release the test server runs (D286). Each tool that takes both
+`--bootstrap-server` and `--command-config` is wrapped by a shell function of
+its own name that adds the two for this connection, unless the command names
+brokers or a controller itself: `kafka-topics.sh --list` lists this
+connection's topics. The list of wrapped tools is the ones whose help in that
+image names both flags; the rest are as Kafka ships them.
+
+The client settings — security protocol, SASL mechanism and its JAAS line,
+a CA certificate as a PEM truststore — are the adapter's own (D304), composed
+by the server, the password quoted for JAAS and escaped again for the
+properties format. They reach the container through its environment, are
+written with `printf '%s'` into a file only its user may read, and the
+variables carrying them are unset before the prompt. A greeting above it
+names three commands to start from.
+
+Known deviations:
+
+- **The brokers must be reachable from the service network** under the
+  addresses they advertise, as for any console (D286): a connection to
+  `localhost` from the backend's point of view is not the container's.
+- **The password is in a file inside the container** for as long as the
+  terminal is open; the container is removed when it closes.
+- **The wrapped tools are a list**, read off one release; a tool a later image
+  adds runs as Kafka ships it until it is added.
+
+Spec: [The Kafka console](../../decisions/2026-11-01-kafka-console-design.md)
