@@ -83,7 +83,9 @@ export function useLiveChanges(options: LiveChangesOptions) {
   )
 
   watch(
-    () => (followed === null || !options.live() ? null : JSON.stringify(options.shown())),
+    // The connection is part of the key: `followed` is not reactive, and another
+    // connection showing the same nodes still has to be told them.
+    () => (!options.live() ? null : JSON.stringify([options.connectorId(), options.shown()])),
     (shown) => {
       if (shown === null || followed === null) return
       const connectorId = followed

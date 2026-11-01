@@ -246,7 +246,9 @@ is left alone without a word.
 ZooKeeper holds one session per watch, the only one it keeps past a request
 (D297), reconnecting by itself. kazoo's DataWatch and ChildrenWatch recipes
 set each watch again after it fires and after a reconnect: a level is watched
-for its children, a znode for its data and its deletion. A recipe no longer
+for its children, a znode for its data and its deletion. A level whose
+children changed is told together with the level above it, where its count of
+children is shown. A recipe no longer
 wanted stops the next time it fires, since ZooKeeper cannot take a watch back.
 kazoo 2.11 has no persistent recursive watch, so the tree is not watched
 whole.

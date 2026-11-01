@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { NodeMatch } from "@/client"
 
-import { filterTree, foundTree, rowAt, toTreeRows, withChildren } from "./keyspaceRows"
+import { filterTree, foundTree, keepRead, rowAt, toTreeRows, withChildren } from "./keyspaceRows"
 import type { TreeRow } from "./keyspaceRows"
 import type { ListNode } from "./nodes"
 
@@ -185,5 +185,35 @@ describe("a search's matches as a tree", () => {
     const built = foundTree([match("greeting", [["d0", "db0"]])], null, known)
     expect(built.rows[0]).toMatchObject({ id: "d0", caption: "4 keys", icon: "storage" })
     expect(built.rows[0]?.children?.map((row) => row.id)).toEqual(["k0:greeting"])
+  })
+})
+
+describe("a level read again (D303)", () => {
+  it("keeps open what was open and takes what is new", () => {
+    const open = folder("/a", "a", [key("/a/x", "x")])
+    const shut = folder("/b", "b")
+    const fresh = [folder("/a", "a"), folder("/b", "b"), key("/c", "c")]
+
+    const next = keepRead([open, shut], fresh)
+
+    expect(next.map((row) => row.id)).toEqual(["/a", "/b", "/c"])
+    expect(next[0]?.children?.map((row) => row.id)).toEqual(["/a/x"])
+    expect(next[0]?.lazy).toBe(false)
+    // Never read, so still asked for when somebody opens it.
+    expect(next[1]?.children).toBeUndefined()
+    expect(next[1]?.lazy).toBe(true)
+  })
+
+  it("lets go of a row that is gone, and what was read under it", () => {
+    const gone = folder("/a", "a", [key("/a/x", "x")])
+
+    expect(keepRead([gone, key("/c", "c")], [key("/c", "c")]).map((row) => row.id)).toEqual(["/c"])
+  })
+
+  it("takes the fresh row's caption rather than the old one", () => {
+    const old = { ...folder("/a", "a", []), caption: "1 child" }
+    const fresh = { ...folder("/a", "a"), caption: "2 children" }
+
+    expect(keepRead([old], [fresh])[0]?.caption).toBe("2 children")
   })
 })

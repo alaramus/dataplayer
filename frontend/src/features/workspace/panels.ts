@@ -376,6 +376,39 @@ export function openConnectorIds(panels: Panel[]): Set<string> {
   )
 }
 
+/** The node a tab is on, where it is on one. */
+function nodeOf(panel: Panel): string | null {
+  return "nodeId" in panel && typeof panel.nodeId === "string" ? panel.nodeId : null
+}
+
+function isOn(panel: Panel, connectorId: string): boolean {
+  return "connectorId" in panel && panel.connectorId === connectorId
+}
+
+/** The nodes open in tabs on one connection, for a source that watches them (D303). */
+export function nodesOpenOn(panels: Panel[], connectorId: string): string[] {
+  return panels
+    .filter((panel) => isOn(panel, connectorId))
+    .map(nodeOf)
+    .filter((nodeId): nodeId is string => nodeId !== null)
+}
+
+/** The tabs a watching source's change asks to read again: on these nodes, or every one on a node. */
+export function panelsOnNodes(
+  panels: Panel[],
+  connectorId: string,
+  nodeIds: readonly string[],
+  everything: boolean
+): string[] {
+  const wanted = new Set(nodeIds)
+  return panels
+    .filter((panel) => {
+      const nodeId = nodeOf(panel)
+      return isOn(panel, connectorId) && nodeId !== null && (everything || wanted.has(nodeId))
+    })
+    .map((panel) => panel.id)
+}
+
 /**
  * Which column a panel belongs in.
  *

@@ -193,3 +193,51 @@ describe("what the tree tells the menu", () => {
     expect(keys.emitted("describes")?.at(-1)).toEqual([false])
   })
 })
+
+describe("levels read again when the source says they changed (D303)", () => {
+  type Live = {
+    refreshLevels: (ids: (string | null)[]) => Promise<void>
+    expandedIds: () => string[]
+  }
+  const ZNODE = { kind: "znode", has_children: true, representations: [] }
+  const child = (id: string) => ({ ...ZNODE, id, name: id.split("/").at(-1), has_children: false })
+
+  it("takes what is new at the top and under an open branch, keeping that branch open", async () => {
+    const holds: Record<string, unknown[]> = {
+      "": [{ ...ZNODE, id: "/app", name: "app" }],
+      "/app": [child("/app/config")],
+    }
+    vi.spyOn(ConnectorsService, "readCatalog").mockImplementation((async ({ query }: {
+      query?: { node_id?: string | null }
+    }) => ({ data: holds[query?.node_id ?? ""] ?? [] })) as never)
+    const wrapper = mount(KeyspaceTree, {
+      props: { connectorId: "c1", rootId: null },
+      global: { plugins: [Quasar, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } }) }]] },
+    })
+    await flushPromises()
+    await wrapper.get('[data-testid="keyspace-row-/app"]').trigger("click")
+    await flushPromises()
+    expect(wrapper.find('[data-testid="keyspace-row-/app/config"]').exists()).toBe(true)
+
+    holds[""] = [{ ...ZNODE, id: "/app", name: "app" }, child("/lab")]
+    holds["/app"] = [child("/app/config"), child("/app/fresh")]
+    const live = wrapper.vm as unknown as Live
+    await live.refreshLevels([null, "/app"])
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="keyspace-row-/lab"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="keyspace-row-/app/fresh"]').exists()).toBe(true)
+    expect(live.expandedIds()).toEqual(["/app"])
+  })
+
+  it("passes over a level never opened, which is read when somebody opens it", async () => {
+    const wrapper = mountTree()
+    await flushPromises()
+    const listing = vi.spyOn(ConnectorsService, "readCatalog")
+    listing.mockClear()
+
+    await (wrapper.vm as unknown as Live).refreshLevels(["f0:cache:"])
+
+    expect(listing).not.toHaveBeenCalled()
+  })
+})

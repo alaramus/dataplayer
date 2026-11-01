@@ -9,6 +9,7 @@ import { ConnectorsService } from "@/client"
 import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import { createCloseRegistry, provideCloseRegistry } from "@/features/workspace/closable"
+import { notices } from "@/shared/notifications/notices"
 import { withWindowHost } from "@/shared/testing/windows"
 
 import ContentPanel from "./ContentPanel.vue"
@@ -251,6 +252,47 @@ describe("the file content editor", () => {
     expect(wrapper.get('[data-testid="content-editor"]').element).toHaveProperty(
       "value",
       "print('mine')\n"
+    )
+  })
+
+  it("keeps quiet about an unsaved change when the source asked for the reload (D303)", async () => {
+    const open = vi.spyOn(ConnectorsService, "readEditorContent").mockResolvedValue(editorAnswer())
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="content-editor"]').setValue("print('mine')\n")
+    const said = notices().entries.value.length
+
+    await registry.reload(panelId, "live")
+    await flushPromises()
+
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(notices().entries.value.length).toBe(said)
+    expect(wrapper.get('[data-testid="content-editor"]').element).toHaveProperty(
+      "value",
+      "print('mine')\n"
+    )
+
+    // Pressed by a person, the reason it did not reload is said.
+    await registry.reload(panelId)
+    expect(notices().entries.value.length).toBe(said + 1)
+  })
+
+  it("reads a clean document again when the source says it changed (D303)", async () => {
+    const open = vi.spyOn(ConnectorsService, "readEditorContent")
+      .mockResolvedValueOnce(editorAnswer())
+      .mockResolvedValueOnce(editorAnswer({ text: "print('theirs')\n", version: "version-two" }))
+
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    await registry.reload(panelId, "live")
+    await flushPromises()
+
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('[data-testid="content-editor"]').element).toHaveProperty(
+      "value",
+      "print('theirs')\n"
     )
   })
 })

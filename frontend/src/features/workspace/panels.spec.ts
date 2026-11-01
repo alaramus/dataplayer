@@ -13,7 +13,9 @@ import {
   isRetiredPanel,
   kindOf,
   lookOf,
+  nodesOpenOn,
   openConnectorIds,
+  panelsOnNodes,
   panelSchema,
   PANEL_ROLES,
   queryDraftPanelId,
@@ -604,5 +606,28 @@ describe("the panel registry", () => {
     // A widget window is a copy, and two of them are two tabs; identified by
     // the widget alone, the second press would raise the first tab instead.
     expect(widgetPanelId("dash-1", "w1", "one")).not.toBe(widgetPanelId("dash-1", "w1", "two"))
+  })
+})
+
+describe("the tabs a watching source reads again (D303)", () => {
+  const elsewhere = { ...samples.content, id: contentPanelId("c2", "people.json", "json"), connectorId: "c2" } as Panel
+  const panels = [samples.connectors, samples.catalog, samples.rows, samples.content, samples.summary, samples.query, elsewhere]
+
+  it("names the nodes open on one connection, not the ones elsewhere", () => {
+    expect(nodesOpenOn(panels, "c1")).toEqual(["public.orders", "people.json", "notes.txt"])
+    expect(nodesOpenOn(panels, "c3")).toEqual([])
+  })
+
+  it("reads again only the tabs on the nodes that changed", () => {
+    expect(panelsOnNodes(panels, "c1", ["people.json"], false)).toEqual([samples.content.id])
+    expect(panelsOnNodes(panels, "c1", ["/nowhere"], false)).toEqual([])
+  })
+
+  it("reads again every tab on a node of that connection when everything changed", () => {
+    expect(panelsOnNodes(panels, "c1", [], true)).toEqual([
+      samples.rows.id,
+      samples.content.id,
+      samples.summary.id,
+    ])
   })
 })

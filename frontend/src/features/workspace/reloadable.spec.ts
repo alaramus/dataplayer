@@ -20,6 +20,17 @@ describe("who knows how to re-read a panel", () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
+  it("passes on that a source asked for it rather than a person (D303)", async () => {
+    const registry = createReloadRegistry()
+    const reload = vi.fn()
+    registry.register("content:c1:/app:text", reload)
+
+    await registry.reload("content:c1:/app:text", "live")
+    await registry.reload("content:c1:/app:text")
+
+    expect(reload.mock.calls).toEqual([["live"], [undefined]])
+  })
+
   it("waits for a reload that takes time", async () => {
     const registry = createReloadRegistry()
     const order: string[] = []

@@ -89,7 +89,10 @@ class ZookeeperWatch:
             if first[0]:
                 first[0] = False
                 return True
-            self._sink(Changed(levels=frozenset({level_of(path)})))
+            # The parent level too: the count of children a row there shows
+            # is part of what changed.
+            levels = {level_of(path)} if path == "/" else {path, parent_of(path)}
+            self._sink(Changed(levels=frozenset(levels)))
             return True
 
         try:

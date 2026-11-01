@@ -61,7 +61,9 @@ async def test_a_new_child_a_new_value_and_a_deletion_are_told(root: str) -> Non
         assert heard.changes == []
 
         await on_server(lambda client: client.create(f"{root}/fresh", b""))
-        await heard.until(lambda one: root in one.levels)
+        grown = await heard.until(lambda one: root in one.levels)
+        # And the level above it, where its count of children is shown.
+        assert None in grown.levels
 
         await on_server(lambda client: client.set(f"{root}/config", b"{}"))
         told = await heard.until(lambda one: f"{root}/config" in one.nodes)
@@ -100,10 +102,12 @@ class _Socket:
     def __init__(self, user_id: uuid.UUID) -> None:
         self.user_id = user_id
         self.got: list[BaseModel] = []
+        self.first = asyncio.Event()
 
     async def deliver(self, topic: str, payload: BaseModel) -> None:
         del topic
         self.got.append(payload)
+        self.first.set()
 
 
 async def test_the_topic_tells_the_person_gathered(root: str) -> None:
@@ -119,9 +123,7 @@ async def test_the_topic_tells_the_person_gathered(root: str) -> None:
                 client.create(f"{root}/burst-{index}", b"")
 
         await on_server(burst)
-        deadline = time.monotonic() + 8
-        while not socket.got and time.monotonic() < deadline:
-            await asyncio.sleep(0.05)
+        await asyncio.wait_for(socket.first.wait(), 8)
         await asyncio.sleep(0.6)
         told = socket.got[0]
         assert isinstance(told, SourceChanges)
