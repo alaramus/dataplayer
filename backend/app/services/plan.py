@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.services.templates import (
+    Address,
     CredentialSlot,
     CredentialValue,
     Fixed,
@@ -332,6 +333,8 @@ def described_options(
     for field, value in shape.connector_options.items():
         if isinstance(value, Fixed):
             found[field] = value.value
+        elif isinstance(value, Address):
+            found[field] = f"{endpoint.host}:{endpoint.port}"
         elif value == "host":
             found[field] = endpoint.host
         elif value == "port":
@@ -352,6 +355,8 @@ def _value(
 ) -> str | int:
     if isinstance(value, Fixed):
         return value.value
+    if isinstance(value, Address):
+        return f"{endpoint.host}:{endpoint.port}"
     if value == "host":
         return endpoint.host
     if value == "port":

@@ -71,11 +71,23 @@ class FromKey:
     """
 
 
+@dataclass(frozen=True)
+class Address:
+    """The host and the port together, as `host:port`.
+
+    For a connector whose source names its servers in one field, as Kafka's
+    brokers are (D311). A placement like the two it joins, so the environment
+    cannot ask for it either.
+    """
+
+
+ADDRESS = Address()
+
 # Either the name of something decided for this service, or a constant.
 # Split the same way the slots are: an environment value cannot name a
 # placement, and the compiler is what says so.
 CredentialValue = CredentialSlot | Fixed
-Value = Slot | Fixed
+Value = Slot | Fixed | Address
 
 
 class UnknownServiceTemplate(Exception):
@@ -474,6 +486,60 @@ ZOOKEEPER = ServiceTemplate(
     startup_timeout_seconds=60,
 )
 
+# One broker that is its own controller. A client goes where the broker
+# says it is (D304), so it announces the address it has on the service
+# network, read as it starts: what the application and the terminal reach it
+# by. The published port reaches the first broker only (D311).
+_KAFKA_START = (
+    'export KAFKA_ADVERTISED_LISTENERS="PLAINTEXT://$(hostname -i | cut -d" " -f1):9092"; '
+    "exec /etc/kafka/docker/run"
+)
+
+KAFKA = ServiceTemplate(
+    key="kafka",
+    title=N_("Kafka"),
+    description=N_(
+        "A Kafka broker of its own, started on this machine, with a lab of "
+        "topics and a consumer group to try the source on."
+    ),
+    # The release the source type is tested against, and whose tools its
+    # terminal runs (D307).
+    image="apache/kafka:4.3.2",
+    container_port=9092,
+    # Owned by the image's user, so the volume mounted here is writable.
+    data_path="/var/lib/kafka/data",
+    # A broker answers anybody who reaches it; its port is published on the
+    # loopback only (D86), as an unprotected Redis's is (D311).
+    credentials={},
+    choosable=frozenset(),
+    environment={
+        "KAFKA_NODE_ID": Fixed("1"),
+        "KAFKA_PROCESS_ROLES": Fixed("broker,controller"),
+        "KAFKA_CONTROLLER_QUORUM_VOTERS": Fixed("1@localhost:9093"),
+        "KAFKA_LISTENERS": Fixed("PLAINTEXT://:9092,CONTROLLER://:9093"),
+        "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": Fixed(
+            "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+        ),
+        "KAFKA_CONTROLLER_LISTENER_NAMES": Fixed("CONTROLLER"),
+        "KAFKA_INTER_BROKER_LISTENER_NAME": Fixed("PLAINTEXT"),
+        "KAFKA_LOG_DIRS": Fixed("/var/lib/kafka/data"),
+        # One broker: every internal topic has one replica.
+        "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": Fixed("1"),
+        "KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR": Fixed("1"),
+        "KAFKA_TRANSACTION_STATE_LOG_MIN_ISR": Fixed("1"),
+        "KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR": Fixed("1"),
+        "KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR": Fixed("1"),
+        "KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS": Fixed("0"),
+    },
+    command=(Fixed("bash"), Fixed("-c"), Fixed(_KAFKA_START)),
+    adapter_type="kafka",
+    connector_options={
+        "auth_method": Fixed("none"),
+        "bootstrap_servers": ADDRESS,
+    },
+    startup_timeout_seconds=90,
+)
+
 REDIS = ServiceTemplate(
     key="redis",
     title=N_("Redis"),
@@ -588,7 +654,7 @@ SSH = ServiceTemplate(
 
 
 SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
-    POSTGRES, TIMESCALE, MYSQL, MARIADB, CLICKHOUSE, MONGODB, REDIS, ZOOKEEPER, SSH
+    POSTGRES, TIMESCALE, MYSQL, MARIADB, CLICKHOUSE, MONGODB, REDIS, ZOOKEEPER, KAFKA, SSH
 )
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}

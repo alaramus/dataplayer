@@ -5,10 +5,13 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
+from confluent_kafka import KafkaException, TopicPartition
 
 from app.adapters.actions import ActionRefused, JsonAction
 from app.adapters.fetch import FetchRequest, InFilter
 from app.adapters.kafka.actions import parse_settings
+from app.adapters.kafka.groups import commit_positions
+from app.adapters.kafka.session import KafkaClients, KafkaSession
 from app.adapters.kafka.writes import bytes_of
 from app.adapters.summary import KafkaTopicContents
 from app.adapters.update import (
@@ -27,6 +30,7 @@ from tests.adapters.kafka_fixture import (
     make,
     names,
     on_server,
+    options,
     remove,
     remove_topic,
     topics,
@@ -350,3 +354,16 @@ async def test_a_group_is_deleted_with_its_positions_named_first() -> None:
         assert group not in listed
     finally:
         await on_server(lambda: remove_topic(topic))
+
+
+async def test_a_partition_kafka_refuses_is_not_taken_for_a_moved_position(
+    made: tuple[str, str],
+) -> None:
+    """Kafka answers each partition inside a request that succeeded (D311)."""
+    topic, group = made
+
+    def commit(clients: KafkaClients) -> None:
+        commit_positions(clients, group, [TopicPartition(topic, 99, 0)])
+
+    with pytest.raises(KafkaException):
+        await on_server(lambda: commit(KafkaClients(KafkaSession(options()).config())))

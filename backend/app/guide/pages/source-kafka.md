@@ -153,3 +153,28 @@ well). The first and the last refresh every ten seconds.
 - **Download** on a topic saves the messages its page would show, with its
   filters and order, up to ten thousand from the end of each partition. A
   group downloads every position.
+
+## A Kafka of your own
+
+**Services** can start a Kafka broker on this machine, if this server may run
+containers. It asks for no password — a broker answers anybody who reaches it —
+and is reached only from this machine. Its connection is made for you.
+
+Ask for sample data to get a lab:
+
+- `lab.orders` — three hundred JSON orders over one day in three partitions,
+  keyed by customer;
+- `lab.prices` — the latest price per symbol, a compacted topic;
+- `lab.events` — text lines with headers;
+- `lab.sensor` — readings stored as bytes, shown in hex;
+- the group `lab-billing`, part way through `lab.orders`, so its lag shows.
+
+A broker tells its clients where it is, and this one says the address it has
+inside DataPlayer. The catalog, the terminal and pipelines reach it there; a
+tool on your own computer reaches it only through the terminal.
+
+## What Kafka does not have here yet
+
+Copying topics to another connection and backups are not offered. Kafka's way
+of copying is MirrorMaker, a service that keeps running, and its backup is the
+brokers' log files; sending every message again would promise neither.

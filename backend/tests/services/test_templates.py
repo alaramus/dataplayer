@@ -5,6 +5,7 @@ import pytest
 from app.adapters import options as adapter_options
 from app.adapters import registry
 from app.services.templates import (
+    ADDRESS,
     CREDENTIAL_SLOTS,
     SERVICE_TEMPLATES,
     Fixed,
@@ -242,3 +243,20 @@ def test_a_zookeeper_server_asks_for_no_password_and_answers_its_reports() -> No
     assert isinstance(allowed, Fixed)
     assert set(allowed.value.split(",")) >= {"srvr", "mntr", "cons", "wchs", "conf"}
     assert not {"dump", "wchp", "crst", "srst"} & set(allowed.value.split(","))
+
+
+def test_a_kafka_broker_asks_for_no_password_and_announces_where_it_is() -> None:
+    """A broker answers anybody who reaches it, and a client goes where it says
+    it is, so it announces its address on the service network (D311)."""
+    template = template_for("kafka")
+
+    assert template.image.startswith("apache/kafka:")
+    assert template.adapter_type == "kafka"
+    assert template.container_port == 9092
+    assert generated_slots(template) == ()
+    assert template.choosable == frozenset()
+    assert template.connector_options["bootstrap_servers"] == ADDRESS
+    start = template.command[-1]
+    assert isinstance(start, Fixed)
+    assert "KAFKA_ADVERTISED_LISTENERS" in start.value
+    assert template.environment["KAFKA_LOG_DIRS"] == Fixed(template.data_path)

@@ -3,12 +3,13 @@
 What a Kafka source is, how it reaches a cluster, what its catalog shows of
 topics and consumer groups, and how a topic's messages and a group's positions
 are read as rows, how messages are sent and topics and groups changed
-(D308, D309), the cluster's reports, metrics, search and export (D310), and
+(D308, D309), the cluster's reports, metrics, search and export (D310), a
+Kafka started here with its lab (D311), and
 Kafka's own tools in a terminal (D307, run as D286
 says in [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `kafka` adapter.
 
-Decisions here: D304, D305, D306, D307, D308, D309, D310.
+Decisions here: D304, D305, D306, D307, D308, D309, D310, D311.
 
 ## D304. A Kafka source speaks to a cluster through confluent-kafka, a client per operation
 
@@ -193,7 +194,8 @@ groups level and for a group: Move positions to the start, the end or a time,
 for every topic the group has positions in or for one topic, all of whose
 partitions it then has; the preview shows each partition's position now and
 after and the lag after, and a group with consumers is refused, as Kafka would
-refuse it. Delete group, added with D310, takes several at once, names each
+refuse it. Every partition's own answer to the move is read: Kafka refuses a
+partition inside a request that succeeds. Delete group, added with D310, takes several at once, names each
 partition's position and lag first, and is refused the same way. Kafka's own topics take no action, nor does the top.
 
 A name that starts with an underscore is refused for a new topic: the catalog
@@ -244,3 +246,41 @@ Known deviations:
 - **A cluster with more than a hundred topics or groups is measured in part.**
 
 Spec: [Kafka's reports, metrics, search and export](../../decisions/2026-11-01-kafka-reports-design.md)
+
+## D311. A Kafka started here announces its address on the service network, and has a lab
+
+The service template runs `apache/kafka`, the release the test server and the
+terminal run, as one broker that is its own controller (KRaft), its log
+directory on the service's volume and every internal topic with one replica.
+It has no credential: a broker answers anybody who reaches it, and its port is
+on the loopback only (D86), as an unprotected Redis's is.
+
+A client goes where the broker says it is (D304). The broker announces the
+address it has on the service network, read by its start command
+(`hostname -i`), so the application, the terminal and pipelines reach it as
+they reach every service. The connector names it in one field, so a template
+value, `ADDRESS`, joins the host and port placements as `host:port`; a source
+type that names its servers so writes its one-line address from it (D89).
+
+Asked for sample data, it gets a lab, written out so two demonstrations look
+the same and kept for ever since its times are fixed: `lab.orders` (three
+hundred JSON orders over a day in three partitions, keyed by customer),
+`lab.prices` (the latest price per symbol, compacted), `lab.events` (text with
+headers), `lab.sensor` (bytes) and the group `lab-billing` part way through the
+orders. Making it again deletes the lab first and waits for the topics to go;
+the group's positions are asked again while a broker just started is still
+loading its coordinator. A topic made by New topic is waited for until the
+metadata lists it, so it opens at once.
+
+Copying topics between connections and backups are left out: Kafka copies
+with MirrorMaker, a running service, and backs up its brokers' log
+directories, and re-sending every message would promise neither.
+
+Known deviations:
+
+- **A tool on this machine reaches the first broker only**: the published port
+  answers, and the client is sent on to the service-network address, which
+  only that network knows. Announcing the published port too is not possible:
+  the runtime picks it after the container's settings are written (D80).
+
+Spec: [A Kafka started here, and its lab](../../decisions/2026-11-01-kafka-service-design.md)

@@ -120,4 +120,6 @@ MESSAGES: dict[str, str] = {
     "{group} and its positions will be deleted": "{group} y sus posiciones se eliminarán",
     "{group} has consumers; a group is deleted while nobody reads": "{group} tiene consumidores; un grupo se elimina mientras nadie lee",
     "{topic} {n}: position {now}, {lag} behind": "{topic} {n}: posición {now}, {lag} de retraso",
+    "A Kafka address carries no user; choose a SASL method instead": "Una dirección de Kafka no lleva usuario; elija un método SASL",
+    "{count} messages in {topics} lab topics and the group {group}": "{count} mensajes en {topics} topics de demostración y el grupo {group}",
 }

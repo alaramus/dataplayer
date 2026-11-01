@@ -7,6 +7,7 @@ take none. A message is sent as a new row of the topic (D308), not here.
 """
 
 import re
+import time
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
@@ -44,7 +45,7 @@ from app.adapters.kafka.catalog import (
     topic_of,
     watermarks,
 )
-from app.adapters.kafka.groups import read_standing
+from app.adapters.kafka.groups import commit_positions, read_standing
 from app.adapters.kafka.messages import milliseconds_of
 from app.adapters.kafka.session import TIMEOUT_SECONDS, KafkaClients, KafkaSession
 from app.adapters.layout import layout
@@ -298,6 +299,11 @@ class NewTopicAction(_KafkaAction, JsonAction[NewTopicParams]):
                 .values()
             ):
                 future.result()
+            # Made is not yet listed: the metadata catches up a moment later,
+            # and the topic is opened as soon as this answers.
+            deadline = time.monotonic() + TIMEOUT_SECONDS
+            while params.name not in partitions_of(clients) and time.monotonic() < deadline:
+                time.sleep(0.2)
 
         await self._session.run(create, TOPICS)
         return ActionResult(
@@ -728,15 +734,7 @@ class MovePositions(_KafkaAction, JsonAction[MoveParams]):
                 TopicPartition(topic, partition, new)
                 for (topic, partition), (_, new, _) in sorted(plan.items())
             ]
-            for future in (
-                clients.admin()
-                .alter_consumer_group_offsets(
-                    [ConsumerGroupTopicPartitions(group, positions)],
-                    request_timeout=TIMEOUT_SECONDS,
-                )
-                .values()
-            ):
-                future.result()
+            commit_positions(clients, group, positions)
             return len(positions)
 
         count = await self._session.run(move, node_id or "")

@@ -120,4 +120,6 @@ MESSAGES: dict[str, str] = {
     "{group} and its positions will be deleted": "{group} 及其位置将被删除",
     "{group} has consumers; a group is deleted while nobody reads": "{group} 有消费者；只能在无人读取时删除组",
     "{topic} {n}: position {now}, {lag} behind": "{topic} {n}：位置 {now}，滞后 {lag}",
+    "A Kafka address carries no user; choose a SASL method instead": "Kafka 地址不包含用户；请改选一种 SASL 方式",
+    "{count} messages in {topics} lab topics and the group {group}": "{topics} 个演示主题中的 {count} 条消息，以及组 {group}",
 }

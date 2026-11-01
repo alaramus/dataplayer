@@ -21,7 +21,7 @@ file holds which decision.
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
-| [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read, messages sent, topics and groups changed, its reports, metrics, search and export, or its console |
+| [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read, messages sent, topics and groups changed, its reports, metrics, search and export, its service and lab, or its console |
 | [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed, its fields and indexes, its reports, search or catalog actions, or how its collections are copied, backed up and measured |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
@@ -154,7 +154,9 @@ sent, so pasting and pipelines write into topics (D308); topics are made,
 deleted, re-set and grown, their old messages deleted, and a group's
 positions moved or the group deleted, each after a preview (D309). A Cluster
 section of four reports, lag and growth as metrics, names searched and kept,
-and a topic exported to its page's depth (D310).
+and a topic exported to its page's depth (D310). A broker started here
+announces its service-network address and comes with a lab of four topics and
+a lagging group (D311).
 
 **MongoDB** — one server through pymongo's asynchronous client, spoken to
 directly (D283): databases as schemas, their collections as tables named as

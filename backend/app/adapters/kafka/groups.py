@@ -6,12 +6,18 @@ the member reading it. In topic and partition order; a group's partitions are
 counted in hundreds, so the page is cut here rather than asked for.
 """
 
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
 from confluent_kafka import ConsumerGroupState as KafkaGroupState
-from confluent_kafka import ConsumerGroupTopicPartitions, TopicPartition
+from confluent_kafka import (
+    ConsumerGroupTopicPartitions,
+    KafkaError,
+    KafkaException,
+    TopicPartition,
+)
 from confluent_kafka.admin import OffsetSpec
 
 from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
@@ -72,6 +78,48 @@ class Position:
 
 def _text(number: int | None) -> str | None:
     return None if number is None else str(number)
+
+
+# A coordinator that is not ready yet: a broker just started is loading
+# `__consumer_offsets`, and asking again shortly is the answer.
+_NOT_READY = {
+    KafkaError.COORDINATOR_NOT_AVAILABLE,
+    KafkaError.COORDINATOR_LOAD_IN_PROGRESS,
+    KafkaError.NOT_COORDINATOR,
+}
+
+
+def commit_positions(
+    clients: KafkaClients,
+    group: str,
+    positions: list[TopicPartition],
+    wait_seconds: float = 0.0,
+) -> None:
+    """A group's positions written, every partition's own answer read.
+
+    Kafka answers the request as a whole and each partition on its own: a
+    refused partition comes back inside a request that succeeded, so each is
+    looked at. A coordinator not ready yet is asked again for `wait_seconds`.
+    """
+    deadline = time.monotonic() + wait_seconds
+    while True:
+        try:
+            [future] = clients.admin().alter_consumer_group_offsets(
+                [ConsumerGroupTopicPartitions(group, positions)],
+                request_timeout=TIMEOUT_SECONDS,
+            ).values()
+            answered = future.result().topic_partitions or []
+            errors = [tp.error for tp in answered if tp.error is not None]
+        except KafkaException as failure:
+            errors = [failure.args[0]] if failure.args else []
+            if not errors:
+                raise
+        if not errors:
+            return
+        if errors[0].code() in _NOT_READY and time.monotonic() < deadline:
+            time.sleep(0.5)
+            continue
+        raise KafkaException(errors[0])
 
 
 @dataclass(frozen=True)

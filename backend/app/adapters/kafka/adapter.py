@@ -4,7 +4,7 @@
 `psycopg` already follows: a driver upgrade has one place to change (D304).
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
@@ -32,7 +32,7 @@ from app.adapters.kafka.groups import KafkaGroups
 from app.adapters.kafka.messages import KafkaMessages
 from app.adapters.kafka.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.kafka.metrics import KafkaMetrics
-from app.adapters.kafka.options import KafkaOptions
+from app.adapters.kafka.options import KafkaOptions, checked_servers
 from app.adapters.kafka.reports import (
     REPORTS,
     KafkaReports,
@@ -42,6 +42,7 @@ from app.adapters.kafka.reports import (
     report_node,
     section_node,
 )
+from app.adapters.kafka.samples import KafkaSamples
 from app.adapters.kafka.search import KafkaSearch
 from app.adapters.kafka.session import KafkaSession
 from app.adapters.kafka.topics import KafkaTopics
@@ -67,7 +68,7 @@ from app.adapters.update import (
     InsertRowsResult,
 )
 from app.core.schemas import get_datetime_utc
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 
 class KafkaAdapter:
@@ -83,6 +84,35 @@ class KafkaAdapter:
         self._reports = KafkaReports(self._session)
         self._metrics = KafkaMetrics(self._session)
         self._search = KafkaSearch(self._session)
+        self._samples = KafkaSamples(self._session)
+
+    # --- how to reach it, in one line --------------------------------------------
+
+    def connection_string(self) -> str:
+        """The brokers, as every Kafka tool takes them; never a password."""
+        return self._session.options.bootstrap_servers
+
+    @classmethod
+    def options_from_url(cls, url: str) -> dict[str, Any]:
+        """`host:port,host:port`, with `kafka://` before it allowed (D311)."""
+        text = url.strip()
+        if text.lower().startswith("kafka://"):
+            text = text[len("kafka://") :]
+        if "@" in text:
+            raise ValueError(
+                say("A Kafka address carries no user; choose a SASL method instead")
+            )
+        return {"bootstrap_servers": checked_servers(text.rstrip("/"))}
+
+    @classmethod
+    def draft_connection_string(cls, options: Mapping[str, Any]) -> str | None:
+        servers = options.get("bootstrap_servers")
+        if not isinstance(servers, str):
+            return None
+        try:
+            return checked_servers(servers)
+        except ValueError:
+            return None
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -158,6 +188,10 @@ class KafkaAdapter:
         return self._messages.export_rows(request)
 
     # --- the cluster measured, and names found (D310) ---------------------------
+
+    async def install_sample_data(self) -> str:
+        """The lab, for a broker started here (D311)."""
+        return await self._samples.install_sample_data()
 
     async def metric_samples(self) -> list[MetricSample]:
         return await self._metrics.metric_samples()

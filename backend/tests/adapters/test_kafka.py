@@ -6,6 +6,7 @@ import pytest
 
 from app.adapters.catalog import ConsumerGroupNode, DirectoryNode, TopicNode
 from app.adapters.fetch import FetchRequest, InFilter, NullFilter, ScalarFilter, Sort
+from app.adapters.kafka.adapter import KafkaAdapter
 from app.adapters.kafka.messages import DEPTH_CEILING
 from app.adapters.kafka.options import KafkaNoAuth, KafkaPlain, checked_servers
 from app.adapters.kafka.session import BROWSING_GROUP
@@ -346,3 +347,13 @@ async def test_a_group_summary_sums_its_lag(topic: str, group: str) -> None:
 async def test_a_group_that_is_not_there_is_a_missing_node() -> None:
     with pytest.raises(NodeNotFound):
         await adapter().fetch(FetchRequest(node_id="group:dp-test-nobody-ever"))
+
+
+def test_a_list_of_brokers_fills_the_form_and_is_written_back() -> None:
+    assert KafkaAdapter.options_from_url("kafka://a:9092,b:9093/") == {
+        "bootstrap_servers": "a:9092,b:9093"
+    }
+    assert KafkaAdapter.draft_connection_string({"bootstrap_servers": "a:1"}) == "a:1"
+    assert KafkaAdapter.draft_connection_string({"bootstrap_servers": "a"}) is None
+    with pytest.raises(ValueError):
+        KafkaAdapter.options_from_url("kafka://user:secret@a:9092")

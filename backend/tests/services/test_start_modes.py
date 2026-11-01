@@ -594,6 +594,27 @@ async def test_a_zookeeper_is_told_as_having_no_password_at_all(
     assert handed.json()["url"] == "127.0.0.1:49220"
 
 
+async def test_a_kafka_is_reached_by_its_address_and_has_no_password(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """The connector names the broker as host:port, one field (D311)."""
+    engine.gives_port = 49221
+    accepted = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={"template_key": "kafka"}
+    )
+    assert accepted.status_code == 200, accepted.text
+    await _wait(accepted.json()["job"]["id"])
+
+    handed = await client.post(
+        f"{BASE}/{accepted.json()['service']['id']}/credentials/reveal",
+        headers=normal_user_token_headers,
+    )
+
+    assert handed.status_code == 200, handed.text
+    assert handed.json()["password_mode"] == "none"
+    assert handed.json()["url"] == "127.0.0.1:49221"
+
+
 @pytest.mark.usefixtures("engine")
 async def test_nobody_else_may_ask_for_that_password(
     client: AsyncClient,
