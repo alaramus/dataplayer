@@ -28,6 +28,7 @@ from tests.adapters.kafka_fixture import (
     names,
     on_server,
     remove,
+    remove_topic,
     topics,
 )
 
@@ -184,7 +185,8 @@ async def test_what_is_offered_where(made: tuple[str, str]) -> None:
     assert named(await adapter().available("internal")) == []
     assert named(await adapter().available("topic:__consumer_offsets")) == []
     assert named(await adapter().available(f"group:{made[1]}")) == [
-        "move_group_positions"
+        "move_group_positions",
+        "delete_group",
     ]
     assert named(await adapter().available(None)) == []
 
@@ -329,3 +331,22 @@ async def test_a_time_is_needed_to_move_to_one(made: tuple[str, str]) -> None:
         await _action("move_group_positions").perform(
             f"group:{made[1]}", {"to": "nowhere"}
         )
+
+
+async def test_a_group_is_deleted_with_its_positions_named_first() -> None:
+    topic, group = names()
+
+    def make_group() -> None:
+        make(topic, group)
+
+    await on_server(make_group)
+    try:
+        action = _action("delete_group")
+        preview = await action.preview(f"group:{group}", {})
+        assert not preview.blocked
+        assert any(item.startswith(f"{topic} 0: position") for item in preview.items)
+        await action.perform(f"group:{group}", {})
+        listed = [node.name for node in await adapter().list_children("groups")]
+        assert group not in listed
+    finally:
+        await on_server(lambda: remove_topic(topic))

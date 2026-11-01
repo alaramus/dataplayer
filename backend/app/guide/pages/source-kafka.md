@@ -12,6 +12,10 @@ in general is on the [Connections](connections.md) page.
 - Each partition of a topic: its leader, replicas and offsets
 - The settings made on a topic
 - Where each consumer group stands in each partition, and its lag
+- The cluster's reports: brokers, settings, partitions needing attention
+- Lag, messages per second and the cluster's health on a dashboard
+- Topics and groups found by name
+- A topic's messages downloaded as a file
 - Kafka's own tools, set up for the connection, in a terminal
 
 ## What you can change
@@ -21,6 +25,7 @@ in general is on the [Connections](connections.md) page.
 - Topics deleted, their settings changed, partitions added
 - A topic's messages deleted, all of them or those before a time
 - A consumer group's positions moved to the start, the end or a time
+- Consumer groups deleted
 - Anything Kafka's tools can change, typed into the terminal
 
 ## Connecting
@@ -128,4 +133,23 @@ Tick a topic on the **Topics** level and open the catalog's menu:
 Tick a group on the **Consumer groups** level for **Move positions**: to the
 start, the end or a time, for all its topics or one. A group's positions move
 only while none of its consumers is running. The window shows each partition
-before and after.
+before and after. **Delete group** removes a group and its positions, also
+only while nobody reads in it.
+
+## The Cluster section
+
+At the top of the catalog, **Cluster** holds what the cluster says about
+itself: **Cluster** (its id, the controller, and how many brokers, topics and
+partitions), **Brokers**, **Broker settings** (the ones that differ from
+Kafka's defaults) and **Partitions needing attention** (empty when all is
+well). The first and the last refresh every ten seconds.
+
+## Dashboards, search and downloads
+
+- The **Kafka cluster** dashboard draws each group's lag, each topic's
+  messages per second and the partitions needing attention, for the first
+  hundred topics and groups by name.
+- The search in the header finds topics and groups by name.
+- **Download** on a topic saves the messages its page would show, with its
+  filters and order, up to ten thousand from the end of each partition. A
+  group downloads every position.

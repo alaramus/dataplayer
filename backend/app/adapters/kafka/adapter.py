@@ -4,10 +4,12 @@
 `psycopg` already follows: a driver upgrade has one place to change (D304).
 """
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.kafka.actions import KAFKA_ACTION_TYPES, build_actions, offered
@@ -28,12 +30,34 @@ from app.adapters.kafka.catalog import (
 from app.adapters.kafka.console import console_program
 from app.adapters.kafka.groups import KafkaGroups
 from app.adapters.kafka.messages import KafkaMessages
+from app.adapters.kafka.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.kafka.metrics import KafkaMetrics
 from app.adapters.kafka.options import KafkaOptions
+from app.adapters.kafka.reports import (
+    REPORTS,
+    KafkaReports,
+    in_section,
+    is_section,
+    report_for,
+    report_node,
+    section_node,
+)
+from app.adapters.kafka.search import KafkaSearch
 from app.adapters.kafka.session import KafkaSession
 from app.adapters.kafka.topics import KafkaTopics
 from app.adapters.kafka.writes import KafkaWrites
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, register
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.update import (
@@ -56,6 +80,9 @@ class KafkaAdapter:
         self._topics = KafkaTopics(self._session)
         self._writes = KafkaWrites(self._session)
         self._actions = ActionSet(build_actions(self._session))
+        self._reports = KafkaReports(self._session)
+        self._metrics = KafkaMetrics(self._session)
+        self._search = KafkaSearch(self._session)
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -70,7 +97,14 @@ class KafkaAdapter:
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
-            return folders()
+            # The cluster's own section first, as ZooKeeper puts its own (D310).
+            return [section_node(), *folders()]
+        if is_section(node_id):
+            return [report_node(report) for report in REPORTS]
+        if in_section(node_id):
+            if report_for(node_id) is None:
+                raise NodeNotFound(node_id)
+            return []
         if node_id in {TOPICS, INTERNAL}:
             internal = node_id == INTERNAL
             return await self._session.run(
@@ -87,6 +121,15 @@ class KafkaAdapter:
         return []
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
+        if is_section(node_id):
+            return [section_node()]
+        if in_section(node_id):
+            report = report_for(node_id)
+            if report is None:
+                raise NodeNotFound(node_id)
+            return [section_node(), report_node(report)]
+        if node_id in {TOPICS, GROUPS, INTERNAL}:
+            return [folder_of(node_id)]
         if node_id.startswith(GROUP_PREFIX):
             group_id = group_of(node_id)
             groups = await self._session.run(read_groups, node_id)
@@ -101,9 +144,43 @@ class KafkaAdapter:
         return [folder_of(INTERNAL if is_internal(topic) else TOPICS), node]
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
+        if in_section(request.node_id):
+            return await self._reports.fetch(request)
         if request.node_id.startswith(GROUP_PREFIX):
             return await self._groups.fetch(request)
         return await self._messages.fetch(request)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        if in_section(request.node_id):
+            return self._reports.export_rows(request)
+        if request.node_id.startswith(GROUP_PREFIX):
+            return self._groups.export_rows(request)
+        return self._messages.export_rows(request)
+
+    # --- the cluster measured, and names found (D310) ---------------------------
+
+    async def metric_samples(self) -> list[MetricSample]:
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    def enumerate_names(
+        self, limit: int, bounds: SearchBounds
+    ) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names are two requests, whatever the cluster holds; nothing else is searched."""
+        del last
+        return "cheap" if field == "names" else "costly"
 
     async def node_summary(self, node_id: str) -> NodeSummary:
         if node_id.startswith(GROUP_PREFIX):

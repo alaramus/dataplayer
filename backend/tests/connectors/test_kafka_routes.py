@@ -55,7 +55,7 @@ async def test_a_connection_is_checked_browsed_and_read(
     assert (await call("POST", "check", json={}))["ok"]
 
     top = [node["id"] for node in await call("GET", "catalog")]
-    assert top == ["topics", "groups", "internal"]
+    assert top == ["cluster", "topics", "groups", "internal"]
     listed = {
         node["name"]: node
         for node in await call("GET", "catalog", params={"node_id": "topics"})

@@ -3,11 +3,12 @@
 What a Kafka source is, how it reaches a cluster, what its catalog shows of
 topics and consumer groups, and how a topic's messages and a group's positions
 are read as rows, how messages are sent and topics and groups changed
-(D308, D309), and Kafka's own tools in a terminal (D307, run as D286
+(D308, D309), the cluster's reports, metrics, search and export (D310), and
+Kafka's own tools in a terminal (D307, run as D286
 says in [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `kafka` adapter.
 
-Decisions here: D304, D305, D306, D307, D308, D309.
+Decisions here: D304, D305, D306, D307, D308, D309, D310.
 
 ## D304. A Kafka source speaks to a cluster through confluent-kafka, a client per operation
 
@@ -192,7 +193,8 @@ groups level and for a group: Move positions to the start, the end or a time,
 for every topic the group has positions in or for one topic, all of whose
 partitions it then has; the preview shows each partition's position now and
 after and the lag after, and a group with consumers is refused, as Kafka would
-refuse it. Kafka's own topics take no action, nor does the top.
+refuse it. Delete group, added with D310, takes several at once, names each
+partition's position and lag first, and is refused the same way. Kafka's own topics take no action, nor does the top.
 
 A name that starts with an underscore is refused for a new topic: the catalog
 keeps such names apart as Kafka's own (D305).
@@ -201,6 +203,44 @@ Known deviations:
 
 - **A secret setting is not shown in Change settings and is never returned
   to the default** by it: the broker does not say its value.
-- **Deleting a consumer group is not offered**; it was not asked for.
 
 Spec: [Writing to Kafka](../../decisions/2026-11-01-kafka-writes-design.md)
+
+## D310. The cluster reports on itself, is measured, searched by name and exported
+
+**Reports.** A Cluster section heads the top, before the three levels, as
+ZooKeeper's Server section does (D301): Cluster (its id, the controller, and
+the brokers, topics and partitions counted, with those short of in-sync
+replicas and those without a leader), Brokers (a row each, address and rack,
+the controller marked), Broker settings (the controller's that differ from
+Kafka's defaults, a secret one said to be hidden) and Partitions needing
+attention (each one short of replicas or leaderless; empty on a healthy
+cluster). Each is the admin client's answer read as setting-and-value rows
+(`report_rows`), so the grid, download and chart need nothing new; Cluster and
+Partitions needing attention refresh every ten seconds. Report ids are
+`report:<key>` and the section's is `cluster`.
+
+**Metrics** (D128). One poll reads the metadata, every polled partition's end
+offset and each polled group's positions: `lag` by group (messages behind,
+summed), `messages` by topic (end offsets summed, a counter, so its rate is
+messages per second) and `cluster` (brokers, partitions, short, offline). The
+first hundred topics and groups by name are polled, which the preset says;
+Kafka's own topics are not.
+
+**Search and kept names** (D202, D213). Every topic and group is two requests,
+so a name search reads them all and is cheap; a search started on a level
+stays on it. A found topic is given its message count. The kept list is every
+topic and group, each scoped to its level.
+
+**Export.** A topic exports what its page would show, with the page's filters
+and order, to the page's depth: ten thousand messages from the chosen end of
+each partition. A group's positions and a report export whole; positions are
+not filtered or sorted.
+
+Known deviations:
+
+- **An export of a topic stops at the depth ceiling**: Kafka has no cursor
+  that goes further without reading every message from the start.
+- **A cluster with more than a hundred topics or groups is measured in part.**
+
+Spec: [Kafka's reports, metrics, search and export](../../decisions/2026-11-01-kafka-reports-design.md)

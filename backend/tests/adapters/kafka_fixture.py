@@ -93,6 +93,12 @@ def remove(topic: str, group: str) -> None:
         future.result()
 
 
+def remove_topic(topic: str) -> None:
+    client = admin()
+    for future in client.delete_topics([topic]).values():
+        future.result()
+
+
 async def on_server[T](work: Callable[[], T]) -> T:
     return await run_in_threadpool(work)
 

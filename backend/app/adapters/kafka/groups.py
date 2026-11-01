@@ -6,6 +6,7 @@ the member reading it. In topic and partition order; a group's partitions are
 counted in hundreds, so the page is cut here rather than asked for.
 """
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,6 +14,7 @@ from confluent_kafka import ConsumerGroupState as KafkaGroupState
 from confluent_kafka import ConsumerGroupTopicPartitions, TopicPartition
 from confluent_kafka.admin import OffsetSpec
 
+from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.kafka.catalog import GROUP_PREFIX, POSITIONS, group_of, state_of
 from app.adapters.kafka.session import TIMEOUT_SECONDS, KafkaClients, KafkaSession
@@ -20,6 +22,7 @@ from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import ColumnType, TypeCategory
 from app.adapters.summary import KafkaGroupContents, NodeSummary
 from app.adapters.words import worded_titles
+from app.core.translation import say
 
 _SHAPE: tuple[tuple[str, str, TypeCategory], ...] = (
     ("topic", "topic", "string"),
@@ -172,6 +175,30 @@ class KafkaGroups:
             # A group's lag is about what is happening now.
             refresh_seconds=10,
         )
+
+    async def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        """Every position, in topic and partition order; nothing filters them."""
+        if request.filters or request.sort:
+            raise ValueError(
+                say("A group's positions are exported in topic and partition order")
+            )
+        names = [column.name for column in COLUMNS]
+        unknown = [column for column in request.columns if column not in names]
+        if unknown:
+            raise ValueError(say("Unknown column: {column}", column=unknown[0]))
+        picked = [names.index(column) for column in request.columns]
+        group_id = group_of(request.node_id)
+        standing = await self._session.run(
+            lambda clients: read_standing(clients, group_id), request.node_id
+        )
+        rows = [position.row() for position in standing.positions]
+        for start in range(0, len(rows), EXPORT_BATCH_SIZE):
+            yield ExportBatch(
+                rows=[
+                    [row[index] for index in picked]
+                    for row in rows[start : start + EXPORT_BATCH_SIZE]
+                ]
+            )
 
     async def node_summary(self, node_id: str) -> NodeSummary:
         group_id = group_of(node_id)

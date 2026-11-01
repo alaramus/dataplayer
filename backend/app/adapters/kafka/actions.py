@@ -2,8 +2,8 @@
 
 On the Topics level: make a topic; delete, change the settings of, add
 partitions to, or delete the records of the selected ones. On the Consumer
-groups level: move a group's positions. Kafka's own topics take none. A
-message is sent as a new row of the topic (D308), not here.
+groups level: move a group's positions or delete the group. Kafka's own topics
+take none. A message is sent as a new row of the topic (D308), not here.
 """
 
 import re
@@ -746,7 +746,84 @@ class MovePositions(_KafkaAction, JsonAction[MoveParams]):
         )
 
 
+class DeleteGroup(_KafkaAction, JsonAction[NoParams]):
+    """A group and the positions it keeps; refused while it has consumers."""
+
+    name: ClassVar[str] = "delete_group"
+    title: ClassVar[str] = N_("Delete group")
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"consumer_group"})
+    acts_on: ClassVar[ActsOn] = "node"
+    destructive: ClassVar[bool] = True
+    bulk: ClassVar[bool] = True
+    question: ClassVar[str | None] = N_(
+        "The group and every position it keeps will be deleted; its consumers "
+        "will start again by their own setting. Delete it?"
+    )
+    params_model = NoParams
+
+    def _group(self, node_id: str | None) -> str:
+        if node_id is None or not node_id.startswith(GROUP_PREFIX):
+            raise ActionRefused("not_applicable", say("Choose a consumer group first"))
+        return group_of(node_id)
+
+    def _checked(self, clients: KafkaClients, group: str) -> list[str]:
+        standing = read_standing(clients, group)
+        if standing.description.members:
+            raise ActionRefused(
+                "conflict",
+                say(
+                    "{group} has consumers; a group is deleted while nobody reads",
+                    group=group,
+                ),
+            )
+        return [
+            say(
+                "{topic} {n}: position {now}, {lag} behind",
+                topic=one.topic,
+                n=one.partition,
+                now="—" if one.committed is None else one.committed,
+                lag="—" if one.lag is None else one.lag,
+            )
+            for one in standing.positions
+        ]
+
+    async def preview(
+        self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ActionPreview:
+        self._validated(raw)
+        group = self._group(node_id)
+        try:
+            items = await self._session.run(
+                lambda clients: self._checked(clients, group), node_id or ""
+            )
+        except ActionRefused as refused:
+            return ActionPreview(summary=refused.message, blocked=True)
+        return ActionPreview(
+            summary=say("{group} and its positions will be deleted", group=group),
+            items=items,
+        )
+
+    async def run(self, node_id: str | None, params: NoParams) -> ActionResult:
+        del params
+        group = self._group(node_id)
+
+        def delete(clients: KafkaClients) -> None:
+            self._checked(clients, group)
+            for future in (
+                clients.admin()
+                .delete_consumer_groups([group], request_timeout=TIMEOUT_SECONDS)
+                .values()
+            ):
+                future.result()
+
+        await self._session.run(delete, node_id or "")
+        return ActionResult(
+            message=say("{name} deleted", name=group), reload_node_ids=[GROUPS]
+        )
+
+
 TOPIC_ACTIONS = (DeleteTopic, ChangeTopicSettings, AddPartitions, DeleteRecords)
+GROUP_ACTIONS = (MovePositions, DeleteGroup)
 
 KafkaActionType = type[
     NewTopicAction
@@ -755,13 +832,14 @@ KafkaActionType = type[
     | AddPartitions
     | DeleteRecords
     | MovePositions
+    | DeleteGroup
 ]
 
 # The order the menu shows them in.
 KAFKA_ACTION_TYPES: tuple[KafkaActionType, ...] = (
     NewTopicAction,
     *TOPIC_ACTIONS,
-    MovePositions,
+    *GROUP_ACTIONS,
 )
 
 
@@ -778,5 +856,5 @@ def offered(node_id: str | None) -> list[str]:
             return []
         return [action.name for action in TOPIC_ACTIONS]
     if node_id == GROUPS or (node_id is not None and node_id.startswith(GROUP_PREFIX)):
-        return [MovePositions.name]
+        return [action.name for action in GROUP_ACTIONS]
     return []

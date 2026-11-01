@@ -9,7 +9,7 @@ a ceiling.
 
 import json
 import time
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -17,6 +17,7 @@ from typing import Any
 from confluent_kafka import KafkaError, KafkaException, TopicPartition
 
 from app.adapters import jsontext
+from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
 from app.adapters.fetch import (
     FetchColumn,
     FetchRequest,
@@ -605,6 +606,29 @@ def sending_reason(topic: str) -> str | None:
     return None
 
 
+def read_export(
+    clients: KafkaClients, topic: str, request: ExportRequest
+) -> list[list[str | None]]:
+    """Every message the page's filters and order would show, to its depth (D310)."""
+    newest = newest_first(FetchRequest(node_id=request.node_id, sort=request.sort))
+    shape = sample(clients, topic)
+    columns = shape.columns()
+    names = [column.name for column in columns]
+    unknown = [column for column in request.columns if column not in names]
+    if unknown:
+        raise ValueError(say("Unknown column: {column}", column=unknown[0]))
+    matches = predicates(request.filters, columns)
+    limits = windows(clients, topic, request.filters)
+    collected = collect(clients, topic, limits, DEPTH_CEILING, newest, matches)
+    merged = ordered(collected.messages, newest)[:DEPTH_CEILING]
+    fields = [name for name, _ in shape.fields]
+    picked = [names.index(column) for column in request.columns]
+    return [
+        [row[index] for index in picked]
+        for row in (row_of(one, fields) for one in merged)
+    ]
+
+
 class KafkaMessages:
     def __init__(self, session: KafkaSession) -> None:
         self._session = session
@@ -614,3 +638,11 @@ class KafkaMessages:
         return await self._session.run(
             lambda clients: read_page(clients, topic, request), request.node_id
         )
+
+    async def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        topic = topic_of(request.node_id)
+        rows = await self._session.run(
+            lambda clients: read_export(clients, topic, request), request.node_id
+        )
+        for start in range(0, len(rows), EXPORT_BATCH_SIZE):
+            yield ExportBatch(rows=rows[start : start + EXPORT_BATCH_SIZE])

@@ -99,10 +99,10 @@ def test_brokers_are_host_and_port_pairs() -> None:
 # --- the catalog (D305) -------------------------------------------------------
 
 
-async def test_the_top_is_topics_groups_and_internal_topics() -> None:
+async def test_the_top_is_the_cluster_then_topics_groups_and_internal_topics() -> None:
     top = await adapter().list_children(None)
-    assert [node.id for node in top] == ["topics", "groups", "internal"]
-    assert all(isinstance(node, DirectoryNode) for node in top)
+    assert [node.id for node in top] == ["cluster", "topics", "groups", "internal"]
+    assert all(isinstance(node, DirectoryNode) for node in top[1:])
 
 
 async def test_a_topic_is_listed_with_its_partitions_and_messages(topic: str) -> None:
