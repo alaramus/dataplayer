@@ -10,12 +10,14 @@ from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlsplit
 
-from confluent_kafka import ConsumerGroupTopicPartitions, Producer, TopicPartition
+from confluent_kafka import KafkaError, KafkaException, Producer, TopicPartition
 from confluent_kafka.admin import AdminClient, NewTopic
 from starlette.concurrency import run_in_threadpool
 
 from app.adapters.kafka.adapter import KafkaAdapter
+from app.adapters.kafka.groups import commit_positions
 from app.adapters.kafka.options import KafkaNoAuth, KafkaOptions
+from app.adapters.kafka.session import KafkaClients, KafkaSession
 from tests.utils.services import KAFKA
 
 PARTITIONS = 3
@@ -74,21 +76,30 @@ def make(topic: str, group: str) -> None:
     )
     producer.flush(10)
     # A group with positions and no members, as one is between runs of its
-    # consumers; committing through a consumer would wait for a rebalance.
+    # consumers; committing through a consumer would wait for a rebalance. A
+    # broker just started, as CI's is, is still loading its coordinator and
+    # refuses each partition inside an answer that succeeds, so the adapter's
+    # own commit is used, which reads each and asks again (D311).
     positions = [
         TopicPartition(topic, partition, offset)
         for partition, offset in GROUP_READ.items()
     ]
-    for future in client.alter_consumer_group_offsets(
-        [ConsumerGroupTopicPartitions(group, positions)]
-    ).values():
-        future.result()
+    clients = KafkaClients(KafkaSession(options()).config())
+    try:
+        commit_positions(clients, group, positions, wait_seconds=60)
+    finally:
+        clients.close()
 
 
 def remove(topic: str, group: str) -> None:
     client = admin()
     for future in client.delete_consumer_groups([group]).values():
-        future.result()
+        try:
+            future.result()
+        except KafkaException as failure:
+            # Gone already, or never made: the topic is still removed.
+            if failure.args[0].code() != KafkaError.GROUP_ID_NOT_FOUND:
+                raise
     for future in client.delete_topics([topic]).values():
         future.result()
 
