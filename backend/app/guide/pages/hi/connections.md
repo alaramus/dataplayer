@@ -2,7 +2,7 @@
 
 कनेक्शन एक स्रोत तक पहुँचने का सहेजा हुआ तरीका है: PostgreSQL डेटाबेस, Redis सर्वर, आपकी अपनी फ़ाइलों का फ़ोल्डर या SSH के ज़रिए कोई सर्वर। कैटलॉग, टेबल, क्वेरी कंसोल, पाइपलाइन और डैशबोर्ड सब कनेक्शन के ज़रिए काम करते हैं।
 
-हर प्रकार के स्रोत का अपना पृष्ठ है: [फ़ाइलें](source-file.md), [PostgreSQL](source-postgres.md), [Redis](source-redis.md) और [SSH](source-ssh.md)।
+हर प्रकार के स्रोत का अपना पृष्ठ है: [फ़ाइलें](source-file.md), [PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md), [MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md) और [SSH](source-ssh.md)।
 
 ## कनेक्शन की सूची
 

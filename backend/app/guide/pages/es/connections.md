@@ -6,8 +6,8 @@ por SSH. Los catálogos, las tablas, las consolas de consultas, los flujos y los
 cuadros de mando funcionan todos a través de conexiones.
 
 Cada tipo de fuente tiene su propia página: [Archivos](source-file.md),
-[PostgreSQL](source-postgres.md), [Redis](source-redis.md) y
-[SSH](source-ssh.md).
+[PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md),
+[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md) y [SSH](source-ssh.md).
 
 ## La lista de conexiones
 

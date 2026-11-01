@@ -6,8 +6,8 @@ serveur via SSH. Les catalogues, les tables, les consoles de requêtes, les
 pipelines et les tableaux de bord passent tous par des connexions.
 
 Chaque type de source a sa propre page : [Fichiers](source-file.md),
-[PostgreSQL](source-postgres.md), [Redis](source-redis.md) et
-[SSH](source-ssh.md).
+[PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md),
+[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md) et [SSH](source-ssh.md).
 
 ## La liste des connexions
 

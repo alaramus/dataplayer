@@ -5,8 +5,8 @@ server, a folder of your own files or a server over SSH. Catalogs, tables,
 query consoles, pipelines and dashboards all work through connections.
 
 Each kind of source has a page of its own: [Files](source-file.md),
-[PostgreSQL](source-postgres.md), [Redis](source-redis.md) and
-[SSH](source-ssh.md).
+[PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md),
+[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md) and [SSH](source-ssh.md).
 
 ## The list of connections
 

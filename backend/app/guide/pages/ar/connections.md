@@ -5,8 +5,8 @@ Redis، أو مجلد من ملفاتك، أو خادم عبر SSH. تعمل ا�
 تحكم الاستعلامات وخطوط الأنابيب ولوحات المعلومات كلها عبر الاتصالات.
 
 لكل نوع من المصادر صفحته: [الملفات](source-file.md)،
-و[PostgreSQL](source-postgres.md)، و[Redis](source-redis.md)،
-و[SSH](source-ssh.md).
+و[PostgreSQL](source-postgres.md)، و[MySQL](source-mysql.md)، و[SQLite](source-sqlite.md)، و[ClickHouse](source-clickhouse.md)،
+و[MongoDB](source-mongodb.md)، و[Redis](source-redis.md)، و[ZooKeeper](source-zookeeper.md)، و[SSH](source-ssh.md).
 
 ## قائمة الاتصالات
 

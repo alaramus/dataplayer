@@ -6,8 +6,8 @@ PostgreSQL, сервера Redis, папки с собственными фай�
 подключения.
 
 У каждого типа источника есть своя страница: [Файлы](source-file.md),
-[PostgreSQL](source-postgres.md), [Redis](source-redis.md) и
-[SSH](source-ssh.md).
+[PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md),
+[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md) и [SSH](source-ssh.md).
 
 ## Список подключений
 

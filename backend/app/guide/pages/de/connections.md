@@ -6,8 +6,8 @@ Server über SSH. Kataloge, Tabellen, Abfragekonsolen, Pipelines und Dashboards
 arbeiten alle über Verbindungen.
 
 Jede Art von Quelle hat ihre eigene Seite: [Dateien](source-file.md),
-[PostgreSQL](source-postgres.md), [Redis](source-redis.md) und
-[SSH](source-ssh.md).
+[PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md),
+[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md) und [SSH](source-ssh.md).
 
 ## Die Liste der Verbindungen
 
