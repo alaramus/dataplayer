@@ -125,9 +125,11 @@ def _findings() -> tuple[set[str], list[str]]:
                     pass
                 else:
                     problems.append(f"{where}:{node.lineno} N_ takes a literal, say a literal or a marked constant")
+            # filterwarnings' message is a pattern matched against a library's
+            # warning, not words anybody reads.
             if (
                 isinstance(node, ast.Call)
-                and not _is_call(node, "Field", "N_", "say")
+                and not _is_call(node, "Field", "N_", "say", "filterwarnings")
             ):
                 for keyword in node.keywords:
                     if keyword.arg in WORDED_ARGUMENTS and _is_english(keyword.value):
