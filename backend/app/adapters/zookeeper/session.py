@@ -12,6 +12,7 @@ this boundary.
 
 import logging
 import time
+import warnings
 from collections.abc import Callable
 from typing import Any
 from urllib.parse import unquote
@@ -49,6 +50,11 @@ from app.core.logs import record_failure, with_ref
 from app.core.translation import say
 
 logger = logging.getLogger(__name__)
+
+# kazoo warns when the chroot is missing; the connection check already says so
+# as a config error. A filter rather than catch_warnings around start(), which
+# swaps global state under the thread pool's concurrent sessions.
+warnings.filterwarnings("ignore", message="No chroot path exists", module="kazoo.client")
 
 # What opening a session and one call may cost.
 TIMEOUT_SECONDS = 5.0

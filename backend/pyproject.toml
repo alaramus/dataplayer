@@ -190,4 +190,7 @@ asyncio_default_test_loop_scope = "session"
 # this message from only that module, so a warning of ours still shows.
 filterwarnings = [
     "ignore:'_UnionGenericAlias' is deprecated:DeprecationWarning:google.genai.types",
+    # The same filter app/adapters/zookeeper/session.py sets at import: pytest
+    # imports it during collection inside catch_warnings and so drops it.
+    "ignore:No chroot path exists:UserWarning:kazoo.client",
 ]
