@@ -4,9 +4,13 @@
 `psycopg` already follows: a driver upgrade has one place to change (D304).
 """
 
+from typing import Any
+
+from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.kafka.actions import KAFKA_ACTION_TYPES, build_actions, offered
 from app.adapters.kafka.catalog import (
     GROUP_PREFIX,
     GROUPS,
@@ -27,10 +31,17 @@ from app.adapters.kafka.messages import KafkaMessages
 from app.adapters.kafka.options import KafkaOptions
 from app.adapters.kafka.session import KafkaSession
 from app.adapters.kafka.topics import KafkaTopics
+from app.adapters.kafka.writes import KafkaWrites
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, register
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.update import (
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+)
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_
 
@@ -43,6 +54,8 @@ class KafkaAdapter:
         self._messages = KafkaMessages(self._session)
         self._groups = KafkaGroups(self._session)
         self._topics = KafkaTopics(self._session)
+        self._writes = KafkaWrites(self._session)
+        self._actions = ActionSet(build_actions(self._session))
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -96,6 +109,29 @@ class KafkaAdapter:
         if node_id.startswith(GROUP_PREFIX):
             return await self._groups.node_summary(node_id)
         return await self._topics.node_summary(node_id)
+
+    # --- topics and groups changed (D309) ---------------------------------------
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return KAFKA_ACTION_TYPES
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.get(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return list(self._actions)
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return [self._actions.get(name) for name in offered(node_id)]
+
+    # --- messages sent as rows (D308) ------------------------------------------
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._writes.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._writes.insert_rows(request)
 
     async def console_program(self) -> ConsoleProgram:
         """Kafka's tools, set up for this connection, in a container (D307)."""

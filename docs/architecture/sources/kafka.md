@@ -2,11 +2,12 @@
 
 What a Kafka source is, how it reaches a cluster, what its catalog shows of
 topics and consumer groups, and how a topic's messages and a group's positions
-are read as rows, and Kafka's own tools in a terminal (D307, run as D286
+are read as rows, how messages are sent and topics and groups changed
+(D308, D309), and Kafka's own tools in a terminal (D307, run as D286
 says in [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `kafka` adapter.
 
-Decisions here: D304, D305, D306, D307.
+Decisions here: D304, D305, D306, D307, D308, D309.
 
 ## D304. A Kafka source speaks to a cluster through confluent-kafka, a client per operation
 
@@ -106,6 +107,8 @@ Known deviations:
   it says there may be more, and nothing else.
 - **A message opens in the record panel (D111)**, its value a JSON cell, not
   as a document of its own.
+- **Nothing on a page is editable or deleted**: a message is sent as a new
+  row (D308), and messages leave a topic by Delete messages (D309).
 
 Spec: [A Kafka source](../../decisions/2026-11-01-kafka-source-design.md)
 
@@ -138,3 +141,66 @@ Known deviations:
   adds runs as Kafka ships it until it is added.
 
 Spec: [The Kafka console](../../decisions/2026-11-01-kafka-console-design.md)
+
+## D308. A message is sent as a new row of its topic
+
+Kafka appends and never changes, so of the grid's edits only insert means
+anything: a topic implements `SupportsInsert`, and a message is the grid's new
+row. The same capability takes a block, so pasting rows into a topic and a
+pipeline's Add rows link into one (D166, D177) send messages with no code of
+their own. Kafka's own topics take none, and say why.
+
+The columns that may be filled are partition (empty is the partitioner's,
+by key), timestamp (empty is now), key, value, headers and the
+`value.<field>` columns of the page. When value is empty and fields are
+given, the value is a JSON object of them, each read as its column's JSON
+type. A key or a value written as `0x` and an even number of hex digits is
+those bytes, the form a page shows them in; anything else is its UTF-8 text.
+Headers are a JSON object of text. The row that comes back is the message as
+the broker stored it, its handle `partition:offset`.
+
+A block is read whole first: a cell that will not read — a partition the topic
+does not have, a number field that is not a number, a time that is not one —
+rejects the block with every such cell named, and nothing is sent. The block
+is then sent by an idempotent producer acknowledged by all in-sync replicas,
+and waited for up to thirty seconds.
+
+Known deviations:
+
+- **A block is not all or nothing at the broker**: a broker failing midway
+  leaves the messages already acknowledged. A transaction would close that,
+  and needs transactions and a transactional-id permission many clusters do
+  not give a person browsing them.
+- **Only fields the sample found are columns to send**: an empty topic takes
+  key, value and headers until its first JSON message is read.
+
+Spec: [Writing to Kafka](../../decisions/2026-11-01-kafka-writes-design.md)
+
+## D309. Topics and groups are changed by actions, each with a preview
+
+On the Topics level and for a topic in it: New topic (name, partitions, a
+replication factor or the broker's default, settings as `name=value` lines),
+Delete topic (several at once; the preview counts the messages and names the
+groups with positions in it, asking the first hundred groups), Change
+settings (opened with the settings made on the topic; a line taken away
+returns that setting to the broker's default, changed by Kafka's incremental
+call so nothing unnamed moves; the preview lists both), Add partitions (a
+larger total; the preview warns that a key's partition may change), and
+Delete messages (everything, or everything before a time, per partition by
+`delete_records`; the preview counts what goes in each). On the Consumer
+groups level and for a group: Move positions to the start, the end or a time,
+for every topic the group has positions in or for one topic, all of whose
+partitions it then has; the preview shows each partition's position now and
+after and the lag after, and a group with consumers is refused, as Kafka would
+refuse it. Kafka's own topics take no action, nor does the top.
+
+A name that starts with an underscore is refused for a new topic: the catalog
+keeps such names apart as Kafka's own (D305).
+
+Known deviations:
+
+- **A secret setting is not shown in Change settings and is never returned
+  to the default** by it: the broker does not say its value.
+- **Deleting a consumer group is not offered**; it was not asked for.
+
+Spec: [Writing to Kafka](../../decisions/2026-11-01-kafka-writes-design.md)

@@ -14,6 +14,15 @@ in general is on the [Connections](connections.md) page.
 - Where each consumer group stands in each partition, and its lag
 - Kafka's own tools, set up for the connection, in a terminal
 
+## What you can change
+
+- Messages sent, one by one or pasted as rows
+- New topics, with their partitions and settings
+- Topics deleted, their settings changed, partitions added
+- A topic's messages deleted, all of them or those before a time
+- A consumer group's positions moved to the start, the end or a time
+- Anything Kafka's tools can change, typed into the terminal
+
 ## Connecting
 
 The **Connection** page of the window asks for:
@@ -56,6 +65,20 @@ tunnel is not supported.
   back, filter by time or by partition and offset.
 - Reading a topic does not join a consumer group and moves nobody's position.
 
+## Sending messages
+
+- **+** over a topic's rows adds a message. Fill what you need: everything
+  may stay empty.
+- **partition** empty lets Kafka choose by key; **timestamp** empty is now.
+- **key** and **value** are text; `0x` followed by hex digits is sent as those
+  bytes.
+- Leave **value** empty and fill the `value.` fields to send a JSON object
+  of them.
+- **headers** is a JSON object of text, such as `{"source": "manual"}`.
+- Rows pasted into a topic are sent as messages. If one value cannot be read,
+  nothing is sent and the cell is named.
+- Kafka's own topics take no messages from here.
+
 ## A consumer group
 
 - One row per partition the group reads: the topic, the partition, the
@@ -86,3 +109,23 @@ Give `--bootstrap-server` yourself to point a tool at another cluster. The
 terminal runs in a container on the DataPlayer server, so it needs that server
 to be allowed to start containers, and the brokers must be reachable from
 there.
+
+## Changing topics and groups
+
+Tick a topic on the **Topics** level and open the catalog's menu:
+
+- **New topic** — a name, the number of partitions, a replication factor
+  (empty for the broker's default) and settings, one `name=value` per line.
+- **Delete topic** — the window says how many messages go and which groups
+  read the topic.
+- **Change settings** — opens with the topic's own settings; take a line away
+  to return that setting to the broker's default.
+- **Add partitions** — partitions can only be added, never taken away. A key
+  may land on another partition from then on.
+- **Delete messages** — all of them, or those before a time. This cannot be
+  undone.
+
+Tick a group on the **Consumer groups** level for **Move positions**: to the
+start, the end or a time, for all its topics or one. A group's positions move
+only while none of its consumers is running. The window shows each partition
+before and after.

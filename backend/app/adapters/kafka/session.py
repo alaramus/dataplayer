@@ -15,7 +15,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from confluent_kafka import Consumer, KafkaError, KafkaException
+from confluent_kafka import Consumer, KafkaError, KafkaException, Producer
 from confluent_kafka.admin import AdminClient
 from starlette.concurrency import run_in_threadpool
 
@@ -48,6 +48,9 @@ _driver_log = _DriverLog()
 # What one request to the cluster may cost.
 TIMEOUT_SECONDS = 5.0
 
+# How long a block of messages may take to be acknowledged.
+SEND_SECONDS = 30.0
+
 # Never joined and never committed: a page assigns partitions to itself
 # (D306). The id is still required by the client.
 BROWSING_GROUP = "dataplayer-browse"
@@ -60,6 +63,7 @@ class KafkaClients:
         self._config = config
         self._admin: AdminClient | None = None
         self._consumer: Consumer | None = None
+        self._producer: Producer | None = None
         # What librdkafka reported while the operation ran: a refused password
         # arrives here, and the request itself only times out.
         self.errors: list[KafkaError] = []
@@ -91,6 +95,22 @@ class KafkaClients:
             )
         return self._consumer
 
+    def producer(self) -> Producer:
+        if self._producer is None:
+            self._producer = Producer(
+                {
+                    **self._config,
+                    "error_cb": self._on_error,
+                    # Sent once each and acknowledged by every in-sync
+                    # replica: a message a person sent is not lost to a retry.
+                    "enable.idempotence": True,
+                    "acks": "all",
+                    "linger.ms": 5,
+                    "message.timeout.ms": int(SEND_SECONDS * 1000),
+                }
+            )
+        return self._producer
+
     def serve_callbacks(self) -> None:
         """Have librdkafka hand over what it reported; an admin client says
         nothing until it is polled."""
@@ -103,9 +123,11 @@ class KafkaClients:
                 self._consumer.close()
             except Exception:  # noqa: BLE001 - closing a consumer that failed
                 logger.debug("Kafka consumer did not close cleanly", exc_info=True)
-        # An admin client has no close; dropping it ends its threads.
+        # An admin client and a producer have no close; dropping them ends
+        # their threads. A producer is flushed by whoever sent with it.
         self._admin = None
         self._consumer = None
+        self._producer = None
 
 
 class KafkaSession:
@@ -201,6 +223,17 @@ _DENIED = {
     KafkaError.CLUSTER_AUTHORIZATION_FAILED,
 }
 
+# Asked for something the cluster will not do, by its own rules.
+_REFUSED = {
+    KafkaError.INVALID_CONFIG,
+    KafkaError.INVALID_REPLICATION_FACTOR,
+    KafkaError.TOPIC_EXCEPTION,
+    KafkaError.POLICY_VIOLATION,
+    KafkaError.NON_EMPTY_GROUP,
+    KafkaError.INVALID_REQUEST,
+    KafkaError.TOPIC_DELETION_DISABLED,
+}
+
 _UNREACHABLE = {
     KafkaError._TRANSPORT,
     KafkaError._ALL_BROKERS_DOWN,
@@ -245,6 +278,14 @@ def _known(codes: set[int]) -> AdapterError | None:
         return AdapterError("auth", say("This connection may not do that"))
     if codes & _UNREACHABLE:
         return AdapterError("network", say("Could not reach the Kafka cluster"))
+    if codes & {KafkaError.MSG_SIZE_TOO_LARGE, KafkaError.RECORD_LIST_TOO_LARGE}:
+        return AdapterError(
+            "config", say("The message is larger than the topic accepts")
+        )
+    if codes & {KafkaError.TOPIC_ALREADY_EXISTS}:
+        return AdapterError("config", say("A topic with that name already exists"))
+    if codes & _REFUSED:
+        return AdapterError("config", say("The Kafka cluster refused that"))
     if (
         KafkaError.INVALID_PARTITIONS in codes
         or KafkaError.OFFSET_OUT_OF_RANGE in codes

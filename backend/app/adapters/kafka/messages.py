@@ -27,7 +27,7 @@ from app.adapters.fetch import (
     NullFilter,
     ScalarFilter,
 )
-from app.adapters.kafka.catalog import partitions_of, topic_of, watermarks
+from app.adapters.kafka.catalog import is_internal, partitions_of, topic_of, watermarks
 from app.adapters.kafka.session import TIMEOUT_SECONDS, KafkaClients, KafkaSession
 from app.adapters.relation import ColumnType, TypeCategory
 from app.core.translation import say
@@ -153,19 +153,23 @@ def _column(
     ops: list[FilterOp],
     *,
     sortable: bool = False,
+    insertable: bool = True,
 ) -> FetchColumn:
+    # Every column a message is sent with may be left empty (D308).
     return FetchColumn(
         name=name,
         type=ColumnType(sql=sql, category=category),
         sortable=sortable,
         filter_operators=ops,
+        insertable=insertable,
+        nullable=True,
     )
 
 
 def fixed_columns(value_category: TypeCategory) -> list[FetchColumn]:
     return [
         _column("partition", "partition", "number", ["eq", "in"]),
-        _column("offset", "offset", "number", _RANGE_OPS),
+        _column("offset", "offset", "number", _RANGE_OPS, insertable=False),
         _column("timestamp", "timestamp", "datetime", _RANGE_OPS, sortable=True),
         _column("key", "bytes", "string", _TEXT_OPS),
         _column("value", "bytes", value_category, _TEXT_OPS),
@@ -235,7 +239,7 @@ def _number(column: str, text: str) -> int:
         raise ValueError(say("{column} takes a whole number", column=column)) from None
 
 
-def _milliseconds(text: str) -> int:
+def milliseconds_of(text: str) -> int:
     try:
         at = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
     except ValueError:
@@ -291,7 +295,7 @@ def windows(
             if one.column == "offset":
                 bound = _number("offset", one.value)
             else:
-                moment_ms = _milliseconds(one.value)
+                moment_ms = milliseconds_of(one.value)
                 # A time bound is the first offset at or after a moment.
                 after = moment_ms + 1 if one.op in {"gt", "lte"} else moment_ms
                 bound = _offset_at(clients, topic, partition, after, high)
@@ -436,7 +440,7 @@ def read_ranges(
                     continue
                 window = wanted[partition]
                 if offset < window.end:
-                    found[partition].append(_message(raw))
+                    found[partition].append(message_of(raw))
                 if offset >= window.end - 1:
                     pending.discard(partition)
                     # Not paused: a paused partition stays paused when it is
@@ -447,7 +451,7 @@ def read_ranges(
     return found
 
 
-def _message(raw: Any) -> Message:
+def message_of(raw: Any) -> Message:
     kind, milliseconds = raw.timestamp()
     return Message(
         partition=raw.partition(),
@@ -589,7 +593,16 @@ def read_page(clients: KafkaClients, topic: str, request: FetchRequest) -> Fetch
         row_handles=[f"{message.partition}:{message.offset}" for message in page],
         has_more=len(merged) > request.offset + request.limit or collected.unread,
         page_commands=["download", "chart", "share"],
+        insert_supported=not is_internal(topic),
+        insert_reason=sending_reason(topic),
     )
+
+
+def sending_reason(topic: str) -> str | None:
+    """Why no message is sent to this topic from here, or nothing."""
+    if is_internal(topic):
+        return say("Kafka's own topics are not written to from here")
+    return None
 
 
 class KafkaMessages:
