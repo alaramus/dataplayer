@@ -292,11 +292,14 @@ caption would set the column width for every row, so it lays itself out and
 gives its room up before the name does. A row the source owns — one a tick box
 is drawn for — has its icon turn into a copy button of the same size under the
 pointer or focus; a report, a section of reports or a level the catalog draws
-has none. The head counts only those rows, and a level with none of them shows
-neither the count nor the box that ticks them all. A kind is said by the icon and never in
-words; a Timescale hypertable or continuous aggregate carries the extension's
-mark. What a relation measures is always said: an estimate, or `N/A` with a hint
-saying whether nobody analysed the table or it is a view.
+has none, and the connection's mark stands in the tick column where a box would
+be, so the column says which source the row belongs to rather than looking like
+something missing. The head counts only those rows, and a level with none of
+them shows neither the count nor the box that ticks them all. A kind is said by
+the icon and never in words; a Timescale hypertable or continuous aggregate
+carries the extension's mark. What a relation measures is always said: an
+estimate, or `N/A` with a hint saying whether nobody analysed the table or it is
+a view.
 
 The catalog opens on the grouping the source named; otherwise on all of the
 source's own groupings while there are few, and on the first while there are

@@ -45,6 +45,12 @@ const props = defineProps<{
    * does not hold, marks nothing.
    */
   revealed?: string | null
+  /**
+   * The mark of the connection this level belongs to, drawn in the tick column
+   * of a row that has no box to tick: a report, a section of reports or a level
+   * the catalog draws.
+   */
+  sourceIcon?: string
 }>()
 
 const root = ref<HTMLElement | null>(null)
@@ -246,12 +252,18 @@ const countLabel = computed(() => {
       >
         <span
           v-if="!tickableNode(node)"
-          class="catalog-list__tick-space"
+          class="catalog-list__tick-space catalog-list__tick-space--source"
           aria-hidden="true"
         >
           <AppCheckbox
             :model-value="false"
             dense
+          />
+          <q-icon
+            v-if="sourceIcon"
+            class="catalog-list__tick-icon"
+            :name="sourceIcon"
+            size="var(--dp-icon-sm)"
           />
         </span>
         <span
@@ -425,6 +437,27 @@ const countLabel = computed(() => {
 }
 .catalog-list__tick-space {
   visibility: hidden;
+}
+/* A row the source does not own has no box to tick, but leaving the column
+   blank read as a gap somebody forgot to fill. The hidden box still keeps the
+   rows aligned - only the control knows the width the rows with one hold - and
+   the connection's mark stands in its place, so the column says which source
+   the row belongs to rather than looking like something missing. */
+.catalog-list__tick-space--source {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  visibility: visible;
+}
+.catalog-list__tick-space--source > .q-checkbox {
+  visibility: hidden;
+}
+.catalog-list__tick-icon {
+  position: absolute;
+  inset: 0;
+  width: var(--dp-icon-sm);
+  height: var(--dp-icon-sm);
+  margin: auto;
 }
 /* The icon of a row is also where its name is copied from. The button lies
    exactly over the picture, so the row under the pointer gains a gesture and

@@ -22,6 +22,7 @@ import type { CatalogHolding } from "@/features/catalog/reveal"
 import { foundNodes, searchSummary } from "@/features/catalog/search"
 import type { FoundNodes } from "@/features/catalog/search"
 import { useSearchHistory } from "@/features/catalog/useSearchHistory"
+import { adapterIcon } from "@/features/connectors/adapters"
 import {
   connectorColorOf,
   useAdapterTypes,
@@ -1287,6 +1288,7 @@ async function afterAction(outcome: ActionOutcome) {
       :items="level.items.value"
       :checked="level.checked.value"
       :tickable="tickable"
+      :source-icon="adapterIcon(adapterType)"
       :loading="level.loading.value"
       :show-group="level.selectedGroups.value.length > 1"
       :has-parent="level.path.value.length > 1"

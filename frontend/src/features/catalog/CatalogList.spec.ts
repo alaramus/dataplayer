@@ -166,6 +166,45 @@ describe("the columns of a level", () => {
 })
 
 /**
+ * A row the source does not own has nothing to tick. Leaving the column empty
+ * made it read as a gap; the connection's mark stands there instead, and the
+ * rows that do have a box keep their alignment.
+ */
+describe("the tick column of a row that cannot be ticked", () => {
+  const sourceIcon = "img:/icons/services/sqlite.svg"
+
+  function mountMixed() {
+    return mount(CatalogList, {
+      props: {
+        items: [...items, report("report:cluster", "Cluster", "What it says")],
+        checked: [],
+        loading: false,
+        tickable: new Set(["table"]),
+        sourceIcon,
+        hasParent: true,
+      },
+      global: { plugins: [[Quasar, { plugins: { Notify } }]] },
+    })
+  }
+
+  it("stands the connection's mark where the missing box would be", () => {
+    const row = mountMixed().get('[data-testid="catalog-node-Cluster"]')
+    expect(row.find(".catalog-list__tick-icon").exists()).toBe(true)
+    expect(row.find('[data-testid="catalog-check-Cluster"]').exists()).toBe(false)
+  })
+
+  it("marks nothing on a row that has a box", () => {
+    const row = mountMixed().get('[data-testid="catalog-node-orders"]')
+    expect(row.find(".catalog-list__tick-icon").exists()).toBe(false)
+  })
+
+  it("marks nothing on the way back", () => {
+    const row = mountMixed().get('[data-testid="catalog-up"]')
+    expect(row.find(".catalog-list__tick-icon").exists()).toBe(false)
+  })
+})
+
+/**
  * The head counts twice: what is here, and what an action would be done to.
  *
  * The second number is only there while something is ticked — brackets saying
