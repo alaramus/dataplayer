@@ -373,7 +373,7 @@ const countLabel = computed(() => {
   scrollbar-gutter: stable;
   /* Reserve space for classic scrollbars before rows arrive, and keep the
      shared columns clear of overlay scrollbars, which have no gutter. */
-  padding-inline-end: var(--dp-space-3);
+  padding-inline-end: var(--dp-space-1);
   display: grid;
   grid-template-columns:
     auto auto minmax(5ch, 1fr) minmax(0, auto) minmax(0, auto) minmax(0, auto);
