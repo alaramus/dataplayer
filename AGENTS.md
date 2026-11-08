@@ -64,7 +64,7 @@ documentation.
 | A floating window, the forms in it, detaching a tab, a pair of catalogs | [windows.md](docs/architecture/windows.md) |
 | A notification, something waiting for an answer, running work on screen | [notifications.md](docs/architecture/notifications.md) |
 | A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
-| A pipeline, its cards, links, run, schedule and history, what connections can give each other | [pipelines.md](docs/architecture/pipelines.md) |
+| A pipeline, its cards, links, run, schedule and history, what connections can give each other, a link reading a topic on | [pipelines.md](docs/architecture/pipelines.md) |
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | The agent, its tools, sending data to a third party, quick chat | [ai.md](docs/architecture/ai.md) |
@@ -118,7 +118,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/ssh](docs/architecture/sources/ssh.md) | D144–D147, D153, D154, D266, D282 |
 | [terminals](docs/architecture/terminals.md) | D148, D149, D286 |
 | [sources/explorer](docs/architecture/sources/explorer.md) | D150–D152 |
-| [pipelines](docs/architecture/pipelines.md) | D174–D180 |
+| [pipelines](docs/architecture/pipelines.md) | D174–D180, D312 |
 | [search](docs/architecture/search.md) | D197–D205 |
 | [search-kept](docs/architecture/search-kept.md) | D212–D222 |
 | [localization](docs/architecture/localization.md) | D224–D227, D281 |

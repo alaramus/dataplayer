@@ -43,6 +43,8 @@ const props = defineProps<{
   past: boolean
   /** Open the table/pairing window at once: a link just drawn still needs its choices. */
   autoOpen?: boolean
+  /** The consumer group a link reading on reads as (D312), once the server has named it. */
+  reader?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -87,6 +89,11 @@ function rename(value: string | number | null) {
   const typed = String(value ?? "").trim()
   emit("change", { ...props.link, name: typed === "" ? null : typed.slice(0, 255) })
 }
+
+const starts = [
+  { get label() { return t("pipelines.link_panel.start_earliest") }, value: "earliest" },
+  { get label() { return t("pipelines.link_panel.start_latest") }, value: "latest" },
+]
 
 const tableOpen = ref(false)
 const pairsOpen = ref(false)
@@ -201,6 +208,16 @@ const columnsWord = computed(() => {
         data-testid="link-panel-conflict"
         @update:model-value="emit('change', { ...link, conflict: $event as Link['conflict'] })"
       />
+      <AppSelect
+        v-if="reader"
+        class="link-panel__field"
+        :model-value="link.start ?? 'earliest'"
+        :options="starts"
+        :label="t('pipelines.link_panel.start')"
+        compact
+        data-testid="link-panel-start"
+        @update:model-value="emit('change', { ...link, start: $event as Link['start'] })"
+      />
       <template v-if="workflow === 'new-relation' || workflow === 'into-relation'">
         <span
           class="link-panel__columns"
@@ -216,6 +233,13 @@ const columnsWord = computed(() => {
       </template>
     </div>
 
+    <p
+      v-if="reader"
+      class="link-panel__result"
+      data-testid="link-panel-reader"
+    >
+      {{ t('pipelines.link_panel.reader', { name: reader }) }}
+    </p>
     <p
       v-if="place?.circle"
       class="link-panel__circle"

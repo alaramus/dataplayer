@@ -7479,6 +7479,7 @@ export type Link = {
     | "relation_csv"
     | "rows_new_relation"
     | "rows_into_relation"
+    | "rows_since_last"
     | "rows_new_file"
     | "tables_copy"
   /**
@@ -7497,6 +7498,10 @@ export type Link = {
    * Columns
    */
   columns?: Array<PasteColumn> | null
+  /**
+   * Start
+   */
+  start?: "earliest" | "latest"
 }
 
 /**
@@ -7548,6 +7553,22 @@ export type LinkPlace = {
    * Circle
    */
   circle?: string | null
+}
+
+/**
+ * LinkReader
+ *
+ * The name a link reading on reads under: a Kafka consumer group (D312).
+ */
+export type LinkReader = {
+  /**
+   * Link Id
+   */
+  link_id: string
+  /**
+   * Name
+   */
+  name: string
 }
 
 /**
@@ -9034,6 +9055,7 @@ export type PasteOffer = {
     | "relation_csv"
     | "rows_new_relation"
     | "rows_into_relation"
+    | "rows_since_last"
     | "rows_new_file"
     | "tables_copy"
   /**
@@ -9147,6 +9169,7 @@ export type PasteResult = {
     | "relation_csv"
     | "rows_new_relation"
     | "rows_into_relation"
+    | "rows_since_last"
     | "rows_new_file"
     | "tables_copy"
   /**
@@ -9210,6 +9233,7 @@ export type PasteRun = {
     | "relation_csv"
     | "rows_new_relation"
     | "rows_into_relation"
+    | "rows_since_last"
     | "rows_new_file"
     | "tables_copy"
   /**
@@ -9225,6 +9249,14 @@ export type PasteRun = {
    */
   columns?: Array<PasteColumn> | null
   tables?: TablesChoice | null
+  /**
+   * Reader
+   */
+  reader?: string | null
+  /**
+   * Start
+   */
+  start?: "earliest" | "latest"
 }
 
 /**
@@ -9438,6 +9470,10 @@ export type PipelinePublic = {
    * Results
    */
   results?: Array<ResultRow>
+  /**
+   * Readers
+   */
+  readers?: Array<LinkReader>
 }
 
 /**

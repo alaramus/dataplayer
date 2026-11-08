@@ -122,4 +122,7 @@ MESSAGES: dict[str, str] = {
     "{topic} {n}: position {now}, {lag} behind": "{topic} {n}: الموضع {now}، متأخر بـ {lag}",
     "A Kafka address carries no user; choose a SASL method instead": "عنوان Kafka لا يتضمن مستخدماً؛ اختر طريقة SASL بدلاً من ذلك",
     "{count} messages in {topics} lab topics and the group {group}": "{count} رسالة في {topics} مواضيع تجريبية والمجموعة {group}",
+    # A topic read on by a pipeline's link (D312).
+    "Kafka sent nothing in {seconds} seconds": "لم ترسل Kafka شيئًا خلال {seconds} ثانية",
+    "Kafka's own topics are not read on from here": "لا تُتابَع قراءة موضوعات Kafka الخاصة من هنا",
 }

@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.fetch import FetchColumn
+from app.adapters.reading_on import ReadStart
 
 # Room for whatever a catalog lets a person tick. Each kind states its own,
 # smaller ceiling as a reason, rather than the request failing validation.
@@ -17,6 +18,7 @@ PasteKindName = Literal[
     "relation_csv",
     "rows_new_relation",
     "rows_into_relation",
+    "rows_since_last",
     "rows_new_file",
     "tables_copy",
 ]
@@ -79,6 +81,10 @@ class PasteRun(PastePair):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     columns: list[PasteColumn] | None = Field(default=None, max_length=100)
     tables: TablesChoice | None = None
+    # A kind that reads on (D312): who reads, and where a reader with no
+    # bookmark starts. A pipeline names the reader after its link.
+    reader: str | None = Field(default=None, min_length=1, max_length=255)
+    start: ReadStart = "earliest"
 
 
 class PasteOffer(BaseModel):

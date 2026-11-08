@@ -320,7 +320,7 @@ def windows(
 # --- what is applied to what was read ---------------------------------------
 
 
-def _cell(message: Message, column: str) -> str | None:
+def cell(message: Message, column: str) -> str | None:
     if column == "key":
         return text_of(message.key)
     if column == "value":
@@ -342,10 +342,10 @@ def _predicate(one: Filter) -> Callable[[Message], bool]:
     column = one.column
     if isinstance(one, NullFilter):
         wanted_null = one.op == "is_null"
-        return lambda message: (_cell(message, column) is None) == wanted_null
+        return lambda message: (cell(message, column) is None) == wanted_null
     if isinstance(one, InFilter):
         values = set(one.values)
-        return lambda message: _cell(message, column) in values
+        return lambda message: cell(message, column) in values
     needle = one.value
     folded = needle.casefold()
     if one.op in {"gt", "gte", "lt", "lte"}:
@@ -354,8 +354,8 @@ def _predicate(one: Filter) -> Callable[[Message], bool]:
             raise ValueError(say("{column} takes a number", column=column))
 
         def compares(message: Message) -> bool:
-            cell = _cell(message, column)
-            number = None if cell is None else _as_number(cell)
+            text = cell(message, column)
+            number = None if text is None else _as_number(text)
             if number is None:
                 return False
             return {
@@ -367,14 +367,14 @@ def _predicate(one: Filter) -> Callable[[Message], bool]:
 
         return compares
     if one.op == "contains":
-        return lambda message: folded in (_cell(message, column) or "").casefold()
+        return lambda message: folded in (cell(message, column) or "").casefold()
     if one.op == "starts_with":
         return lambda message: (
-            (_cell(message, column) or "").casefold().startswith(folded)
+            (cell(message, column) or "").casefold().startswith(folded)
         )
     if one.op == "ne":
-        return lambda message: _cell(message, column) != needle
-    return lambda message: _cell(message, column) == needle
+        return lambda message: cell(message, column) != needle
+    return lambda message: cell(message, column) == needle
 
 
 def predicates(

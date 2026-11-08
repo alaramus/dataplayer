@@ -1,10 +1,10 @@
 # Pipelines
 
 Read this before changing the pipelines space, a pipeline's cards, links,
-run, schedule or history, or the answer of what a person's connections can
-give each other.
+run, schedule or history, the answer of what a person's connections can
+give each other, or a link that reads a topic on from where it stopped.
 
-Decisions here: D174, D175, D176, D177, D178, D179, D180.
+Decisions here: D174, D175, D176, D177, D178, D179, D180, D312.
 
 ## D174. What two connections can give each other is asked of no node
 
@@ -290,3 +290,54 @@ Known deviations:
   though the schedule's times are the zone it was saved in.
 
 Spec: [A pipeline's history of runs](../decisions/2026-09-26-pipeline-history-design.md)
+
+## D312. A link reads a topic on from where it stopped, by a group of its own
+
+- **Add new messages to a table** (`rows_since_last`, `connectors/paste/since.py`)
+  is a kind only a link may be: it sits in the registry's `LINK_ONLY`, which
+  `open_kinds` and a pipeline's offers ask and Paste in the catalog never
+  does. It writes as Add rows does, its columns paired in the same window,
+  and makes nothing.
+- **It reads through `SupportsReadingOn`** (`adapters/reading_on.py`): whether
+  a node can be read on, the span still unread for a named reader, a block of
+  it as rows of the paired columns, and the bookmark kept after the block.
+  Kafka implements it for a topic, not for its own topics (D305); the kind
+  asks the capability, never the type.
+- **In a pipeline, a node read on is offered no other row kind**: Add rows,
+  Create a table and Save as CSV are left out of its offers and of the hint,
+  since each would read it whole at every run. A link of those kinds drawn
+  before stays and runs. Paste in the catalog keeps them.
+- **One reader a link**, named by the server as `dataplayer-link-<link id>`
+  (`reader_of`), sent with every read and save as `readers` and shown in the
+  panel. For Kafka it is a consumer group, so a link's lag is read on the
+  catalog's groups level.
+- **The step always runs as a transfer** on the transfers' slots. It draws a
+  line at each part's end when it starts, reads up to it in blocks of 5,000
+  (D43), writes each block in one transaction and then keeps its bookmark.
+  The bookmark is kept after every block, an empty one too, so a run with
+  nothing new still writes it.
+- **The link's `start`**, the panel's "First run reads", is where a reader
+  with no bookmark starts: `earliest`, everything the source keeps, or
+  `latest`, its end at the first run. Once a bookmark is kept it changes
+  nothing; to read again the group's positions are moved (D309).
+- **The step's sentence** counts what it added, says "Nothing new since the
+  last run", says when no position was kept and where reading started, and
+  counts what the source deleted before it was read.
+- **Kafka's reader** assigns partitions and never subscribes, so the group
+  has no members and no rebalance runs. Positions are read and written by
+  the admin client; a position behind a partition's start counts the gap as
+  lost, one past its end (the topic made again) reads it from its start, and
+  a partition added since is read from its start.
+
+Known deviations:
+
+- **At least once**: a failure or a Stop between writing a block and keeping
+  its bookmark writes that block again at the next run.
+- **Kafka forgets a group's positions** a week after they were last written
+  (`offsets.retention.minutes`); a link run less often starts again as its
+  start says, and its sentence says no position was kept.
+- **"Only new messages" counts from the first run**, not from when the link
+  was drawn.
+- **A link's group is not deleted with it**: Kafka forgets it by itself.
+
+Spec: [A topic read by a pipeline's link, only what is new](../decisions/2026-11-08-pipeline-topic-reading-design.md)

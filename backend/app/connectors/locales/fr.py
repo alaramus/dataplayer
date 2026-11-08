@@ -210,4 +210,17 @@ MESSAGES: dict[str, str] = {
     'The SSH connection this goes through is gone; choose another': "La connexion SSH par laquelle ceci passait n'existe plus ; choisissez-en une autre",
     "The SSH connection this goes through is switched off": "La connexion SSH par laquelle ceci passe est désactivée",
     "{name} cannot carry a tunnel": "{name} ne peut pas servir de tunnel",
+    # A pipeline's link reading on (D312).
+    "Add new messages to a table": "Ajouter les nouveaux messages à une table",
+    "Adding new messages": "Ajout des nouveaux messages",
+    "Nothing new since the last run": "Rien de nouveau depuis la dernière exécution",
+    "Only a topic is read on from where the link stopped": "Seul un topic est lu à partir de l'endroit où le lien s'est arrêté",
+    "Reading stopped moving on": "La lecture n'avance plus",
+    "This is a pipeline's link only": "Ceci n'existe que comme lien d'un pipeline",
+    "Tick a topic": "Cochez un topic",
+    "{count} new messages added to {name}": "{count} nouveaux messages ajoutés à {name}",
+    "{count} new messages added to {name}, then: {reason}": "{count} nouveaux messages ajoutés à {name}, puis : {reason}",
+    "{said}; no position was kept, so reading started from the beginning": "{said} ; aucune position n'était conservée, la lecture a donc commencé au début",
+    "{said}; no position was kept, so reading started from the end": "{said} ; aucune position n'était conservée, la lecture a donc commencé à la fin",
+    "{said}; {count} were deleted before they were read": "{said} ; {count} ont été supprimés avant d'être lus",
 }

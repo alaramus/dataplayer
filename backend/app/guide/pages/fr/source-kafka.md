@@ -165,6 +165,32 @@ va bien). Le premier et le dernier se rafraîchissent toutes les dix secondes.
   montrerait, avec ses filtres et son ordre, jusqu'à dix mille depuis la fin de
   chaque partition. Un groupe télécharge toutes ses positions.
 
+## Un topic dans un pipeline
+
+Un topic peut se trouver au milieu d'un pipeline : un lien y écrit, d'autres
+portent ce qui arrive vers des tables.
+
+- **Ajouter des lignes** dans un topic envoie les lignes comme messages.
+- **Ajouter les nouveaux messages à une table** ne lit que ce qui est arrivé
+  depuis la dernière exécution de ce lien. C'est la seule sortie d'un topic
+  dans un pipeline : relire tout le topic à chaque exécution ajouterait de
+  nouveau les mêmes lignes.
+- Chacun de ces liens lit en tant que groupe de consommateurs propre, nommé
+  `dataplayer-link-` suivi de l'id du lien, affiché dans le panneau du lien.
+  Son retard figure au niveau **Groupes de consommateurs**.
+- **La première exécution lit** choisit où commence la première exécution :
+  au début du topic, ou seulement les messages arrivés après elle. Une fois
+  que le groupe garde une position, le choix ne change rien ; pour relire,
+  déplacez les positions du groupe.
+- Chaque bloc de lignes est d'abord écrit, puis sa position conservée. Si une
+  exécution échoue entre les deux, la suivante réécrit ce bloc : aucun
+  message n'est perdu, et il arrive rarement en double.
+- Les messages que Kafka a supprimés avant que le lien les lise sont comptés
+  dans le résultat de l'exécution.
+- Kafka oublie les positions d'un groupe après une semaine sans écriture ; un
+  lien exécuté moins souvent recommence comme l'indique **La première
+  exécution lit**.
+
 ## Un Kafka à vous
 
 **Services** peut lancer un broker Kafka sur cette machine, si ce serveur a le

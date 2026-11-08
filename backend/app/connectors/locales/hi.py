@@ -210,4 +210,17 @@ MESSAGES: dict[str, str] = {
     "The SSH connection this goes through is gone; choose another": "जिस SSH कनेक्शन से यह जाता था, वह अब नहीं है; कोई दूसरा चुनें",
     "The SSH connection this goes through is switched off": "जिस SSH कनेक्शन से यह जाता है, वह बंद है",
     "{name} cannot carry a tunnel": "{name} से टनल नहीं बनाई जा सकती",
+    # A pipeline's link reading on (D312).
+    "Add new messages to a table": "नए संदेश तालिका में जोड़ें",
+    "Adding new messages": "नए संदेश जोड़े जा रहे हैं",
+    "Nothing new since the last run": "पिछले रन के बाद से कुछ नया नहीं",
+    "Only a topic is read on from where the link stopped": "केवल टॉपिक ही वहाँ से आगे पढ़ा जाता है जहाँ लिंक रुका था",
+    "Reading stopped moving on": "पढ़ना आगे बढ़ना बंद हो गया",
+    "This is a pipeline's link only": "यह केवल पाइपलाइन का लिंक हो सकता है",
+    "Tick a topic": "एक टॉपिक चुनें",
+    "{count} new messages added to {name}": "{name} में {count} नए संदेश जोड़े गए",
+    "{count} new messages added to {name}, then: {reason}": "{name} में {count} नए संदेश जोड़े गए, फिर: {reason}",
+    "{said}; no position was kept, so reading started from the beginning": "{said}; कोई स्थिति सहेजी नहीं थी, इसलिए पढ़ना शुरुआत से शुरू हुआ",
+    "{said}; no position was kept, so reading started from the end": "{said}; कोई स्थिति सहेजी नहीं थी, इसलिए पढ़ना अंत से शुरू हुआ",
+    "{said}; {count} were deleted before they were read": "{said}; {count} पढ़े जाने से पहले हटा दिए गए",
 }

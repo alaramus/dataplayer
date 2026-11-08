@@ -283,4 +283,8 @@ Known deviations:
   only that network knows. Announcing the published port too is not possible:
   the runtime picks it after the container's settings are written (D80).
 
+A pipeline's link reads a topic on from where it stopped through a consumer
+group of its own (`reading.py`); that is D312's, in
+[pipelines.md](../pipelines.md#d312-a-link-reads-a-topic-on-from-where-it-stopped-by-a-group-of-its-own).
+
 Spec: [A Kafka started here, and its lab](../../decisions/2026-11-01-kafka-service-design.md)

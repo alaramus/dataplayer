@@ -30,6 +30,7 @@ from app.pipelines.models import (
     MAX_PIPELINES,
     CardState,
     LinkPlace,
+    LinkReader,
     Pipeline,
     PipelineContent,
     PipelineCreate,
@@ -37,6 +38,7 @@ from app.pipelines.models import (
     PipelineSave,
     PipelineSummary,
     content_of,
+    reader_of,
     summary,
 )
 from app.pipelines.offers import Asking, LinkOffersRequest
@@ -92,6 +94,13 @@ def public(pipeline: Pipeline) -> PipelinePublic:
             for placed in ordered(content)
         ],
         results=[] if content is None else Foresight(content).rows(),
+        readers=[]
+        if content is None
+        else [
+            LinkReader(link_id=link.id, name=name)
+            for link in content.links
+            if (name := reader_of(link)) is not None
+        ],
     )
 
 

@@ -17,6 +17,7 @@ from typing import Literal, Protocol
 from anyio import CapacityLimiter, to_thread
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.adapters.reading_on import ReadStart
 from app.connectors.paste.models import (
     MAX_CLIPBOARD_NODES,
     ClipboardMode,
@@ -91,6 +92,9 @@ class TransferPlan(BaseModel):
     # into when it is there already (D43, D166).
     columns: list[PasteColumn] | None = None
     target_node_id: str | None = None
+    # Rows read on from a bookmark (D312).
+    reader: str | None = None
+    start: ReadStart | None = None
 
 
 class Transfer(BaseModel):
@@ -121,6 +125,11 @@ class Transfer(BaseModel):
     # What a rows job was planned with (D43, D166).
     columns: list[PasteColumn] | None = Field(default=None, max_length=100)
     target_node_id: str | None = Field(default=None, max_length=4096)
+    # Rows read on from a bookmark (D312): who reads, where a reader with no
+    # bookmark starts, and whether this one had none.
+    reader: str | None = Field(default=None, max_length=255)
+    start: ReadStart | None = None
+    fresh: bool = False
     # A file uploaded for this job alone, in its owner's storage, read in
     # place of a connection and removed when the job ends (D45). The source
     # connection then names the destination: an upload has none.

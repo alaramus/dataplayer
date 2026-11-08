@@ -276,6 +276,7 @@ const states = computed(() => {
 const order = computed(() => new Map((pipeline.data.value?.order ?? []).map((place) => [place.link_id, place])))
 // What each link makes, named by the server as its last save stood (D178).
 const results = computed(() => pipeline.data.value?.results ?? [])
+const readers = computed(() => new Map((pipeline.data.value?.readers ?? []).map((one) => [one.link_id, one.name])))
 const linkRuns = computed(() => new Map((shownRun.value?.links ?? []).map((run) => [run.link_id, run])))
 const edges = computed(() => [
   ...links.value.map((link) => linkEdge(link, order.value.get(link.id), linkRuns.value.get(link.id))),
@@ -865,6 +866,7 @@ defineExpose({ place })
         :run="shownRun"
         :past="pastJobId !== null"
         :auto-open="autoOpenLinkId === selectedLink.id"
+        :reader="readers.get(selectedLink.id) ?? null"
         @change="changeLink"
         @operate="operate"
         @remove="removeLink(selectedLink)"

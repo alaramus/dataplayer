@@ -13,12 +13,13 @@ const REPOSITORY_ROOT = fileURLToPath(new URL("../../../", import.meta.url))
 const PROBE_TIMEOUT_MS = 1000
 const COMPOSE_TIMEOUT_MS = 5000
 
-type Service = "redis" | "ssh" | "metrics"
+type Service = "redis" | "ssh" | "metrics" | "kafka"
 
 const START_COMMANDS: Record<Service, string> = {
   redis: "docker compose up -d redis",
   ssh: "docker compose up -d sshd",
   metrics: "docker compose up -d metrics",
+  kafka: "docker compose up -d kafka",
 }
 
 /** Send a server-protocol hello and require a reply, not just an open port. */
@@ -78,8 +79,10 @@ async function serviceAnswers(service: Service): Promise<boolean> {
         ["SSH-"]
       )
     case "metrics":
-      // The collector receives UDP without replying. Its Compose state is the
-      // availability signal for the local E2E stack.
+    case "kafka":
+      // The collector receives UDP without replying, and Kafka answers only
+      // its own protocol. Their Compose state is the availability signal for
+      // the local E2E stack.
       return composeServiceIsRunning(service)
   }
 }
@@ -92,6 +95,7 @@ export async function requireE2EService(service: Service): Promise<void> {
     redis: `Redis does not answer at ${REDIS.host}:${REDIS.port}`,
     ssh: `The SSH server does not answer at 127.0.0.1:${SSH_SERVER.port}`,
     metrics: "The metrics collector is not running as a Docker Compose service",
+    kafka: "Kafka is not running as a Docker Compose service",
   }
   test.skip(
     true,

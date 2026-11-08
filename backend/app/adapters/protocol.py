@@ -46,6 +46,7 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
+from app.adapters.reading_on import Bookmark, ReadBlock, ReadStart, UnreadSpan
 from app.adapters.references import (
     ArrivingReference,
     FollowReferenceRequest,
@@ -417,6 +418,29 @@ class SupportsInsert(Protocol):
         Answers rather than raises when a value cannot be read as its column's
         type, naming those cells and writing nothing.
         """
+        ...
+
+
+@runtime_checkable
+class SupportsReadingOn(Protocol):
+    """A node read on from where a named reader stopped (D312)."""
+
+    def reads_on(self, node_id: str) -> bool:
+        """Whether this node can be read on; asked of its id alone."""
+        ...
+
+    async def unread(self, node_id: str, reader: str, start: ReadStart) -> UnreadSpan:
+        """The reader's bookmark up to the end as it is now."""
+        ...
+
+    async def read_on(
+        self, node_id: str, columns: list[str], at: Bookmark, line: Bookmark, limit: int
+    ) -> ReadBlock:
+        """Up to `limit` rows of these columns from `at`, never past `line`."""
+        ...
+
+    async def mark_read(self, node_id: str, reader: str, at: Bookmark) -> None:
+        """Keep `at` as the reader's bookmark."""
         ...
 
 

@@ -24,7 +24,14 @@ from app.core.translation import N_, say
 from app.jobs import crud as job_crud
 from app.jobs.models import TERMINAL, Job, JobKind, JobState
 from app.jobs.runner import JobRunner
-from app.pipelines.models import Card, Link, LinkEnd, Pipeline, PipelineContent
+from app.pipelines.models import (
+    Card,
+    Link,
+    LinkEnd,
+    Pipeline,
+    PipelineContent,
+    reader_of,
+)
 from app.pipelines.order import ordered
 from app.pipelines.record import RunRecord, RunStep, StepOutcome
 from app.pipelines.results import Foresight
@@ -124,6 +131,8 @@ def _step(content: PipelineContent, link: Link, foresight: Foresight) -> RunStep
             conflict=link.conflict,
             name=link.name,
             columns=link.columns,
+            reader=reader_of(link),
+            start=link.start,
         ),
         reads=link.source.made_by,
         writes_into=link.target.made_by,

@@ -33,6 +33,7 @@ from app.adapters.kafka.messages import KafkaMessages
 from app.adapters.kafka.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.kafka.metrics import KafkaMetrics
 from app.adapters.kafka.options import KafkaOptions, checked_servers
+from app.adapters.kafka.reading import KafkaReading
 from app.adapters.kafka.reports import (
     REPORTS,
     KafkaReports,
@@ -49,6 +50,7 @@ from app.adapters.kafka.topics import KafkaTopics
 from app.adapters.kafka.writes import KafkaWrites
 from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
+from app.adapters.reading_on import Bookmark, ReadBlock, ReadStart, UnreadSpan
 from app.adapters.registry import AdapterContext, register
 from app.adapters.search import (
     LastSearch,
@@ -85,6 +87,7 @@ class KafkaAdapter:
         self._metrics = KafkaMetrics(self._session)
         self._search = KafkaSearch(self._session)
         self._samples = KafkaSamples(self._session)
+        self._reading = KafkaReading(self._session)
 
     # --- how to reach it, in one line --------------------------------------------
 
@@ -243,6 +246,22 @@ class KafkaAdapter:
 
     async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
         return await self._writes.insert_rows(request)
+
+    # --- read on by a pipeline's link (D312) ---------------------------------------
+
+    def reads_on(self, node_id: str) -> bool:
+        return self._reading.reads_on(node_id)
+
+    async def unread(self, node_id: str, reader: str, start: ReadStart) -> UnreadSpan:
+        return await self._reading.unread(node_id, reader, start)
+
+    async def read_on(
+        self, node_id: str, columns: list[str], at: Bookmark, line: Bookmark, limit: int
+    ) -> ReadBlock:
+        return await self._reading.read_on(node_id, columns, at, line, limit)
+
+    async def mark_read(self, node_id: str, reader: str, at: Bookmark) -> None:
+        await self._reading.mark_read(node_id, reader, at)
 
     async def console_program(self) -> ConsoleProgram:
         """Kafka's tools, set up for this connection, in a container (D307)."""

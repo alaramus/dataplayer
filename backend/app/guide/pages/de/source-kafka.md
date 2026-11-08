@@ -167,6 +167,32 @@ und der letzte Bericht werden alle zehn Sekunden aktualisiert.
   zeigen würde, mit ihren Filtern und ihrer Reihenfolge, bis zu zehntausend vom
   Ende jeder Partition. Eine Gruppe lädt jede Position herunter.
 
+## Ein Topic in einer Pipeline
+
+Ein Topic kann mitten in einer Pipeline stehen: eine Verknüpfung schreibt
+hinein, andere tragen das Angekommene in Tabellen.
+
+- **Zeilen hinzufügen** in ein Topic sendet die Zeilen als Nachrichten.
+- **Neue Nachrichten zu einer Tabelle hinzufügen** liest nur, was seit dem
+  letzten Lauf dieser Verknüpfung angekommen ist. Es ist der einzige Weg aus
+  einem Topic in einer Pipeline: das ganze Topic bei jedem Lauf erneut zu
+  lesen, würde dieselben Zeilen wieder hinzufügen.
+- Jede solche Verknüpfung liest als eigene Consumer-Gruppe namens
+  `dataplayer-link-` und der ID der Verknüpfung, im Bereich der Verknüpfung
+  angezeigt. Ihr Rückstand steht auf der Ebene **Consumer-Gruppen**.
+- **Der erste Lauf liest** wählt, wo der erste Lauf beginnt: am Anfang des
+  Topics oder nur bei Nachrichten, die danach kommen. Hat die Gruppe eine
+  Position, ändert die Wahl nichts; um erneut zu lesen, verschieben Sie die
+  Positionen der Gruppe.
+- Jeder Block Zeilen wird zuerst geschrieben und seine Position danach
+  gespeichert. Scheitert ein Lauf dazwischen, schreibt der nächste den Block
+  erneut: keine Nachricht geht verloren, selten kommt eine doppelt an.
+- Nachrichten, die Kafka gelöscht hat, bevor die Verknüpfung sie las, werden
+  im Ergebnis des Laufs gezählt.
+- Kafka vergisst die Positionen einer Gruppe nach einer Woche ohne
+  Schreiben; eine seltener laufende Verknüpfung beginnt dann neu, wie
+  **Der erste Lauf liest** es sagt.
+
 ## Ein eigenes Kafka
 
 Unter **Dienste** lässt sich ein Kafka-Broker auf diesem Rechner starten, wenn

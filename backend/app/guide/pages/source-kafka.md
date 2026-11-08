@@ -154,6 +154,30 @@ well). The first and the last refresh every ten seconds.
   filters and order, up to ten thousand from the end of each partition. A
   group downloads every position.
 
+## A topic in a pipeline
+
+A topic can sit in the middle of a pipeline: one link writes into it, and
+others carry what arrives into tables.
+
+- **Add rows** into a topic sends the rows as messages.
+- **Add new messages to a table** reads only what arrived since that link's
+  last run. It is the one way out of a topic in a pipeline: reading the whole
+  topic again at every run would add the same rows again.
+- Each such link reads as a consumer group of its own, named
+  `dataplayer-link-` and the link's id, shown in the link's panel. Its lag is
+  on the **Consumer groups** level, so you see how far the link is behind.
+- **First run reads** chooses where the first run starts: from the beginning
+  of the topic, or only messages that come after it. Once the group keeps a
+  position, the choice changes nothing; to read again, move the group's
+  positions.
+- Each block of rows is written first and its position kept after. If a run
+  fails between the two, the next run writes that block again: a message is
+  never missed, and rarely arrives twice.
+- Messages Kafka deleted before the link read them are counted in the run's
+  result.
+- Kafka forgets a group's positions after a week without them being written,
+  so a link that runs less often starts again as **First run reads** says.
+
 ## A Kafka of your own
 
 **Services** can start a Kafka broker on this machine, if this server may run

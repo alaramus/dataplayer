@@ -164,9 +164,11 @@ class RunPipeline:
             message = kind.told(transfer, stopped)
             if stopped is not None or any(item.outcome != "done" for item in transfer.items):
                 raise _StepFailed(message)
-            # One node on the clipboard, one item: what it arrived as.
-            item = transfer.items[0]
-            step.made, step.made_name = item.published_id, item.published_as or item.name
+            # One node on the clipboard, one item: what it arrived as. A kind
+            # that writes into a table makes nothing (D178).
+            if kind.makes:
+                item = transfer.items[0]
+                step.made, step.made_name = item.published_id, item.published_as or item.name
             return message
         if isinstance(kind, PastesNow):
             try:

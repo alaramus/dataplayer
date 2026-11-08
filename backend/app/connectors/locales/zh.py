@@ -209,4 +209,17 @@ MESSAGES: dict[str, str] = {
     "The SSH connection this goes through is gone; choose another": "此连接所经过的 SSH 连接已不存在，请另选一个",
     "The SSH connection this goes through is switched off": "此连接所经过的 SSH 连接已停用",
     "{name} cannot carry a tunnel": "{name} 无法用作隧道",
+    # A pipeline's link reading on (D312).
+    "Add new messages to a table": "将新消息添加到表",
+    "Adding new messages": "正在添加新消息",
+    "Nothing new since the last run": "自上次运行以来没有新内容",
+    "Only a topic is read on from where the link stopped": "只有主题可以从链接停下的位置继续读取",
+    "Reading stopped moving on": "读取不再前进",
+    "This is a pipeline's link only": "这只能作为管道的链接",
+    "Tick a topic": "勾选一个主题",
+    "{count} new messages added to {name}": "已向 {name} 添加 {count} 条新消息",
+    "{count} new messages added to {name}, then: {reason}": "已向 {name} 添加 {count} 条新消息，随后：{reason}",
+    "{said}; no position was kept, so reading started from the beginning": "{said}；没有保存的位置，因此从开头开始读取",
+    "{said}; no position was kept, so reading started from the end": "{said}；没有保存的位置，因此从末尾开始读取",
+    "{said}; {count} were deleted before they were read": "{said}；有 {count} 条在读取前已被删除",
 }

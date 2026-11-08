@@ -24,8 +24,9 @@ from sqlalchemy import JSON, Column, DateTime
 from sqlmodel import Field, SQLModel
 
 from app.adapters.catalog import NodeKind
+from app.adapters.reading_on import ReadStart
 from app.connectors.paste.models import Conflict, PasteColumn, PasteKindName
-from app.connectors.paste.registry import kind_named
+from app.connectors.paste.registry import READS_ON, kind_named
 from app.core.schemas import get_datetime_utc
 
 MAX_PIPELINES = 100
@@ -124,6 +125,8 @@ class Link(_Strict):
     conflict: Conflict = "refuse"
     name: str | None = PydanticField(default=None, min_length=1, max_length=255)
     columns: list[PasteColumn] | None = PydanticField(default=None, max_length=100)
+    # Where a link reading on starts while its reader has no bookmark (D312).
+    start: ReadStart = "earliest"
 
     @field_validator("kind")
     @classmethod
@@ -278,6 +281,20 @@ class ResultRow(BaseModel):
     kind: NodeKind
 
 
+class LinkReader(BaseModel):
+    """The name a link reading on reads under: a Kafka consumer group (D312)."""
+
+    link_id: uuid.UUID
+    name: str
+
+
+def reader_of(link: Link) -> str | None:
+    """The reader a link reads on as, one a link; None for every other kind."""
+    if link.kind != READS_ON.name:
+        return None
+    return f"dataplayer-link-{link.id}"
+
+
 class PipelinePublic(PipelineContent):
     id: uuid.UUID
     name: str
@@ -287,6 +304,7 @@ class PipelinePublic(PipelineContent):
     broken: bool = False
     order: list[LinkPlace] = PydanticField(default_factory=list)
     results: list[ResultRow] = PydanticField(default_factory=list)
+    readers: list[LinkReader] = PydanticField(default_factory=list)
 
 
 class CardState(BaseModel):

@@ -12,12 +12,12 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.adapters.protocol import DataAdapter
+from app.adapters.protocol import DataAdapter, SupportsReadingOn
 from app.adapters.resources import ResourceStore
 from app.connectors.access import resolve_adapter
 from app.connectors.paste.kinds import refused
 from app.connectors.paste.models import Foreseen, PairEnd, PasteOffer, PastePair
-from app.connectors.paste.registry import KINDS, short_of
+from app.connectors.paste.registry import KINDS, LINK_ONLY, READS_ON, short_of
 from app.connectors.paste.rows import columns_of
 from app.core.access import Access
 from app.core.problems import Problem
@@ -111,9 +111,18 @@ class Asking:
             return []
         source_at = await self._end(source_end)
         target_at = await self._end(target_end)
+        # A node read on is offered no kind that would read it whole at every
+        # run (D312).
+        read_on = (
+            isinstance(source[0], SupportsReadingOn)
+            and isinstance(source_at, str)
+            and source[0].reads_on(source_at)
+        )
         answers: list[PasteOffer] = []
-        for kind in KINDS:
+        for kind in (*KINDS, *LINK_ONLY):
             if not kind.pipelines or not kind.serves(source[0], target[0]):
+                continue
+            if read_on and kind.name in READS_ON.replaces:
                 continue
             short = short_of(kind, source[1], target[1])
             if short is not None:

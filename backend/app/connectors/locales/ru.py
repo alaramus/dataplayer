@@ -210,4 +210,17 @@ MESSAGES: dict[str, str] = {
     "The SSH connection this goes through is gone; choose another": "SSH-подключения, через которое шёл туннель, больше нет; выберите другое",
     "The SSH connection this goes through is switched off": "SSH-подключение, через которое идёт туннель, выключено",
     "{name} cannot carry a tunnel": "Через {name} нельзя проложить туннель",
+    # A pipeline's link reading on (D312).
+    "Add new messages to a table": "Добавить новые сообщения в таблицу",
+    "Adding new messages": "Добавление новых сообщений",
+    "Nothing new since the last run": "С прошлого запуска ничего нового",
+    "Only a topic is read on from where the link stopped": "С места, где связь остановилась, читается только топик",
+    "Reading stopped moving on": "Чтение перестало продвигаться",
+    "This is a pipeline's link only": "Это бывает только связью конвейера",
+    "Tick a topic": "Отметьте топик",
+    "{count} new messages added to {name}": "В {name} добавлено новых сообщений: {count}",
+    "{count} new messages added to {name}, then: {reason}": "В {name} добавлено новых сообщений: {count}, затем: {reason}",
+    "{said}; no position was kept, so reading started from the beginning": "{said}; сохранённой позиции не было, поэтому чтение началось с начала",
+    "{said}; no position was kept, so reading started from the end": "{said}; сохранённой позиции не было, поэтому чтение началось с конца",
+    "{said}; {count} were deleted before they were read": "{said}; удалено до прочтения: {count}",
 }

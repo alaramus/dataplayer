@@ -23,7 +23,7 @@ from app.adapters.relation import ColumnType
 from app.adapters.update import ValuesRejected
 from app.connectors import imports
 from app.connectors.paste.files import TransfersFiles
-from app.connectors.paste.kinds import offered, refused
+from app.connectors.paste.kinds import PasteKind, offered, refused
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
@@ -89,6 +89,30 @@ def rejected(result: ValuesRejected) -> str:
         count=more,
         **found,
     )
+
+
+async def into_table(
+    kind: PasteKind,
+    destination: DataAdapter,
+    target_end: str | Foreseen,
+    columns: list[FetchColumn],
+) -> PasteOffer:
+    """The offer of rows read by `columns` into a table that is there, or
+    that a link before will make (D178)."""
+    if isinstance(target_end, Foreseen):
+        target: list[FetchColumn] | str = target_end.columns
+    elif not isinstance(destination, SupportsFetch):
+        return refused(kind, say("This connection cannot take rows"))
+    else:
+        target = await _columns(
+            destination, target_end, gone=N_("The ticked table no longer exists")
+        )
+    if isinstance(target, str):
+        return refused(kind, say("The ticked node cannot take rows"))
+    insertable = [column for column in target if column.insertable]
+    if not insertable:
+        return refused(kind, say("The ticked table takes no rows"))
+    return offered(kind, available=True, source_columns=columns, target_columns=insertable)
 
 
 class _Rows:
@@ -308,7 +332,7 @@ class RowsNewRelation(_Rows):
             item.outcome = "stopped" if isinstance(failure, asyncio.CancelledError) else "failed"
             if isinstance(failure, (asyncio.CancelledError, TransferStopped)):
                 raise
-            raise TransferStopped(_ended(failure)) from None
+            raise TransferStopped(why_ended(failure)) from None
         if blocks.node is None:
             # An empty source still makes its table.
             await blocks.write([column.target for column in transfer.columns or []], [])
@@ -406,7 +430,7 @@ class RowsIntoRelation(_Rows):
         columns = await columns_of(source, pair.source_node_ids)
         if isinstance(columns, str):
             return refused(self, columns)
-        return await self._into(destination, pair.target_node_id, columns)
+        return await into_table(self, destination, pair.target_node_id, columns)
 
     def made(
         self, source: Foreseen, name: str | None, columns: list[PasteColumn] | None
@@ -426,27 +450,7 @@ class RowsIntoRelation(_Rows):
         columns = await self._read_from(source, source_end)
         if isinstance(columns, str):
             return refused(self, columns)
-        return await self._into(destination, target_end, columns)
-
-    async def _into(
-        self, destination: DataAdapter, target_end: str | Foreseen, columns: list[FetchColumn]
-    ) -> PasteOffer:
-        if isinstance(target_end, Foreseen):
-            target: list[FetchColumn] | str = target_end.columns
-        elif not isinstance(destination, SupportsFetch):
-            return refused(self, say("This connection cannot take rows"))
-        else:
-            target = await _columns(
-                destination, target_end, gone=N_("The ticked table no longer exists")
-            )
-        if isinstance(target, str):
-            return refused(self, say("The ticked node cannot take rows"))
-        insertable = [column for column in target if column.insertable]
-        if not insertable:
-            return refused(self, say("The ticked table takes no rows"))
-        return offered(
-            self, available=True, source_columns=columns, target_columns=insertable
-        )
+        return await into_table(self, destination, target_end, columns)
 
     def _checked(self, source: DataAdapter, destination: DataAdapter, request: PasteRun) -> str:
         """The table the rows go into, once the request can run."""
@@ -467,7 +471,7 @@ class RowsIntoRelation(_Rows):
     ) -> TransferPlan:
         target = self._checked(source, destination, request)
         return TransferPlan(
-            items=[TransferItem(node_id=request.source_node_ids[0], name=await _name_of(destination, target))],
+            items=[TransferItem(node_id=request.source_node_ids[0], name=await name_of(destination, target))],
             bytes_total=None,
             place="",
             columns=request.columns,
@@ -496,7 +500,7 @@ class RowsIntoRelation(_Rows):
             raise
         except Exception as failure:  # noqa: BLE001 — said in the job's sentence, rows kept
             item.outcome = "failed"
-            raise TransferStopped(_ended(failure)) from None
+            raise TransferStopped(why_ended(failure)) from None
         item.outcome = "done"
         item.arrived = 1
         item.rows = count
@@ -556,7 +560,7 @@ class RowsIntoRelation(_Rows):
         )
 
 
-async def _name_of(destination: DataAdapter, node_id: str) -> str:
+async def name_of(destination: DataAdapter, node_id: str) -> str:
     """What a table is called, for the screen that follows the job."""
     if isinstance(destination, SupportsNodePath):
         try:
@@ -573,7 +577,7 @@ async def _taken_back(destination: DataAdapter, node: CatalogNode | None) -> Non
         await asyncio.shield(destination.drop_created(node.id))
 
 
-def _ended(failure: BaseException) -> str:
+def why_ended(failure: BaseException) -> str:
     """Why the carrying ended, in a sentence that is safe to show."""
     if isinstance(failure, imports.BlockRefused):
         return rejected(failure.rejected)

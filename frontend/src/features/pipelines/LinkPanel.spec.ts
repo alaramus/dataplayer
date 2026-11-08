@@ -14,7 +14,7 @@ enableAutoUnmount(afterEach)
 const intoTable: PasteOffer = { kind: "rows_new_relation", title: "Into a new table", available: true, workflow: "new-relation" }
 const link = linkFromOffer("l1", { card_id: "sales", node_id: "public.orders" }, { card_id: "lab", node_id: "public" }, intoTable)
 
-function mountPanel(autoOpen: boolean) {
+function mountPanel(autoOpen: boolean, extra: Record<string, unknown> = {}) {
   return mount(LinkPanel, {
     props: {
       link,
@@ -30,6 +30,7 @@ function mountPanel(autoOpen: boolean) {
       run: null,
       past: false,
       autoOpen,
+      ...extra,
     },
     global: {
       plugins: [Quasar, [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }]],
@@ -61,5 +62,32 @@ describe("the link's own window", () => {
     await flushPromises()
     expect(wrapper.findComponent({ name: "CreateTableDialog" }).exists()).toBe(true)
     expect(wrapper.emitted("autoOpened")).toHaveLength(2)
+  })
+})
+
+describe("a link reading on (D312)", () => {
+  const readingOn: PasteOffer = { kind: "rows_since_last", title: "Add new messages to a table", available: true, workflow: "into-relation" }
+  const reading = linkFromOffer("l2", { card_id: "kafka", node_id: "topic:orders" }, { card_id: "lab", node_id: "public.orders" }, readingOn)
+
+  beforeEach(() => {
+    vi.spyOn(PipelinesService, "readLinkOffers").mockResolvedValue({ data: { offers: [readingOn] } } as never)
+  })
+
+  it("names its group and chooses where the first run starts", async () => {
+    const wrapper = mountPanel(false, { link: reading, reader: "dataplayer-link-l2" })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="link-panel-reader"]').text()).toContain("dataplayer-link-l2")
+
+    const start = wrapper.findAllComponents({ name: "AppSelect" }).find((one) => one.props("label") === "First run reads")
+    expect(start?.props("modelValue")).toBe("earliest")
+    start?.vm.$emit("update:modelValue", "latest")
+    expect(wrapper.emitted("change")?.[0]?.[0]).toMatchObject({ id: "l2", start: "latest" })
+  })
+
+  it("shows neither before the server has named a group", async () => {
+    const wrapper = mountPanel(false, { link: reading })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="link-panel-reader"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="link-panel-start"]').exists()).toBe(false)
   })
 })

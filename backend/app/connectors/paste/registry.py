@@ -6,6 +6,7 @@ from app.connectors.paste.kinds import PasteKind, refused
 from app.connectors.paste.models import PasteKindName, PasteOffer
 from app.connectors.paste.relation_csv import RelationCsv, RowsNewFile
 from app.connectors.paste.rows import RowsIntoRelation, RowsNewRelation
+from app.connectors.paste.since import RowsSinceLast
 from app.connectors.paste.tables import TablesCopy
 from app.core.access import Access, at_least
 from app.core.translation import N_, say
@@ -39,9 +40,13 @@ KINDS: tuple[PasteKind, ...] = (
 # request's ceiling (D45).
 STARTED_ONLY: tuple[PasteKind, ...] = (RowsNewFile(),)
 
+# Kinds only a pipeline's link may be, which Paste never offers (D312).
+READS_ON = RowsSinceLast()
+LINK_ONLY: tuple[PasteKind, ...] = (READS_ON,)
+
 
 def kind_named(name: PasteKindName) -> PasteKind:
-    return next(kind for kind in (*KINDS, *STARTED_ONLY) if kind.name == name)
+    return next(kind for kind in (*KINDS, *STARTED_ONLY, *LINK_ONLY) if kind.name == name)
 
 
 def outranked(offers: list[PasteOffer]) -> list[PasteOffer]:
@@ -66,7 +71,7 @@ def open_kinds(
     """
     return [
         kind
-        for kind in KINDS
+        for kind in (*KINDS, *LINK_ONLY)
         if kind.pipelines
         and kind.serves(source, destination)
         and at_least(source_access, kind.source_requires)

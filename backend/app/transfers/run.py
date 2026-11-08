@@ -141,6 +141,8 @@ async def planned(
         tables=plan.tables,
         columns=plan.columns,
         target_node_id=plan.target_node_id,
+        reader=plan.reader,
+        start=plan.start,
         items=plan.items,
         bytes_total=plan.bytes_total,
     )

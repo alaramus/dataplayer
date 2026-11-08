@@ -206,4 +206,17 @@ MESSAGES: dict[str, str] = {
     "The SSH connection this goes through is gone; choose another": "اتصال SSH الذي كان يمر عبره هذا لم يعد موجودًا؛ اختر اتصالًا آخر",
     "The SSH connection this goes through is switched off": "اتصال SSH الذي يمر عبره هذا معطّل",
     "{name} cannot carry a tunnel": "لا يمكن إنشاء نفق عبر {name}",
+    # A pipeline's link reading on (D312).
+    "Add new messages to a table": "إضافة الرسائل الجديدة إلى جدول",
+    "Adding new messages": "إضافة الرسائل الجديدة",
+    "Nothing new since the last run": "لا جديد منذ آخر تشغيل",
+    "Only a topic is read on from where the link stopped": "يُتابَع من حيث توقف الرابط قراءة موضوع فقط",
+    "Reading stopped moving on": "توقفت القراءة عن التقدم",
+    "This is a pipeline's link only": "هذا لا يكون إلا رابطًا في خط معالجة",
+    "Tick a topic": "حدّد موضوعًا",
+    "{count} new messages added to {name}": "أُضيفت {count} رسالة جديدة إلى {name}",
+    "{count} new messages added to {name}, then: {reason}": "أُضيفت {count} رسالة جديدة إلى {name}، ثم: {reason}",
+    "{said}; no position was kept, so reading started from the beginning": "{said}؛ لم يكن هناك موضع محفوظ، فبدأت القراءة من البداية",
+    "{said}; no position was kept, so reading started from the end": "{said}؛ لم يكن هناك موضع محفوظ، فبدأت القراءة من النهاية",
+    "{said}; {count} were deleted before they were read": "{said}؛ حُذفت {count} قبل قراءتها",
 }

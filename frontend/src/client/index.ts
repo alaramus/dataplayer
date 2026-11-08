@@ -904,6 +904,7 @@ export type {
   LinkEnd,
   LinkOffersRequest,
   LinkPlace,
+  LinkReader,
   LinkRun,
   LiteralDefault,
   LiteralValue,
