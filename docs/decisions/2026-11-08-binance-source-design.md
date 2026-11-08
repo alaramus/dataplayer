@@ -151,12 +151,14 @@ the ceiling of the grid's export (D49).
 
 ## Later slices
 
-2. **Read on in a pipeline** (`SupportsReadingOn`, D312): Trades by the next
+2. **Read on in a pipeline** (D319, [its spec](2026-11-08-binance-reading-on-design.md);
+   `SupportsReadingOn`, D312): Trades by the next
    aggregated id, Candles by the next closed candle's open time, so a link
    carries only what is new and following (D315) polls every two seconds
    within the rate limit. With it: one more source of the Binance → Kafka →
    stores route.
-3. **Reports, metrics, search, the guide in every language**: system status,
+3. **Reports, metrics, search, the guide in every language** (D320,
+   [its spec](2026-11-08-binance-reports-design.md)): system status,
    the clock's difference and the weight used as reports; weight used per
    minute as a metric; symbols searched by name and asset.
 
