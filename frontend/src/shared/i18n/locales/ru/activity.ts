@@ -53,6 +53,7 @@ export const activity: Messages["activity"] = {
     paste_transfer: "Перенос",
     pipeline_run: "Запуск конвейера",
     search_contents: "Поиск в файлах",
+    pipeline_follow: "Наблюдение конвейера",
   },
   status: {
     queued: "В очереди",
@@ -64,6 +65,10 @@ export const activity: Messages["activity"] = {
     failed: "Ошибка",
     cancelled: "Остановлено",
     interrupted: "Прервано",
+  },
+  following: {
+    failing: "{name}: связь {link} раз за разом падает",
+    failing_detail: "Неудач подряд: {count}. {reason}",
   },
   rows: {
     pipeline_title: "Конвейер «{name}»",
@@ -78,6 +83,9 @@ export const activity: Messages["activity"] = {
     job_hint: "При отмене завершённые изменения сохраняются. Эту задачу нельзя приостановить.",
     pipeline_hint: "Останавливает текущую связь; следующие связи не выполняются.",
     contents_hint: "Останавливает поиск; найденное к этому моменту сохраняется.",
+    following_label: "{name} · наблюдение · связей: {count}",
+    following_carried: "Перенесено сообщений: {count}",
+    following_hint: "Останавливает наблюдение; переключатель в шапке конвейера выключается.",
   },
   pipeline: {
     at: "{at} из {total}",

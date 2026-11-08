@@ -59,7 +59,7 @@ export function historyLine(row: HistoryRow, now: number): HistoryLine {
     said: going ? ended(row.state) : row.message ?? ended(row.state),
     detail: [
       momentWords(row.started_at, now),
-      t(row.scheduled ? "pipelines.history.by_schedule" : "pipelines.history.by_hand"),
+      t(row.following ? "pipelines.history.following" : row.scheduled ? "pipelines.history.by_schedule" : "pipelines.history.by_hand"),
       took(row, now),
     ].filter((part) => part !== null).join(" · "),
     tone: row.state === "failed" || row.state === "interrupted" ? "caution" : "plain",

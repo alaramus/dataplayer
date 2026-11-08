@@ -54,6 +54,7 @@ export const activity: Messages["activity"] = {
     paste_transfer: "स्थानांतरण",
     pipeline_run: "पाइपलाइन रन",
     search_contents: "फ़ाइलों के भीतर खोजें",
+    pipeline_follow: "पाइपलाइन फ़ॉलो",
   },
   status: {
     queued: "कतार में",
@@ -65,6 +66,10 @@ export const activity: Messages["activity"] = {
     failed: "विफल",
     cancelled: "रुका",
     interrupted: "बाधित",
+  },
+  following: {
+    failing: "{name}: {link} बार-बार विफल हो रहा है",
+    failing_detail: "लगातार विफलताएँ: {count}. {reason}",
   },
   rows: {
     pipeline_title: "पाइपलाइन {name}",
@@ -79,6 +84,9 @@ export const activity: Messages["activity"] = {
     job_hint: "रद्द करने पर पूरे हुए बदलाव बने रहते हैं। यह जॉब विराम का समर्थन नहीं करती।",
     pipeline_hint: "अभी चल रहा लिंक रोकता है; उसके बाद के लिंक नहीं चलेंगे।",
     contents_hint: "खोज रोकता है; अब तक मिला हुआ बना रहता है।",
+    following_label: "{name} · फ़ॉलो कर रहा है · लिंक: {count}",
+    following_carried: "पहुँचाए गए संदेश: {count}",
+    following_hint: "फ़ॉलो करना रोकता है; पाइपलाइन के शीर्ष का स्विच बंद हो जाता है।",
   },
   pipeline: {
     at: "{total} में से {at}",

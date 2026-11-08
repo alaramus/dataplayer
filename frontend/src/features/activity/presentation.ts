@@ -7,6 +7,8 @@ import type { MessageKey } from "@/shared/i18n"
 import { isActive } from "@/shared/operations"
 import type { Operation } from "@/shared/operations"
 import type { Tone } from "@/shared/ui"
+import { carriedOf, followOf } from "./following"
+import type { FollowRecord } from "./following"
 import { pipelineBrief, pipelineLines, pipelineName, pipelineRunOf, settledSteps } from "./pipelineRuns"
 import type { PipelineRunRecord } from "./pipelineRuns"
 import { operationLines, settledCount, sourceOperationOf } from "./sourceOperations"
@@ -47,6 +49,7 @@ const JOB_LABELS: Record<JobPublic["kind"], MessageKey> = {
   "metrics.store.create": "activity.jobs.metrics_store_create",
   "paste.transfer": "activity.jobs.paste_transfer",
   "pipeline.run": "activity.jobs.pipeline_run",
+  "pipeline.follow": "activity.jobs.pipeline_follow",
   "search.contents": "activity.jobs.search_contents",
 }
 
@@ -106,6 +109,8 @@ export function serverRow(job: JobPublic, subject: string | undefined): ProcessR
   if (transfer !== null) return transferRow(job, transfer)
   const run = pipelineRunOf(job)
   if (run !== null) return pipelineRow(job, run)
+  const follow = followOf(job)
+  if (follow !== null) return followRow(job, follow)
   const counts = contentsCounts(job)
   if (counts !== null) return contentsRow(job, contentsMeasure(counts))
   const active = isWorking(job)
@@ -174,6 +179,29 @@ function pipelineRow(job: JobPublic, run: PipelineRunRecord): ProcessRow {
     createdAt: Date.parse(job.created_at),
     canPause: false, canResume: false, canStop: active,
     controlsHint: active ? t("activity.rows.pipeline_hint") : "",
+  }
+}
+
+/**
+ * A pipeline following its topics (D315): the pipeline by its name, how many
+ * links it follows and what they carried; Stop switches following off.
+ */
+function followRow(job: JobPublic, follow: FollowRecord): ProcessRow {
+  const active = isWorking(job)
+  return {
+    id: job.id, source: "server",
+    label: t("activity.rows.following_label", { name: follow.pipelineName, count: follow.links.length }),
+    brief: t("activity.rows.following_carried", { count: carriedOf(follow) }),
+    detail: follow.links
+      .map((one) => `${one.title}: ${t("activity.rows.following_carried", { count: one.carried })}`)
+      .join("\n"),
+    status: statusOf(job.state), tone: toneOf(job.state),
+    active, paused: false,
+    progress: null,
+    measurement: "",
+    createdAt: Date.parse(job.created_at),
+    canPause: false, canResume: false, canStop: active,
+    controlsHint: active ? t("activity.rows.following_hint") : "",
   }
 }
 

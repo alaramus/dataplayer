@@ -133,6 +133,17 @@ export const pipelines: Messages["pipelines"] = {
       replace: "Заменить",
     },
   },
+  follow: {
+    mark: "Следить",
+    start_tooltip: "Следить: переносить пришедшее за секунды",
+    stop_tooltip: "Идёт наблюдение; нажмите, чтобы остановить",
+    none_tooltip: "Сначала отметьте «Следить» в панели связи",
+    switch_failed: "Не удалось переключить наблюдение",
+    waiting: "Наблюдение: пока ничего нового",
+    carried: "Наблюдение: перенесено сообщений: {count}",
+    carried_at: "Наблюдение: перенесено сообщений: {count}, последнее в {at}",
+    retrying: "Повтор (неудач подряд: {count}): {reason}",
+  },
   keyed: {
     title: "Ключ и значения",
     subtitle: "Каждая строка хранится отдельным ключом и заменяет то, что в нём было",
@@ -196,6 +207,7 @@ export const pipelines: Messages["pipelines"] = {
     so_far: "идёт {time}",
     took: "занял {time}",
     showing: "Показан запуск от {when}",
+    following: "наблюдение",
   },
   when: {
     months: {

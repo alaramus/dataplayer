@@ -52,6 +52,7 @@ export const activity = {
     paste_transfer: "Transfer",
     pipeline_run: "Pipeline run",
     search_contents: "Search inside files",
+    pipeline_follow: "Pipeline following",
   },
   status: {
     queued: "Queued",
@@ -63,6 +64,10 @@ export const activity = {
     failed: "Failed",
     cancelled: "Stopped",
     interrupted: "Interrupted",
+  },
+  following: {
+    failing: "{name}: {link} keeps failing",
+    failing_detail: "Failures in a row: {count}. {reason}",
   },
   rows: {
     pipeline_title: "Pipeline {name}",
@@ -77,6 +82,9 @@ export const activity = {
     job_hint: "Cancellation keeps completed changes. This job does not support pause.",
     pipeline_hint: "Stops the link running now; the links after it are not run.",
     contents_hint: "Stops the search; what it found so far is kept.",
+    following_label: "{name} · following · links: {count}",
+    following_carried: "Messages carried: {count}",
+    following_hint: "Stops following; the switch in the pipeline's head goes off.",
   },
   pipeline: {
     at: "{at} of {total}",

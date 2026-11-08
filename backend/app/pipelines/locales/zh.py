@@ -52,4 +52,10 @@ MESSAGES: dict[str, str] = {
     "Pipeline": "流水线",
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · “{title}”需要选择键和值",
+    # A pipeline following its topics (D315).
+    "Followed; not run": "跟随中；未运行",
+    "Followed; {count} messages carried": "已跟随；传送消息：{count}",
+    "Only a link reading a topic follows it": "只有读取主题的链接才能跟随它",
+    "This following could not be read": "无法读取此跟随",
+    "following its topics": "正在跟随其主题",
 }

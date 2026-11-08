@@ -2,9 +2,9 @@
 
 Read this before changing the pipelines space, a pipeline's cards, links,
 run, schedule or history, the answer of what a person's connections can
-give each other, or a link that reads a topic on from where it stopped, into a table it may make or into keys holding the latest per key.
+give each other, or a link that reads a topic on from where it stopped, into a table it may make or into keys holding the latest per key, and a pipeline following its topics.
 
-Decisions here: D174, D175, D176, D177, D178, D179, D180, D312, D313, D314.
+Decisions here: D174, D175, D176, D177, D178, D179, D180, D312, D313, D314, D315.
 
 ## D174. What two connections can give each other is asked of no node
 
@@ -414,3 +414,43 @@ Known deviations:
   blocks counts twice.
 
 Spec: [The latest value per key, kept in Redis by a pipeline's link](../decisions/2026-11-08-pipeline-latest-per-key-design.md)
+
+## D315. A pipeline follows its topics, carrying what arrives within seconds
+
+- **A link is marked `follow`**, only a link-only kind (D312–D314); its
+  panel offers the mark where its source is read on. **Follow in the head**
+  switches the pipeline's `PipelineFollow` row, kept beside it as the
+  schedule is, and starts or stops its follower.
+- **One follower a pipeline**, a job of kind `pipeline.follow`
+  (`pipelines/follow.py`), that runs until stopped: every
+  `PIPELINE_FOLLOW_SECONDS` (2) it reads the pipeline as kept and, for each
+  marked link in the run's order, asks the source's span; when anything is
+  unread, or its reader has no bookmark yet, it carries out the link's step
+  through the kind's own planning and transfer — the run's code, with no job
+  of its own.
+- **A link that fails does not stop the others**: tried again after 5, 30
+  and 60 seconds and then every five minutes, its last failure in its panel.
+  Ten in a row make it an item of Needs you, read from the follower's record
+  by the screen and gone when it carries again.
+- **The scheduler's loop starts a follower** for every row switched on that
+  has none unfinished (`ensure_followers`), so the server starting picks
+  following up again; a following whose newest job was cancelled — Stop in
+  the footer — is switched off instead.
+- **Run and the schedule leave a followed link out** while the pipeline
+  follows: its step is `not_run`, "Followed; not run".
+- **One history row a following** (D180): the follower's job, its record
+  each link's totals, written at most once a second. The canvas marks a
+  followed link "↻" and colours its line by what it does while following;
+  the footer shows "Nightly · following · links: 3" with Stop.
+- **Bounds**: `PIPELINE_FOLLOW_MAX` (3) a person and
+  `PIPELINE_FOLLOW_SERVER_MAX` (20) on the server, refused with 429.
+
+Known deviations:
+
+- **Seconds, not milliseconds**: every look opens Kafka's clients again
+  (D304); a consumer kept open is left for later.
+- **Every marked link is asked every look**, however quiet it is.
+- **An unsaved change is not followed**: the follower reads the pipeline as
+  kept.
+
+Spec: [A pipeline that follows its topics](../decisions/2026-11-08-pipeline-following-design.md)

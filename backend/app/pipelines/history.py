@@ -14,6 +14,8 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.jobs.models import Job, JobState
+from app.pipelines.follow import KIND as FOLLOWING
+from app.pipelines.follow import followings_of
 from app.pipelines.models import Pipeline
 from app.pipelines.runs import KEPT_RUNS, runs_of
 from app.pipelines.schedule import KEPT_NOTES, NoteKind, ScheduleNote
@@ -36,6 +38,8 @@ class HistoryRun(BaseModel):
     finished_at: datetime | None
     # Started by the schedule rather than by Run (D179).
     scheduled: bool
+    # A following rather than a run (D315).
+    following: bool = False
 
 
 class HistoryNote(BaseModel):
@@ -67,6 +71,7 @@ def _run(job: Job) -> HistoryRun:
         started_at=job.started_at or job.created_at,
         finished_at=job.finished_at,
         scheduled=_scheduled(job),
+        following=job.kind == FOLLOWING,
     )
 
 
@@ -75,7 +80,10 @@ def _when(row: HistoryRun | HistoryNote) -> datetime:
 
 
 async def history(session: AsyncSession, pipeline: Pipeline) -> PipelineHistory:
-    jobs = (await session.exec(runs_of(pipeline).limit(KEPT_RUNS))).all()
+    jobs = [
+        *(await session.exec(runs_of(pipeline).limit(KEPT_RUNS))).all(),
+        *(await session.exec(followings_of(pipeline).limit(KEPT_RUNS))).all(),
+    ]
     notes = (
         await session.exec(
             select(ScheduleNote)

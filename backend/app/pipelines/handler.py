@@ -50,13 +50,34 @@ _LOST_ACCESS: dict[Access, str] = {
 }
 
 
-class _StepFailed(Exception):
+class StepFailed(Exception):
     def __init__(self, message: str) -> None:
         super().__init__(message)
         self.message = message
 
 
-def _said(refused: HTTPException) -> str:
+
+async def open_end(
+    session: AsyncSession,
+    owner: User,
+    resources: ResourceStore | None,
+    connector_id: uuid.UUID,
+    requires: Access,
+    name: str,
+) -> DataAdapter:
+    """One end, through the one door to a source, said by its name."""
+    try:
+        return await adapter_for(session, connector_id, owner, resources, requires=requires)
+    except HTTPException as refused:
+        if refused.status_code == 403:
+            raise StepFailed(say(_LOST_ACCESS[requires], name=name)) from None
+        wording = _REFUSED.get(refused.status_code, _CANNOT_OPEN)
+        raise StepFailed(say(wording, name=name)) from None
+    except (ValueError, AdapterError):
+        raise StepFailed(say(_CANNOT_OPEN, name=name)) from None
+
+
+def said_of(refused: HTTPException) -> str:
     detail = refused.detail
     if isinstance(detail, dict) and isinstance(detail.get("message"), str):
         return str(detail["message"])
@@ -85,6 +106,8 @@ class RunPipeline:
         at = 0
         try:
             for at, step in enumerate(record.steps):
+                if step.outcome == "not_run":
+                    continue
                 unmade = _fed(record, step)
                 if unmade is not None:
                     # Never what an earlier run left under that name.
@@ -98,7 +121,7 @@ class RunPipeline:
                 await _kept(job, record, progress, RUNNING)
                 try:
                     message = await self._carried(job, record, step, progress)
-                except _StepFailed as failed:
+                except StepFailed as failed:
                     step.outcome, step.finished_at = "failed", _now()
                     step.message = clipped(failed.message, STEP_SAYS)
                     record.not_run_after(at)
@@ -126,12 +149,12 @@ class RunPipeline:
     async def _carried(
         self, job: Job, record: RunRecord, step: RunStep, progress: Progress
     ) -> str:
-        """Carry one step out; its sentence, or `_StepFailed` with why not."""
+        """Carry one step out; its sentence, or `StepFailed` with why not."""
         kind = kind_named(step.paste.kind)
         async with async_session_maker() as session:
             owner = await session.get(User, job.owner_id)
             if owner is None:
-                raise _StepFailed(say("Its owner is no longer here"))
+                raise StepFailed(say("Its owner is no longer here"))
             source = await self._end(
                 session, owner, step.paste.source_connector_id, kind.source_requires,
                 step.source_connection,
@@ -141,7 +164,7 @@ class RunPipeline:
                 step.destination_connection,
             )
             if not kind.serves(source, destination):
-                raise _StepFailed(
+                raise StepFailed(
                     say("{kind} is not possible between these connections", kind=say(kind.title))
                 )
             if isinstance(kind, PastesAsJob):
@@ -152,7 +175,7 @@ class RunPipeline:
                             step.paste,
                         )
                 except HTTPException as refused:
-                    raise _StepFailed(_said(refused)) from None
+                    raise StepFailed(said_of(refused)) from None
         if isinstance(kind, PastesAsJob) and step.transfer is not None:
             transfer = step.transfer
             keeper = _StepKeeper(job, record, progress)
@@ -163,7 +186,7 @@ class RunPipeline:
                 )
             message = kind.told(transfer, stopped)
             if stopped is not None or any(item.outcome != "done" for item in transfer.items):
-                raise _StepFailed(message)
+                raise StepFailed(message)
             # One node on the clipboard, one item: what it arrived as. A kind
             # that writes into a table makes nothing (D178).
             if kind.makes:
@@ -176,11 +199,11 @@ class RunPipeline:
                     self._cache, kind, source, destination, step.destination_connector_id, step.paste
                 )
             except HTTPException as refused:
-                raise _StepFailed(_said(refused)) from None
+                raise StepFailed(said_of(refused)) from None
             if result.made_node_id is not None:
                 step.made, step.made_name = result.made_node_id, result.name
             return result.message
-        raise _StepFailed(say("{kind} cannot run", kind=say(kind.title)))
+        raise StepFailed(say("{kind} cannot run", kind=say(kind.title)))
 
     async def _end(
         self,
@@ -191,15 +214,7 @@ class RunPipeline:
         name: str,
     ) -> DataAdapter:
         """One end, through the one door to a source, said by its name."""
-        try:
-            return await adapter_for(session, connector_id, owner, self._resources, requires=requires)
-        except HTTPException as refused:
-            if refused.status_code == 403:
-                raise _StepFailed(say(_LOST_ACCESS[requires], name=name)) from None
-            wording = _REFUSED.get(refused.status_code, _CANNOT_OPEN)
-            raise _StepFailed(say(wording, name=name)) from None
-        except (ValueError, AdapterError):
-            raise _StepFailed(say(_CANNOT_OPEN, name=name)) from None
+        return await open_end(session, owner, self._resources, connector_id, requires, name)
 
 
 class _StepKeeper:
@@ -274,5 +289,8 @@ async def _abandoned(job_id: uuid.UUID, record: RunRecord) -> None:
 def handlers(
     cache: DataCache, resources: ResourceStore | None, transfers: RunTransfer
 ) -> dict[str, JobHandler]:
+    from app.pipelines.follow import FollowPipeline  # the follower imports this module
+
     handler: JobHandler = RunPipeline(cache, resources, transfers)
-    return {handler.kind: handler}
+    follower: JobHandler = FollowPipeline(cache, resources)
+    return {handler.kind: handler, follower.kind: follower}

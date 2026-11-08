@@ -54,6 +54,7 @@ export const activity: Messages["activity"] = {
     paste_transfer: "Übertragung",
     pipeline_run: "Pipeline-Ausführung",
     search_contents: "In Dateien suchen",
+    pipeline_follow: "Pipeline folgt",
   },
   status: {
     queued: "In der Warteschlange",
@@ -65,6 +66,10 @@ export const activity: Messages["activity"] = {
     failed: "Fehlgeschlagen",
     cancelled: "Gestoppt",
     interrupted: "Unterbrochen",
+  },
+  following: {
+    failing: "{name}: {link} schlägt immer wieder fehl",
+    failing_detail: "Fehlschläge in Folge: {count}. {reason}",
   },
   rows: {
     pipeline_title: "Pipeline {name}",
@@ -79,6 +84,9 @@ export const activity: Messages["activity"] = {
     job_hint: "Ein Abbruch behält abgeschlossene Änderungen. Dieser Auftrag unterstützt kein Anhalten.",
     pipeline_hint: "Stoppt die gerade laufende Verknüpfung; die nachfolgenden Verknüpfungen werden nicht ausgeführt.",
     contents_hint: "Stoppt die Suche; was bisher gefunden wurde, bleibt erhalten.",
+    following_label: "{name} · folgt · Verknüpfungen: {count}",
+    following_carried: "Übertragene Nachrichten: {count}",
+    following_hint: "Beendet das Folgen; der Schalter im Kopf der Pipeline geht aus.",
   },
   pipeline: {
     at: "{at} von {total}",

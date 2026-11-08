@@ -44,6 +44,7 @@ JobKind = Literal[
     "paste.transfer",
     # Every link of a pipeline, one after another (D177).
     "pipeline.run",
+    "pipeline.follow",
     # Words looked for inside the files of chosen connections (S7). Its words
     # and matches are held in memory and never written here.
     "search.contents",

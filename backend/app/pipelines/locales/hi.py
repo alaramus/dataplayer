@@ -52,4 +52,10 @@ MESSAGES: dict[str, str] = {
     "Pipeline": "पाइपलाइन",
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · \"{title}\" के लिए कुंजी और मान चुनना आवश्यक है",
+    # A pipeline following its topics (D315).
+    "Followed; not run": "फ़ॉलो हो रहा है; नहीं चला",
+    "Followed; {count} messages carried": "फ़ॉलो किया; पहुँचाए गए संदेश: {count}",
+    "Only a link reading a topic follows it": "केवल टॉपिक पढ़ने वाला लिंक ही उसे फ़ॉलो कर सकता है",
+    "This following could not be read": "यह फ़ॉलो पढ़ा नहीं जा सका",
+    "following its topics": "अपने टॉपिक फ़ॉलो कर रहा है",
 }

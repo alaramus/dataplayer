@@ -134,6 +134,17 @@ export const pipelines: Messages["pipelines"] = {
       replace: "替换",
     },
   },
+  follow: {
+    mark: "跟随",
+    start_tooltip: "跟随：在几秒内传送到达的内容",
+    stop_tooltip: "正在跟随；点击停止",
+    none_tooltip: "请先在链接面板中勾选跟随",
+    switch_failed: "无法切换跟随",
+    waiting: "跟随中：暂无新内容",
+    carried: "跟随中：已传送消息：{count}",
+    carried_at: "跟随中：已传送消息：{count}，最后一条于 {at}",
+    retrying: "正在重试（连续失败：{count}）：{reason}",
+  },
   keyed: {
     title: "键和值",
     subtitle: "每一行都保存为一个单独的键，并替换该键原有的内容",
@@ -197,6 +208,7 @@ export const pipelines: Messages["pipelines"] = {
     so_far: "迄今 {time}",
     took: "耗时 {time}",
     showing: "正在显示 {when} 的运行",
+    following: "跟随",
   },
   when: {
     months: {

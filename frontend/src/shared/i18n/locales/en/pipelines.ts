@@ -132,6 +132,17 @@ export const pipelines = {
       replace: "Replace it",
     },
   },
+  follow: {
+    mark: "Follow",
+    start_tooltip: "Follow: carry what arrives within seconds",
+    stop_tooltip: "Following; press to stop",
+    none_tooltip: "Mark a link to follow in its panel first",
+    switch_failed: "Following could not be switched",
+    waiting: "Following: nothing new yet",
+    carried: "Following: messages carried: {count}",
+    carried_at: "Following: messages carried: {count}, the last at {at}",
+    retrying: "Trying again (failures in a row: {count}): {reason}",
+  },
   keyed: {
     title: "Key and values",
     subtitle: "Each row is kept as a key of its own, replacing what the key held",
@@ -195,6 +206,7 @@ export const pipelines = {
     so_far: "{time} so far",
     took: "took {time}",
     showing: "Showing the run of {when}",
+    following: "following",
   },
   when: {
     months: {

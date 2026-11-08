@@ -134,6 +134,17 @@ export const pipelines: Messages["pipelines"] = {
       replace: "Ersetzen",
     },
   },
+  follow: {
+    mark: "Folgen",
+    start_tooltip: "Folgen: Angekommenes binnen Sekunden übertragen",
+    stop_tooltip: "Folgt; zum Beenden drücken",
+    none_tooltip: "Markieren Sie zuerst eine Verknüpfung zum Folgen in ihrem Bereich",
+    switch_failed: "Folgen ließ sich nicht umschalten",
+    waiting: "Folgt: noch nichts Neues",
+    carried: "Folgt: übertragene Nachrichten: {count}",
+    carried_at: "Folgt: übertragene Nachrichten: {count}, die letzte um {at}",
+    retrying: "Neuer Versuch (Fehlschläge in Folge: {count}): {reason}",
+  },
   keyed: {
     title: "Schlüssel und Werte",
     subtitle: "Jede Zeile wird als eigener Schlüssel gehalten und ersetzt, was er hielt",
@@ -197,6 +208,7 @@ export const pipelines: Messages["pipelines"] = {
     so_far: "{time} bisher",
     took: "dauerte {time}",
     showing: "Ausführung von {when} wird angezeigt",
+    following: "Folgen",
   },
   when: {
     months: {

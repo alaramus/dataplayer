@@ -2,15 +2,16 @@
 import { useQuery } from "@tanstack/vue-query"
 import { computed, ref, watch } from "vue"
 
-import type { ColumnPair, KeyedChoice, Link, LinkEnd, LinkPlace, LinkRun, NewRelationColumn, PasteColumn, PipelineRunPublic } from "@/client"
+import type { ColumnPair, FollowedLinkPublic, KeyedChoice, Link, LinkEnd, LinkPlace, LinkRun, NewRelationColumn, PasteColumn, PipelineRunPublic } from "@/client"
 import CreateTableDialog from "@/features/grid/CreateTableDialog.vue"
 import ImportDialog from "@/features/grid/ImportDialog.vue"
 import { messageOf } from "@/shared/api/errors"
 import { useNow } from "@/shared/freshness/useNow"
 import { t } from "@/shared/i18n"
-import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, appIcons } from "@/shared/ui"
+import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, AppToggle, appIcons } from "@/shared/ui"
 
 import { linkOffersKey, readLinkOffers } from "./api"
+import { followWords } from "./follow"
 import KeyedWindow from "./KeyedWindow.vue"
 import type { LinkSide } from "./api"
 import { CONFLICT_CHOICES, needsDialog, runWords, sentence, usable, withOffer } from "./links"
@@ -46,6 +47,9 @@ const props = defineProps<{
   autoOpen?: boolean
   /** The consumer group a link reading on reads as (D312), once the server has named it. */
   reader?: string | null
+  /** Whether the pipeline follows its topics, and what this link did while it does (D315). */
+  followOn?: boolean
+  followed?: FollowedLinkPublic
 }>()
 
 const emit = defineEmits<{
@@ -225,6 +229,13 @@ const columnsWord = computed(() => {
         data-testid="link-panel-conflict"
         @update:model-value="emit('change', { ...link, conflict: $event as Link['conflict'] })"
       />
+      <AppToggle
+        v-if="readsOn"
+        :model-value="link.follow === true"
+        :label="t('pipelines.follow.mark')"
+        data-testid="link-panel-follow"
+        @update:model-value="emit('change', { ...link, follow: $event })"
+      />
       <AppSelect
         v-if="readsOn"
         class="link-panel__field"
@@ -263,6 +274,14 @@ const columnsWord = computed(() => {
       </template>
     </div>
 
+    <p
+      v-if="followOn && link.follow"
+      class="link-panel__result"
+      :class="{ 'link-panel__result--failed': followed?.state === 'retrying' }"
+      data-testid="link-panel-following"
+    >
+      {{ followWords(followed, (iso) => new Date(iso).toLocaleTimeString()) }}
+    </p>
     <p
       v-if="readsOn"
       class="link-panel__result"

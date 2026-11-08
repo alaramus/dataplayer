@@ -54,6 +54,7 @@ export const activity: Messages["activity"] = {
     paste_transfer: "Transferencia",
     pipeline_run: "Ejecución de flujo",
     search_contents: "Buscar dentro de archivos",
+    pipeline_follow: "Seguimiento del pipeline",
   },
   status: {
     queued: "En cola",
@@ -65,6 +66,10 @@ export const activity: Messages["activity"] = {
     failed: "Fallido",
     cancelled: "Detenido",
     interrupted: "Interrumpido",
+  },
+  following: {
+    failing: "{name}: {link} sigue fallando",
+    failing_detail: "Fallos seguidos: {count}. {reason}",
   },
   rows: {
     pipeline_title: "Flujo {name}",
@@ -79,6 +84,9 @@ export const activity: Messages["activity"] = {
     job_hint: "Cancelar conserva los cambios completados. Esta tarea no admite pausa.",
     pipeline_hint: "Detiene el enlace que se ejecuta ahora; los enlaces posteriores no se ejecutan.",
     contents_hint: "Detiene la búsqueda; lo encontrado hasta ahora se conserva.",
+    following_label: "{name} · siguiendo · enlaces: {count}",
+    following_carried: "Mensajes llevados: {count}",
+    following_hint: "Detiene el seguimiento; el interruptor en la cabecera del pipeline se apaga.",
   },
   pipeline: {
     at: "{at} de {total}",

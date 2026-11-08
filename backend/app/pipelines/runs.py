@@ -30,6 +30,7 @@ from app.pipelines.models import (
     LinkEnd,
     Pipeline,
     PipelineContent,
+    PipelineFollow,
     reader_of,
 )
 from app.pipelines.order import ordered
@@ -104,7 +105,7 @@ def _named(card: Card, end: LinkEnd, foresight: Foresight) -> str:
     return f"{card.connector_name} · {row.label if row is not None else end.node_id}"
 
 
-def _step(content: PipelineContent, link: Link, foresight: Foresight) -> RunStep:
+def link_step(content: PipelineContent, link: Link, foresight: Foresight) -> RunStep:
     source = content.card(link.source.card_id)
     target = content.card(link.target.card_id)
     # Validated with the content; said again for the types.
@@ -175,8 +176,16 @@ async def start_run(
         pipeline_id=pipeline.id,
         pipeline_name=pipeline.name,
         scheduled_for=scheduled_for,
-        steps=[_step(content, placed.link, foresight) for placed in order],
+        steps=[link_step(content, placed.link, foresight) for placed in order],
     )
+    follow = await session.get(PipelineFollow, pipeline.id)
+    if follow is not None and follow.on:
+        # Two readers of one group would race over its positions (D315).
+        followed = {link.id for link in content.links if link.follow}
+        for step in record.steps:
+            if step.link_id in followed:
+                step.outcome = "not_run"
+                step.message = say("Followed; not run")
     try:
         job = await job_crud.admit_within(
             session,

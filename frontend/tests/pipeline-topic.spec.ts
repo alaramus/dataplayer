@@ -307,3 +307,84 @@ test("keeps the latest value of each message key as Redis keys (D314)", async ({
   await deleteConnector(page, cache)
   await deleteConnector(page, broker)
 })
+
+test("follows a topic: a message sent appears in its table without pressing Run (D315)", async ({ page }) => {
+  await requireE2EService("kafka")
+  const stamp = Date.now()
+  const database = `e2e-follow-db-${stamp}`
+  const broker = `e2e-follow-kafka-${stamp}`
+  const topic = `e2e.followed.${stamp}`
+  const table = `e2e_followed_${stamp}`
+  await login(page)
+  const api = await signedApi(page)
+  const made = await page.request.post(`${api.base}/connectors/`, {
+    headers: api.headers,
+    data: { name: broker, adapter_type: "kafka", options: { bootstrap_servers: "kafka:9092", auth_method: "none" } },
+  })
+  expect(made.ok(), await made.text()).toBeTruthy()
+  const kafka = ((await made.json()) as { id: string }).id
+  const topicMade = await page.request.post(`${api.base}/connectors/${kafka}/actions/new_topic`, {
+    headers: api.headers,
+    data: { node_id: "topics", params: { name: topic, partitions: 1, settings: "" } },
+  })
+  expect(topicMade.ok(), await topicMade.text()).toBeTruthy()
+  await send(page, api, kafka, topic, [1, 2])
+  await createPostgresConnector(page, database)
+  const postgres = await connectorId(page, api, database)
+  await sql(page, api, postgres, `CREATE TABLE public.${table} (value text)`)
+
+  await page.getByTestId("space-pipelines").click()
+  const first = page.getByTestId("pipeline-create-first")
+  await expect(first.or(page.getByTestId("pipeline-new"))).toBeVisible()
+  if (await first.isVisible()) await first.click()
+  else await page.getByTestId("pipeline-new").click()
+  await expect(page.getByTestId("pipeline-view")).toBeVisible()
+  const rail = page.getByTestId("pipelines-rail")
+  const picker = page.getByTestId("card-picker")
+  await rail.getByTestId(`connector-${broker}`).click()
+  await picker.getByTestId("catalog-node-Topics").click()
+  await picker.getByTestId(`catalog-check-${topic}`).click()
+  await picker.getByTestId("card-picker-done").click()
+  await rail.getByTestId(`connector-${database}`).click()
+  await picker.getByTestId("catalog-node-public").click()
+  await picker.getByTestId(`catalog-check-${table}`).click()
+  await picker.getByTestId("card-picker-done").click()
+
+  await drawLink(page, row(page, topic), row(page, table))
+  const panel = page.getByTestId("link-panel")
+  const pairing = page.getByTestId("grid-import-dialog")
+  await expect(pairing).toBeVisible()
+  await pairing.getByTestId("grid-import-pair-value").click()
+  await page.getByRole("option", { name: "value", exact: true }).click()
+  await pairing.getByTestId("grid-import-run").click()
+  await expect(pairing).toHaveCount(0)
+
+  // The head's Follow is off until a link is marked; the mark is in the panel.
+  const follow = page.getByTestId("pipeline-follow")
+  await expect(follow).toBeDisabled()
+  await panel.getByTestId("link-panel-follow").click()
+  await expect(follow).toBeEnabled()
+  await follow.click()
+  const following = panel.getByTestId("link-panel-following")
+  await expect(following).toContainText("messages carried: 2", { timeout: 30_000 })
+  await expect(page.locator('[data-testid^="graph-edge-label-"]', { hasText: "↻" })).toHaveCount(1)
+
+  // Sent now, and carried without Run.
+  await send(page, api, kafka, topic, [3])
+  await expect(following).toContainText("messages carried: 3", { timeout: 30_000 })
+  await page.screenshot({ path: "test-results/pipeline-follow.png" })
+
+  await follow.click()
+  await expect(following).toHaveCount(0)
+
+  await page.getByTestId("pipeline-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await sql(page, api, postgres, `DROP TABLE public.${table}`)
+  await page.request.post(`${api.base}/connectors/${kafka}/actions/delete_topic`, {
+    headers: api.headers,
+    data: { node_id: `topic:${topic}`, params: {} },
+  })
+  await page.getByTestId("space-data").click()
+  await deleteConnector(page, database)
+  await deleteConnector(page, broker)
+})

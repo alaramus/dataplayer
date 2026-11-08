@@ -134,6 +134,17 @@ export const pipelines: Messages["pipelines"] = {
       replace: "बदलें",
     },
   },
+  follow: {
+    mark: "फ़ॉलो करें",
+    start_tooltip: "फ़ॉलो करें: जो आए उसे कुछ सेकंड में पहुँचाएँ",
+    stop_tooltip: "फ़ॉलो कर रहा है; रोकने के लिए दबाएँ",
+    none_tooltip: "पहले किसी लिंक के पैनल में फ़ॉलो चुनें",
+    switch_failed: "फ़ॉलो करना बदला नहीं जा सका",
+    waiting: "फ़ॉलो कर रहा है: अभी कुछ नया नहीं",
+    carried: "फ़ॉलो कर रहा है: पहुँचाए गए संदेश: {count}",
+    carried_at: "फ़ॉलो कर रहा है: पहुँचाए गए संदेश: {count}, अंतिम {at} पर",
+    retrying: "फिर से प्रयास (लगातार विफलताएँ: {count}): {reason}",
+  },
   keyed: {
     title: "कुंजी और मान",
     subtitle: "हर पंक्ति अपनी अलग कुंजी के रूप में रखी जाती है और उसमें जो था उसे बदल देती है",
@@ -197,6 +208,7 @@ export const pipelines: Messages["pipelines"] = {
     so_far: "अब तक {time}",
     took: "{time} लगे",
     showing: "{when} का रन दिखाया जा रहा है",
+    following: "फ़ॉलो",
   },
   when: {
     months: {

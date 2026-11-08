@@ -492,6 +492,9 @@ import type {
   pipelinesReadCardStateData,
   pipelinesReadCardStateErrors,
   pipelinesReadCardStateResponses,
+  pipelinesReadFollowData,
+  pipelinesReadFollowErrors,
+  pipelinesReadFollowResponses,
   pipelinesReadHintData,
   pipelinesReadHintErrors,
   pipelinesReadHintResponses,
@@ -525,6 +528,9 @@ import type {
   pipelinesSetScheduleData,
   pipelinesSetScheduleErrors,
   pipelinesSetScheduleResponses,
+  pipelinesSwitchFollowData,
+  pipelinesSwitchFollowErrors,
+  pipelinesSwitchFollowResponses,
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
@@ -4341,6 +4347,51 @@ export class PipelinesService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/pipelines/{pipeline_id}/cards/{card_id}/state",
       ...options,
+    })
+  }
+
+  /**
+   * Read Follow
+   *
+   * Whether the pipeline follows its topics, and what its newest following
+   * carried link by link (D315).
+   */
+  public static readFollow<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadFollowData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      pipelinesReadFollowResponses,
+      pipelinesReadFollowErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/follow",
+      ...options,
+    })
+  }
+
+  /**
+   * Switch Follow
+   *
+   * Following switched on, its follower started; or off, its follower stopped.
+   */
+  public static switchFollow<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesSwitchFollowData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      pipelinesSwitchFollowResponses,
+      pipelinesSwitchFollowErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/follow",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 

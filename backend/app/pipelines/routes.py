@@ -24,6 +24,7 @@ from app.core.translation import say
 from app.jobs import crud as job_crud
 from app.jobs.runner import JobRunnerDep
 from app.pipelines.check import card_state
+from app.pipelines.follow import FollowState, FollowSwitch, follow_state, switch
 from app.pipelines.hint import Hint, HintRequest, hint
 from app.pipelines.history import PipelineHistory, history
 from app.pipelines.models import (
@@ -204,6 +205,28 @@ async def read_card_state(
     if card is None:
         raise Problem(404, "pipelines.card_not_found")
     return await card_state(session, current_user, resources, card)
+
+
+@router.get("/{pipeline_id}/follow", response_model=FollowState)
+async def read_follow(session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID) -> Any:
+    """Whether the pipeline follows its topics, and what its newest following
+    carried link by link (D315)."""
+    pipeline = await _owned(session, current_user, pipeline_id)
+    return await follow_state(session, pipeline)
+
+
+@router.put("/{pipeline_id}/follow", response_model=FollowState)
+async def switch_follow(
+    session: SessionDep,
+    current_user: CurrentUser,
+    runner: JobRunnerDep,
+    topics: TopicsDep,
+    pipeline_id: uuid.UUID,
+    body: FollowSwitch,
+) -> Any:
+    """Following switched on, its follower started; or off, its follower stopped."""
+    pipeline, content = await _content(session, current_user, pipeline_id)
+    return await switch(session, current_user, runner, topics, pipeline, content, body.on)
 
 
 @router.get("/{pipeline_id}/run", response_model=LastRun)

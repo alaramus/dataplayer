@@ -56,11 +56,18 @@ const TONES: Record<LinkRun["outcome"], GraphEdgeTone | undefined> = {
  * caution colour where a circle was broken at it, and coloured by what it did
  * in the run shown — the last, or one pressed in the history (D180).
  */
-export function linkEdge(link: Link, place?: LinkPlace, run?: LinkRun): GraphEdge {
+export function linkEdge(
+  link: Link, place?: LinkPlace, run?: LinkRun, following?: GraphEdgeTone | null
+): GraphEdge {
+  // A followed link is marked before its title (D315).
+  const label = link.follow === true ? `${FOLLOW_MARK} ${link.title}` : link.title
   const edge: GraphEdge = {
-    id: link.id, source: endpoint(link.source), target: endpoint(link.target), label: link.title, directed: true,
+    id: link.id, source: endpoint(link.source), target: endpoint(link.target), label, directed: true,
   }
-  const tone = run === undefined ? undefined : TONES[run.outcome]
+  // While its pipeline follows, a followed link's line says what it does now.
+  const tone = following !== undefined
+    ? following ?? undefined
+    : run === undefined ? undefined : TONES[run.outcome]
   return {
     ...edge,
     ...(place === undefined ? {} : { badge: String(place.number) }),
@@ -68,6 +75,9 @@ export function linkEdge(link: Link, place?: LinkPlace, run?: LinkRun): GraphEdg
     ...(tone === undefined ? {} : { tone }),
   }
 }
+
+/** The sign a followed link carries before its title. */
+export const FOLLOW_MARK = "↻"
 
 export const HINT_PREFIX = "hint:"
 

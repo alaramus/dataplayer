@@ -22,6 +22,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings as app_settings
 from app.core.db import async_session_maker
 from app.jobs.runner import JobRunner
+from app.pipelines.follow import ensure_followers
 from app.pipelines.models import Pipeline, PipelineContent, content_of
 from app.pipelines.runs import start_run
 from app.pipelines.schedule import (
@@ -158,6 +159,7 @@ class Scheduler:
         while True:
             try:
                 await self.tick()
+                await ensure_followers(self._runner, self._topics)
             except asyncio.CancelledError:
                 raise
             except Exception:

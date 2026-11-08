@@ -134,6 +134,17 @@ export const pipelines: Messages["pipelines"] = {
       replace: "Remplacer",
     },
   },
+  follow: {
+    mark: "Suivre",
+    start_tooltip: "Suivre : transporter ce qui arrive en quelques secondes",
+    stop_tooltip: "Suivi en cours ; appuyez pour arrêter",
+    none_tooltip: "Cochez d'abord « Suivre » dans le panneau d'un lien",
+    switch_failed: "Impossible de basculer le suivi",
+    waiting: "Suivi : rien de nouveau pour l'instant",
+    carried: "Suivi : messages transportés : {count}",
+    carried_at: "Suivi : messages transportés : {count}, le dernier à {at}",
+    retrying: "Nouvel essai (échecs consécutifs : {count}) : {reason}",
+  },
   keyed: {
     title: "Clé et valeurs",
     subtitle: "Chaque ligne est gardée comme une clé à part, qui remplace ce qu'elle contenait",
@@ -197,6 +208,7 @@ export const pipelines: Messages["pipelines"] = {
     so_far: "{time} jusqu'ici",
     took: "a pris {time}",
     showing: "Affichage de l'exécution de {when}",
+    following: "suivi",
   },
   when: {
     months: {

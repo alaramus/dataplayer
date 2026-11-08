@@ -5474,6 +5474,74 @@ export type FollowRequest = {
 }
 
 /**
+ * FollowState
+ *
+ * Whether the pipeline follows, and what its newest following did.
+ */
+export type FollowState = {
+  /**
+   * On
+   */
+  on: boolean
+  /**
+   * Job Id
+   */
+  job_id?: string | null
+  /**
+   * Running
+   */
+  running?: boolean
+  /**
+   * Started At
+   */
+  started_at?: string | null
+  /**
+   * Links
+   */
+  links?: Array<FollowedLinkPublic>
+}
+
+/**
+ * FollowSwitch
+ */
+export type FollowSwitch = {
+  /**
+   * On
+   */
+  on: boolean
+}
+
+/**
+ * FollowedLinkPublic
+ */
+export type FollowedLinkPublic = {
+  /**
+   * Link Id
+   */
+  link_id: string
+  /**
+   * Carried
+   */
+  carried: number
+  /**
+   * Last At
+   */
+  last_at: string | null
+  /**
+   * Failures
+   */
+  failures: number
+  /**
+   * Last Error
+   */
+  last_error: string | null
+  /**
+   * State
+   */
+  state: "idle" | "carrying" | "retrying"
+}
+
+/**
  * ForeignKey
  */
 export type ForeignKey = {
@@ -5950,6 +6018,10 @@ export type HistoryRun = {
    * Scheduled
    */
   scheduled: boolean
+  /**
+   * Following
+   */
+  following?: boolean
 }
 
 /**
@@ -6884,6 +6956,7 @@ export type JobPublic = {
     | "metrics.store.create"
     | "paste.transfer"
     | "pipeline.run"
+    | "pipeline.follow"
     | "search.contents"
   /**
    * Subject Id
@@ -7526,6 +7599,10 @@ export type Link = {
    */
   start?: "earliest" | "latest"
   by_key?: KeyedChoice | null
+  /**
+   * Follow
+   */
+  follow?: boolean
 }
 
 /**
@@ -10098,6 +10175,9 @@ export type ProblemDetail = {
     | "pipelines.running"
     | "pipelines.too_many_running"
     | "pipelines.run_not_found"
+    | "pipelines.nothing_followed"
+    | "pipelines.too_many_following"
+    | "pipelines.following_server_full"
     | "shares.link_outdated"
     | "shares.request_not_found"
     | "shares.link_not_found"
@@ -20273,6 +20353,69 @@ export type pipelinesReadCardStateResponses = {
 
 export type pipelinesReadCardStateResponse =
   pipelinesReadCardStateResponses[keyof pipelinesReadCardStateResponses]
+
+export type pipelinesReadFollowData = {
+  body?: never
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/follow"
+}
+
+export type pipelinesReadFollowErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type pipelinesReadFollowError = pipelinesReadFollowErrors[keyof pipelinesReadFollowErrors]
+
+export type pipelinesReadFollowResponses = {
+  /**
+   * Successful Response
+   */
+  200: FollowState
+}
+
+export type pipelinesReadFollowResponse =
+  pipelinesReadFollowResponses[keyof pipelinesReadFollowResponses]
+
+export type pipelinesSwitchFollowData = {
+  body: FollowSwitch
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/follow"
+}
+
+export type pipelinesSwitchFollowErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type pipelinesSwitchFollowError =
+  pipelinesSwitchFollowErrors[keyof pipelinesSwitchFollowErrors]
+
+export type pipelinesSwitchFollowResponses = {
+  /**
+   * Successful Response
+   */
+  200: FollowState
+}
+
+export type pipelinesSwitchFollowResponse =
+  pipelinesSwitchFollowResponses[keyof pipelinesSwitchFollowResponses]
 
 export type pipelinesReadLastRunData = {
   body?: never

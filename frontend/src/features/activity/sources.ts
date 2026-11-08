@@ -9,6 +9,7 @@ import { useAccessAttention } from "@/features/shares/attention"
 import { ranked } from "@/shared/notifications"
 import type { AttentionItem } from "@/shared/notifications"
 import { outstandingJobs } from "./attention"
+import { followingAttention } from "./following"
 import type { JobDescription } from "./attention"
 import type { DismissedJobs } from "./dismissed"
 
@@ -38,6 +39,7 @@ export function useAttention(
   const sources = [
     useAccessAttention(handlers.answerAccess),
     outstandingJobs(jobs, describeJob, dismissed.ids, dismissed.dismiss),
+    followingAttention(jobs),
     useHealthAttention(handlers.openConnection),
     useRestartAttention(),
     useAiAttention(),

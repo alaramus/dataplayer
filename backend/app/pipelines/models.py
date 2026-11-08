@@ -134,6 +134,8 @@ class Link(_Strict):
     start: ReadStart = "earliest"
     # What a link keeping the latest per key writes (D314).
     by_key: KeyedChoice | None = None
+    # Carried as messages arrive while the pipeline follows (D315).
+    follow: bool = False
 
     @field_validator("kind")
     @classmethod
@@ -141,6 +143,12 @@ class Link(_Strict):
         if not kind_named(kind).pipelines:
             raise ValueError(f"{kind_named(kind).title} is run from the catalog, not by a link")
         return kind
+
+    @model_validator(mode="after")
+    def follows_only_what_reads_on(self) -> Self:
+        if self.follow and self.kind not in {kind.name for kind in LINK_ONLY}:
+            raise ValueError("Only a link reading a topic on can follow it")
+        return self
 
 
 class PipelineContent(_Strict):
@@ -246,6 +254,18 @@ class Pipeline(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
+        default_factory=get_datetime_utc,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+class PipelineFollow(SQLModel, table=True):
+    """Whether a pipeline follows its topics (D315): kept beside it, as its
+    schedule is, so a restart starts a follower from it."""
+
+    pipeline_id: uuid.UUID = Field(foreign_key="pipeline.id", primary_key=True, ondelete="CASCADE")
+    on: bool = Field(default=False, index=True)
+    changed_at: datetime = Field(
         default_factory=get_datetime_utc,
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )

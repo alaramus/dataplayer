@@ -52,4 +52,10 @@ MESSAGES: dict[str, str] = {
     "Pipeline": "Flujo",
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · «{title}» necesita que se elijan su clave y sus valores",
+    # A pipeline following its topics (D315).
+    "Followed; not run": "En seguimiento; no se ejecutó",
+    "Followed; {count} messages carried": "Seguimiento; mensajes llevados: {count}",
+    "Only a link reading a topic follows it": "Solo un enlace que lee un topic puede seguirlo",
+    "This following could not be read": "No se pudo leer este seguimiento",
+    "following its topics": "siguiendo sus topics",
 }

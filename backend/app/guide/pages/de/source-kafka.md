@@ -198,6 +198,12 @@ hinein, andere tragen das Angekommene in Tabellen.
 - **Das Neueste je Schlüssel behalten**, zu einer Redis-Datenbank oder einem
   Ordner gezogen, hält den neuesten Wert jedes Nachrichtenschlüssels als
   eigenen Schlüssel, auf Wunsch mit Lebensdauer; siehe die Redis-Seite.
+- **Folgen** im Bereich einer Verknüpfung und **Folgen** im Kopf der Pipeline
+  übertragen Angekommenes binnen Sekunden statt beim nächsten Lauf. Die
+  Pipeline schaut alle paar Sekunden nach, folgt nach einem Neustart des
+  Servers weiter, und Lauf und Zeitplan lassen eine verfolgte Verknüpfung
+  solange aus. Eine fehlschlagende Verknüpfung wird etwas später erneut
+  versucht, die anderen laufen weiter.
 - Nachrichten, die Kafka gelöscht hat, bevor die Verknüpfung sie las, werden
   im Ergebnis des Laufs gezählt.
 - Kafka vergisst die Positionen einer Gruppe nach einer Woche ohne

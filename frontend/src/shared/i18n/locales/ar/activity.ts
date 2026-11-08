@@ -54,6 +54,7 @@ export const activity: Messages["activity"] = {
     paste_transfer: "نقل",
     pipeline_run: "تشغيل خط أنابيب",
     search_contents: "البحث داخل الملفات",
+    pipeline_follow: "متابعة خط المعالجة",
   },
   status: {
     queued: "في قائمة الانتظار",
@@ -65,6 +66,10 @@ export const activity: Messages["activity"] = {
     failed: "فشل",
     cancelled: "متوقف",
     interrupted: "منقطع",
+  },
+  following: {
+    failing: "{name}: يستمر {link} في الإخفاق",
+    failing_detail: "إخفاقات متتالية: {count}. {reason}",
   },
   rows: {
     pipeline_title: "خط الأنابيب {name}",
@@ -79,6 +84,9 @@ export const activity: Messages["activity"] = {
     job_hint: "يحفظ الإلغاء التغييرات المكتملة. لا تدعم هذه المهمة الإيقاف المؤقت.",
     pipeline_hint: "يوقف الرابط الجاري الآن؛ ولا يتم تشغيل الروابط التي بعده.",
     contents_hint: "يوقف البحث؛ ويتم الاحتفاظ بما وجده حتى الآن.",
+    following_label: "{name} · قيد المتابعة · الروابط: {count}",
+    following_carried: "الرسائل المنقولة: {count}",
+    following_hint: "يوقف المتابعة؛ ويُطفأ المفتاح في رأس خط المعالجة.",
   },
   pipeline: {
     at: "{at} من {total}",

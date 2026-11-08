@@ -6,9 +6,10 @@ import type { MaybeRefOrGetter } from "vue"
 import { PipelinesService } from "@/client"
 import { jobsKey } from "@/features/activity/api"
 import type {
-  Card, LinkEnd, PipelinePublic, PipelineRunPublic, PipelineSave, PipelineSummary, ScheduleSettings,
+  Card, FollowState, LinkEnd, PipelinePublic, PipelineRunPublic, PipelineSave, PipelineSummary, ScheduleSettings,
 } from "@/client"
 
+import { FOLLOW_POLL_MS } from "./follow"
 import { isRunning } from "./links"
 import { checkedRowsKey } from "./model"
 
@@ -158,6 +159,23 @@ export function useSchedule(pipelineId: MaybeRefOrGetter<string>) {
     queryKey: computed(() => scheduleKey(toValue(pipelineId))),
     queryFn: async () => (await PipelinesService.readSchedule({ path: { pipeline_id: toValue(pipelineId) } })).data,
   })
+}
+
+export function followKey(pipelineId: string) {
+  return ["pipeline-follow", pipelineId] as const
+}
+
+/** Whether the pipeline follows its topics, asked again every few seconds while it does (D315). */
+export function useFollow(pipelineId: MaybeRefOrGetter<string>) {
+  return useQuery({
+    queryKey: computed(() => followKey(toValue(pipelineId))),
+    queryFn: async () => (await PipelinesService.readFollow({ path: { pipeline_id: toValue(pipelineId) } })).data,
+    refetchInterval: (query) => (query.state.data?.on === true ? FOLLOW_POLL_MS : false),
+  })
+}
+
+export async function switchFollow(pipelineId: string, on: boolean): Promise<FollowState> {
+  return (await PipelinesService.switchFollow({ path: { pipeline_id: pipelineId }, body: { on } })).data
 }
 
 export function useSaveSchedule() {

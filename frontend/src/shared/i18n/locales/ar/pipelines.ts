@@ -134,6 +134,17 @@ export const pipelines: Messages["pipelines"] = {
       replace: "استبداله",
     },
   },
+  follow: {
+    mark: "متابعة",
+    start_tooltip: "متابعة: نقل ما يصل خلال ثوانٍ",
+    stop_tooltip: "قيد المتابعة؛ اضغط للإيقاف",
+    none_tooltip: "حدّد أولًا رابطًا للمتابعة في لوحته",
+    switch_failed: "تعذّر تبديل المتابعة",
+    waiting: "قيد المتابعة: لا جديد بعد",
+    carried: "قيد المتابعة: الرسائل المنقولة: {count}",
+    carried_at: "قيد المتابعة: الرسائل المنقولة: {count}، آخرها في {at}",
+    retrying: "إعادة المحاولة (إخفاقات متتالية: {count}): {reason}",
+  },
   keyed: {
     title: "المفتاح والقيم",
     subtitle: "تُحفظ كل صف كمفتاح مستقل يحل محل ما كان فيه",
@@ -197,6 +208,7 @@ export const pipelines: Messages["pipelines"] = {
     so_far: "{time} حتى الآن",
     took: "استغرق {time}",
     showing: "عرض تشغيل {when}",
+    following: "متابعة",
   },
   when: {
     months: {

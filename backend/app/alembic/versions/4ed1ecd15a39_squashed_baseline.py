@@ -273,6 +273,14 @@ def upgrade():
     sa.PrimaryKeyConstraint('pipeline_id')
     )
     op.create_index(op.f('ix_pipelineschedule_next_at'), 'pipelineschedule', ['next_at'], unique=False)
+    op.create_table('pipelinefollow',
+    sa.Column('pipeline_id', sa.Uuid(), nullable=False),
+    sa.Column('on', sa.Boolean(), nullable=False),
+    sa.Column('changed_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['pipeline_id'], ['pipeline.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('pipeline_id')
+    )
+    op.create_index(op.f('ix_pipelinefollow_on'), 'pipelinefollow', ['on'], unique=False)
     op.create_table('querydocument',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('owner_id', sa.Uuid(), nullable=False),
@@ -632,6 +640,8 @@ def downgrade():
     op.drop_index(op.f('ix_querydocument_owner_id'), table_name='querydocument')
     op.drop_index(op.f('ix_querydocument_connector_id'), table_name='querydocument')
     op.drop_table('querydocument')
+    op.drop_index(op.f('ix_pipelinefollow_on'), table_name='pipelinefollow')
+    op.drop_table('pipelinefollow')
     op.drop_index(op.f('ix_pipelineschedule_next_at'), table_name='pipelineschedule')
     op.drop_table('pipelineschedule')
     op.drop_table('metricsconnector')

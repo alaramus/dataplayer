@@ -37,6 +37,9 @@ import {
   lastRunKey,
   linkOffersKey,
   scheduleKey,
+  followKey,
+  switchFollow,
+  useFollow,
   pipelineKey,
   readCardState,
   readHint,
@@ -54,6 +57,7 @@ import CardPickerWindow from "./CardPickerWindow.vue"
 import { shownWords } from "./history"
 import HistoryWindow from "./HistoryWindow.vue"
 import LinkPanel from "./LinkPanel.vue"
+import { followedLinks, followTone } from "./follow"
 import { nextRunWords, scheduleWords } from "./schedule"
 import ScheduleWindow from "./ScheduleWindow.vue"
 import {
@@ -127,6 +131,28 @@ const adapterTypes = useAdapterTypes()
 const lastRun = useLastRun(() => props.pipelineId)
 const timetable = useSchedule(() => props.pipelineId)
 const scheduling = ref(false)
+// Whether the pipeline follows its topics, and what each followed link did (D315).
+const following = useFollow(() => props.pipelineId)
+const followOn = computed(() => following.data.value?.on === true)
+const followed = computed(() => followedLinks(following.data.value))
+const switching = ref(false)
+const anyFollowed = computed(() => links.value.some((link) => link.follow === true))
+
+async function toggleFollow() {
+  if (switching.value) return
+  switching.value = true
+  try {
+    // What is followed is what is kept, so what is on the screen is kept first.
+    if (!followOn.value && !(await save())) return
+    const answer = await switchFollow(props.pipelineId, !followOn.value)
+    queryClient.setQueryData(followKey(props.pipelineId), answer)
+    if (answer.job_id) startedInThisTab(answer.job_id)
+  } catch (cause) {
+    toast.error(messageOf(cause, t("pipelines.follow.switch_failed")))
+  } finally {
+    switching.value = false
+  }
+}
 const now = useNow()
 // When it runs by itself next (D179); what came of the times before is the history's.
 const nextRun = computed(() =>
@@ -279,7 +305,14 @@ const results = computed(() => pipeline.data.value?.results ?? [])
 const readers = computed(() => new Map((pipeline.data.value?.readers ?? []).map((one) => [one.link_id, one.name])))
 const linkRuns = computed(() => new Map((shownRun.value?.links ?? []).map((run) => [run.link_id, run])))
 const edges = computed(() => [
-  ...links.value.map((link) => linkEdge(link, order.value.get(link.id), linkRuns.value.get(link.id))),
+  ...links.value.map((link) =>
+    linkEdge(
+      link,
+      order.value.get(link.id),
+      linkRuns.value.get(link.id),
+      followOn.value && link.follow === true ? followTone(followed.value.get(link.id)) ?? null : undefined
+    )
+  ),
   ...hintEdges(hints.value),
 ])
 const graph = computed(() =>
@@ -713,6 +746,15 @@ defineExpose({ place })
           <AppTooltip>{{ runBlocked ?? t('pipelines.view.run_hint') }}</AppTooltip>
         </span>
         <AppIconButton
+          :icon="appIcons.sensors"
+          :tooltip="followOn ? t('pipelines.follow.stop_tooltip') : anyFollowed ? t('pipelines.follow.start_tooltip') : t('pipelines.follow.none_tooltip')"
+          :active="followOn"
+          :loading="switching"
+          :disable="!followOn && !anyFollowed"
+          data-testid="pipeline-follow"
+          @click="toggleFollow"
+        />
+        <AppIconButton
           :icon="appIcons.schedule"
           :tooltip="t('pipelines.view.schedule_tooltip', { what: scheduleWords(timetable.data.value?.settings) })"
           :active="timetable.data.value?.settings?.enabled === true"
@@ -867,6 +909,8 @@ defineExpose({ place })
         :past="pastJobId !== null"
         :auto-open="autoOpenLinkId === selectedLink.id"
         :reader="readers.get(selectedLink.id) ?? null"
+        :follow-on="followOn"
+        :followed="followed.get(selectedLink.id)"
         @change="changeLink"
         @operate="operate"
         @remove="removeLink(selectedLink)"

@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     PIPELINE_MAX_ACTIVE: int = 3
     # How often the server looks for pipelines whose schedule has come (D179).
     SCHEDULE_TICK_SECONDS: int = 30
+    # Pipelines following their topics (D315): a person's, the server's, and
+    # how long a follower waits between looks.
+    PIPELINE_FOLLOW_MAX: int = 3
+    PIPELINE_FOLLOW_SERVER_MAX: int = 20
+    PIPELINE_FOLLOW_SECONDS: float = 2.0
     # How long converting a table with rows into a hypertable may run before it
     # is rolled back (D207). The table is locked against reads and writes for
     # all of it.

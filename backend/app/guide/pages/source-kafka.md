@@ -183,6 +183,11 @@ others carry what arrives into tables.
 - **Keep the latest per key**, drawn to a Redis database or folder, keeps
   each message key's newest value as a key of its own, with a time to live
   if you choose one; see the Redis page.
+- **Follow**, ticked in a link's panel, and **Follow** in the pipeline's head
+  carry what arrives within seconds rather than at the next run. The pipeline
+  looks every few seconds, keeps following after the server restarts, and Run
+  and the schedule leave a followed link out meanwhile. A link that fails is
+  tried again a little later while the others carry on.
 - Messages Kafka deleted before the link read them are counted in the run's
   result.
 - Kafka forgets a group's positions after a week without them being written,

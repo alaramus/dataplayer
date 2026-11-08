@@ -54,6 +54,7 @@ export const activity: Messages["activity"] = {
     paste_transfer: "Transfert",
     pipeline_run: "Exécution du pipeline",
     search_contents: "Rechercher dans les fichiers",
+    pipeline_follow: "Suivi du pipeline",
   },
   status: {
     queued: "En file d'attente",
@@ -65,6 +66,10 @@ export const activity: Messages["activity"] = {
     failed: "Échec",
     cancelled: "Arrêté",
     interrupted: "Interrompu",
+  },
+  following: {
+    failing: "{name} : {link} échoue sans cesse",
+    failing_detail: "Échecs consécutifs : {count}. {reason}",
   },
   rows: {
     pipeline_title: "Pipeline {name}",
@@ -79,6 +84,9 @@ export const activity: Messages["activity"] = {
     job_hint: "L'annulation conserve les modifications terminées. Cette tâche ne prend pas en charge la pause.",
     pipeline_hint: "Arrête le lien en cours d'exécution ; les liens suivants ne sont pas exécutés.",
     contents_hint: "Arrête la recherche ; ce qu'elle a trouvé jusqu'ici est conservé.",
+    following_label: "{name} · suivi · liens : {count}",
+    following_carried: "Messages transportés : {count}",
+    following_hint: "Arrête le suivi ; l'interrupteur en tête du pipeline s'éteint.",
   },
   pipeline: {
     at: "{at} sur {total}",

@@ -54,6 +54,7 @@ export const activity: Messages["activity"] = {
     paste_transfer: "传输",
     pipeline_run: "运行流水线",
     search_contents: "在文件内搜索",
+    pipeline_follow: "管道跟随",
   },
   status: {
     queued: "排队中",
@@ -65,6 +66,10 @@ export const activity: Messages["activity"] = {
     failed: "失败",
     cancelled: "已停止",
     interrupted: "已中断",
+  },
+  following: {
+    failing: "{name}：{link} 持续失败",
+    failing_detail: "连续失败：{count}。{reason}",
   },
   rows: {
     pipeline_title: "流水线 {name}",
@@ -79,6 +84,9 @@ export const activity: Messages["activity"] = {
     job_hint: "取消会保留已完成的更改。此任务不支持暂停。",
     pipeline_hint: "停止当前正在运行的连线；其后的连线不会运行。",
     contents_hint: "停止搜索；已找到的内容会保留。",
+    following_label: "{name} · 跟随中 · 链接：{count}",
+    following_carried: "已传送消息：{count}",
+    following_hint: "停止跟随；管道顶部的开关会关闭。",
   },
   pipeline: {
     at: "{at}/{total}",
