@@ -189,6 +189,9 @@ llevan lo que llega a tablas.
   mensaje escrito dos veces se guarda una sola. Una tabla eliminada después no
   se vuelve a crear: mueva las posiciones del grupo al principio para leerlo
   todo en una nueva.
+- **Guardar lo último por clave**, trazado hacia una base o carpeta de Redis,
+  guarda el valor más reciente de cada clave de mensaje como una clave propia,
+  con tiempo de vida si se elige; vea la página de Redis.
 - Los mensajes que Kafka borró antes de que el enlace los leyera se cuentan en
   el resultado de la ejecución.
 - Kafka olvida las posiciones de un grupo tras una semana sin escribirlas; un

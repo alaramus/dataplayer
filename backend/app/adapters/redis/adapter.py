@@ -24,12 +24,14 @@ from app.adapters.catalog import CatalogNode
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.keyed import KeyedWriteRequest, KeyedWritten
 from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.redis.actions import REDIS_ACTION_TYPES
 from app.adapters.redis.console import console_program
 from app.adapters.redis.export import RedisExport
 from app.adapters.redis.fetch import RedisFetch
+from app.adapters.redis.keyed import RedisKeyed
 from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key
 from app.adapters.redis.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.redis.metrics import RedisMetrics
@@ -111,6 +113,7 @@ class RedisAdapter:
         self._model = RedisModel(self._keyspace)
         self._export = RedisExport(self._session, self._keyspace)
         self._update = RedisUpdate(self._session, self._keyspace)
+        self._keyed = RedisKeyed(self._session, self._keyspace)
         self._samples = RedisSamples(self._session)
         self._metrics = RedisMetrics(self._session)
         self._reports = RedisReports(self._session)
@@ -253,6 +256,12 @@ class RedisAdapter:
 
     async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
         return await self._update.insert_row(request)
+
+    def keyed_prefix(self, node_id: str | None) -> str | None:
+        return self._keyed.keyed_prefix(node_id)
+
+    async def write_keyed(self, request: KeyedWriteRequest) -> KeyedWritten:
+        return await self._keyed.write_keyed(request)
 
     async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
         return await self._update.insert_rows(request)

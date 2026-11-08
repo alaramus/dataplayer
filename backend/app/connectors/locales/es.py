@@ -231,4 +231,18 @@ MESSAGES: dict[str, str] = {
     "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} ya no existe; para volver a leerlo todo, mueva las posiciones del grupo al principio",
     "{said}; the table was made": "{said}; se creó la tabla",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}; la tabla se creó con una clave sobre partition y offset, así que cada mensaje se guarda una sola vez",
+    # A link keeping the latest per key (D314).
+    "Choose the key and the values": "Elija la clave y los valores",
+    "Draw it to a database or a folder": "Trácelo hacia una base de datos o una carpeta",
+    "Keep the latest per key": "Guardar lo último por clave",
+    "Keeping the latest per key": "Guardando lo último por clave",
+    "No rows to write": "No hay filas que escribir",
+    "This connection cannot keep rows as keys": "Esta conexión no puede guardar filas como claves",
+    "Tick something readable as rows": "Marque algo que se lea como filas",
+    "written": "escrito",
+    "{count} rows read, then: {reason}": "{count} filas leídas, y luego: {reason}",
+    "{rows} rows: {keys} keys written": "{rows} filas: {keys} claves escritas",
+    "{rows} rows: {keys} keys written under {prefix}": "{rows} filas: {keys} claves escritas bajo {prefix}",
+    "{said}; {count} keys of another type left as they were": "{said}; {count} claves de otro tipo se dejaron como estaban",
+    "{said}; {count} rows without a key or a value skipped": "{said}; se omitieron {count} filas sin clave o sin valor",
 }

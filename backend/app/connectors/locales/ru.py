@@ -230,4 +230,18 @@ MESSAGES: dict[str, str] = {
     "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} больше нет; чтобы прочитать всё заново, сдвиньте позиции группы в начало",
     "{said}; the table was made": "{said}; таблица создана",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}; таблица создана с ключом по partition и offset, поэтому каждое сообщение сохраняется один раз",
+    # A link keeping the latest per key (D314).
+    "Choose the key and the values": "Выберите ключ и значения",
+    "Draw it to a database or a folder": "Протяните связь к базе или папке",
+    "Keep the latest per key": "Хранить последнее по ключу",
+    "Keeping the latest per key": "Сохранение последнего по ключу",
+    "No rows to write": "Нет строк для записи",
+    "This connection cannot keep rows as keys": "Это подключение не умеет хранить строки ключами",
+    "Tick something readable as rows": "Отметьте то, что читается как строки",
+    "written": "записано",
+    "{count} rows read, then: {reason}": "Прочитано строк: {count}, затем: {reason}",
+    "{rows} rows: {keys} keys written": "Строк: {rows}, записано ключей: {keys}",
+    "{rows} rows: {keys} keys written under {prefix}": "Строк: {rows}, записано ключей в {prefix}: {keys}",
+    "{said}; {count} keys of another type left as they were": "{said}; ключей другого типа оставлено как было: {count}",
+    "{said}; {count} rows without a key or a value skipped": "{said}; пропущено строк без ключа или значения: {count}",
 }

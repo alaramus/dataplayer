@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.fetch import FetchColumn
+from app.adapters.keyed import MAX_TTL_SECONDS
 from app.adapters.reading_on import ReadStart
 
 # Room for whatever a catalog lets a person tick. Each kind states its own,
@@ -20,6 +21,7 @@ PasteKindName = Literal[
     "rows_into_relation",
     "rows_since_last",
     "rows_since_last_new",
+    "rows_by_key",
     "rows_new_file",
     "tables_copy",
 ]
@@ -27,7 +29,7 @@ ClipboardMode = Literal["copy", "move"]
 Conflict = Literal["refuse", "replace", "rename"]
 # The window an offer opens before it runs, named for the client to pick one
 # by; `run` opens none.
-PasteWorkflow = Literal["run", "file-name", "new-relation", "into-relation", "copy-tables"]
+PasteWorkflow = Literal["run", "file-name", "new-relation", "into-relation", "copy-tables", "keyed"]
 # What becomes of links to tables that were not ticked (D182): the tables are
 # copied too, the links are not made, or they point at the originals.
 TableLinks = Literal["copy", "drop", "keep"]
@@ -74,6 +76,17 @@ class TablesChoice(BaseModel):
     also: list[str] = Field(default_factory=list, max_length=MAX_CLIPBOARD_NODES)
 
 
+class KeyedChoice(BaseModel):
+    """What a link keeping the latest per key writes (D314): the column naming
+    each key, what is put before it, and how long a key lives."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    key_column: str = Field(min_length=1, max_length=255)
+    prefix: str = Field(default="", max_length=1024)
+    ttl_seconds: int | None = Field(default=None, ge=1, le=MAX_TTL_SECONDS)
+
+
 class PasteRun(PastePair):
     """One offer, run with the choices its window asked for."""
 
@@ -86,6 +99,7 @@ class PasteRun(PastePair):
     # bookmark starts. A pipeline names the reader after its link.
     reader: str | None = Field(default=None, min_length=1, max_length=255)
     start: ReadStart = "earliest"
+    by_key: KeyedChoice | None = None
 
 
 class PasteOffer(BaseModel):
@@ -114,6 +128,9 @@ class PasteOffer(BaseModel):
     # columns of the ticked target.
     source_columns: list[FetchColumn] = Field(default_factory=list)
     target_columns: list[FetchColumn] = Field(default_factory=list)
+    # The source is read on from a bookmark (D312), so the panel shows its
+    # reader and where it starts.
+    reads_on: bool = False
 
 
 class PasteOffers(BaseModel):

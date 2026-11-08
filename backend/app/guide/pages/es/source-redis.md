@@ -93,6 +93,16 @@ Selecciona una carpeta o una clave en el árbol y abre el menú de acciones:
 - **Establecer caducidad** da a una clave un tiempo de vida, y **Quitar
   caducidad** lo retira.
 
+## Claves que mantiene un pipeline
+
+El enlace **Guardar lo último por clave**, trazado hacia una base de datos o
+una carpeta, escribe cada fila como una clave propia: `price:BTC`,
+`price:ETH`. Su ventana elige la columna que nombra la clave, lo que va
+delante, lo que contiene — un valor como cadena, varios como hash — y cuánto
+vive. Cada fila reemplaza su clave entera; las filas sin clave se omiten, y
+una clave de otro tipo se deja como está. Ambas cosas se cuentan en el
+resultado.
+
 ## Copiar fuera
 
 **Copiar** una clave, una carpeta o una base de datos en el catálogo y **Pegar**

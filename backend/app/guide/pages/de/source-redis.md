@@ -101,6 +101,16 @@ Aktionsmenü:
 - **Ablaufzeit setzen** gibt einem Schlüssel eine Lebensdauer, und
   **Ablaufzeit entfernen** nimmt sie weg.
 
+## Schlüssel, die eine Pipeline pflegt
+
+Die Verknüpfung **Das Neueste je Schlüssel behalten**, zu einer Datenbank oder
+einem Ordner gezogen, schreibt jede Zeile als eigenen Schlüssel: `price:BTC`,
+`price:ETH`. Ihr Fenster wählt die Spalte, die den Schlüssel benennt, was
+davor steht, was er hält — ein Wert als String, mehrere als Hash — und wie
+lange er lebt. Jede Zeile ersetzt ihren Schlüssel ganz; Zeilen ohne Schlüssel
+werden übersprungen, und ein Schlüssel anderen Typs bleibt, wie er ist. Beides
+wird im Ergebnis des Laufs gezählt.
+
 ## Hinauskopieren
 
 **Kopieren** Sie einen Schlüssel, einen Ordner oder eine Datenbank im Katalog und

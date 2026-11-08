@@ -124,6 +124,7 @@ class Asking:
                 continue
             if read_on and kind.name in READS_ON.replaces:
                 continue
+            asked = len(answers)
             short = short_of(kind, source[1], target[1])
             if short is not None:
                 answers.append(short)
@@ -141,4 +142,6 @@ class Asking:
                     target_node_id=target_at,
                 )
                 answers.append(await kind.offer(source[0], target[0], pair))
+            if read_on and kind in LINK_ONLY and len(answers) > asked:
+                answers[-1] = answers[-1].model_copy(update={"reads_on": True})
         return answers

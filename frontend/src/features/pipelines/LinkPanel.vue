@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/vue-query"
 import { computed, ref, watch } from "vue"
 
-import type { ColumnPair, Link, LinkEnd, LinkPlace, LinkRun, NewRelationColumn, PipelineRunPublic } from "@/client"
+import type { ColumnPair, KeyedChoice, Link, LinkEnd, LinkPlace, LinkRun, NewRelationColumn, PasteColumn, PipelineRunPublic } from "@/client"
 import CreateTableDialog from "@/features/grid/CreateTableDialog.vue"
 import ImportDialog from "@/features/grid/ImportDialog.vue"
 import { messageOf } from "@/shared/api/errors"
@@ -11,6 +11,7 @@ import { t } from "@/shared/i18n"
 import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, appIcons } from "@/shared/ui"
 
 import { linkOffersKey, readLinkOffers } from "./api"
+import KeyedWindow from "./KeyedWindow.vue"
 import type { LinkSide } from "./api"
 import { CONFLICT_CHOICES, needsDialog, runWords, sentence, usable, withOffer } from "./links"
 import type { EndNamer, LinkWorkflow } from "./links"
@@ -97,6 +98,9 @@ const starts = [
 
 const tableOpen = ref(false)
 const pairsOpen = ref(false)
+const keyedOpen = ref(false)
+// The reader and its start are the source's, where it is read on (D312).
+const readsOn = computed(() => Boolean(props.reader) && offer.value?.reads_on === true)
 // Raised once: the view lowers `autoOpen` on hearing `autoOpened`, so a
 // refetch of the offers does not raise the window again, and the view raising
 // it anew — a run that failed on this link — does.
@@ -106,6 +110,7 @@ watch(
     if (!autoOpen || loaded === undefined || offers.isPending.value) return
     if (!needsDialog(props.link, flow)) return
     if (flow === "new-relation") tableOpen.value = true
+    else if (flow === "keyed") keyedOpen.value = true
     else pairsOpen.value = true
     emit("autoOpened")
   },
@@ -116,6 +121,18 @@ function keepTable(made: { name: string; columns: NewRelationColumn[] }) {
   tableOpen.value = false
   emit("change", { ...props.link, name: made.name, columns: made.columns })
 }
+
+function keepKeyed(pick: { by_key: KeyedChoice; columns: PasteColumn[] }) {
+  keyedOpen.value = false
+  emit("change", { ...props.link, by_key: pick.by_key, columns: pick.columns })
+}
+
+const keyedWord = computed(() => {
+  const choice = props.link.by_key
+  const count = props.link.columns?.length ?? 0
+  if (!choice || count === 0) return t("pipelines.keyed.none")
+  return t("pipelines.keyed.summary", { key: `${choice.prefix ?? ""}{${choice.key_column}}`, n: count }, count)
+})
 
 function keepPairs(paired: { columns: ColumnPair[] }) {
   pairsOpen.value = false
@@ -209,7 +226,7 @@ const columnsWord = computed(() => {
         @update:model-value="emit('change', { ...link, conflict: $event as Link['conflict'] })"
       />
       <AppSelect
-        v-if="reader"
+        v-if="readsOn"
         class="link-panel__field"
         :model-value="link.start ?? 'earliest'"
         :options="starts"
@@ -218,6 +235,19 @@ const columnsWord = computed(() => {
         data-testid="link-panel-start"
         @update:model-value="emit('change', { ...link, start: $event as Link['start'] })"
       />
+      <template v-if="workflow === 'keyed'">
+        <span
+          class="link-panel__columns"
+          data-testid="link-panel-keyed"
+        >{{ keyedWord }}</span>
+        <AppButton
+          variant="secondary"
+          size="sm"
+          :label="t('pipelines.keyed.choose')"
+          data-testid="link-panel-choose-keyed"
+          @click="keyedOpen = true"
+        />
+      </template>
       <template v-if="workflow === 'new-relation' || workflow === 'into-relation'">
         <span
           class="link-panel__columns"
@@ -234,11 +264,11 @@ const columnsWord = computed(() => {
     </div>
 
     <p
-      v-if="reader"
+      v-if="readsOn"
       class="link-panel__result"
       data-testid="link-panel-reader"
     >
-      {{ t('pipelines.link_panel.reader', { name: reader }) }}
+      {{ t('pipelines.link_panel.reader', { name: reader ?? '' }) }}
     </p>
     <p
       v-if="place?.circle"
@@ -265,6 +295,14 @@ const columnsWord = computed(() => {
       ].filter(Boolean).join(" · ") }}
     </p>
 
+    <KeyedWindow
+      v-if="keyedOpen && offer"
+      :source-columns="offer.source_columns ?? []"
+      :suggested-prefix="offer.suggested_name ?? ''"
+      :kept="{ byKey: link.by_key ?? null, columns: link.columns ?? null }"
+      @close="keyedOpen = false"
+      @keep="keepKeyed"
+    />
     <CreateTableDialog
       v-if="tableOpen && offer"
       :model-value="true"

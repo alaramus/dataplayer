@@ -25,7 +25,12 @@ from sqlmodel import Field, SQLModel
 
 from app.adapters.catalog import NodeKind
 from app.adapters.reading_on import ReadStart
-from app.connectors.paste.models import Conflict, PasteColumn, PasteKindName
+from app.connectors.paste.models import (
+    Conflict,
+    KeyedChoice,
+    PasteColumn,
+    PasteKindName,
+)
 from app.connectors.paste.registry import LINK_ONLY, kind_named
 from app.core.schemas import get_datetime_utc
 
@@ -127,6 +132,8 @@ class Link(_Strict):
     columns: list[PasteColumn] | None = PydanticField(default=None, max_length=100)
     # Where a link reading on starts while its reader has no bookmark (D312).
     start: ReadStart = "earliest"
+    # What a link keeping the latest per key writes (D314).
+    by_key: KeyedChoice | None = None
 
     @field_validator("kind")
     @classmethod

@@ -231,4 +231,18 @@ MESSAGES: dict[str, str] = {
     "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} gibt es nicht mehr; um alles erneut zu lesen, verschieben Sie die Positionen der Gruppe an den Anfang",
     "{said}; the table was made": "{said}; die Tabelle wurde angelegt",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}; die Tabelle wurde mit einem Schlüssel auf partition und offset angelegt, daher wird jede Nachricht einmal gespeichert",
+    # A link keeping the latest per key (D314).
+    "Choose the key and the values": "Wählen Sie Schlüssel und Werte",
+    "Draw it to a database or a folder": "Ziehen Sie sie zu einer Datenbank oder einem Ordner",
+    "Keep the latest per key": "Das Neueste je Schlüssel behalten",
+    "Keeping the latest per key": "Das Neueste je Schlüssel wird behalten",
+    "No rows to write": "Keine Zeilen zu schreiben",
+    "This connection cannot keep rows as keys": "Diese Verbindung kann Zeilen nicht als Schlüssel halten",
+    "Tick something readable as rows": "Markieren Sie etwas, das sich als Zeilen lesen lässt",
+    "written": "geschrieben",
+    "{count} rows read, then: {reason}": "{count} Zeilen gelesen, dann: {reason}",
+    "{rows} rows: {keys} keys written": "{rows} Zeilen: {keys} Schlüssel geschrieben",
+    "{rows} rows: {keys} keys written under {prefix}": "{rows} Zeilen: {keys} Schlüssel unter {prefix} geschrieben",
+    "{said}; {count} keys of another type left as they were": "{said}; {count} Schlüssel anderen Typs blieben, wie sie waren",
+    "{said}; {count} rows without a key or a value skipped": "{said}; {count} Zeilen ohne Schlüssel oder Wert übersprungen",
 }

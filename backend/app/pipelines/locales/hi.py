@@ -50,4 +50,6 @@ MESSAGES: dict[str, str] = {
     # Search.
     "Pipelines": "पाइपलाइनें",
     "Pipeline": "पाइपलाइन",
+    # A link keeping the latest per key (D314).
+    "{number} · {title} needs its key and values chosen": "{number} · \"{title}\" के लिए कुंजी और मान चुनना आवश्यक है",
 }

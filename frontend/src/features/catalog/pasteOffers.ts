@@ -79,6 +79,8 @@ export type PasteStep =
 /** Which window a chosen offer opens first; `run` opens none. */
 export function firstStep(offer: PasteOffer): PasteStep {
   const workflow = offer.workflow ?? "run"
+  // A link's own window (D314): Paste never offers a kind that opens it.
+  if (workflow === "keyed") return "run"
   if (workflow !== "run") return workflow
   return offer.name_conflict === true ? "conflict" : "run"
 }

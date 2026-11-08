@@ -46,6 +46,7 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
+from app.adapters.keyed import KeyedWriteRequest, KeyedWritten
 from app.adapters.reading_on import Bookmark, ReadBlock, ReadStart, UnreadSpan
 from app.adapters.references import (
     ArrivingReference,
@@ -417,6 +418,23 @@ class SupportsInsert(Protocol):
 
         Answers rather than raises when a value cannot be read as its column's
         type, naming those cells and writing nothing.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsKeyedWrite(Protocol):
+    """Rows written as keys of their own, each replacing its key (D314)."""
+
+    def keyed_prefix(self, node_id: str | None) -> str | None:
+        """The prefix a place gives the keys written there; None for a node
+        that is not a place. Asked of the id alone."""
+        ...
+
+    async def write_keyed(self, request: KeyedWriteRequest) -> KeyedWritten:
+        """Each row's key replaced by its values, the last row per key winning.
+
+        Raises ValueError for a value the source will not hold.
         """
         ...
 

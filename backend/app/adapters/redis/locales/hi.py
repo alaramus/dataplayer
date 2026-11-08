@@ -138,4 +138,7 @@ MESSAGES: dict[str, str] = {
     "INFO is unavailable for this Redis user": "इस Redis उपयोगकर्ता के लिए INFO उपलब्ध नहीं है",
     "Configuration commands are unavailable on this server": "इस सर्वर पर कॉन्फ़िगरेशन कमांड उपलब्ध नहीं हैं",
     "A console does not go through an SSH tunnel yet": "कंसोल अभी SSH टनल से होकर नहीं चलता",
+    # Rows kept as keys (D314).
+    "Each row needs a value for every field": "हर पंक्ति में हर फ़ील्ड का मान होना चाहिए",
+    "The value for {key} is longer than {limit} bytes": "{key} का मान {limit} बाइट से लंबा है",
 }

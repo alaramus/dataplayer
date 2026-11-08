@@ -226,4 +226,18 @@ MESSAGES: dict[str, str] = {
     "{name} is no longer there; to read everything again, move the group's positions to the start": "لم يعد {name} موجودًا؛ لإعادة قراءة كل شيء انقل مواضع المجموعة إلى البداية",
     "{said}; the table was made": "{said}؛ أُنشئ الجدول",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}؛ أُنشئ الجدول بمفتاح على partition وoffset، لذا تُحفظ كل رسالة مرة واحدة",
+    # A link keeping the latest per key (D314).
+    "Choose the key and the values": "اختر المفتاح والقيم",
+    "Draw it to a database or a folder": "اسحبه إلى قاعدة بيانات أو مجلد",
+    "Keep the latest per key": "الاحتفاظ بالأحدث لكل مفتاح",
+    "Keeping the latest per key": "الاحتفاظ بالأحدث لكل مفتاح",
+    "No rows to write": "لا صفوف للكتابة",
+    "This connection cannot keep rows as keys": "لا يمكن لهذا الاتصال حفظ الصفوف كمفاتيح",
+    "Tick something readable as rows": "حدّد شيئًا يُقرأ كصفوف",
+    "written": "مكتوب",
+    "{count} rows read, then: {reason}": "قُرئ {count} صفًا، ثم: {reason}",
+    "{rows} rows: {keys} keys written": "{rows} صفًا: كُتب {keys} مفتاحًا",
+    "{rows} rows: {keys} keys written under {prefix}": "{rows} صفًا: كُتب {keys} مفتاحًا تحت {prefix}",
+    "{said}; {count} keys of another type left as they were": "{said}؛ تُركت {count} مفاتيح من نوع آخر كما كانت",
+    "{said}; {count} rows without a key or a value skipped": "{said}؛ تخطي {count} صفوف بلا مفتاح أو قيمة",
 }

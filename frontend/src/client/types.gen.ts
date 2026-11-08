@@ -7445,6 +7445,27 @@ export type KeyNode = {
 }
 
 /**
+ * KeyedChoice
+ *
+ * What a link keeping the latest per key writes (D314): the column naming
+ * each key, what is put before it, and how long a key lives.
+ */
+export type KeyedChoice = {
+  /**
+   * Key Column
+   */
+  key_column: string
+  /**
+   * Prefix
+   */
+  prefix?: string
+  /**
+   * Ttl Seconds
+   */
+  ttl_seconds?: number | null
+}
+
+/**
  * LastRun
  *
  * The last run, or none before the first: an answer that is an object
@@ -7481,6 +7502,7 @@ export type Link = {
     | "rows_into_relation"
     | "rows_since_last"
     | "rows_since_last_new"
+    | "rows_by_key"
     | "rows_new_file"
     | "tables_copy"
   /**
@@ -7503,6 +7525,7 @@ export type Link = {
    * Start
    */
   start?: "earliest" | "latest"
+  by_key?: KeyedChoice | null
 }
 
 /**
@@ -9058,6 +9081,7 @@ export type PasteOffer = {
     | "rows_into_relation"
     | "rows_since_last"
     | "rows_since_last_new"
+    | "rows_by_key"
     | "rows_new_file"
     | "tables_copy"
   /**
@@ -9095,7 +9119,7 @@ export type PasteOffer = {
   /**
    * Workflow
    */
-  workflow?: "run" | "file-name" | "new-relation" | "into-relation" | "copy-tables"
+  workflow?: "run" | "file-name" | "new-relation" | "into-relation" | "copy-tables" | "keyed"
   /**
    * Makes
    */
@@ -9112,6 +9136,10 @@ export type PasteOffer = {
    * Target Columns
    */
   target_columns?: Array<FetchColumn>
+  /**
+   * Reads On
+   */
+  reads_on?: boolean
 }
 
 /**
@@ -9173,6 +9201,7 @@ export type PasteResult = {
     | "rows_into_relation"
     | "rows_since_last"
     | "rows_since_last_new"
+    | "rows_by_key"
     | "rows_new_file"
     | "tables_copy"
   /**
@@ -9238,6 +9267,7 @@ export type PasteRun = {
     | "rows_into_relation"
     | "rows_since_last"
     | "rows_since_last_new"
+    | "rows_by_key"
     | "rows_new_file"
     | "tables_copy"
   /**
@@ -9261,6 +9291,7 @@ export type PasteRun = {
    * Start
    */
   start?: "earliest" | "latest"
+  by_key?: KeyedChoice | null
 }
 
 /**

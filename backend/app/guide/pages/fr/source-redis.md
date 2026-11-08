@@ -99,6 +99,15 @@ Sélectionnez un dossier ou une clé dans l'arbre et ouvrez le menu d'actions :
 - **Définir l'expiration** donne une durée de vie à une clé, et **Supprimer
   l'expiration** la retire.
 
+## Des clés tenues par un pipeline
+
+Le lien **Garder le plus récent par clé**, tiré vers une base ou un dossier,
+écrit chaque ligne comme une clé à part : `price:BTC`, `price:ETH`. Sa fenêtre
+choisit la colonne qui nomme la clé, ce qui la précède, ce qu'elle contient —
+une valeur en chaîne, plusieurs en hash — et sa durée de vie. Chaque ligne
+remplace sa clé entière ; les lignes sans clé sont ignorées, et une clé d'un
+autre type reste telle quelle. Les deux sont comptés dans le résultat.
+
 ## Copier vers l'extérieur
 
 **Copiez** une clé, un dossier ou une base de données dans le catalogue et

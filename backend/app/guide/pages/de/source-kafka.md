@@ -195,6 +195,9 @@ hinein, andere tragen das Angekommene in Tabellen.
   SQLite), und eine doppelt geschriebene Nachricht wird einmal gespeichert.
   Eine später entfernte Tabelle wird nicht neu angelegt: verschieben Sie die
   Positionen der Gruppe an den Anfang, um alles in eine neue zu lesen.
+- **Das Neueste je Schlüssel behalten**, zu einer Redis-Datenbank oder einem
+  Ordner gezogen, hält den neuesten Wert jedes Nachrichtenschlüssels als
+  eigenen Schlüssel, auf Wunsch mit Lebensdauer; siehe die Redis-Seite.
 - Nachrichten, die Kafka gelöscht hat, bevor die Verknüpfung sie las, werden
   im Ergebnis des Laufs gezählt.
 - Kafka vergisst die Positionen einer Gruppe nach einer Woche ohne

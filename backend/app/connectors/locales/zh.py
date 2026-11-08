@@ -229,4 +229,18 @@ MESSAGES: dict[str, str] = {
     "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} 已不存在；要重新读取全部内容，请把该组的位置移到开头",
     "{said}; the table was made": "{said}；已创建该表",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}；该表已按 partition 和 offset 建立键，因此每条消息只保存一次",
+    # A link keeping the latest per key (D314).
+    "Choose the key and the values": "请选择键和值",
+    "Draw it to a database or a folder": "请把它连到数据库或文件夹",
+    "Keep the latest per key": "按键保留最新值",
+    "Keeping the latest per key": "正在按键保留最新值",
+    "No rows to write": "没有要写入的行",
+    "This connection cannot keep rows as keys": "此连接无法将行保存为键",
+    "Tick something readable as rows": "请勾选可按行读取的对象",
+    "written": "已写入",
+    "{count} rows read, then: {reason}": "已读取 {count} 行，随后：{reason}",
+    "{rows} rows: {keys} keys written": "{rows} 行：已写入 {keys} 个键",
+    "{rows} rows: {keys} keys written under {prefix}": "{rows} 行：已在 {prefix} 下写入 {keys} 个键",
+    "{said}; {count} keys of another type left as they were": "{said}；{count} 个其他类型的键保持不变",
+    "{said}; {count} rows without a key or a value skipped": "{said}；跳过了 {count} 行无键或无值的行",
 }

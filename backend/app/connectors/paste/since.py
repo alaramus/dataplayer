@@ -16,6 +16,7 @@ from app.adapters.actions import ActionRefused
 from app.adapters.catalog import CatalogNode
 from app.adapters.constraints import CreateConstraintRequest, UniqueConstraintSpec
 from app.adapters.fetch import FetchColumn
+from app.adapters.keyed import KeyedRow, KeyedWriteRequest
 from app.adapters.protocol import (
     DataAdapter,
     SupportsCatalog,
@@ -24,6 +25,7 @@ from app.adapters.protocol import (
     SupportsDropCreated,
     SupportsFetch,
     SupportsInsert,
+    SupportsKeyedWrite,
     SupportsReadingOn,
     SupportsSkippingInsert,
 )
@@ -32,7 +34,7 @@ from app.adapters.relation_changes import CreateRelationRequest, NewColumn
 from app.adapters.update import InsertRowsRequest, RowsInserted, ValuesRejected
 from app.connectors import imports
 from app.connectors.paste.files import TransfersFiles
-from app.connectors.paste.kinds import refused
+from app.connectors.paste.kinds import offered, refused
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
@@ -155,14 +157,12 @@ class _ReadsOn:
         transfer: Transfer,
         report: TransferReport,
     ) -> None:
-        if not isinstance(source, SupportsReadingOn) or transfer.reader is None:
-            raise TransferStopped(say(NOT_ROWS))
         item = transfer.items[0]
         item.outcome = "running"
         item.rows = 0
         transfer.current = item.name
         try:
-            await self._read_on(source, destination, transfer, report)
+            await self._carry(source, destination, transfer, report)
         except asyncio.CancelledError:
             item.outcome = "stopped"
             raise
@@ -176,6 +176,21 @@ class _ReadsOn:
         item.arrived = 1
         transfer.current = None
         transfer.published += 1
+
+    async def _carry(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+    ) -> None:
+        if not isinstance(source, SupportsReadingOn) or transfer.reader is None:
+            raise TransferStopped(say(NOT_ROWS))
+        await self._read_on(source, destination, transfer, report)
+
+    def _reading(self, transfer: Transfer) -> list[PasteColumn]:
+        """What is read of each row, and what each becomes."""
+        return transfer.columns or []
 
     async def _read_on(
         self,
@@ -193,7 +208,7 @@ class _ReadsOn:
             source, destination, transfer, span.fresh, span.start
         )
         await report.progressed()
-        pairs = transfer.columns or []
+        pairs = self._reading(transfer)
         at = span.start
         done = 0
         while True:
@@ -561,3 +576,253 @@ async def _table_named(
         return None
     children = await destination.list_children(place or None)
     return next((node for node in children if node.name == name), None)
+
+
+class RowsByKey(_ReadsOn):
+    """Each row kept as a key of its own, replacing it (D314).
+
+    From any source of rows: a key written twice is the same key, so a table
+    read whole at every run is a fair source. From a node read on, only what
+    is new is read.
+    """
+
+    name: PasteKindName = "rows_by_key"
+    title = N_("Keep the latest per key")
+    doing = N_("Keeping the latest per key")
+    done = N_("written")
+    needs = N_("Tick something readable as rows")
+    workflow: PasteWorkflow = "keyed"
+    destination_requires: Access = "write"
+    makes = False
+
+    def takes_from(self, source: DataAdapter) -> bool:
+        return isinstance(source, SupportsFetch)
+
+    def serves(self, source: DataAdapter, destination: DataAdapter) -> bool:
+        return self.takes_from(source) and isinstance(destination, SupportsKeyedWrite)
+
+    async def _columns(
+        self, source: DataAdapter, end: PairEnd
+    ) -> list[FetchColumn] | str:
+        if isinstance(end, Foreseen):
+            return end.columns or say(NOT_ROWS)
+        if end is None:
+            return say(self.needs)
+        return await columns_of(source, [end])
+
+    def _place(self, destination: DataAdapter, place: PairEnd) -> str | None:
+        if isinstance(place, Foreseen) or not isinstance(
+            destination, SupportsKeyedWrite
+        ):
+            return None
+        return destination.keyed_prefix(place)
+
+    async def offer(
+        self, source: DataAdapter, destination: DataAdapter, pair: PastePair
+    ) -> PasteOffer:
+        if len(pair.source_node_ids) != 1:
+            return refused(self, say("Paste one table at a time"))
+        return await self._offered(
+            source, destination, pair.source_node_ids[0], pair.destination_node_id
+        )
+
+    async def foresee(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        source_end: PairEnd,
+        target_end: PairEnd,
+    ) -> PasteOffer:
+        return await self._offered(source, destination, source_end, target_end)
+
+    async def _offered(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        source_end: PairEnd,
+        place: PairEnd,
+    ) -> PasteOffer:
+        prefix = self._place(destination, place)
+        if prefix is None:
+            return refused(self, say("Draw it to a database or a folder"))
+        columns = await self._columns(source, source_end)
+        if isinstance(columns, str):
+            return refused(self, columns)
+        return offered(
+            self, available=True, source_columns=columns, suggested_name=prefix
+        )
+
+    def made(
+        self, source: Foreseen, name: str | None, columns: list[PasteColumn] | None
+    ) -> Foreseen | None:
+        del source, name, columns
+        return None
+
+    async def plan(
+        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
+    ) -> TransferPlan:
+        if not self.serves(source, destination):
+            raise ActionRefused(
+                "not_applicable", say("These connections cannot move rows")
+            )
+        if len(request.source_node_ids) != 1:
+            raise ActionRefused("not_applicable", say("Paste one table at a time"))
+        if request.by_key is None or not request.columns:
+            raise ActionRefused("not_applicable", say("Choose the key and the values"))
+        if self._place(destination, request.destination_node_id) is None:
+            raise ActionRefused(
+                "not_applicable", say("Draw it to a database or a folder")
+            )
+        return TransferPlan(
+            items=[
+                TransferItem(
+                    node_id=request.source_node_ids[0],
+                    name=request.by_key.prefix[:255] or "",
+                )
+            ],
+            bytes_total=None,
+            place="",
+            columns=request.columns,
+            reader=request.reader,
+            start=request.start,
+            by_key=request.by_key,
+        )
+
+    def _reading(self, transfer: Transfer) -> list[PasteColumn]:
+        choice = transfer.by_key
+        key = (
+            []
+            if choice is None
+            else [PasteColumn(source=choice.key_column, target=KEY_TARGET)]
+        )
+        return [*key, *(transfer.columns or [])]
+
+    async def _carry(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+    ) -> None:
+        node = transfer.items[0].node_id
+        if (
+            isinstance(source, SupportsReadingOn)
+            and transfer.reader is not None
+            and source.reads_on(node)
+        ):
+            await self._read_on(source, destination, transfer, report)
+            return
+        if not isinstance(source, SupportsFetch):
+            raise TransferStopped(say(NOT_ROWS))
+        # A source read whole: every run writes what it holds now.
+        write = await self._writer(source, destination, transfer, False, Bookmark())
+        item = transfer.items[0]
+
+        async def arrived(count: int) -> None:
+            item.rows = count
+            await report.progressed()
+
+        pairs = [
+            imports.ColumnPair(source=pair.source, target=pair.target)
+            for pair in self._reading(transfer)
+        ]
+        await imports.carry_rows(source, node, pairs, write, arrived)
+
+    async def _writer(
+        self,
+        source: SupportsReadingOn | DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        fresh: bool,
+        start: Bookmark,
+    ) -> Writer:
+        del source, fresh, start
+        choice = transfer.by_key
+        if not isinstance(destination, SupportsKeyedWrite) or choice is None:
+            raise TransferStopped(say("This connection cannot keep rows as keys"))
+        fields = [pair.target for pair in transfer.columns or []]
+        place = transfer.destination_node_id or ""
+
+        async def write(
+            columns: list[str], rows: list[list[str | None]]
+        ) -> RowsInserted | ValuesRejected:
+            del columns  # the key first, then the values in the order of `fields`
+            answer = await destination.write_keyed(
+                KeyedWriteRequest(
+                    place_node_id=place,
+                    prefix=choice.prefix,
+                    fields=fields,
+                    rows=[KeyedRow(key=row[0], values=row[1:]) for row in rows],
+                    ttl_seconds=choice.ttl_seconds,
+                )
+            )
+            transfer.keys_written += answer.written
+            transfer.without_key += answer.without_key
+            transfer.other_type += answer.other_type
+            # Rows read, which the step counts; what became of them is above.
+            return RowsInserted(inserted=len(rows))
+
+        return write
+
+    def told(self, transfer: Transfer, stopped: str | None = None) -> str:
+        item = transfer.items[0]
+        rows = item.rows or 0
+        if stopped is not None:
+            if rows == 0:
+                return stopped
+            return say("{count} rows read, then: {reason}", count=rows, reason=stopped)
+        prefix = transfer.by_key.prefix if transfer.by_key is not None else ""
+        if rows == 0:
+            said = (
+                say("Nothing new since the last run")
+                if transfer.reader
+                else say("No rows to write")
+            )
+        elif prefix:
+            said = say(
+                "{rows} rows: {keys} keys written under {prefix}",
+                rows=rows,
+                keys=transfer.keys_written,
+                prefix=prefix,
+            )
+        else:
+            said = say(
+                "{rows} rows: {keys} keys written",
+                rows=rows,
+                keys=transfer.keys_written,
+            )
+        if transfer.without_key:
+            said = say(
+                "{said}; {count} rows without a key or a value skipped",
+                said=said,
+                count=transfer.without_key,
+            )
+        if transfer.other_type:
+            said = say(
+                "{said}; {count} keys of another type left as they were",
+                said=said,
+                count=transfer.other_type,
+            )
+        if transfer.fresh:
+            said = (
+                say(
+                    "{said}; no position was kept, so reading started from the beginning",
+                    said=said,
+                )
+                if transfer.start != "latest"
+                else say(
+                    "{said}; no position was kept, so reading started from the end",
+                    said=said,
+                )
+            )
+        if item.skipped:
+            said = say(
+                "{said}; {count} were deleted before they were read",
+                said=said,
+                count=item.skipped,
+            )
+        return said
+
+
+# The name the key column is read under; never a field of what is written.
+KEY_TARGET = "\x00key"

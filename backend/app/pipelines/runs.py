@@ -48,6 +48,7 @@ KEPT_RUNS = 100
 _NEEDS = {
     "new-relation": N_("{number} · {title} needs its table named and its columns chosen"),
     "into-relation": N_("{number} · {title} needs its columns paired"),
+    "keyed": N_("{number} · {title} needs its key and values chosen"),
 }
 
 class LinkRun(BaseModel):
@@ -87,6 +88,8 @@ def missing(link: Link) -> str | None:
     if workflow == "new-relation" and (link.name is None or not link.columns):
         return _NEEDS[workflow]
     if workflow == "into-relation" and not link.columns:
+        return _NEEDS[workflow]
+    if workflow == "keyed" and (link.by_key is None or not link.columns):
         return _NEEDS[workflow]
     return None
 
@@ -133,6 +136,7 @@ def _step(content: PipelineContent, link: Link, foresight: Foresight) -> RunStep
             columns=link.columns,
             reader=reader_of(link),
             start=link.start,
+            by_key=link.by_key,
         ),
         reads=link.source.made_by,
         writes_into=link.target.made_by,

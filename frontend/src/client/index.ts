@@ -898,6 +898,7 @@ export type {
   KeptAsItIs,
   KeptDownload,
   KeptNow,
+  KeyedChoice,
   KeyNode,
   LastRun,
   Link,

@@ -192,6 +192,9 @@ portent ce qui arrive vers des tables.
   permet (PostgreSQL, MySQL, MariaDB, SQLite), et un message écrit deux fois
   n'est conservé qu'une fois. Une table supprimée ensuite n'est pas recréée :
   déplacez les positions du groupe au début pour tout lire dans une nouvelle.
+- **Garder le plus récent par clé**, tiré vers une base ou un dossier Redis,
+  garde la valeur la plus récente de chaque clé de message comme une clé à
+  part, avec une durée de vie si vous le souhaitez ; voir la page Redis.
 - Les messages que Kafka a supprimés avant que le lien les lise sont comptés
   dans le résultat de l'exécution.
 - Kafka oublie les positions d'un groupe après une semaine sans écriture ; un

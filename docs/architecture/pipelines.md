@@ -2,9 +2,9 @@
 
 Read this before changing the pipelines space, a pipeline's cards, links,
 run, schedule or history, the answer of what a person's connections can
-give each other, or a link that reads a topic on from where it stopped, into a table it may make.
+give each other, or a link that reads a topic on from where it stopped, into a table it may make or into keys holding the latest per key.
 
-Decisions here: D174, D175, D176, D177, D178, D179, D180, D312, D313.
+Decisions here: D174, D175, D176, D177, D178, D179, D180, D312, D313, D314.
 
 ## D174. What two connections can give each other is asked of no node
 
@@ -380,3 +380,37 @@ Known deviations:
 - **New fields of the messages are not added as columns.**
 
 Spec: [A topic read into a table its link makes, each message once](../decisions/2026-11-08-pipeline-topic-new-table-design.md)
+
+## D314. A link keeps the latest per key as keys of their own
+
+- **Keep the latest per key** (`rows_by_key`) is a third link-only kind,
+  drawn to a place of a destination with `SupportsKeyedWrite` — a Redis
+  database or folder. Its window (`keyed`, `KeyedWindow.vue`) chooses the key
+  column, a prefix starting as the place's own (`keyed_prefix`, sent as the
+  offer's `suggested_name`), the values — one a string, several a hash under
+  the names given — and a time to live. They are kept on the link as `by_key`
+  and `columns`; a link lacking them does not run (D177).
+- **Each row replaces its key whole**, the time to live with it, and only the
+  last row per key in a block is written. Redis does it with one Lua script a
+  key, pipelined: the script checks the type first, so a key holding another
+  type is left alone and counted. A row with no key, or nothing to hold, is
+  skipped and counted; a value past 64 KB fails the step, naming its key.
+- **From any source of rows**: a key written twice is the same key, so a
+  source read whole at every run is fair. From a node read on it reads only
+  what is new, by D312's reader and bookmark.
+- **An offer says whether its source is read on** (`reads_on`); the panel
+  shows the reader and the start choice by it, for all three link-only kinds.
+
+Known deviations:
+
+- **Which row wins among several for one key** is the order the source is
+  read in: a topic's partitions one after another, each in order. A producer
+  that keys by the partitioner keeps a key in one partition, so the newest
+  wins; one that spreads a key over partitions gets the last partition's.
+- **A key written by hand under the prefix is overwritten** when a row names
+  it and it holds the same type.
+- **Keys are never removed by the link**; a time to live is how they go.
+- **The step counts keys written block by block**: a key written in two
+  blocks counts twice.
+
+Spec: [The latest value per key, kept in Redis by a pipeline's link](../decisions/2026-11-08-pipeline-latest-per-key-design.md)

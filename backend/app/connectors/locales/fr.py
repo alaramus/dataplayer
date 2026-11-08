@@ -230,4 +230,18 @@ MESSAGES: dict[str, str] = {
     "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} n'existe plus ; pour tout relire, déplacez les positions du groupe au début",
     "{said}; the table was made": "{said} ; la table a été créée",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said} ; la table a été créée avec une clé sur partition et offset, chaque message n'est donc conservé qu'une fois",
+    # A link keeping the latest per key (D314).
+    "Choose the key and the values": "Choisissez la clé et les valeurs",
+    "Draw it to a database or a folder": "Tirez-le vers une base ou un dossier",
+    "Keep the latest per key": "Garder le plus récent par clé",
+    "Keeping the latest per key": "Conservation du plus récent par clé",
+    "No rows to write": "Aucune ligne à écrire",
+    "This connection cannot keep rows as keys": "Cette connexion ne peut pas garder des lignes comme clés",
+    "Tick something readable as rows": "Cochez quelque chose qui se lit en lignes",
+    "written": "écrit",
+    "{count} rows read, then: {reason}": "{count} lignes lues, puis : {reason}",
+    "{rows} rows: {keys} keys written": "{rows} lignes : {keys} clés écrites",
+    "{rows} rows: {keys} keys written under {prefix}": "{rows} lignes : {keys} clés écrites sous {prefix}",
+    "{said}; {count} keys of another type left as they were": "{said} ; {count} clés d'un autre type laissées telles quelles",
+    "{said}; {count} rows without a key or a value skipped": "{said} ; {count} lignes sans clé ou sans valeur ignorées",
 }

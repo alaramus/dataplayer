@@ -230,4 +230,18 @@ MESSAGES: dict[str, str] = {
     "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} अब मौजूद नहीं है; सब कुछ फिर से पढ़ने के लिए समूह की स्थितियाँ शुरुआत पर खिसकाएँ",
     "{said}; the table was made": "{said}; तालिका बनाई गई",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}; तालिका partition और offset पर कुंजी के साथ बनाई गई, इसलिए हर संदेश एक बार ही रखा जाता है",
+    # A link keeping the latest per key (D314).
+    "Choose the key and the values": "कुंजी और मान चुनें",
+    "Draw it to a database or a folder": "इसे किसी डेटाबेस या फ़ोल्डर तक खींचें",
+    "Keep the latest per key": "हर कुंजी का नवीनतम रखें",
+    "Keeping the latest per key": "हर कुंजी का नवीनतम रखा जा रहा है",
+    "No rows to write": "लिखने के लिए कोई पंक्ति नहीं",
+    "This connection cannot keep rows as keys": "यह कनेक्शन पंक्तियों को कुंजियों के रूप में नहीं रख सकता",
+    "Tick something readable as rows": "कुछ ऐसा चुनें जो पंक्तियों के रूप में पढ़ा जा सके",
+    "written": "लिखा गया",
+    "{count} rows read, then: {reason}": "{count} पंक्तियाँ पढ़ी गईं, फिर: {reason}",
+    "{rows} rows: {keys} keys written": "{rows} पंक्तियाँ: {keys} कुंजियाँ लिखी गईं",
+    "{rows} rows: {keys} keys written under {prefix}": "{rows} पंक्तियाँ: {prefix} के अंतर्गत {keys} कुंजियाँ लिखी गईं",
+    "{said}; {count} keys of another type left as they were": "{said}; दूसरे प्रकार की {count} कुंजियाँ जैसी थीं वैसी छोड़ी गईं",
+    "{said}; {count} rows without a key or a value skipped": "{said}; बिना कुंजी या मान की {count} पंक्तियाँ छोड़ी गईं",
 }

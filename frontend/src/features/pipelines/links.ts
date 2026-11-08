@@ -122,13 +122,13 @@ export function refusal(offers: readonly PasteOffer[]): string {
 
 /** A new link doing what this offer does, with no choice made yet. */
 export function linkFromOffer(id: string, from: LinkEnd, to: LinkEnd, offer: PasteOffer): Link {
-  return { id, source: from, target: to, kind: offer.kind, title: offer.title, conflict: "refuse", name: null, columns: null }
+  return { id, source: from, target: to, kind: offer.kind, title: offer.title, conflict: "refuse", name: null, columns: null, by_key: null }
 }
 
 /** The same link doing what another offer does: its choices were the other's. */
 export function withOffer(link: Link, offer: PasteOffer): Link {
   if (link.kind === offer.kind) return link
-  return { ...link, kind: offer.kind, title: offer.title, conflict: "refuse", name: null, columns: null }
+  return { ...link, kind: offer.kind, title: offer.title, conflict: "refuse", name: null, columns: null, by_key: null }
 }
 
 /**
@@ -216,6 +216,7 @@ export type LinkWorkflow = NonNullable<PasteOffer["workflow"]>
 export function needsDialog(link: Link, workflow: LinkWorkflow): boolean {
   if (workflow === "new-relation") return link.name == null || (link.columns ?? []).length === 0
   if (workflow === "into-relation") return (link.columns ?? []).length === 0
+  if (workflow === "keyed") return link.by_key == null || (link.columns ?? []).length === 0
   return false
 }
 

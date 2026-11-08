@@ -66,7 +66,7 @@ describe("the link's own window", () => {
 })
 
 describe("a link reading on (D312)", () => {
-  const readingOn: PasteOffer = { kind: "rows_since_last", title: "Add new messages to a table", available: true, workflow: "into-relation" }
+  const readingOn: PasteOffer = { kind: "rows_since_last", title: "Add new messages to a table", available: true, workflow: "into-relation", reads_on: true }
   const reading = linkFromOffer("l2", { card_id: "kafka", node_id: "topic:orders" }, { card_id: "lab", node_id: "public.orders" }, readingOn)
 
   beforeEach(() => {

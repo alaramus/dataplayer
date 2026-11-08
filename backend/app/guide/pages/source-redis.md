@@ -89,6 +89,16 @@ Select a folder or a key in the tree and open the actions menu:
 - **Delete** removes a key, after asking;
 - **Set expiry** gives a key a time to live, and **Remove expiry** takes it off.
 
+## Keys kept by a pipeline
+
+A pipeline's link **Keep the latest per key**, drawn to a database or a
+folder, writes each row as a key of its own: `price:BTC`, `price:ETH`. Its
+window chooses the column that names the key, what goes before it, what the
+key holds — one value as a string, several as a hash — and how long it lives.
+Each row replaces its key whole; rows without a key are skipped, and a key
+that already holds another type is left as it is. Both are counted in the
+run's result.
+
 ## Copying out
 
 **Copy** a key, a folder or a database in the catalog and **Paste** it into a

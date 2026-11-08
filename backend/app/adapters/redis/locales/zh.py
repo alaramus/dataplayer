@@ -138,4 +138,7 @@ MESSAGES: dict[str, str] = {
     "INFO is unavailable for this Redis user": "此 Redis 用户无法使用 INFO",
     "Configuration commands are unavailable on this server": "此服务器不允许使用配置读取命令",
     "A console does not go through an SSH tunnel yet": "控制台暂不支持通过 SSH 隧道连接",
+    # Rows kept as keys (D314).
+    "Each row needs a value for every field": "每行都需要为每个字段提供值",
+    "The value for {key} is longer than {limit} bytes": "{key} 的值超过 {limit} 字节",
 }

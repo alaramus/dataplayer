@@ -50,4 +50,6 @@ MESSAGES: dict[str, str] = {
     # Search.
     "Pipelines": "Flujos",
     "Pipeline": "Flujo",
+    # A link keeping the latest per key (D314).
+    "{number} · {title} needs its key and values chosen": "{number} · «{title}» necesita que se elijan su clave y sus valores",
 }

@@ -3,8 +3,9 @@ import { randomUUID } from "node:crypto"
 import { expect, test } from "@playwright/test"
 import type { Locator, Page } from "@playwright/test"
 
-import { createPostgresConnector } from "./utils/connectors"
+import { createPostgresConnector, createRedisConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { REDIS, redisCommands } from "./utils/redis"
 import { signedApi } from "./utils/search"
 import { requireE2EService } from "./utils/services"
 import { deleteConnector } from "./utils/workspace"
@@ -222,5 +223,87 @@ test("reads a topic into a table its link makes, keyed so each message is kept o
   })
   await page.getByTestId("space-data").click()
   await deleteConnector(page, database)
+  await deleteConnector(page, broker)
+})
+
+test("keeps the latest value of each message key as Redis keys (D314)", async ({ page }) => {
+  await requireE2EService("kafka")
+  await requireE2EService("redis")
+  const stamp = Date.now()
+  const cache = `e2e-topic-cache-${stamp}`
+  const broker = `e2e-topic-keyed-kafka-${stamp}`
+  const topic = `e2e.prices.${stamp}`
+  const prefix = `e2e-price-${stamp}:`
+  await login(page)
+  const api = await signedApi(page)
+  const made = await page.request.post(`${api.base}/connectors/`, {
+    headers: api.headers,
+    data: { name: broker, adapter_type: "kafka", options: { bootstrap_servers: "kafka:9092", auth_method: "none" } },
+  })
+  expect(made.ok(), await made.text()).toBeTruthy()
+  const kafka = ((await made.json()) as { id: string }).id
+  const topicMade = await page.request.post(`${api.base}/connectors/${kafka}/actions/new_topic`, {
+    headers: api.headers,
+    data: { node_id: "topics", params: { name: topic, partitions: 1, settings: "" } },
+  })
+  expect(topicMade.ok(), await topicMade.text()).toBeTruthy()
+  for (const [symbol, price] of [["BTC", 1], ["ETH", 2], ["BTC", 3]] as const) {
+    const sent = await page.request.post(`${api.base}/connectors/${kafka}/rows`, {
+      headers: api.headers,
+      data: {
+        node_id: `topic:${topic}`,
+        values: [{ column: "key", value: symbol }, { column: "value", value: JSON.stringify({ price }) }],
+      },
+    })
+    expect(sent.ok(), await sent.text()).toBeTruthy()
+  }
+  await createRedisConnector(page, cache)
+
+  await page.getByTestId("space-pipelines").click()
+  const first = page.getByTestId("pipeline-create-first")
+  await expect(first.or(page.getByTestId("pipeline-new"))).toBeVisible()
+  if (await first.isVisible()) await first.click()
+  else await page.getByTestId("pipeline-new").click()
+  await expect(page.getByTestId("pipeline-view")).toBeVisible()
+
+  const rail = page.getByTestId("pipelines-rail")
+  const picker = page.getByTestId("card-picker")
+  await rail.getByTestId(`connector-${broker}`).click()
+  await picker.getByTestId("catalog-node-Topics").click()
+  await picker.getByTestId(`catalog-check-${topic}`).click()
+  await picker.getByTestId("card-picker-done").click()
+  await rail.getByTestId(`connector-${cache}`).click()
+  await picker.getByTestId(`catalog-check-db${REDIS.database}`).click()
+  await picker.getByTestId("card-picker-done").click()
+
+  // Drawn to a database: its window opens with the topic's key and the
+  // fields of its JSON.
+  await drawLink(page, row(page, topic), row(page, `db${REDIS.database}`))
+  const panel = page.getByTestId("link-panel")
+  await expect(panel.getByTestId("link-panel-sentence")).toContainText("Keep the latest per key")
+  const window = page.getByTestId("keyed-window")
+  await expect(window).toBeVisible()
+  await window.getByTestId("keyed-prefix").fill(prefix)
+  await expect(window.getByTestId("keyed-shape")).toHaveText("One value: a string key")
+  await page.screenshot({ path: "test-results/pipeline-topic-keyed-window.png" })
+  await window.getByTestId("keyed-keep").click()
+  await expect(window).toHaveCount(0)
+  await expect(panel.getByTestId("link-panel-keyed")).toContainText(`${prefix}{key}`)
+
+  await page.getByTestId("pipeline-run").click()
+  const result = panel.getByTestId("link-panel-result")
+  await expect(result).toContainText(`3 rows: 2 keys written under ${prefix}`, { timeout: 30_000 })
+  await expect(panel.getByTestId("link-panel-reader")).toContainText("dataplayer-link-")
+  await page.screenshot({ path: "test-results/pipeline-topic-keyed.png" })
+
+  await page.getByTestId("pipeline-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await redisCommands([["DEL", `${prefix}BTC`, `${prefix}ETH`]])
+  await page.request.post(`${api.base}/connectors/${kafka}/actions/delete_topic`, {
+    headers: api.headers,
+    data: { node_id: `topic:${topic}`, params: {} },
+  })
+  await page.getByTestId("space-data").click()
+  await deleteConnector(page, cache)
   await deleteConnector(page, broker)
 })

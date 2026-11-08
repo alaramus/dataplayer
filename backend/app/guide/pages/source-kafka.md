@@ -180,6 +180,9 @@ others carry what arrives into tables.
   allows it (PostgreSQL, MySQL, MariaDB, SQLite), and a message written twice
   is kept once. A table removed later is not made again: move the group's
   positions to the start to read everything into a new one.
+- **Keep the latest per key**, drawn to a Redis database or folder, keeps
+  each message key's newest value as a key of its own, with a time to live
+  if you choose one; see the Redis page.
 - Messages Kafka deleted before the link read them are counted in the run's
   result.
 - Kafka forgets a group's positions after a week without them being written,

@@ -22,6 +22,7 @@ from app.connectors.paste.models import (
     MAX_CLIPBOARD_NODES,
     ClipboardMode,
     Conflict,
+    KeyedChoice,
     PasteColumn,
     PasteKindName,
     TablesChoice,
@@ -95,6 +96,7 @@ class TransferPlan(BaseModel):
     # Rows read on from a bookmark (D312).
     reader: str | None = None
     start: ReadStart | None = None
+    by_key: KeyedChoice | None = None
 
 
 class Transfer(BaseModel):
@@ -133,6 +135,11 @@ class Transfer(BaseModel):
     # A table the link made in this run, and whether with D313's key.
     made_table: bool = False
     keyed: bool = False
+    # Rows kept as keys (D314): what was chosen, and what became of them.
+    by_key: KeyedChoice | None = None
+    keys_written: int = 0
+    without_key: int = 0
+    other_type: int = 0
     # A file uploaded for this job alone, in its owner's storage, read in
     # place of a connection and removed when the job ends (D45). The source
     # connection then names the destination: an upload has none.

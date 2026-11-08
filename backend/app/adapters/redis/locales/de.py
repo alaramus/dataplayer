@@ -139,4 +139,7 @@ MESSAGES: dict[str, str] = {
     "INFO is unavailable for this Redis user": "INFO ist für diesen Redis-Benutzer nicht verfügbar",
     "Configuration commands are unavailable on this server": "Konfigurationsbefehle sind auf diesem Server nicht verfügbar",
     "A console does not go through an SSH tunnel yet": "Eine Konsole läuft noch nicht durch einen SSH-Tunnel",
+    # Rows kept as keys (D314).
+    "Each row needs a value for every field": "Jede Zeile braucht einen Wert für jedes Feld",
+    "The value for {key} is longer than {limit} bytes": "Der Wert für {key} ist länger als {limit} Bytes",
 }
