@@ -413,6 +413,11 @@ Known deviations:
 - **The step counts keys written block by block**: a key written in two
   blocks counts twice.
 
+Declined: the latest per key into a SQL table (`INSERT … ON CONFLICT DO
+UPDATE`). D313 keeps every message, and a view picking the newest row per
+key answers the same question; Redis is the place for a current value read
+often.
+
 Spec: [The latest value per key, kept in Redis by a pipeline's link](../decisions/2026-11-08-pipeline-latest-per-key-design.md)
 
 ## D315. A pipeline follows its topics, carrying what arrives within seconds
@@ -448,7 +453,9 @@ Spec: [The latest value per key, kept in Redis by a pipeline's link](../decision
 Known deviations:
 
 - **Seconds, not milliseconds**: every look opens Kafka's clients again
-  (D304); a consumer kept open is left for later.
+  (D304). A consumer kept open for under a second was declined: dashboards
+  refresh in seconds anyway, and a shorter `PIPELINE_FOLLOW_SECONDS` buys
+  more if it is ever wanted.
 - **Every marked link is asked every look**, however quiet it is.
 - **An unsaved change is not followed**: the follower reads the pipeline as
   kept.
