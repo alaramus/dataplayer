@@ -223,4 +223,11 @@ MESSAGES: dict[str, str] = {
     "{said}; no position was kept, so reading started from the beginning": "{said}; कोई स्थिति सहेजी नहीं थी, इसलिए पढ़ना शुरुआत से शुरू हुआ",
     "{said}; no position was kept, so reading started from the end": "{said}; कोई स्थिति सहेजी नहीं थी, इसलिए पढ़ना अंत से शुरू हुआ",
     "{said}; {count} were deleted before they were read": "{said}; {count} पढ़े जाने से पहले हटा दिए गए",
+    # A table a link reading on makes (D313).
+    "A table named {name} is already there": "{name} नाम की तालिका पहले से मौजूद है",
+    "Add new messages to a new table": "नए संदेश नई तालिका में जोड़ें",
+    "The table could not be made": "तालिका नहीं बनाई जा सकी",
+    "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} अब मौजूद नहीं है; सब कुछ फिर से पढ़ने के लिए समूह की स्थितियाँ शुरुआत पर खिसकाएँ",
+    "{said}; the table was made": "{said}; तालिका बनाई गई",
+    "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}; तालिका partition और offset पर कुंजी के साथ बनाई गई, इसलिए हर संदेश एक बार ही रखा जाता है",
 }

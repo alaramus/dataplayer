@@ -19,6 +19,7 @@ PasteKindName = Literal[
     "rows_new_relation",
     "rows_into_relation",
     "rows_since_last",
+    "rows_since_last_new",
     "rows_new_file",
     "tables_copy",
 ]

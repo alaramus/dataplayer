@@ -422,6 +422,16 @@ class SupportsInsert(Protocol):
 
 
 @runtime_checkable
+class SupportsSkippingInsert(Protocol):
+    """Rows written leaving out what a unique key already holds (D313)."""
+
+    async def insert_rows_skipping(self, request: InsertRowsRequest) -> InsertRowsResult:
+        """`insert_rows`, each row a unique key holds left out; `inserted` counts
+        the rows that arrived."""
+        ...
+
+
+@runtime_checkable
 class SupportsReadingOn(Protocol):
     """A node read on from where a named reader stopped (D312)."""
 

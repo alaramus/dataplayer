@@ -277,7 +277,7 @@ class Transaction:
 
     async def change_many(
         self, sql: str, rows: Sequence[tuple[object, ...]]
-    ) -> None:
+    ) -> int:
         """One statement, run for every row, pipelined by the driver.
 
         Not one statement with a row list in it: PostgreSQL resolves the types
@@ -287,7 +287,10 @@ class Transaction:
         instead, which is the coercion every other write in this adapter
         relies on.
         """
-        await self._connection.cursor().executemany(sql, rows)
+        cursor = self._connection.cursor()
+        await cursor.executemany(sql, rows)
+        # The rows every execution changed, summed by psycopg.
+        return max(cursor.rowcount, 0)
 
     async def copy_in(self, sql: str, chunks: AsyncIterator[bytes]) -> None:
         """`COPY … FROM STDIN`, fed as the chunks arrive (D182).

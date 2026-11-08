@@ -363,7 +363,10 @@ class MysqlUpdate:
             keys.append(value)
         return keys
 
-    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+    async def insert_rows(
+        self, request: InsertRowsRequest, *, skipping: bool = False
+    ) -> InsertRowsResult:
+        """A block of rows; `skipping` leaves out what a unique key holds (D313)."""
         facts, shape = await self._shape(request.node_id)
         if not shape.insert_supported:
             raise ValueError(shape.insert_reason or say("This relation cannot accept rows"))
@@ -382,10 +385,15 @@ class MysqlUpdate:
             if index == 0:
                 placeholders = [placeholder for placeholder, _ in converted]
             rows.append(tuple(param for _, param in converted))
-        statement = SQL("INSERT INTO {} ({}) VALUES ({})").format(
+        # Not INSERT IGNORE: it also turns a value that does not fit into a
+        # warning. A column set to itself changes nothing, and a row that
+        # changed nothing counts as none.
+        first = Identifier(targets[0].name)
+        statement = SQL("INSERT INTO {} ({}) VALUES ({}){}").format(
             Identifier(facts.schema, facts.name),
             SQL(", ").join(Identifier(column.name) for column in targets),
             SQL(", ").join(placeholders),
+            SQL(" ON DUPLICATE KEY UPDATE {} = {}").format(first, first) if skipping else SQL(""),
         )
         async with self._session.writing(refusals=REFUSALS) as work:
             rejected = await unreadable(work, facts.schema, checked)
@@ -398,8 +406,8 @@ class MysqlUpdate:
                         for at in rejected[:200]
                     ]
                 )
-            await work.execute_many(statement.text(), rows)
-        return RowsInserted(inserted=len(request.rows))
+            arrived = await work.execute_many(statement.text(), rows)
+        return RowsInserted(inserted=arrived if skipping else len(request.rows))
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         facts, shape = await self._shape(request.node_id)

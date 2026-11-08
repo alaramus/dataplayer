@@ -187,6 +187,14 @@ hinein, andere tragen das Angekommene in Tabellen.
 - Jeder Block Zeilen wird zuerst geschrieben und seine Position danach
   gespeichert. Scheitert ein Lauf dazwischen, schreibt der nächste den Block
   erneut: keine Nachricht geht verloren, selten kommt eine doppelt an.
+- **Neue Nachrichten zu einer neuen Tabelle hinzufügen**, zu einem Schema statt
+  zu einer Tabelle gezogen, legt die Tabelle beim ersten Lauf an — Name,
+  Spalten und Typen im Fenster gewählt — und fügt danach hinzu. Gehören
+  partition und offset des Topics zu ihren Spalten, bekommt sie dort einen
+  Schlüssel darauf, wo die Datenbank es erlaubt (PostgreSQL, MySQL, MariaDB,
+  SQLite), und eine doppelt geschriebene Nachricht wird einmal gespeichert.
+  Eine später entfernte Tabelle wird nicht neu angelegt: verschieben Sie die
+  Positionen der Gruppe an den Anfang, um alles in eine neue zu lesen.
 - Nachrichten, die Kafka gelöscht hat, bevor die Verknüpfung sie las, werden
   im Ergebnis des Laufs gezählt.
 - Kafka vergisst die Positionen einer Gruppe nach einer Woche ohne

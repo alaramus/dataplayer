@@ -476,6 +476,9 @@ class PostgresAdapter:
     async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
         return await self._update.insert_rows(request)
 
+    async def insert_rows_skipping(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request, skipping=True)
+
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         return await self._update.delete_rows(request)
 

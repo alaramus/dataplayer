@@ -224,4 +224,11 @@ MESSAGES: dict[str, str] = {
     "{said}; no position was kept, so reading started from the beginning": "{said}; no había ninguna posición guardada, así que la lectura empezó desde el principio",
     "{said}; no position was kept, so reading started from the end": "{said}; no había ninguna posición guardada, así que la lectura empezó desde el final",
     "{said}; {count} were deleted before they were read": "{said}; {count} se eliminaron antes de leerse",
+    # A table a link reading on makes (D313).
+    "A table named {name} is already there": "Ya existe una tabla llamada {name}",
+    "Add new messages to a new table": "Añadir los mensajes nuevos a una tabla nueva",
+    "The table could not be made": "No se pudo crear la tabla",
+    "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} ya no existe; para volver a leerlo todo, mueva las posiciones del grupo al principio",
+    "{said}; the table was made": "{said}; se creó la tabla",
+    "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}; la tabla se creó con una clave sobre partition y offset, así que cada mensaje se guarda una sola vez",
 }

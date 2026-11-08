@@ -26,7 +26,7 @@ from sqlmodel import Field, SQLModel
 from app.adapters.catalog import NodeKind
 from app.adapters.reading_on import ReadStart
 from app.connectors.paste.models import Conflict, PasteColumn, PasteKindName
-from app.connectors.paste.registry import READS_ON, kind_named
+from app.connectors.paste.registry import LINK_ONLY, kind_named
 from app.core.schemas import get_datetime_utc
 
 MAX_PIPELINES = 100
@@ -290,7 +290,7 @@ class LinkReader(BaseModel):
 
 def reader_of(link: Link) -> str | None:
     """The reader a link reads on as, one a link; None for every other kind."""
-    if link.kind != READS_ON.name:
+    if link.kind not in {kind.name for kind in LINK_ONLY}:
         return None
     return f"dataplayer-link-{link.id}"
 

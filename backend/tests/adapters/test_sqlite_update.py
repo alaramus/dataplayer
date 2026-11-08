@@ -368,3 +368,14 @@ async def test_values_land_in_the_classes_they_were_shown_as(
     finally:
         connection.close()
     assert stored == ("blob", "integer")
+
+
+async def test_a_skipping_block_leaves_out_what_a_unique_key_holds(adapter: SqliteAdapter) -> None:
+    result = await adapter.insert_rows_skipping(
+        InsertRowsRequest(node_id="main.labels", columns=["name"], rows=[["red"], ["violet"]])
+    )
+
+    # "red" is there already: one row arrived, and nothing was refused (D313).
+    assert isinstance(result, RowsInserted) and result.inserted == 1
+    names = [row[1] for row in (await _page(adapter, "main.labels")).rows]
+    assert names == ["red", "green", "violet"]

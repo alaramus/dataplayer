@@ -10,6 +10,7 @@ import pytest
 from confluent_kafka import KafkaError, KafkaException, Producer
 from httpx import AsyncClient
 
+from app.adapters.reading_on import Bookmark
 from app.core.db import async_session_maker
 from app.jobs.models import Job
 from app.main import app
@@ -56,7 +57,7 @@ async def _count(table: str) -> int:
         return int(found[0]) if found else 0
 
 
-async def _ran(canvas: Canvas, link_id: str) -> str | None:
+async def _ran(canvas: Canvas, link_id: str, state: str = "succeeded") -> str | None:
     started = await canvas.run()
     assert started.status_code == 200, started.text
     job_id = uuid.UUID(started.json()["job_id"])
@@ -64,7 +65,7 @@ async def _ran(canvas: Canvas, link_id: str) -> str | None:
     async with async_session_maker() as session:
         job = await session.get(Job, job_id)
         assert job is not None
-        assert job.state == "succeeded", job.message
+        assert job.state == state, job.message
     return (await canvas.outcomes())[link_id][1]
 
 
@@ -225,3 +226,183 @@ async def test_a_link_reading_on_is_refused_from_a_table(
     # PostgreSQL cannot read on, so the kind is not even asked.
     assert "rows_since_last" not in offered
     assert "rows_into_relation" in offered
+
+
+# --- a table the link makes (D313) ---------------------------------------------
+
+KEYED = [
+    {"source": "partition", "target": "part", "type_code": "text"},
+    {"source": "offset", "target": "position", "type_code": "text"},
+    {"source": "value.id", "target": "id", "type_code": "text"},
+]
+
+
+async def _made(
+    client: AsyncClient,
+    headers: dict[str, str],
+    topic: str,
+    schema: str,
+    name: str,
+    columns: list[dict[str, Any]],
+) -> tuple[Canvas, str, dict[str, Any]]:
+    kafka = await connector(
+        client,
+        headers,
+        "kafka",
+        {"bootstrap_servers": bootstrap(), "auth_method": "none"},
+    )
+    database = await connector(client, headers, "postgres", working_postgres_options())
+    source = card(kafka, [(f"topic:{topic}", topic, "topic")], name="Kafka")
+    target = card(database, [(schema, schema, "schema")], x=400, name="Warehouse")
+    canvas = await Canvas(client, headers).make()
+    drawn = link(
+        source,
+        f"topic:{topic}",
+        target,
+        schema,
+        "rows_since_last_new",
+        name=name,
+        columns=columns,
+    )
+    saved = await canvas.save([source, target], [drawn])
+    assert saved.status_code == 200, saved.text
+    return canvas, str(drawn["id"]), saved.json()
+
+
+async def _unique_keys(table: str) -> list[str]:
+    async with await psycopg.AsyncConnection.connect(conninfo()) as conn:
+        found = await conn.execute(
+            "SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = %s::regclass AND contype = 'u'",
+            (table,),
+        )
+        return [row[0] for row in await found.fetchall()]
+
+
+async def test_the_first_run_makes_the_table_with_a_key_and_a_block_read_again_arrives_once(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    topic: str,
+    schema: str,
+) -> None:
+    name = f"arrivals_{uuid.uuid4().hex[:8]}"
+    table = f"{schema}.{name}"
+    canvas, link_id, saved = await _made(
+        client, normal_user_token_headers, topic, schema, name, KEYED
+    )
+    group = saved["readers"][0]["name"]
+    # What it makes is a row of its card before the first run (D178).
+    assert [(row["link_id"], row["name"]) for row in saved["results"]] == [
+        (link_id, name)
+    ]
+    try:
+        assert await _ran(canvas, link_id) == (
+            f"{SENT} new messages added to {name}; the table was made with a key on "
+            "partition and offset, so each message is kept once; "
+            "no position was kept, so reading started from the beginning"
+        )
+        assert await _count(table) == SENT
+        assert await _unique_keys(table) == ['UNIQUE (part, "position")']
+        assert (await canvas.last())["links"][0]["made"] == name
+
+        await on_server(lambda: _send(topic, 3))
+        assert await _ran(canvas, link_id) == f"3 new messages added to {name}"
+
+        # Read from the start again, as after a failure before the bookmark
+        # was kept: every block arrives a second time and none is written.
+        start = Bookmark(positions={"0": 0, "1": 0, "2": 0})
+        await adapter().mark_read(f"topic:{topic}", group, start)
+        assert await _ran(canvas, link_id) == "Nothing new since the last run"
+        assert await _count(table) == SENT + 3
+    finally:
+        await _forget(group)
+
+
+async def test_without_partition_and_offset_the_table_has_no_key(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    topic: str,
+    schema: str,
+) -> None:
+    name = f"plain_{uuid.uuid4().hex[:8]}"
+    columns = [{"source": "value.id", "target": "id", "type_code": "text"}]
+    canvas, link_id, saved = await _made(
+        client, normal_user_token_headers, topic, schema, name, columns
+    )
+    try:
+        said = await _ran(canvas, link_id)
+        assert said is not None
+        assert said.startswith(
+            f"{SENT} new messages added to {name}; the table was made;"
+        )
+        assert await _unique_keys(f"{schema}.{name}") == []
+    finally:
+        await _forget(saved["readers"][0]["name"])
+
+
+async def test_a_name_taken_before_the_first_run_fails_it(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    topic: str,
+    schema: str,
+) -> None:
+    name = f"taken_{uuid.uuid4().hex[:8]}"
+    await run(f"CREATE TABLE {schema}.{name} (id text)")  # noqa: S608 -- the fixture's own schema
+    canvas, link_id, saved = await _made(
+        client, normal_user_token_headers, topic, schema, name, KEYED
+    )
+    try:
+        said = await _ran(canvas, link_id, state="failed")
+        assert said == f"A table named {name} is already there"
+        assert await _count(f"{schema}.{name}") == 0
+    finally:
+        await _forget(saved["readers"][0]["name"])
+
+
+async def test_a_table_gone_after_the_first_run_is_not_made_again(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    topic: str,
+    schema: str,
+) -> None:
+    name = f"gone_{uuid.uuid4().hex[:8]}"
+    canvas, link_id, saved = await _made(
+        client, normal_user_token_headers, topic, schema, name, KEYED
+    )
+    try:
+        await _ran(canvas, link_id)
+        await run(f"DROP TABLE {schema}.{name}")  # noqa: S608 -- the fixture's own schema
+        said = await _ran(canvas, link_id, state="failed")
+        assert (
+            said
+            == f"{name} is no longer there; to read everything again, move the group's positions to the start"
+        )
+    finally:
+        await _forget(saved["readers"][0]["name"])
+
+
+async def test_a_topic_drawn_to_a_schema_is_offered_a_new_table(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    topic: str,
+    schema: str,
+) -> None:
+    headers = normal_user_token_headers
+    kafka = await connector(
+        client,
+        headers,
+        "kafka",
+        {"bootstrap_servers": bootstrap(), "auth_method": "none"},
+    )
+    database = await connector(client, headers, "postgres", working_postgres_options())
+    source = card(kafka, [(f"topic:{topic}", topic, "topic")], name="Kafka")
+    target = card(database, [(schema, schema, "schema")], x=400, name="Warehouse")
+    canvas = await Canvas(client, headers).make()
+    saved = await canvas.save([source, target], [])
+    assert saved.status_code == 200, saved.text
+
+    offered = await canvas.offers(end(source, f"topic:{topic}"), end(target, schema))
+    assert offered["rows_since_last_new"]["available"] is True
+    assert offered["rows_since_last"]["available"] is False
+    assert {"rows_into_relation", "rows_new_relation", "relation_csv"}.isdisjoint(
+        offered
+    )

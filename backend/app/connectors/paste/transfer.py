@@ -130,6 +130,9 @@ class Transfer(BaseModel):
     reader: str | None = Field(default=None, max_length=255)
     start: ReadStart | None = None
     fresh: bool = False
+    # A table the link made in this run, and whether with D313's key.
+    made_table: bool = False
+    keyed: bool = False
     # A file uploaded for this job alone, in its owner's storage, read in
     # place of a connection and removed when the job ends (D45). The source
     # connection then names the destination: an upload has none.

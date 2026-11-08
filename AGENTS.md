@@ -118,7 +118,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/ssh](docs/architecture/sources/ssh.md) | D144–D147, D153, D154, D266, D282 |
 | [terminals](docs/architecture/terminals.md) | D148, D149, D286 |
 | [sources/explorer](docs/architecture/sources/explorer.md) | D150–D152 |
-| [pipelines](docs/architecture/pipelines.md) | D174–D180, D312 |
+| [pipelines](docs/architecture/pipelines.md) | D174–D180, D312, D313 |
 | [search](docs/architecture/search.md) | D197–D205 |
 | [search-kept](docs/architecture/search-kept.md) | D212–D222 |
 | [localization](docs/architecture/localization.md) | D224–D227, D281 |

@@ -173,6 +173,13 @@ others carry what arrives into tables.
 - Each block of rows is written first and its position kept after. If a run
   fails between the two, the next run writes that block again: a message is
   never missed, and rarely arrives twice.
+- **Add new messages to a new table**, drawn to a schema rather than a table,
+  makes the table on its first run — name, columns and types chosen in its
+  window — and adds to it after. If the table has the topic's partition and
+  offset among its columns, it is made with a key on them where the database
+  allows it (PostgreSQL, MySQL, MariaDB, SQLite), and a message written twice
+  is kept once. A table removed later is not made again: move the group's
+  positions to the start to read everything into a new one.
 - Messages Kafka deleted before the link read them are counted in the run's
   result.
 - Kafka forgets a group's positions after a week without them being written,

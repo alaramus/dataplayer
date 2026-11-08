@@ -222,4 +222,11 @@ MESSAGES: dict[str, str] = {
     "{said}; no position was kept, so reading started from the beginning": "{said}；没有保存的位置，因此从开头开始读取",
     "{said}; no position was kept, so reading started from the end": "{said}；没有保存的位置，因此从末尾开始读取",
     "{said}; {count} were deleted before they were read": "{said}；有 {count} 条在读取前已被删除",
+    # A table a link reading on makes (D313).
+    "A table named {name} is already there": "名为 {name} 的表已存在",
+    "Add new messages to a new table": "将新消息添加到新表",
+    "The table could not be made": "无法创建该表",
+    "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} 已不存在；要重新读取全部内容，请把该组的位置移到开头",
+    "{said}; the table was made": "{said}；已创建该表",
+    "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}；该表已按 partition 和 offset 建立键，因此每条消息只保存一次",
 }

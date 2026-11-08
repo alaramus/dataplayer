@@ -269,9 +269,11 @@ class Writing:
             await cursor.execute(sql, params)
             return int(cursor.rowcount), int(cursor.lastrowid or 0)
 
-    async def execute_many(self, sql: str, rows: list[tuple[object, ...]]) -> None:
+    async def execute_many(self, sql: str, rows: list[tuple[object, ...]]) -> int:
+        """The rows changed, as the server counts them."""
         async with self._connection.cursor() as cursor:
             await cursor.executemany(sql, rows)
+            return max(int(cursor.rowcount), 0)
 
     async def rows(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, Any]]:
         async with self._connection.cursor(QuietDictCursor) as cursor:

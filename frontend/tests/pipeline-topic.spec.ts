@@ -146,3 +146,81 @@ test("reads a topic into a table, only what is new at each run", async ({ page }
   await deleteConnector(page, database)
   await deleteConnector(page, broker)
 })
+
+test("reads a topic into a table its link makes, keyed so each message is kept once (D313)", async ({ page }) => {
+  await requireE2EService("kafka")
+  const stamp = Date.now()
+  const database = `e2e-topic-new-db-${stamp}`
+  const broker = `e2e-topic-new-kafka-${stamp}`
+  const topic = `e2e.made.${stamp}`
+  const table = `e2e_made_${stamp}`
+  await login(page)
+  const api = await signedApi(page)
+
+  const made = await page.request.post(`${api.base}/connectors/`, {
+    headers: api.headers,
+    data: { name: broker, adapter_type: "kafka", options: { bootstrap_servers: "kafka:9092", auth_method: "none" } },
+  })
+  expect(made.ok(), await made.text()).toBeTruthy()
+  const kafka = ((await made.json()) as { id: string }).id
+  const topicMade = await page.request.post(`${api.base}/connectors/${kafka}/actions/new_topic`, {
+    headers: api.headers,
+    data: { node_id: "topics", params: { name: topic, partitions: 1, settings: "" } },
+  })
+  expect(topicMade.ok(), await topicMade.text()).toBeTruthy()
+  await send(page, api, kafka, topic, [1, 2, 3])
+  await createPostgresConnector(page, database)
+  const postgres = await connectorId(page, api, database)
+
+  await page.getByTestId("space-pipelines").click()
+  const first = page.getByTestId("pipeline-create-first")
+  await expect(first.or(page.getByTestId("pipeline-new"))).toBeVisible()
+  if (await first.isVisible()) await first.click()
+  else await page.getByTestId("pipeline-new").click()
+  await expect(page.getByTestId("pipeline-view")).toBeVisible()
+
+  const rail = page.getByTestId("pipelines-rail")
+  const picker = page.getByTestId("card-picker")
+  await rail.getByTestId(`connector-${broker}`).click()
+  await picker.getByTestId("catalog-node-Topics").click()
+  await picker.getByTestId(`catalog-check-${topic}`).click()
+  await picker.getByTestId("card-picker-done").click()
+  await rail.getByTestId(`connector-${database}`).click()
+  await picker.getByTestId("catalog-check-public").click()
+  await picker.getByTestId("card-picker-done").click()
+
+  // Drawn to a schema: the table is made, its window opens at once with
+  // every column of the topic, partition and offset among them.
+  await drawLink(page, row(page, topic), row(page, "public"))
+  const panel = page.getByTestId("link-panel")
+  await expect(panel.getByTestId("link-panel-sentence")).toContainText("Add new messages to a new table")
+  const window = page.getByTestId("grid-create-table-dialog")
+  await expect(window).toBeVisible()
+  await window.getByTestId("grid-create-table-name").fill(table)
+  await window.getByTestId("grid-create-table-run").click()
+  await expect(window).toHaveCount(0)
+  // What it makes is a row of the card before it runs (D178).
+  await expect(page.getByTestId("pipeline-canvas")).toContainText(table)
+
+  await page.getByTestId("pipeline-run").click()
+  const result = panel.getByTestId("link-panel-result")
+  await expect(result).toContainText("3 new messages added", { timeout: 30_000 })
+  await expect(result).toContainText("the table was made with a key on partition and offset")
+
+  await send(page, api, kafka, topic, [4, 5])
+  await page.getByTestId("pipeline-run").click()
+  await expect(result).toContainText("2 new messages added", { timeout: 30_000 })
+  await expect(result).not.toContainText("the table was made")
+  await page.screenshot({ path: "test-results/pipeline-topic-new-table.png" })
+
+  await page.getByTestId("pipeline-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await sql(page, api, postgres, `DROP TABLE public.${table}`)
+  await page.request.post(`${api.base}/connectors/${kafka}/actions/delete_topic`, {
+    headers: api.headers,
+    data: { node_id: `topic:${topic}`, params: {} },
+  })
+  await page.getByTestId("space-data").click()
+  await deleteConnector(page, database)
+  await deleteConnector(page, broker)
+})

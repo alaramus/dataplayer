@@ -223,4 +223,11 @@ MESSAGES: dict[str, str] = {
     "{said}; no position was kept, so reading started from the beginning": "{said}; сохранённой позиции не было, поэтому чтение началось с начала",
     "{said}; no position was kept, so reading started from the end": "{said}; сохранённой позиции не было, поэтому чтение началось с конца",
     "{said}; {count} were deleted before they were read": "{said}; удалено до прочтения: {count}",
+    # A table a link reading on makes (D313).
+    "A table named {name} is already there": "Таблица с именем {name} уже есть",
+    "Add new messages to a new table": "Добавить новые сообщения в новую таблицу",
+    "The table could not be made": "Не удалось создать таблицу",
+    "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} больше нет; чтобы прочитать всё заново, сдвиньте позиции группы в начало",
+    "{said}; the table was made": "{said}; таблица создана",
+    "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}; таблица создана с ключом по partition и offset, поэтому каждое сообщение сохраняется один раз",
 }

@@ -115,6 +115,39 @@ async def into_table(
     return offered(kind, available=True, source_columns=columns, target_columns=insertable)
 
 
+async def new_table(
+    kind: PasteKind, destination: DataAdapter, place: str | None, columns: list[FetchColumn]
+) -> PasteOffer:
+    """The offer of a new table made in `place` of rows read by `columns`."""
+    if not isinstance(destination, SupportsCreateRelation):
+        return refused(kind, say("This connection cannot create tables"))
+    try:
+        options = await destination.new_relation_options(place or "")
+    except (NodeNotFound, ValueError):
+        return refused(kind, say("Choose the schema the table goes in"))
+    except AdapterError:
+        return refused(kind, say("The connection is unavailable"))
+    if not options.supported:
+        return refused(kind, options.reason or say("This place cannot take a new table"))
+    return offered(kind, available=True, source_columns=columns)
+
+
+def made_table(name: str | None, columns: list[PasteColumn] | None) -> Foreseen:
+    """A table as a link will make it: the name and columns its window chose."""
+    return Foreseen(
+        kind="table",
+        name=name or say("a new table"),
+        columns=[
+            FetchColumn(
+                name=column.target,
+                type=ColumnType(sql=column.type_code or "text", category="other"),
+                insertable=True,
+            )
+            for column in columns or []
+        ],
+    )
+
+
 class _Rows:
     """A folder is not a destination: it takes a file as it is (D161) or a
     table as CSV (D165), and a second answer beside those would be a second
@@ -210,24 +243,13 @@ class RowsNewRelation(_Rows):
         columns = await columns_of(source, pair.source_node_ids)
         if isinstance(columns, str):
             return refused(self, columns)
-        return await self._into(destination, pair.destination_node_id, columns)
+        return await new_table(self, destination, pair.destination_node_id, columns)
 
     def made(
         self, source: Foreseen, name: str | None, columns: list[PasteColumn] | None
     ) -> Foreseen | None:
         del source  # the table is what its window chose, whatever it was made from
-        return Foreseen(
-            kind="table",
-            name=name or say("a new table"),
-            columns=[
-                FetchColumn(
-                    name=column.target,
-                    type=ColumnType(sql=column.type_code or "text", category="other"),
-                    insertable=True,
-                )
-                for column in columns or []
-            ],
-        )
+        return made_table(name, columns)
 
     async def foresee(
         self,
@@ -241,22 +263,7 @@ class RowsNewRelation(_Rows):
             return refused(self, columns)
         if isinstance(target_end, Foreseen):
             return refused(self, say("Choose the schema the table goes in"))
-        return await self._into(destination, target_end, columns)
-
-    async def _into(
-        self, destination: DataAdapter, place: str | None, columns: list[FetchColumn]
-    ) -> PasteOffer:
-        if not isinstance(destination, SupportsCreateRelation):
-            return refused(self, say("This connection cannot create tables"))
-        try:
-            options = await destination.new_relation_options(place or "")
-        except (NodeNotFound, ValueError):
-            return refused(self, say("Choose the schema the table goes in"))
-        except AdapterError:
-            return refused(self, say("The connection is unavailable"))
-        if not options.supported:
-            return refused(self, options.reason or say("This place cannot take a new table"))
-        return offered(self, available=True, source_columns=columns)
+        return await new_table(self, destination, target_end, columns)
 
     def _checked(self, source: DataAdapter, destination: DataAdapter, request: PasteRun) -> str:
         """The table's name, once the request asks for something that can run."""

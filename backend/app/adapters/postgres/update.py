@@ -222,7 +222,10 @@ class PostgresUpdate:
         values, row_handle = self._result(rows[0], info)
         return InsertRowResult(values=values, row_handle=row_handle)
 
-    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+    async def insert_rows(
+        self, request: InsertRowsRequest, *, skipping: bool = False
+    ) -> InsertRowsResult:
+        """A block of rows; `skipping` leaves out what a unique key holds (D313)."""
         schema, table = self._relation_name(request.node_id)
         info = await self._fetch.relation_info(schema, table)
         if not info.insert_supported:
@@ -260,16 +263,17 @@ class PostgresUpdate:
                 ]
             )
 
-        statement = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+        statement = sql.SQL("INSERT INTO {} ({}) VALUES ({}){}").format(
             sql.Identifier(schema, table),
             sql.SQL(", ").join(sql.Identifier(column.name) for column in targets),
             sql.SQL(", ").join(sql.Placeholder() for _ in targets),
+            sql.SQL(" ON CONFLICT DO NOTHING" if skipping else ""),
         )
         async with self._session.transaction(refusals=VALUE_REFUSALS) as work:
-            await work.change_many(
+            arrived = await work.change_many(
                 statement.as_string(), [tuple(row) for row in request.rows]
             )
-        return RowsInserted(inserted=len(request.rows))
+        return RowsInserted(inserted=arrived if skipping else len(request.rows))
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         schema, table = self._relation_name(request.node_id)

@@ -492,3 +492,24 @@ async def test_a_key_is_followed_both_ways(target: Target) -> None:
             )
         )
 
+
+
+async def test_a_skipping_block_leaves_out_what_a_unique_key_holds(target: Target) -> None:
+    adapter = target.adapter()
+    taken, fresh = _label(), _label()
+    first = await adapter.insert_rows(
+        InsertRowsRequest(node_id=THINGS, columns=["label", "amount", "place"], rows=[[taken, "1", "POINT(1 1)"]])
+    )
+    again = await adapter.insert_rows_skipping(
+        InsertRowsRequest(
+            node_id=THINGS,
+            columns=["label", "amount", "place"],
+            rows=[[taken, "2", "POINT(1 1)"], [fresh, "3", "POINT(1 1)"]],
+        )
+    )
+
+    assert isinstance(first, RowsInserted) and first.inserted == 1
+    # The taken label is left as it was, and counts as nothing (D313).
+    assert isinstance(again, RowsInserted) and again.inserted == 1
+    page, at = await _row(adapter, THINGS, "label", taken)
+    assert _value(page, at, "amount") == "1.00"

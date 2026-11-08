@@ -1,23 +1,35 @@
-"""Rows read on from where a pipeline's link stopped, added to a table (D312).
+"""Rows read on from where a pipeline's link stopped, added to a table (D312)
+or to a table the link makes (D313).
 
-A link's kind only: "since the last run" means nothing to a paste made once,
-so Paste in the catalog never offers it. It writes as Add rows does, and
-reads through `SupportsReadingOn`: a span drawn when the step starts, read a
-block at a time, each block's bookmark kept once the block is written. A
-failure between the two reads that block again: at least once.
+Link kinds only: "since the last run" means nothing to a paste made once, so
+Paste in the catalog never offers them. They read through
+`SupportsReadingOn`: a span drawn when the step starts, read a block at a
+time, each block's bookmark kept once the block is written. A failure
+between the two reads that block again: at least once, unless the table the
+link made has a key that leaves the repeat out (D313).
 """
 
 import asyncio
+from collections.abc import Awaitable, Callable
 
 from app.adapters.actions import ActionRefused
+from app.adapters.catalog import CatalogNode
+from app.adapters.constraints import CreateConstraintRequest, UniqueConstraintSpec
 from app.adapters.fetch import FetchColumn
 from app.adapters.protocol import (
     DataAdapter,
+    SupportsCatalog,
+    SupportsConstraints,
+    SupportsCreateRelation,
+    SupportsDropCreated,
     SupportsFetch,
     SupportsInsert,
     SupportsReadingOn,
+    SupportsSkippingInsert,
 )
-from app.adapters.update import ValuesRejected
+from app.adapters.reading_on import Bookmark
+from app.adapters.relation_changes import CreateRelationRequest, NewColumn
+from app.adapters.update import InsertRowsRequest, RowsInserted, ValuesRejected
 from app.connectors import imports
 from app.connectors.paste.files import TransfersFiles
 from app.connectors.paste.kinds import refused
@@ -37,7 +49,9 @@ from app.connectors.paste.rows import (
     NOT_ROWS,
     columns_of,
     into_table,
+    made_table,
     name_of,
+    new_table,
     why_ended,
 )
 from app.connectors.paste.transfer import (
@@ -52,22 +66,32 @@ from app.core.translation import N_, say
 
 NOT_READ_ON = N_("Only a topic is read on from where the link stopped")
 
+# The source columns that name one message, which a table the link makes is
+# keyed by where the destination can promise it (D313).
+MESSAGE_KEY = ("partition", "offset")
 
-class RowsSinceLast:
-    name: PasteKindName = "rows_since_last"
-    title = N_("Add new messages to a table")
+type Writer = Callable[
+    [list[str], list[list[str | None]]], Awaitable[RowsInserted | ValuesRejected]
+]
+
+
+class _ReadsOn:
+    """What both kinds share: the reading, the bookmark and the sentence."""
+
+    name: PasteKindName
+    title: str
+    workflow: PasteWorkflow
+    destination_requires: Access
+    makes: bool
     doing = N_("Adding new messages")
     done = N_("added")
     needs = N_("Tick a topic")
-    workflow: PasteWorkflow = "into-relation"
     mode: ClipboardMode = "copy"
     converts = True
     can_replace = False
     source_requires: Access = "read"
-    destination_requires: Access = "write"
     # The reader's bookmark moves, and no message changes.
     changes_source = False
-    makes = False
     pipelines = True
     outranks: tuple[PasteKindName, ...] = ()
     # What a node read on is not offered in a pipeline: each would read it
@@ -81,14 +105,6 @@ class RowsSinceLast:
     def takes_from(self, source: DataAdapter) -> bool:
         return isinstance(source, SupportsReadingOn) and isinstance(
             source, SupportsFetch
-        )
-
-    def serves(self, source: DataAdapter, destination: DataAdapter) -> bool:
-        return (
-            self.takes_from(source)
-            and isinstance(destination, SupportsInsert)
-            and isinstance(destination, SupportsFetch)
-            and not isinstance(destination, TransfersFiles)
         )
 
     async def supply(self, source: DataAdapter, node_ids: list[str]) -> Availability:
@@ -105,6 +121,177 @@ class RowsSinceLast:
         if not isinstance(source, SupportsReadingOn) or not source.reads_on(end):
             return say(NOT_READ_ON)
         return await columns_of(source, [end])
+
+    def _source_checked(
+        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
+    ) -> None:
+        if not self.serves(source, destination):
+            raise ActionRefused(
+                "not_applicable", say("These connections cannot move rows")
+            )
+        if len(request.source_node_ids) != 1 or request.reader is None:
+            raise ActionRefused("not_applicable", say(NOT_READ_ON))
+        if not request.columns:
+            raise ActionRefused("not_applicable", say("Pair at least one column"))
+
+    def serves(self, source: DataAdapter, destination: DataAdapter) -> bool:
+        raise NotImplementedError
+
+    async def _writer(
+        self,
+        source: SupportsReadingOn,
+        destination: DataAdapter,
+        transfer: Transfer,
+        fresh: bool,
+        start: Bookmark,
+    ) -> Writer:
+        """Where the blocks go, the table made or found first where it must be."""
+        raise NotImplementedError
+
+    async def transfer(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+    ) -> None:
+        if not isinstance(source, SupportsReadingOn) or transfer.reader is None:
+            raise TransferStopped(say(NOT_ROWS))
+        item = transfer.items[0]
+        item.outcome = "running"
+        item.rows = 0
+        transfer.current = item.name
+        try:
+            await self._read_on(source, destination, transfer, report)
+        except asyncio.CancelledError:
+            item.outcome = "stopped"
+            raise
+        except TransferStopped:
+            item.outcome = "failed"
+            raise
+        except Exception as failure:  # noqa: BLE001 — said in the step's sentence, blocks kept
+            item.outcome = "failed"
+            raise TransferStopped(why_ended(failure)) from None
+        item.outcome = "done"
+        item.arrived = 1
+        transfer.current = None
+        transfer.published += 1
+
+    async def _read_on(
+        self,
+        source: SupportsReadingOn,
+        destination: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+    ) -> None:
+        item = transfer.items[0]
+        node, reader = item.node_id, transfer.reader or ""
+        span = await source.unread(node, reader, transfer.start or "earliest")
+        item.skipped = span.lost
+        transfer.fresh = span.fresh
+        write = await self._writer(
+            source, destination, transfer, span.fresh, span.start
+        )
+        await report.progressed()
+        pairs = transfer.columns or []
+        at = span.start
+        done = 0
+        while True:
+            block = await source.read_on(
+                node,
+                [pair.source for pair in pairs],
+                at,
+                span.line,
+                imports.IMPORT_CEILING,
+            )
+            if block.rows:
+                result = await write([pair.target for pair in pairs], block.rows)
+                if isinstance(result, ValuesRejected):
+                    raise imports.BlockRefused(
+                        ValuesRejected(
+                            cells=[
+                                cell.model_copy(update={"row": cell.row + done})
+                                for cell in result.cells
+                            ]
+                        )
+                    )
+                # What arrived: a block written twice and keyed counts once.
+                done += result.inserted
+                item.rows = done
+            # Kept after every block, an empty one too: Kafka forgets the
+            # positions of a group nobody writes for a week.
+            await source.mark_read(node, reader, block.after)
+            await report.progressed()
+            if block.done:
+                return
+            if block.after == at:
+                raise TransferStopped(say("Reading stopped moving on"))
+            at = block.after
+
+    def told(self, transfer: Transfer, stopped: str | None = None) -> str:
+        item = transfer.items[0]
+        rows = item.rows or 0
+        name = item.published_as or item.name
+        if stopped is not None:
+            if rows == 0:
+                return stopped
+            # What arrived before stays, its bookmark kept.
+            return say(
+                "{count} new messages added to {name}, then: {reason}",
+                count=rows,
+                name=name,
+                reason=stopped,
+            )
+        if rows == 0:
+            said = say("Nothing new since the last run")
+        else:
+            said = say("{count} new messages added to {name}", count=rows, name=name)
+        if transfer.made_table:
+            said = (
+                say(
+                    "{said}; the table was made with a key on partition and offset, so each message is kept once",
+                    said=said,
+                )
+                if transfer.keyed
+                else say("{said}; the table was made", said=said)
+            )
+        if transfer.fresh:
+            said = (
+                say(
+                    "{said}; no position was kept, so reading started from the beginning",
+                    said=said,
+                )
+                if transfer.start != "latest"
+                else say(
+                    "{said}; no position was kept, so reading started from the end",
+                    said=said,
+                )
+            )
+        if item.skipped:
+            said = say(
+                "{said}; {count} were deleted before they were read",
+                said=said,
+                count=item.skipped,
+            )
+        return said
+
+
+class RowsSinceLast(_ReadsOn):
+    """Into a table that is there: at least once, whatever keys it has."""
+
+    name: PasteKindName = "rows_since_last"
+    title = N_("Add new messages to a table")
+    workflow: PasteWorkflow = "into-relation"
+    destination_requires: Access = "write"
+    makes = False
+
+    def serves(self, source: DataAdapter, destination: DataAdapter) -> bool:
+        return (
+            self.takes_from(source)
+            and isinstance(destination, SupportsInsert)
+            and isinstance(destination, SupportsFetch)
+            and not isinstance(destination, TransfersFiles)
+        )
 
     async def offer(
         self, source: DataAdapter, destination: DataAdapter, pair: PastePair
@@ -140,27 +327,15 @@ class RowsSinceLast:
             return refused(self, columns)
         return await into_table(self, destination, target_end, columns)
 
-    def _checked(
+    async def plan(
         self, source: DataAdapter, destination: DataAdapter, request: PasteRun
-    ) -> str:
-        if not self.serves(source, destination):
-            raise ActionRefused(
-                "not_applicable", say("These connections cannot move rows")
-            )
-        if len(request.source_node_ids) != 1 or request.reader is None:
-            raise ActionRefused("not_applicable", say(NOT_READ_ON))
+    ) -> TransferPlan:
+        self._source_checked(source, destination, request)
         if request.target_node_id is None:
             raise ActionRefused(
                 "not_applicable", say("Tick the table the rows go into")
             )
-        if not request.columns:
-            raise ActionRefused("not_applicable", say("Pair at least one column"))
-        return request.target_node_id
-
-    async def plan(
-        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
-    ) -> TransferPlan:
-        target = self._checked(source, destination, request)
+        target = request.target_node_id
         return TransferPlan(
             items=[
                 TransferItem(
@@ -176,122 +351,213 @@ class RowsSinceLast:
             start=request.start,
         )
 
-    async def transfer(
+    async def _writer(
+        self,
+        source: SupportsReadingOn,
+        destination: DataAdapter,
+        transfer: Transfer,
+        fresh: bool,
+        start: Bookmark,
+    ) -> Writer:
+        del source, fresh, start
+        if (
+            not isinstance(destination, SupportsInsert)
+            or transfer.target_node_id is None
+        ):
+            raise TransferStopped(say("This connection cannot take rows"))
+        return imports.into_relation(destination, transfer.target_node_id)
+
+
+class RowsSinceLastNew(_ReadsOn):
+    """Into a table the link makes on its first run and adds to after (D313)."""
+
+    name: PasteKindName = "rows_since_last_new"
+    title = N_("Add new messages to a new table")
+    workflow: PasteWorkflow = "new-relation"
+    # What D45 asks of the place a table is made in.
+    destination_requires: Access = "structure"
+    makes = True
+
+    def serves(self, source: DataAdapter, destination: DataAdapter) -> bool:
+        return (
+            self.takes_from(source)
+            and isinstance(destination, SupportsCreateRelation)
+            and isinstance(destination, SupportsInsert)
+            and isinstance(destination, SupportsCatalog)
+            and not isinstance(destination, TransfersFiles)
+        )
+
+    async def offer(
+        self, source: DataAdapter, destination: DataAdapter, pair: PastePair
+    ) -> PasteOffer:
+        if len(pair.source_node_ids) != 1:
+            return refused(self, say("Paste one table at a time"))
+        columns = await self._source_columns(source, pair.source_node_ids[0])
+        if isinstance(columns, str):
+            return refused(self, columns)
+        return await new_table(self, destination, pair.destination_node_id, columns)
+
+    def made(
+        self, source: Foreseen, name: str | None, columns: list[PasteColumn] | None
+    ) -> Foreseen | None:
+        del source  # the table is what its window chose
+        return made_table(name, columns)
+
+    async def foresee(
         self,
         source: DataAdapter,
         destination: DataAdapter,
-        transfer: Transfer,
-        report: TransferReport,
-    ) -> None:
-        if (
-            not isinstance(source, SupportsReadingOn)
-            or not isinstance(destination, SupportsInsert)
-            or transfer.target_node_id is None
-            or transfer.reader is None
-        ):
-            raise TransferStopped(say(NOT_ROWS))
-        item = transfer.items[0]
-        item.outcome = "running"
-        item.rows = 0
-        transfer.current = item.name
-        try:
-            await self._read_on(source, destination, transfer, report)
-        except asyncio.CancelledError:
-            item.outcome = "stopped"
-            raise
-        except TransferStopped:
-            item.outcome = "failed"
-            raise
-        except Exception as failure:  # noqa: BLE001 — said in the step's sentence, blocks kept
-            item.outcome = "failed"
-            raise TransferStopped(why_ended(failure)) from None
-        item.outcome = "done"
-        item.arrived = 1
-        item.published_id = transfer.target_node_id
-        transfer.current = None
-        transfer.published += 1
+        source_end: PairEnd,
+        target_end: PairEnd,
+    ) -> PasteOffer:
+        if isinstance(target_end, Foreseen):
+            return refused(self, say("Choose the schema the table goes in"))
+        columns = await self._source_columns(source, source_end)
+        if isinstance(columns, str):
+            return refused(self, columns)
+        return await new_table(self, destination, target_end, columns)
 
-    async def _read_on(
+    async def plan(
+        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
+    ) -> TransferPlan:
+        self._source_checked(source, destination, request)
+        if request.name is None or not request.name.strip():
+            raise ActionRefused(
+                "not_applicable", say("Name the table and choose its columns")
+            )
+        if any(column.type_code is None for column in request.columns or []):
+            raise ActionRefused("not_applicable", say("Choose a type for every column"))
+        name = request.name.strip()
+        return TransferPlan(
+            items=[TransferItem(node_id=request.source_node_ids[0], name=name)],
+            bytes_total=None,
+            place="",
+            name=name,
+            columns=request.columns,
+            reader=request.reader,
+            start=request.start,
+        )
+
+    async def _writer(
         self,
         source: SupportsReadingOn,
-        destination: SupportsInsert,
+        destination: DataAdapter,
         transfer: Transfer,
-        report: TransferReport,
-    ) -> None:
+        fresh: bool,
+        start: Bookmark,
+    ) -> Writer:
+        if not isinstance(destination, SupportsCreateRelation) or not isinstance(
+            destination, SupportsInsert
+        ):
+            raise TransferStopped(say("This connection cannot create tables"))
         item = transfer.items[0]
-        node, reader = item.node_id, transfer.reader or ""
-        span = await source.unread(node, reader, transfer.start or "earliest")
-        item.skipped = span.lost
-        transfer.fresh = span.fresh
-        await report.progressed()
+        name = transfer.name or item.name
+        place = transfer.destination_node_id or ""
+        found = await _table_named(destination, place, name)
         pairs = transfer.columns or []
-        write = imports.into_relation(destination, transfer.target_node_id or "")
-        at = span.start
-        done = 0
-        while True:
-            block = await source.read_on(
-                node,
-                [pair.source for pair in pairs],
-                at,
-                span.line,
-                imports.IMPORT_CEILING,
-            )
-            if block.rows:
-                result = await write([pair.target for pair in pairs], block.rows)
-                if isinstance(result, ValuesRejected):
-                    raise imports.BlockRefused(
-                        ValuesRejected(
-                            cells=[
-                                cell.model_copy(update={"row": cell.row + done})
-                                for cell in result.cells
-                            ]
-                        )
-                    )
-                done += len(block.rows)
-                item.rows = done
-            # Kept after every block, an empty one too: Kafka forgets the
-            # positions of a group nobody writes for a week.
-            await source.mark_read(node, reader, block.after)
-            await report.progressed()
-            if block.done:
-                return
-            if block.after == at:
-                raise TransferStopped(say("Reading stopped moving on"))
-            at = block.after
-
-    def told(self, transfer: Transfer, stopped: str | None = None) -> str:
-        item = transfer.items[0]
-        rows = item.rows or 0
-        if stopped is not None:
-            # What arrived before stays, its bookmark kept.
-            said = say(
-                "{count} new messages added to {name}, then: {reason}",
-                count=rows,
-                name=item.name,
-                reason=stopped,
-            )
-        elif rows == 0:
-            said = say("Nothing new since the last run")
+        if fresh:
+            # No bookmark: the first run, or the source forgot it. The table
+            # is made now, and a name taken is somebody else's table.
+            if found is not None:
+                raise TransferStopped(
+                    say("A table named {name} is already there", name=name)
+                )
+            table = await self._made(source, destination, transfer, place, name, start)
+            transfer.made_table = True
         else:
-            said = say(
-                "{count} new messages added to {name}", count=rows, name=item.name
-            )
-        if transfer.fresh:
-            said = (
-                say(
-                    "{said}; no position was kept, so reading started from the beginning",
-                    said=said,
+            if found is None:
+                # Made again it would hold only what came after, under a name
+                # that claims all of it.
+                raise TransferStopped(
+                    say(
+                        "{name} is no longer there; to read everything again, "
+                        "move the group's positions to the start",
+                        name=name,
+                    )
                 )
-                if transfer.start != "latest"
-                else say(
-                    "{said}; no position was kept, so reading started from the end",
-                    said=said,
+            table = found
+        item.published_id, item.published_as = table.id, table.name
+        if (
+            isinstance(destination, SupportsSkippingInsert)
+            and _keyed_by(pairs) is not None
+        ):
+            return _skipping(destination, table.id)
+        return imports.into_relation(destination, table.id)
+
+    async def _made(
+        self,
+        source: SupportsReadingOn,
+        destination: SupportsCreateRelation,
+        transfer: Transfer,
+        place: str,
+        name: str,
+        start: Bookmark,
+    ) -> CatalogNode:
+        pairs = transfer.columns or []
+        made = await destination.create_relation(
+            CreateRelationRequest(
+                parent_node_id=place,
+                name=name,
+                columns=[
+                    NewColumn(name=pair.target, type_code=pair.type_code or "")
+                    for pair in pairs
+                ],
+            )
+        )
+        if isinstance(made, ValuesRejected):
+            raise TransferStopped(say("The table could not be made"))
+        try:
+            key = _keyed_by(pairs)
+            if (
+                key is not None
+                and isinstance(destination, SupportsConstraints)
+                and isinstance(destination, SupportsSkippingInsert)
+            ):
+                await destination.create_constraint(
+                    CreateConstraintRequest(
+                        node_id=made.node.id,
+                        constraint=UniqueConstraintSpec(columns=list(key)),
+                    )
                 )
+                transfer.keyed = True
+            # Kept at once: a failure later in this run then leaves a bookmark,
+            # and the next run adds to this table instead of meeting its own
+            # name taken.
+            await source.mark_read(
+                transfer.items[0].node_id, transfer.reader or "", start
             )
-        if item.skipped:
-            said = say(
-                "{said}; {count} were deleted before they were read",
-                said=said,
-                count=item.skipped,
-            )
-        return said
+        except asyncio.CancelledError, Exception:
+            if isinstance(destination, SupportsDropCreated):
+                await asyncio.shield(destination.drop_created(made.node.id))
+            raise
+        return made.node
+
+
+def _keyed_by(pairs: list[PasteColumn]) -> tuple[str, str] | None:
+    """The table's columns that hold a message's partition and offset."""
+    targets = {pair.source: pair.target for pair in pairs}
+    if all(column in targets for column in MESSAGE_KEY):
+        return targets[MESSAGE_KEY[0]], targets[MESSAGE_KEY[1]]
+    return None
+
+
+def _skipping(destination: SupportsSkippingInsert, node_id: str) -> Writer:
+    async def write(
+        columns: list[str], rows: list[list[str | None]]
+    ) -> RowsInserted | ValuesRejected:
+        return await destination.insert_rows_skipping(
+            InsertRowsRequest(node_id=node_id, columns=columns, rows=rows)
+        )
+
+    return write
+
+
+async def _table_named(
+    destination: DataAdapter, place: str, name: str
+) -> CatalogNode | None:
+    """The node called `name` in the place, if there is one: a table, or what
+    the source makes in its stead."""
+    if not isinstance(destination, SupportsCatalog):
+        return None
+    children = await destination.list_children(place or None)
+    return next((node for node in children if node.name == name), None)

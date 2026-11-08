@@ -219,4 +219,11 @@ MESSAGES: dict[str, str] = {
     "{said}; no position was kept, so reading started from the beginning": "{said}؛ لم يكن هناك موضع محفوظ، فبدأت القراءة من البداية",
     "{said}; no position was kept, so reading started from the end": "{said}؛ لم يكن هناك موضع محفوظ، فبدأت القراءة من النهاية",
     "{said}; {count} were deleted before they were read": "{said}؛ حُذفت {count} قبل قراءتها",
+    # A table a link reading on makes (D313).
+    "A table named {name} is already there": "يوجد جدول باسم {name} بالفعل",
+    "Add new messages to a new table": "إضافة الرسائل الجديدة إلى جدول جديد",
+    "The table could not be made": "تعذّر إنشاء الجدول",
+    "{name} is no longer there; to read everything again, move the group's positions to the start": "لم يعد {name} موجودًا؛ لإعادة قراءة كل شيء انقل مواضع المجموعة إلى البداية",
+    "{said}; the table was made": "{said}؛ أُنشئ الجدول",
+    "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}؛ أُنشئ الجدول بمفتاح على partition وoffset، لذا تُحفظ كل رسالة مرة واحدة",
 }

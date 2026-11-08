@@ -2,9 +2,9 @@
 
 Read this before changing the pipelines space, a pipeline's cards, links,
 run, schedule or history, the answer of what a person's connections can
-give each other, or a link that reads a topic on from where it stopped.
+give each other, or a link that reads a topic on from where it stopped, into a table it may make.
 
-Decisions here: D174, D175, D176, D177, D178, D179, D180, D312.
+Decisions here: D174, D175, D176, D177, D178, D179, D180, D312, D313.
 
 ## D174. What two connections can give each other is asked of no node
 
@@ -341,3 +341,42 @@ Known deviations:
 - **A link's group is not deleted with it**: Kafka forgets it by itself.
 
 Spec: [A topic read by a pipeline's link, only what is new](../decisions/2026-11-08-pipeline-topic-reading-design.md)
+
+## D313. A link reading on may make its table, and key it so each message arrives once
+
+- **Add new messages to a new table** (`rows_since_last_new`) is D312's
+  second link-only kind, as Create a table stands beside Add rows: drawn to a
+  place, the window is Create a table's; drawn to a table, D312's kind is the
+  one that answers. What it makes is a row of its card (D178), published at
+  every run, made or found.
+- **The group's position decides.** With none kept the table is made, a
+  name already taken failing the step, and the bookmark is kept at once where
+  reading starts, so a later failure leaves the next run adding to the table
+  rather than meeting its own name. A failure before that takes the table
+  back (`SupportsDropCreated`). With a position kept the table is found by
+  its name in the place and added to; one that is gone fails the step with
+  "{name} is no longer there; to read everything again, move the group's
+  positions to the start", and is not made again.
+- **Each message once where the destination can promise it.** When the new
+  table's columns include the topic's partition and offset, and the
+  destination has `SupportsConstraints` and `SupportsSkippingInsert`, the
+  table is made with a unique key over those two columns and every block is
+  written leaving out the rows the key holds; the step counts what arrived.
+  The window starts with every column of the topic, so that is the default.
+- **`SupportsSkippingInsert.insert_rows_skipping`**: PostgreSQL and SQLite
+  write `ON CONFLICT DO NOTHING`, MySQL and MariaDB `ON DUPLICATE KEY UPDATE`
+  of the first column to itself — not `INSERT IGNORE`, which also turns a
+  value that does not fit into a warning — each counting the rows that
+  arrived.
+- **D312's kind into a table that was there stays at least once**: leaving
+  out what a key holds would, on somebody's own table, drop rows silently
+  instead of failing.
+
+Known deviations:
+
+- **A table found by its name is trusted to be the one the link made.**
+- **ClickHouse and every destination without a unique key stay at least
+  once**, as does a table made without partition or offset.
+- **New fields of the messages are not added as columns.**
+
+Spec: [A topic read into a table its link makes, each message once](../decisions/2026-11-08-pipeline-topic-new-table-design.md)

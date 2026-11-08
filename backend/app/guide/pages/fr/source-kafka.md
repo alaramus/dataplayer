@@ -185,6 +185,13 @@ portent ce qui arrive vers des tables.
 - Chaque bloc de lignes est d'abord écrit, puis sa position conservée. Si une
   exécution échoue entre les deux, la suivante réécrit ce bloc : aucun
   message n'est perdu, et il arrive rarement en double.
+- **Ajouter les nouveaux messages à une nouvelle table**, tiré vers un schéma
+  plutôt qu'une table, crée la table à la première exécution — nom, colonnes
+  et types choisis dans sa fenêtre — puis y ajoute. Si ses colonnes incluent
+  partition et offset du topic, elle reçoit une clé sur eux là où la base le
+  permet (PostgreSQL, MySQL, MariaDB, SQLite), et un message écrit deux fois
+  n'est conservé qu'une fois. Une table supprimée ensuite n'est pas recréée :
+  déplacez les positions du groupe au début pour tout lire dans une nouvelle.
 - Les messages que Kafka a supprimés avant que le lien les lise sont comptés
   dans le résultat de l'exécution.
 - Kafka oublie les positions d'un groupe après une semaine sans écriture ; un

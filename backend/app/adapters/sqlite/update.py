@@ -278,7 +278,10 @@ class SqliteUpdate:
         values, handle = await self._session.write(work, refusals=WRITING)
         return InsertRowResult(values=values, row_handle=handle)
 
-    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+    async def insert_rows(
+        self, request: InsertRowsRequest, *, skipping: bool = False
+    ) -> InsertRowsResult:
+        """A block of rows; `skipping` leaves out what a unique key holds (D313)."""
         facts, shape = await self._shape(request.node_id)
         if not shape.insert_supported:
             raise ValueError(shape.insert_reason or say("This relation cannot accept rows"))
@@ -294,10 +297,11 @@ class SqliteUpdate:
             tuple(written(value, column.type) for column, value in zip(targets, row, strict=True))
             for row in request.rows
         ]
-        statement = SQL("INSERT INTO {} ({}) VALUES ({})").format(
+        statement = SQL("INSERT INTO {} ({}) VALUES ({}){}").format(
             Identifier(SCHEMA, facts.name),
             SQL(", ").join(Identifier(column.name) for column in targets),
             SQL(", ").join(SQL("?") for _ in targets),
+            SQL(" ON CONFLICT DO NOTHING" if skipping else ""),
         )
 
         def work(connection: sqlite3.Connection) -> InsertRowsResult:
@@ -311,8 +315,8 @@ class SqliteUpdate:
                         for at in rejected[:200]
                     ]
                 )
-            connection.executemany(statement.text(), rows)
-            return RowsInserted(inserted=len(rows))
+            cursor = connection.executemany(statement.text(), rows)
+            return RowsInserted(inserted=max(cursor.rowcount, 0) if skipping else len(rows))
 
         return await self._session.write(work, refusals=WRITING)
 

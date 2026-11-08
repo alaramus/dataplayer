@@ -181,6 +181,14 @@ llevan lo que llega a tablas.
 - Cada bloque de filas se escribe primero y su posición se guarda después. Si
   una ejecución falla entre ambos pasos, la siguiente vuelve a escribir ese
   bloque: ningún mensaje se pierde, y rara vez llega dos veces.
+- **Añadir los mensajes nuevos a una tabla nueva**, trazado hacia un esquema en
+  lugar de una tabla, crea la tabla en la primera ejecución — nombre, columnas
+  y tipos elegidos en su ventana — y después añade a ella. Si entre sus
+  columnas están partition y offset del topic, se crea con una clave sobre
+  ellas donde la base lo permite (PostgreSQL, MySQL, MariaDB, SQLite), y un
+  mensaje escrito dos veces se guarda una sola. Una tabla eliminada después no
+  se vuelve a crear: mueva las posiciones del grupo al principio para leerlo
+  todo en una nueva.
 - Los mensajes que Kafka borró antes de que el enlace los leyera se cuentan en
   el resultado de la ejecución.
 - Kafka olvida las posiciones de un grupo tras una semana sin escribirlas; un
