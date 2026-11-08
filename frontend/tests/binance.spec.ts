@@ -45,6 +45,11 @@ test("walks from a market to a symbol and reads its feeds as rows", async ({ pag
 
   await page.reload()
   await openConnector(page, name)
+  // The connection's own section first, its reports opening as rows (D320).
+  await openNode(page, "Exchange")
+  await openNode(page, "Rate limit")
+  await expect(page.getByTestId("grid-cell-0-Setting")).toHaveText("Spot: limit a minute")
+  await page.getByTestId("catalog-home").click()
   await expect(catalogRow(page, "Spot")).toBeVisible()
   await expect(catalogRow(page, "USDⓈ-M futures")).toBeVisible()
   await openNode(page, "Spot")

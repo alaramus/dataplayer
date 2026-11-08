@@ -128,11 +128,13 @@ async def test_a_ban_holds_the_market_until_its_time(fake_binance: FakeBinance) 
 # --- the catalog (D317) -------------------------------------------------------------
 
 
-async def test_the_top_is_the_two_markets(fake_binance: FakeBinance) -> None:
+async def test_the_top_is_the_exchange_section_and_the_two_markets(
+    fake_binance: FakeBinance,
+) -> None:
     del fake_binance
     nodes = await _adapter().list_children(None)
 
-    assert [node.id for node in nodes] == ["spot", "usdm"]
+    assert [node.id for node in nodes] == ["exchange", "spot", "usdm"]
 
 
 async def test_a_market_holds_its_lists_then_its_quotes_fullest_first(

@@ -14,6 +14,9 @@ work in general is on the [Connections](connections.md) page.
 - A symbol's trades, newest first, by id or from a time
 - A symbol's order book, bids and asks, with running totals
 - Any of them downloaded as a file
+- Binance's status, its clock, and how much of the rate limit is used
+- The rate limit and Binance's answers on a dashboard
+- Symbols found by name or by asset
 - A symbol's trades or candles carried by a pipeline, only what is new each run
 
 ## What you can change
@@ -35,6 +38,7 @@ not help.
 
 ## The catalog
 
+- **Exchange** first: what Binance and this connection say about themselves.
 - **Spot** and **USDⓈ-M futures**. Each holds **Tickers**, **Symbols**, and a
   folder per quote asset — **USDT**, **USDC**, **BTC** and the rest — the one
   with most symbols first.
@@ -76,6 +80,28 @@ the last one, and **Follow** carries it within seconds.
   **open_time**, so nothing arrives twice.
 - Tickers, Symbols and the order book are a moment, not a history: a link
   takes them whole each run.
+
+## Exchange
+
+- **Status**: the endpoint, Binance's own status — known on the main
+  endpoint only — and whether each market answers.
+- **Clock**: each market's time and how far ahead of the DataPlayer server
+  it is. Times sent to Binance are the server's, so a large difference moves
+  them.
+- **Rate limit**: what each market allows a minute, what this address used
+  this minute, where DataPlayer stops, and whether Binance holds requests.
+- **Markets**: how many symbols trade, in how many quote assets, and when the
+  list was read; it is read again after an hour.
+
+## Dashboards and search
+
+- The **Binance connection** dashboard draws the weight used each minute
+  against where DataPlayer stops, how long Binance takes to answer, and
+  whether each market answers. Prices are not on it: carry them into a table
+  with a pipeline and draw that.
+- The search finds symbols by name and by asset: `btc` finds BTCUSDT and
+  ETHBTC, names first. Searching inside a quote asset keeps to it. Symbols can
+  be kept for the search over everything.
 
 ## The rate limit
 

@@ -15,7 +15,7 @@ import logging
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -68,8 +68,19 @@ class MarketState:
     held_until: float = 0.0
     symbols: list[Symbol] | None = None
     symbols_at: float = 0.0
+    # When the list was read, by the wall clock, for a report to say.
+    symbols_read_at: float | None = None
     tickers: list[dict[str, Any]] | None = None
     tickers_at: float = 0.0
+
+
+@dataclass(frozen=True)
+class Pinged:
+    """A market after a ping: what it keeps, how long it took, or why not."""
+
+    state: MarketState
+    latency_ms: float | None
+    failure: str | None
 
 
 @dataclass
@@ -248,6 +259,7 @@ class BinanceSession:
             info = await self._get(kept, market, "exchangeInfo", params, "")
             state.symbols = symbols_of(info)
             state.symbols_at = now
+            state.symbols_read_at = time.time()
             for limit in info.get("rateLimits") or []:
                 if (
                     limit.get("rateLimitType") == "REQUEST_WEIGHT"
@@ -276,6 +288,49 @@ class BinanceSession:
             state.tickers = [one for one in answer if isinstance(one, dict)]
             state.tickers_at = now
             return state.tickers
+
+    async def states(self) -> dict[MarketKey, MarketState]:
+        """What each market has kept, as it stands: the weight, a ban, the lists."""
+        async with self.kept() as kept:
+            return {key: replace(state) for key, state in kept.markets.items()}
+
+    async def pinged(self) -> dict[MarketKey, Pinged]:
+        """Each market pinged, and what it kept just after.
+
+        One client for all of it: Binance reports the weight its address used
+        this minute on every answer, so a ping is what makes the count current
+        even for a connection that asked nothing else lately.
+        """
+        found: dict[MarketKey, Pinged] = {}
+        async with self.kept() as kept:
+            for key in MARKETS:
+                started = time.perf_counter()
+                try:
+                    await self._get(kept, BY_KEY[key], "ping", {}, "")
+                except AdapterError as failure:
+                    found[key] = Pinged(
+                        replace(kept.markets[key]), None, failure.message
+                    )
+                    continue
+                elapsed = (time.perf_counter() - started) * 1000
+                found[key] = Pinged(replace(kept.markets[key]), elapsed, None)
+        return found
+
+    async def system_status(self) -> str | None:
+        """Binance's own word for its state, or nothing where the host has none.
+
+        Asked of the main host only: the market-data host and the testnet
+        answer no such path.
+        """
+        if self._options.endpoint != "binance":
+            return None
+        answer = await self.get(BY_KEY["spot"], "/sapi/v1/system/status", {})
+        status = answer.get("status") if isinstance(answer, dict) else None
+        return (
+            {0: "normal", 1: "maintenance"}.get(status)
+            if isinstance(status, int)
+            else None
+        )
 
     async def check(self) -> ConnectionCheckResult:
         """Each market's `ping`, in words that name no address."""

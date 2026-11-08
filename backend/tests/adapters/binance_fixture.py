@@ -106,6 +106,8 @@ class FakeBinance:
     ) -> tuple[Any, int]:
         if name in {"ping", "time"}:
             return ({} if name == "ping" else {"serverTime": self.now_ms}), 1
+        if name == "system/status":
+            return {"status": 0, "msg": "normal"}, 1
         if name == "exchangeInfo":
             return self._info(params, futures), 20
         symbol = params.get("symbol")

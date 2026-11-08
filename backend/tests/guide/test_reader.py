@@ -20,6 +20,28 @@ def test_every_source_type_has_a_page_with_what_you_can_see() -> None:
 
 
 @pytest.mark.parametrize("language", LANGUAGES)
+def test_every_source_page_has_what_you_can_see_in_every_language(
+    language: Language,
+) -> None:
+    """A translated page whose heading is neither English nor the translation
+    the server knows gives the catalog an empty list, and nothing else says so."""
+
+    def empty() -> list[str]:
+        return [
+            adapter_type.name
+            for adapter_type in registry.all_types()
+            if not reader.bullets(
+                reader.pages_in(language)[
+                    reader.source_page_key(adapter_type.name)
+                ].markdown,
+                reader.CAN_SEE,
+            )
+        ]
+
+    assert in_language(language, empty) == []
+
+
+@pytest.mark.parametrize("language", LANGUAGES)
 def test_a_short_list_stays_short(language: Language) -> None:
     """Read in a narrow panel beside the grid of types, one line per item.
 

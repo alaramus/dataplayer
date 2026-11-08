@@ -1,11 +1,11 @@
 # Binance
 
 For changing how Binance is reached, what its catalog shows of markets,
-symbols and feeds, how a feed is read as rows, or how a pipeline's link reads
-trades and candles on. The contract every source
+symbols and feeds, how a feed is read as rows, how a pipeline's link reads
+trades and candles on, or what the connection reports, measures and finds. The contract every source
 keeps is in [contract.md](contract.md).
 
-Decisions here: D316, D317, D318, D319.
+Decisions here: D316, D317, D318, D319, D320.
 
 ## D316. Binance's public market data over REST, one client a connection, under its rate limit
 
@@ -146,3 +146,35 @@ Known deviations:
 - **A month's count is an upper bound**: months are counted as 28 days.
 
 Spec: [Binance read on by a pipeline's link](../../decisions/2026-11-08-binance-reading-on-design.md)
+
+## D320. An Exchange section of reports, the connection's own use as metrics, symbols found from the kept list
+
+- **Exchange** is a report section first at the top (`binance/reports.py`),
+  as Kafka's Cluster is (D310), four setting-and-value reports: **Status**
+  (the endpoint, `sapi/v1/system/status` on the main host only, each market
+  pinged), **Clock** (each market's time against the middle of the request),
+  **Rate limit** (each market's limit, the weight used this minute, where
+  this connection stops, a hold), **Markets** (symbols trading, quote assets,
+  when the list was read).
+- **The weight is made current by a ping** in the same client
+  (`BinanceSession.pinged`): Binance reports its address's whole minute on
+  every answer, so a report or a poll that asked nothing else still says
+  what the address used, and a connection built without the resource store,
+  as the metrics poller builds one, is not left at nought.
+- **Metrics** (`binance/metrics.py`): `weight` used and ceiling, `latency` of
+  the ping and `reachable`, per market as the label; the preset
+  `binance-connection`. Prices are not metrics: a pipeline's table holds
+  them, and a dashboard reads it.
+- **Search** (`binance/search.py`) reads the kept symbol list, so it asks
+  Binance for nothing new within the hour. A symbol matches by its name, or
+  by its base and quote assets at most as a word; within a market or a quote
+  asset it keeps to it. `enumerate_names` gives every trading symbol of both
+  markets, scoped by market, its full name the name and both assets.
+
+Known deviations:
+
+- **The clock's difference includes the way there and back**, halved.
+- **Symbols only are searched**: feeds and quote folders are found by
+  walking.
+
+Spec: [Binance's reports, metrics, search and guide](../../decisions/2026-11-08-binance-reports-design.md)

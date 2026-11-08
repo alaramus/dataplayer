@@ -30,13 +30,26 @@ from app.adapters.binance.feeds import (
     trades_page,
 )
 from app.adapters.binance.markets import HOSTS
+from app.adapters.binance.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.binance.metrics import BinanceMetrics
 from app.adapters.binance.options import BinanceOptions
 from app.adapters.binance.reading import BinanceReading
+from app.adapters.binance.reports import (
+    REPORTS,
+    BinanceReports,
+    in_section,
+    is_section,
+    report_for,
+    report_node,
+    section_node,
+)
+from app.adapters.binance.search import BinanceSearch
 from app.adapters.binance.session import BinanceSession
 from app.adapters.catalog import CatalogNode
 from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import MAX_LIMIT, FetchRequest, FetchResult
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.reading_on import (
     Bookmark,
@@ -46,6 +59,15 @@ from app.adapters.reading_on import (
     UnreadSpan,
 )
 from app.adapters.registry import AdapterContext, register
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_, say
 
@@ -60,6 +82,9 @@ class BinanceAdapter:
     ) -> None:
         self._session = session
         self._reading = BinanceReading(session, bookmarks)
+        self._reports = BinanceReports(session)
+        self._metrics = BinanceMetrics(session)
+        self._search = BinanceSearch(session)
 
     def connection_string(self) -> str:
         """The spot host this connection speaks to; there is nothing secret."""
@@ -86,7 +111,14 @@ class BinanceAdapter:
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
-            return markets()
+            # The connection's own section first, as Kafka puts its own (D320).
+            return [section_node(), *markets()]
+        if is_section(node_id):
+            return [report_node(report) for report in REPORTS]
+        if in_section(node_id):
+            if report_for(node_id) is None:
+                raise NodeNotFound(node_id)
+            return []
         place = place_of(node_id)
         await self._known(place, node_id)
         market = place.market
@@ -107,6 +139,13 @@ class BinanceAdapter:
         return []
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
+        if is_section(node_id):
+            return [section_node()]
+        if in_section(node_id):
+            report = report_for(node_id)
+            if report is None:
+                raise NodeNotFound(node_id)
+            return [section_node(), report_node(report)]
         place = place_of(node_id)
         await self._known(place, node_id)
         market = place.market
@@ -138,6 +177,8 @@ class BinanceAdapter:
     # --- the feeds as rows (D318) ------------------------------------------------
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
+        if in_section(request.node_id):
+            return await self._reports.fetch(request)
         place = place_of(request.node_id)
         await self._known(place, request.node_id)
         if place.what == "tickers":
@@ -154,6 +195,10 @@ class BinanceAdapter:
 
     async def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
         """Every row the page's filters and order would show, to its depth."""
+        if in_section(request.node_id):
+            async for batch in self._reports.export_rows(request):
+                yield batch
+            return
         rows, names = await self._export(request)
         unknown = [column for column in request.columns if column not in names]
         if unknown:
@@ -209,6 +254,31 @@ class BinanceAdapter:
                 break
             offset += MAX_LIMIT
         return rows, names
+
+    # --- measured and searched (D320) -------------------------------------------
+
+    async def metric_samples(self) -> list[MetricSample]:
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    def enumerate_names(
+        self, limit: int, bounds: SearchBounds
+    ) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names are read from the list the connection keeps; nothing else is searched."""
+        del last
+        return "cheap" if field == "names" else "costly"
 
     # --- read on by a pipeline's link (D319) --------------------------------------
 

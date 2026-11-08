@@ -54,7 +54,8 @@ class Market:
     trades_window_ms: int | None = None
 
     def path(self, name: str) -> str:
-        return f"{self.prefix}/{name}"
+        """A name under the market's prefix, or a path of the host's own."""
+        return name if name.startswith("/") else f"{self.prefix}/{name}"
 
     def depth_for(self, levels: int) -> int:
         """The smallest depth Binance accepts that holds this many levels."""
