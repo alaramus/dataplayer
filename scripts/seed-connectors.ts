@@ -133,6 +133,8 @@ async function main() {
     { name: "redis-cache", adapter_type: "redis", options: redisCacheOptions() },
     // The lab file prestart writes into the superuser's storage (D261).
     { name: "sqlite-lab", adapter_type: "sqlite", options: { path: "lab.db" } },
+    // Public market data: nothing to start and nothing secret (D316).
+    { name: "binance", adapter_type: "binance", options: { endpoint: "binance" } },
   ];
 
   let created = 0;

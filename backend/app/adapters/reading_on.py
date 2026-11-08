@@ -6,7 +6,7 @@ read a block at a time, and each block is confirmed once it is written
 elsewhere, so a failure between the two reads the block again.
 """
 
-from typing import Literal
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -43,3 +43,15 @@ class ReadBlock(BaseModel):
     after: Bookmark
     # Every part has been read up to the line.
     done: bool
+
+
+class BookmarkAccess(Protocol):
+    """A connection's bookmarks, kept by this application (D319).
+
+    For a source that keeps no reader's place itself; Kafka keeps its own in
+    a consumer group and is handed nothing to use.
+    """
+
+    async def read(self, node_id: str, reader: str) -> Bookmark | None: ...
+
+    async def write(self, node_id: str, reader: str, at: Bookmark) -> None: ...

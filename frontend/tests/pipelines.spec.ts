@@ -3,6 +3,7 @@ import type { Locator, Page } from "@playwright/test"
 
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { canvasRow, drawLink } from "./utils/pipelines"
 import { deleteConnector } from "./utils/workspace"
 
 /**
@@ -120,20 +121,7 @@ test("lays connections out as cards of what was ticked in them, and keeps them",
   await deleteConnector(page, database)
 })
 
-function row(page: Page, text: string): Locator {
-  return page.getByTestId("pipeline-canvas").locator('[data-testid^="graph-port-"]', { hasText: text })
-}
 
-/** A row dragged onto another with the mouse, as a person draws a link. */
-async function drawLink(page: Page, from: Locator, to: Locator) {
-  const start = await from.boundingBox()
-  const end = await to.boundingBox()
-  if (start === null || end === null) throw new Error("A row to join is not on screen")
-  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps: 12 })
-  await page.mouse.up()
-}
 
 test("joins two rows by a link, runs the pipeline from its head, and hints the others", async ({ page }) => {
   const stamp = Date.now()
@@ -163,7 +151,7 @@ test("joins two rows by a link, runs the pipeline from its head, and hints the o
   await expect(cards(page, database)).toContainText("pipeline")
 
   // Drawn with the mouse from a table to a folder: the panel says what it does.
-  await drawLink(page, row(page, "pipeline"), row(page, "reports"))
+  await drawLink(page, canvasRow(page, "pipeline"), canvasRow(page, "reports"))
   const panel = page.getByTestId("link-panel")
   await expect(panel.getByTestId("link-panel-sentence")).toHaveText(
     `Save as CSV: ${database} · pipeline → ${files} · reports`

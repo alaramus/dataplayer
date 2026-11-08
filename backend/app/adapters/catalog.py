@@ -247,6 +247,40 @@ class ConsumerGroupNode(BaseNode):
     members: int | None = None
 
 
+class SymbolNode(BaseNode):
+    """One pair traded on a market, as Binance lists it (D317).
+
+    Holds its feeds; the market view of a symbol is meant to be its first
+    representation, so it opens as nothing yet.
+    """
+
+    kind: Literal["symbol"] = "symbol"
+    has_children: bool = True
+    base: str
+    quote: str
+    # A futures contract's kind: perpetual, a quarter, a stock's perpetual.
+    contract_type: str | None = None
+
+
+# What a market's read-only table is: every symbol's day, every symbol's
+# rules, or one symbol's candles, trades or order book.
+FeedName = Literal["tickers", "symbols", "candles", "trades", "order_book"]
+
+
+class FeedNode(BaseNode):
+    """A read-only table of a market (D317).
+
+    Not a `table`: nothing about it can be altered, and its rows are named by
+    time or by the exchange's ids rather than by a key.
+    """
+
+    kind: Literal["feed"] = "feed"
+    has_children: bool = False
+    feed: FeedName
+    # A candle series' interval, as the exchange spells it: `1m`, `1h`, `1M`.
+    interval: str | None = None
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
@@ -262,7 +296,9 @@ CatalogNode = Annotated[
     | KeyNode
     | ZnodeNode
     | TopicNode
-    | ConsumerGroupNode,
+    | ConsumerGroupNode
+    | SymbolNode
+    | FeedNode,
     Field(discriminator="kind"),
 ]
 
@@ -285,6 +321,8 @@ NodeKind = Literal[
     "znode",
     "topic",
     "consumer_group",
+    "symbol",
+    "feed",
 ]
 
 

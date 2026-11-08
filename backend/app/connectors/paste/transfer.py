@@ -135,6 +135,8 @@ class Transfer(BaseModel):
     # A table the link made in this run, and whether with D313's key.
     made_table: bool = False
     keyed: bool = False
+    # The source's columns that key it, when it was made with one.
+    key: list[str] = Field(default_factory=list)
     # Rows kept as keys (D314): what was chosen, and what became of them.
     by_key: KeyedChoice | None = None
     keys_written: int = 0

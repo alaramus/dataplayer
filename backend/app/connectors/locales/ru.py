@@ -214,10 +214,10 @@ MESSAGES: dict[str, str] = {
     "Add new messages to a table": "Добавить новые сообщения в таблицу",
     "Adding new messages": "Добавление новых сообщений",
     "Nothing new since the last run": "С прошлого запуска ничего нового",
-    "Only a topic is read on from where the link stopped": "С места, где связь остановилась, читается только топик",
+    "Only a topic, or a symbol's trades or candles, is read on from where the link stopped": 'С места, где связь остановилась, читается только топик или сделки и свечи символа',
     "Reading stopped moving on": "Чтение перестало продвигаться",
     "This is a pipeline's link only": "Это бывает только связью конвейера",
-    "Tick a topic": "Отметьте топик",
+    "Tick a topic, or a symbol's trades or candles": 'Отметьте топик или сделки либо свечи символа',
     "{count} new messages added to {name}": "В {name} добавлено новых сообщений: {count}",
     "{count} new messages added to {name}, then: {reason}": "В {name} добавлено новых сообщений: {count}, затем: {reason}",
     "{said}; no position was kept, so reading started from the beginning": "{said}; сохранённой позиции не было, поэтому чтение началось с начала",
@@ -227,7 +227,7 @@ MESSAGES: dict[str, str] = {
     "A table named {name} is already there": "Таблица с именем {name} уже есть",
     "Add new messages to a new table": "Добавить новые сообщения в новую таблицу",
     "The table could not be made": "Не удалось создать таблицу",
-    "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} больше нет; чтобы прочитать всё заново, сдвиньте позиции группы в начало",
+    '{name} is no longer there; to read everything again, draw the link again': '{name} больше нет; чтобы прочитать всё заново, нарисуйте связь заново',
     "{said}; the table was made": "{said}; таблица создана",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}; таблица создана с ключом по partition и offset, поэтому каждое сообщение сохраняется один раз",
     # A link keeping the latest per key (D314).
@@ -244,4 +244,5 @@ MESSAGES: dict[str, str] = {
     "{rows} rows: {keys} keys written under {prefix}": "Строк: {rows}, записано ключей в {prefix}: {keys}",
     "{said}; {count} keys of another type left as they were": "{said}; ключей другого типа оставлено как было: {count}",
     "{said}; {count} rows without a key or a value skipped": "{said}; пропущено строк без ключа или значения: {count}",
+    '{said}; the table was made with a key on {columns}, so each row is kept once': '{said}; таблица создана с ключом по {columns}, поэтому каждая строка сохраняется один раз',
 }

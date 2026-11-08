@@ -1,5 +1,6 @@
 # Imported for the side effect: drivers register themselves on import.
 from app.adapters import (  # noqa: F401
+    binance,
     clickhouse,
     file,
     kafka,

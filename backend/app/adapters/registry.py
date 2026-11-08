@@ -34,6 +34,7 @@ from app.adapters.protocol import (
     SupportsRelationModel,
     SupportsUpdate,
 )
+from app.adapters.reading_on import BookmarkAccess
 from app.adapters.resources import Pooling
 from app.adapters.terminal import SupportsConsoleProgram, SupportsTerminal
 from app.adapters.tunnels import TunnelAccess
@@ -66,6 +67,9 @@ class AdapterContext:
     keys: KeyAccess | None = None
     # The owner's SSH connections, for a database reached through one (D282).
     tunnels: TunnelAccess | None = None
+    # Where a reader's place is kept for a stored connection whose source
+    # keeps none (D319); absent for a draft, which has no identity.
+    bookmarks: BookmarkAccess | None = None
 
 
 Factory = Callable[[Any, AdapterContext], DataAdapter]
@@ -73,7 +77,7 @@ Factory = Callable[[Any, AdapterContext], DataAdapter]
 # What kind of thing a source is, for the one screen that groups them. A
 # closed set rather than a free string: a category is a set of values, so a
 # typo has to fail to compile instead of quietly creating a group of one.
-Category = Literal["sql", "document", "keyvalue", "stream", "files"]
+Category = Literal["sql", "document", "keyvalue", "stream", "market", "files"]
 
 # The wording lives beside the set it names, on the server, so the client is
 # never a second place where a category is called something.
@@ -82,6 +86,7 @@ CATEGORY_TITLES: dict[Category, str] = {
     "document": N_("Document Databases"),
     "keyvalue": N_("Key-Value Stores"),
     "stream": N_("Queues & Streams"),
+    "market": N_("Market data"),
     "files": N_("Files & Storage"),
 }
 

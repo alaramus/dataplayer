@@ -5,6 +5,7 @@ MESSAGES: dict[str, str] = {
     "SQL Databases": "قواعد بيانات SQL",
     "Key-Value Stores": "مخازن المفتاح والقيمة",
     "Queues & Streams": "الطوابير والتدفقات",
+    "Market data": "بيانات السوق",
     "Document Databases": "قواعد بيانات المستندات",
     "Files & Storage": "الملفات والتخزين",
     "Browse the catalog": "تصفح الكتالوج",

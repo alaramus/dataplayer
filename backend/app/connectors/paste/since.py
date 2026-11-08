@@ -66,11 +66,12 @@ from app.connectors.paste.transfer import (
 from app.core.access import Access
 from app.core.translation import N_, say
 
-NOT_READ_ON = N_("Only a topic is read on from where the link stopped")
+NOT_READ_ON = N_(
+    "Only a topic, or a symbol's trades or candles, is read on from where the link stopped"
+)
 
-# The source columns that name one message, which a table the link makes is
-# keyed by where the destination can promise it (D313).
-MESSAGE_KEY = ("partition", "offset")
+# Kafka's key, said in a sentence of its own: the first source that read on.
+MESSAGE_KEY = ["partition", "offset"]
 
 type Writer = Callable[
     [list[str], list[list[str | None]]], Awaitable[RowsInserted | ValuesRejected]
@@ -87,7 +88,7 @@ class _ReadsOn:
     makes: bool
     doing = N_("Adding new messages")
     done = N_("added")
-    needs = N_("Tick a topic")
+    needs = N_("Tick a topic, or a symbol's trades or candles")
     mode: ClipboardMode = "copy"
     converts = True
     can_replace = False
@@ -266,6 +267,12 @@ class _ReadsOn:
                 say(
                     "{said}; the table was made with a key on partition and offset, so each message is kept once",
                     said=said,
+                )
+                if transfer.keyed and transfer.key in ([], MESSAGE_KEY)
+                else say(
+                    "{said}; the table was made with a key on {columns}, so each row is kept once",
+                    said=said,
+                    columns=", ".join(transfer.key),
                 )
                 if transfer.keyed
                 else say("{said}; the table was made", said=said)
@@ -486,7 +493,7 @@ class RowsSinceLastNew(_ReadsOn):
                 raise TransferStopped(
                     say(
                         "{name} is no longer there; to read everything again, "
-                        "move the group's positions to the start",
+                        "draw the link again",
                         name=name,
                     )
                 )
@@ -494,7 +501,7 @@ class RowsSinceLastNew(_ReadsOn):
         item.published_id, item.published_as = table.id, table.name
         if (
             isinstance(destination, SupportsSkippingInsert)
-            and _keyed_by(pairs) is not None
+            and _keyed_by(pairs, source.row_key(item.node_id)) is not None
         ):
             return _skipping(destination, table.id)
         return imports.into_relation(destination, table.id)
@@ -522,7 +529,8 @@ class RowsSinceLastNew(_ReadsOn):
         if isinstance(made, ValuesRejected):
             raise TransferStopped(say("The table could not be made"))
         try:
-            key = _keyed_by(pairs)
+            named_by = source.row_key(transfer.items[0].node_id)
+            key = _keyed_by(pairs, named_by)
             if (
                 key is not None
                 and isinstance(destination, SupportsConstraints)
@@ -535,6 +543,7 @@ class RowsSinceLastNew(_ReadsOn):
                     )
                 )
                 transfer.keyed = True
+                transfer.key = named_by
             # Kept at once: a failure later in this run then leaves a bookmark,
             # and the next run adds to this table instead of meeting its own
             # name taken.
@@ -548,11 +557,12 @@ class RowsSinceLastNew(_ReadsOn):
         return made.node
 
 
-def _keyed_by(pairs: list[PasteColumn]) -> tuple[str, str] | None:
-    """The table's columns that hold a message's partition and offset."""
+def _keyed_by(pairs: list[PasteColumn], named_by: list[str]) -> list[str] | None:
+    """The table's columns holding what names a row of the source, if all are
+    paired."""
     targets = {pair.source: pair.target for pair in pairs}
-    if all(column in targets for column in MESSAGE_KEY):
-        return targets[MESSAGE_KEY[0]], targets[MESSAGE_KEY[1]]
+    if named_by and all(column in targets for column in named_by):
+        return [targets[column] for column in named_by]
     return None
 
 

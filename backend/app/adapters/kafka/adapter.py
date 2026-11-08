@@ -263,6 +263,11 @@ class KafkaAdapter:
     async def mark_read(self, node_id: str, reader: str, at: Bookmark) -> None:
         await self._reading.mark_read(node_id, reader, at)
 
+    def row_key(self, node_id: str) -> list[str]:
+        """A message is named by where it lies (D313)."""
+        del node_id
+        return ["partition", "offset"]
+
     async def console_program(self) -> ConsoleProgram:
         """Kafka's tools, set up for this connection, in a container (D307)."""
         return console_program(self._session.options)

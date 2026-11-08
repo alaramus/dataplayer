@@ -471,6 +471,11 @@ class SupportsReadingOn(Protocol):
         """Keep `at` as the reader's bookmark."""
         ...
 
+    def row_key(self, node_id: str) -> list[str]:
+        """The columns naming one row of this node, which a table a link makes
+        is keyed by so a block read twice arrives once (D313)."""
+        ...
+
 
 @runtime_checkable
 class SupportsDelete(Protocol):

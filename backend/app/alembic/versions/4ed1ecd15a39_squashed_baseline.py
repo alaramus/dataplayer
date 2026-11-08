@@ -273,6 +273,15 @@ def upgrade():
     sa.PrimaryKeyConstraint('pipeline_id')
     )
     op.create_index(op.f('ix_pipelineschedule_next_at'), 'pipelineschedule', ['next_at'], unique=False)
+    op.create_table('reading_bookmark',
+    sa.Column('connector_id', sa.Uuid(), nullable=False),
+    sa.Column('node_id', sa.String(length=1024), nullable=False),
+    sa.Column('reader', sa.String(length=255), nullable=False),
+    sa.Column('positions', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.Column('written_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['connector_id'], ['connector.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('connector_id', 'node_id', 'reader')
+    )
     op.create_table('pipelinefollow',
     sa.Column('pipeline_id', sa.Uuid(), nullable=False),
     sa.Column('on', sa.Boolean(), nullable=False),
@@ -640,6 +649,7 @@ def downgrade():
     op.drop_index(op.f('ix_querydocument_owner_id'), table_name='querydocument')
     op.drop_index(op.f('ix_querydocument_connector_id'), table_name='querydocument')
     op.drop_table('querydocument')
+    op.drop_table('reading_bookmark')
     op.drop_index(op.f('ix_pipelinefollow_on'), table_name='pipelinefollow')
     op.drop_table('pipelinefollow')
     op.drop_index(op.f('ix_pipelineschedule_next_at'), table_name='pipelineschedule')

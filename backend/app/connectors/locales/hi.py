@@ -214,10 +214,10 @@ MESSAGES: dict[str, str] = {
     "Add new messages to a table": "नए संदेश तालिका में जोड़ें",
     "Adding new messages": "नए संदेश जोड़े जा रहे हैं",
     "Nothing new since the last run": "पिछले रन के बाद से कुछ नया नहीं",
-    "Only a topic is read on from where the link stopped": "केवल टॉपिक ही वहाँ से आगे पढ़ा जाता है जहाँ लिंक रुका था",
+    "Only a topic, or a symbol's trades or candles, is read on from where the link stopped": 'लिंक जहाँ रुका वहाँ से केवल टॉपिक, या किसी सिंबल के ट्रेड या कैंडल पढ़े जाते हैं',
     "Reading stopped moving on": "पढ़ना आगे बढ़ना बंद हो गया",
     "This is a pipeline's link only": "यह केवल पाइपलाइन का लिंक हो सकता है",
-    "Tick a topic": "एक टॉपिक चुनें",
+    "Tick a topic, or a symbol's trades or candles": 'कोई टॉपिक, या किसी सिंबल के ट्रेड या कैंडल चुनें',
     "{count} new messages added to {name}": "{name} में {count} नए संदेश जोड़े गए",
     "{count} new messages added to {name}, then: {reason}": "{name} में {count} नए संदेश जोड़े गए, फिर: {reason}",
     "{said}; no position was kept, so reading started from the beginning": "{said}; कोई स्थिति सहेजी नहीं थी, इसलिए पढ़ना शुरुआत से शुरू हुआ",
@@ -227,7 +227,7 @@ MESSAGES: dict[str, str] = {
     "A table named {name} is already there": "{name} नाम की तालिका पहले से मौजूद है",
     "Add new messages to a new table": "नए संदेश नई तालिका में जोड़ें",
     "The table could not be made": "तालिका नहीं बनाई जा सकी",
-    "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} अब मौजूद नहीं है; सब कुछ फिर से पढ़ने के लिए समूह की स्थितियाँ शुरुआत पर खिसकाएँ",
+    '{name} is no longer there; to read everything again, draw the link again': '{name} अब नहीं है; सब कुछ फिर से पढ़ने के लिए लिंक दोबारा बनाएँ',
     "{said}; the table was made": "{said}; तालिका बनाई गई",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}; तालिका partition और offset पर कुंजी के साथ बनाई गई, इसलिए हर संदेश एक बार ही रखा जाता है",
     # A link keeping the latest per key (D314).
@@ -244,4 +244,5 @@ MESSAGES: dict[str, str] = {
     "{rows} rows: {keys} keys written under {prefix}": "{rows} पंक्तियाँ: {prefix} के अंतर्गत {keys} कुंजियाँ लिखी गईं",
     "{said}; {count} keys of another type left as they were": "{said}; दूसरे प्रकार की {count} कुंजियाँ जैसी थीं वैसी छोड़ी गईं",
     "{said}; {count} rows without a key or a value skipped": "{said}; बिना कुंजी या मान की {count} पंक्तियाँ छोड़ी गईं",
+    '{said}; the table was made with a key on {columns}, so each row is kept once': '{said}; तालिका {columns} पर कुंजी के साथ बनाई गई, इसलिए हर पंक्ति एक ही बार रखी जाती है',
 }

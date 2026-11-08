@@ -4,6 +4,7 @@ import { at, first } from "@/shared/testing/collections"
 import bundledIcons from "@quasar/extras/material-symbols-outlined/icons.json"
 
 import {
+  FEED_ICONS,
   ICONS,
   callsDatabases,
   MATERIALIZED_VIEW_ICON,
@@ -218,6 +219,38 @@ describe("a Kafka topic and consumer group (D305)", () => {
       "no consumers"
     )
     expect(roleOf(group())).toBe("leaf")
+  })
+})
+
+describe("a Binance symbol and its feeds (D317)", () => {
+  const symbol = {
+    kind: "symbol" as const,
+    id: "spot:symbol:BTCUSDT",
+    name: "BTCUSDT",
+    has_children: true,
+    representations: [],
+    base: "BTC",
+    quote: "USDT",
+  }
+  const feed = (feed: "candles" | "order_book") => ({
+    kind: "feed" as const,
+    id: `spot:symbol:BTCUSDT:${feed}`,
+    name: feed,
+    has_children: false,
+    representations: [{ kind: "table" as const, title: "View as table" }],
+    feed,
+  })
+
+  it("walks into a symbol, captioned by its assets", () => {
+    expect(roleOf(symbol)).toBe("container")
+    expect(first(toListNodes([symbol])).caption).toBe("BTC / USDT")
+    expect(first(toListNodes([symbol])).icon).toBe(ICONS.symbol)
+  })
+
+  it("opens a feed, drawn by what it holds", () => {
+    expect(roleOf(feed("candles"))).toBe("leaf")
+    expect(first(toListNodes([feed("candles")])).icon).toBe(FEED_ICONS.candles)
+    expect(first(toListNodes([feed("order_book")])).icon).toBe(FEED_ICONS.order_book)
   })
 })
 
@@ -836,6 +869,7 @@ describe("the icons a catalog row draws", () => {
 
     const used = [
       ...Object.values(ICONS),
+      ...Object.values(FEED_ICONS),
       REPORT_SECTION_ICON,
       MATERIALIZED_VIEW_ICON,
       ZNODE_BRANCH_ICON,

@@ -20,6 +20,8 @@ export const summary: Messages["summary"] = {
     znode: "Узел ZooKeeper",
     topic: "Топик",
     consumer_group: "Группа потребителей",
+    symbol: "Символ",
+    feed: "Рыночная таблица",
   },
   encodings: {
     utf_8: "UTF-8",

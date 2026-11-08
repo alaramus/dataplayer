@@ -213,10 +213,10 @@ MESSAGES: dict[str, str] = {
     "Add new messages to a table": "将新消息添加到表",
     "Adding new messages": "正在添加新消息",
     "Nothing new since the last run": "自上次运行以来没有新内容",
-    "Only a topic is read on from where the link stopped": "只有主题可以从链接停下的位置继续读取",
+    "Only a topic, or a symbol's trades or candles, is read on from where the link stopped": '只有主题，或交易对的成交或K线，才会从链接停下的地方继续读取',
     "Reading stopped moving on": "读取不再前进",
     "This is a pipeline's link only": "这只能作为管道的链接",
-    "Tick a topic": "勾选一个主题",
+    "Tick a topic, or a symbol's trades or candles": '请勾选一个主题，或交易对的成交或K线',
     "{count} new messages added to {name}": "已向 {name} 添加 {count} 条新消息",
     "{count} new messages added to {name}, then: {reason}": "已向 {name} 添加 {count} 条新消息，随后：{reason}",
     "{said}; no position was kept, so reading started from the beginning": "{said}；没有保存的位置，因此从开头开始读取",
@@ -226,7 +226,7 @@ MESSAGES: dict[str, str] = {
     "A table named {name} is already there": "名为 {name} 的表已存在",
     "Add new messages to a new table": "将新消息添加到新表",
     "The table could not be made": "无法创建该表",
-    "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} 已不存在；要重新读取全部内容，请把该组的位置移到开头",
+    '{name} is no longer there; to read everything again, draw the link again': '{name} 已不存在；要重新读取全部内容，请重新绘制链接',
     "{said}; the table was made": "{said}；已创建该表",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}；该表已按 partition 和 offset 建立键，因此每条消息只保存一次",
     # A link keeping the latest per key (D314).
@@ -243,4 +243,5 @@ MESSAGES: dict[str, str] = {
     "{rows} rows: {keys} keys written under {prefix}": "{rows} 行：已在 {prefix} 下写入 {keys} 个键",
     "{said}; {count} keys of another type left as they were": "{said}；{count} 个其他类型的键保持不变",
     "{said}; {count} rows without a key or a value skipped": "{said}；跳过了 {count} 行无键或无值的行",
+    '{said}; the table was made with a key on {columns}, so each row is kept once': '{said}；已创建以 {columns} 为键的表，因此每行只保留一次',
 }

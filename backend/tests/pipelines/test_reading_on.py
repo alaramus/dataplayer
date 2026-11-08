@@ -374,7 +374,7 @@ async def test_a_table_gone_after_the_first_run_is_not_made_again(
         said = await _ran(canvas, link_id, state="failed")
         assert (
             said
-            == f"{name} is no longer there; to read everything again, move the group's positions to the start"
+            == f"{name} is no longer there; to read everything again, draw the link again"
         )
     finally:
         await _forget(saved["readers"][0]["name"])

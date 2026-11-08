@@ -355,14 +355,16 @@ Spec: [A topic read by a pipeline's link, only what is new](../decisions/2026-11
   rather than meeting its own name. A failure before that takes the table
   back (`SupportsDropCreated`). With a position kept the table is found by
   its name in the place and added to; one that is gone fails the step with
-  "{name} is no longer there; to read everything again, move the group's
-  positions to the start", and is not made again.
-- **Each message once where the destination can promise it.** When the new
-  table's columns include the topic's partition and offset, and the
+  "{name} is no longer there; to read everything again, draw the link
+  again", and is not made again: a new link is a new reader.
+- **Each message once where the destination can promise it.** The source
+  names the columns that name one of its rows (`SupportsReadingOn.row_key`):
+  a topic's partition and offset, a Binance symbol's trade id or candle open
+  time (D319). When the new table's columns include all of them, and the
   destination has `SupportsConstraints` and `SupportsSkippingInsert`, the
-  table is made with a unique key over those two columns and every block is
-  written leaving out the rows the key holds; the step counts what arrived.
-  The window starts with every column of the topic, so that is the default.
+  table is made with a unique key over them and every block is written
+  leaving out the rows the key holds; the step counts what arrived. The
+  window starts with every column of the source, so that is the default.
 - **`SupportsSkippingInsert.insert_rows_skipping`**: PostgreSQL and SQLite
   write `ON CONFLICT DO NOTHING`, MySQL and MariaDB `ON DUPLICATE KEY UPDATE`
   of the first column to itself — not `INSERT IGNORE`, which also turns a
@@ -376,7 +378,7 @@ Known deviations:
 
 - **A table found by its name is trusted to be the one the link made.**
 - **ClickHouse and every destination without a unique key stay at least
-  once**, as does a table made without partition or offset.
+  once**, as does a table made without the columns the source is keyed by.
 - **New fields of the messages are not added as columns.**
 
 Spec: [A topic read into a table its link makes, each message once](../decisions/2026-11-08-pipeline-topic-new-table-design.md)

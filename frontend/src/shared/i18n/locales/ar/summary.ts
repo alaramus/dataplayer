@@ -21,6 +21,8 @@ export const summary: Messages["summary"] = {
     znode: "Znode",
     topic: "موضوع",
     consumer_group: "مجموعة مستهلكين",
+    symbol: "رمز",
+    feed: "جدول السوق",
   },
   encodings: {
     utf_8: "UTF-8",

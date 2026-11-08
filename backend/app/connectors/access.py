@@ -18,6 +18,7 @@ from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterTyp
 from app.adapters.registry import get as get_adapter_type
 from app.adapters.resources import Pooling, ResourceStore
 from app.connectors import crud, service
+from app.connectors.bookmarks import ConnectionBookmarks
 from app.connectors.models import Connector
 from app.connectors.ssh_keys import OwnerKeys
 from app.connectors.tunnels import OwnerTunnels
@@ -99,6 +100,7 @@ def context_for(
     owner_id: uuid.UUID,
     *,
     pooling: Pooling | None = None,
+    connector_id: uuid.UUID | None = None,
 ) -> AdapterContext:
     """What the driver may reach, decided here rather than by the request.
 
@@ -112,6 +114,7 @@ def context_for(
         pooling=pooling,
         keys=OwnerKeys(owner_id),
         tunnels=OwnerTunnels(owner_id),
+        bookmarks=None if connector_id is None else ConnectionBookmarks(connector_id),
     )
 
 
@@ -170,7 +173,7 @@ async def resolve_source(
         adapter=service.build_adapter(
             adapter_type,
             options,
-            context_for(connector.owner_id, pooling=pooling),
+            context_for(connector.owner_id, pooling=pooling, connector_id=connector.id),
         ),
         access=access,
         cache_ttl_seconds=connector.cache_ttl_seconds,

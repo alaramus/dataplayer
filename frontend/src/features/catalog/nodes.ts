@@ -1,4 +1,4 @@
-import type { connectorsReadCatalogResponses } from "@/client"
+import type { FeedNode, connectorsReadCatalogResponses } from "@/client"
 import type { DetectedFramework, FetchColumn, NodeRepresentation } from "@/client"
 import { t } from "@/shared/i18n"
 import { formatFixed } from "@/shared/i18n/format"
@@ -58,6 +58,10 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   // directories (D305).
   topic: "leaf",
   consumer_group: "leaf",
+  // A symbol is walked into for its feeds until it has a view of its own;
+  // the rule below makes a leaf with nothing to open a place (D317).
+  symbol: "leaf",
+  feed: "leaf",
 }
 
 export interface ListNode {
@@ -149,6 +153,17 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   znode: "data_object",
   topic: "view_stream",
   consumer_group: "groups",
+  symbol: "currency_exchange",
+  feed: "table_rows",
+}
+
+/** A market's feeds drawn by what they hold (D317). */
+export const FEED_ICONS: Record<FeedNode["feed"], string> = {
+  tickers: "monitoring",
+  symbols: "table_rows",
+  candles: "candlestick_chart",
+  trades: "receipt_long",
+  order_book: "format_list_bulleted",
 }
 
 /** A znode with no data of its own, and one this connection may not read. */
@@ -283,6 +298,7 @@ export function iconOf(node: CatalogNode): string {
     if (node.readable === false) return ZNODE_LOCKED_ICON
     return node.data_length === 0 && node.has_children ? ZNODE_BRANCH_ICON : ICONS.znode
   }
+  if (node.kind === "feed") return FEED_ICONS[node.feed]
   if (node.kind === "view") {
     if (node.specialization?.kind === "timescale_continuous_aggregate") {
       return TIMESCALE_ICON
@@ -328,6 +344,8 @@ function captionOf(node: CatalogNode): string | undefined {
       return topicCaption(node)
     case "consumer_group":
       return groupCaption(node)
+    case "symbol":
+      return `${node.base} / ${node.quote}`
     case "database":
       // Said even when it is nothing: a database with no keys in it is a fact
       // about the server, and an empty caption reads as one nobody counted.

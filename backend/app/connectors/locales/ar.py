@@ -210,10 +210,10 @@ MESSAGES: dict[str, str] = {
     "Add new messages to a table": "إضافة الرسائل الجديدة إلى جدول",
     "Adding new messages": "إضافة الرسائل الجديدة",
     "Nothing new since the last run": "لا جديد منذ آخر تشغيل",
-    "Only a topic is read on from where the link stopped": "يُتابَع من حيث توقف الرابط قراءة موضوع فقط",
+    "Only a topic, or a symbol's trades or candles, is read on from where the link stopped": 'لا يُقرأ من حيث توقف الرابط إلا موضوع أو صفقات رمز أو شموعه',
     "Reading stopped moving on": "توقفت القراءة عن التقدم",
     "This is a pipeline's link only": "هذا لا يكون إلا رابطًا في خط معالجة",
-    "Tick a topic": "حدّد موضوعًا",
+    "Tick a topic, or a symbol's trades or candles": 'حدّد موضوعًا أو صفقات رمز أو شموعه',
     "{count} new messages added to {name}": "أُضيفت {count} رسالة جديدة إلى {name}",
     "{count} new messages added to {name}, then: {reason}": "أُضيفت {count} رسالة جديدة إلى {name}، ثم: {reason}",
     "{said}; no position was kept, so reading started from the beginning": "{said}؛ لم يكن هناك موضع محفوظ، فبدأت القراءة من البداية",
@@ -223,7 +223,7 @@ MESSAGES: dict[str, str] = {
     "A table named {name} is already there": "يوجد جدول باسم {name} بالفعل",
     "Add new messages to a new table": "إضافة الرسائل الجديدة إلى جدول جديد",
     "The table could not be made": "تعذّر إنشاء الجدول",
-    "{name} is no longer there; to read everything again, move the group's positions to the start": "لم يعد {name} موجودًا؛ لإعادة قراءة كل شيء انقل مواضع المجموعة إلى البداية",
+    '{name} is no longer there; to read everything again, draw the link again': 'لم يعد {name} موجودًا؛ لإعادة قراءة كل شيء ارسم الرابط من جديد',
     "{said}; the table was made": "{said}؛ أُنشئ الجدول",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said}؛ أُنشئ الجدول بمفتاح على partition وoffset، لذا تُحفظ كل رسالة مرة واحدة",
     # A link keeping the latest per key (D314).
@@ -240,4 +240,5 @@ MESSAGES: dict[str, str] = {
     "{rows} rows: {keys} keys written under {prefix}": "{rows} صفًا: كُتب {keys} مفتاحًا تحت {prefix}",
     "{said}; {count} keys of another type left as they were": "{said}؛ تُركت {count} مفاتيح من نوع آخر كما كانت",
     "{said}; {count} rows without a key or a value skipped": "{said}؛ تخطي {count} صفوف بلا مفتاح أو قيمة",
+    '{said}; the table was made with a key on {columns}, so each row is kept once': '{said}؛ أُنشئ الجدول بمفتاح على {columns}، لذا يُحفظ كل صف مرة واحدة',
 }

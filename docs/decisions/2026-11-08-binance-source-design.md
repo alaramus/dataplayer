@@ -109,9 +109,10 @@ USDⓈ-M futures                         the same; no 1s candles
   futures, its contract type. It opens as nothing yet; the market view will be
   its first representation.
 - **A feed** is a new kind, `feed`: a read-only table of a market, with which
-  feed it is and, for candles, its interval. It opens as rows and is
-  describable. Not a `table`, since nothing about it can be altered and its
-  rows are named by time or by Binance's ids, not by a key.
+  feed it is and, for candles, its interval. It opens as rows; its columns
+  are fixed, so it has no relation model of its own. Not a `table`, since
+  nothing about it can be altered and its rows are named by time or by
+  Binance's ids, not by a key.
 - **Each candle interval is a node** rather than a filter, so a pipeline's
   link names the series it reads (`BTCUSDT 1m`) and keeps one bookmark for it.
 - Node ids: `spot`, `usdm`; `spot:tickers`, `spot:symbols`, `spot:quote:USDT`;

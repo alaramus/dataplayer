@@ -19,6 +19,8 @@ export const summary = {
     znode: "Znode",
     topic: "Topic",
     consumer_group: "Consumer group",
+    symbol: "Symbol",
+    feed: "Market table",
   },
   encodings: {
     utf_8: "UTF-8",

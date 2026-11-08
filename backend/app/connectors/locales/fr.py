@@ -214,10 +214,10 @@ MESSAGES: dict[str, str] = {
     "Add new messages to a table": "Ajouter les nouveaux messages à une table",
     "Adding new messages": "Ajout des nouveaux messages",
     "Nothing new since the last run": "Rien de nouveau depuis la dernière exécution",
-    "Only a topic is read on from where the link stopped": "Seul un topic est lu à partir de l'endroit où le lien s'est arrêté",
+    "Only a topic, or a symbol's trades or candles, is read on from where the link stopped": "Seul un topic, ou les transactions ou bougies d'un symbole, se lit à partir de l'endroit où le lien s'est arrêté",
     "Reading stopped moving on": "La lecture n'avance plus",
     "This is a pipeline's link only": "Ceci n'existe que comme lien d'un pipeline",
-    "Tick a topic": "Cochez un topic",
+    "Tick a topic, or a symbol's trades or candles": "Cochez un topic, ou les transactions ou bougies d'un symbole",
     "{count} new messages added to {name}": "{count} nouveaux messages ajoutés à {name}",
     "{count} new messages added to {name}, then: {reason}": "{count} nouveaux messages ajoutés à {name}, puis : {reason}",
     "{said}; no position was kept, so reading started from the beginning": "{said} ; aucune position n'était conservée, la lecture a donc commencé au début",
@@ -227,7 +227,7 @@ MESSAGES: dict[str, str] = {
     "A table named {name} is already there": "Une table nommée {name} existe déjà",
     "Add new messages to a new table": "Ajouter les nouveaux messages à une nouvelle table",
     "The table could not be made": "La table n'a pas pu être créée",
-    "{name} is no longer there; to read everything again, move the group's positions to the start": "{name} n'existe plus ; pour tout relire, déplacez les positions du groupe au début",
+    '{name} is no longer there; to read everything again, draw the link again': "{name} n'existe plus ; pour tout relire, tracez le lien à nouveau",
     "{said}; the table was made": "{said} ; la table a été créée",
     "{said}; the table was made with a key on partition and offset, so each message is kept once": "{said} ; la table a été créée avec une clé sur partition et offset, chaque message n'est donc conservé qu'une fois",
     # A link keeping the latest per key (D314).
@@ -244,4 +244,5 @@ MESSAGES: dict[str, str] = {
     "{rows} rows: {keys} keys written under {prefix}": "{rows} lignes : {keys} clés écrites sous {prefix}",
     "{said}; {count} keys of another type left as they were": "{said} ; {count} clés d'un autre type laissées telles quelles",
     "{said}; {count} rows without a key or a value skipped": "{said} ; {count} lignes sans clé ou sans valeur ignorées",
+    '{said}; the table was made with a key on {columns}, so each row is kept once': "{said} ; la table a été créée avec une clé sur {columns}, chaque ligne n'est donc gardée qu'une fois",
 }

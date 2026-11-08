@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto"
 
 import { expect, test } from "@playwright/test"
-import type { Locator, Page } from "@playwright/test"
+import type { Page } from "@playwright/test"
 
 import { createPostgresConnector, createRedisConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { canvasRow, drawLink } from "./utils/pipelines"
 import { REDIS, redisCommands } from "./utils/redis"
 import { signedApi } from "./utils/search"
 import { requireE2EService } from "./utils/services"
@@ -18,19 +19,7 @@ import { deleteConnector } from "./utils/workspace"
 
 type Api = { base: string; headers: Record<string, string> }
 
-function row(page: Page, text: string): Locator {
-  return page.getByTestId("pipeline-canvas").locator('[data-testid^="graph-port-"]', { hasText: text })
-}
 
-async function drawLink(page: Page, from: Locator, to: Locator) {
-  const start = await from.boundingBox()
-  const end = await to.boundingBox()
-  if (start === null || end === null) throw new Error("A row to join is not on screen")
-  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps: 12 })
-  await page.mouse.up()
-}
 
 async function connectorId(page: Page, api: Api, name: string): Promise<string> {
   const listed = await page.request.get(`${api.base}/connectors/`, { headers: api.headers })
@@ -111,7 +100,7 @@ test("reads a topic into a table, only what is new at each run", async ({ page }
   await picker.getByTestId("card-picker-done").click()
 
   // The one way out of a topic: its pairing opens at once.
-  await drawLink(page, row(page, topic), row(page, table))
+  await drawLink(page, canvasRow(page, topic), canvasRow(page, table))
   const panel = page.getByTestId("link-panel")
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Add new messages to a table")
   const pairing = page.getByTestId("grid-import-dialog")
@@ -192,7 +181,7 @@ test("reads a topic into a table its link makes, keyed so each message is kept o
 
   // Drawn to a schema: the table is made, its window opens at once with
   // every column of the topic, partition and offset among them.
-  await drawLink(page, row(page, topic), row(page, "public"))
+  await drawLink(page, canvasRow(page, topic), canvasRow(page, "public"))
   const panel = page.getByTestId("link-panel")
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Add new messages to a new table")
   const window = page.getByTestId("grid-create-table-dialog")
@@ -278,7 +267,7 @@ test("keeps the latest value of each message key as Redis keys (D314)", async ({
 
   // Drawn to a database: its window opens with the topic's key and the
   // fields of its JSON.
-  await drawLink(page, row(page, topic), row(page, `db${REDIS.database}`))
+  await drawLink(page, canvasRow(page, topic), canvasRow(page, `db${REDIS.database}`))
   const panel = page.getByTestId("link-panel")
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Keep the latest per key")
   const window = page.getByTestId("keyed-window")
@@ -350,7 +339,7 @@ test("follows a topic: a message sent appears in its table without pressing Run 
   await picker.getByTestId(`catalog-check-${table}`).click()
   await picker.getByTestId("card-picker-done").click()
 
-  await drawLink(page, row(page, topic), row(page, table))
+  await drawLink(page, canvasRow(page, topic), canvasRow(page, table))
   const panel = page.getByTestId("link-panel")
   const pairing = page.getByTestId("grid-import-dialog")
   await expect(pairing).toBeVisible()

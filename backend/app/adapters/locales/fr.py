@@ -8,6 +8,7 @@ MESSAGES: dict[str, str] = {
     "SQL Databases": "Bases de données SQL",
     "Key-Value Stores": "Magasins clé-valeur",
     "Queues & Streams": "Files et flux",
+    "Market data": "Données de marché",
     "Document Databases": "Bases de données documentaires",
     "Files & Storage": "Fichiers et stockage",
     "Browse the catalog": "Parcourir le catalogue",

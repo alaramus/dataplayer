@@ -161,6 +161,8 @@ export type ActionInfo = {
     | "znode"
     | "topic"
     | "consumer_group"
+    | "symbol"
+    | "feed"
   >
   /**
    * Bulk
@@ -350,7 +352,7 @@ export type AdapterTypeInfo = {
   /**
    * Category
    */
-  category: "sql" | "document" | "keyvalue" | "stream" | "files"
+  category: "sql" | "document" | "keyvalue" | "stream" | "market" | "files"
   /**
    * Category Title
    */
@@ -1532,6 +1534,8 @@ export type CardRow = {
     | "znode"
     | "topic"
     | "consumer_group"
+    | "symbol"
+    | "feed"
     | null
   /**
    * Trail
@@ -5114,6 +5118,53 @@ export type Facts = {
 }
 
 /**
+ * FeedNode
+ *
+ * A read-only table of a market (D317).
+ *
+ * Not a `table`: nothing about it can be altered, and its rows are named by
+ * time or by the exchange's ids rather than by a key.
+ */
+export type FeedNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "feed"
+  /**
+   * Feed
+   */
+  feed: "tickers" | "symbols" | "candles" | "trades" | "order_book"
+  /**
+   * Interval
+   */
+  interval?: string | null
+}
+
+/**
  * FetchColumn
  */
 export type FetchColumn = {
@@ -8259,6 +8310,12 @@ export type NodeMatch = {
     | ({
         kind: "consumer_group"
       } & ConsumerGroupNode)
+    | ({
+        kind: "symbol"
+      } & SymbolNode)
+    | ({
+        kind: "feed"
+      } & FeedNode)
   /**
    * Parent Id
    */
@@ -8423,6 +8480,8 @@ export type NodeSummary = {
     | "znode"
     | "topic"
     | "consumer_group"
+    | "symbol"
+    | "feed"
   /**
    * Representations
    */
@@ -8595,6 +8654,12 @@ export type NodeTarget = {
     | ({
         kind: "consumer_group"
       } & ConsumerGroupNode)
+    | ({
+        kind: "symbol"
+      } & SymbolNode)
+    | ({
+        kind: "feed"
+      } & FeedNode)
     | null
 }
 
@@ -11107,6 +11172,12 @@ export type ReferencedRows = {
     | ({
         kind: "consumer_group"
       } & ConsumerGroupNode)
+    | ({
+        kind: "symbol"
+      } & SymbolNode)
+    | ({
+        kind: "feed"
+      } & FeedNode)
   connector?: ReferenceConnection | null
   /**
    * Filters
@@ -11391,6 +11462,12 @@ export type RelationCreated = {
     | ({
         kind: "consumer_group"
       } & ConsumerGroupNode)
+    | ({
+        kind: "symbol"
+      } & SymbolNode)
+    | ({
+        kind: "feed"
+      } & FeedNode)
   /**
    * Inserted
    */
@@ -11891,6 +11968,8 @@ export type ResultRow = {
     | "znode"
     | "topic"
     | "consumer_group"
+    | "symbol"
+    | "feed"
 }
 
 /**
@@ -13857,6 +13936,57 @@ export type StoredGeneration = {
     | ({
         kind: "cast"
       } & Cast)
+}
+
+/**
+ * SymbolNode
+ *
+ * One pair traded on a market, as Binance lists it (D317).
+ *
+ * Holds its feeds; the market view of a symbol is meant to be its first
+ * representation, so it opens as nothing yet.
+ */
+export type SymbolNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "symbol"
+  /**
+   * Base
+   */
+  base: string
+  /**
+   * Quote
+   */
+  quote: string
+  /**
+   * Contract Type
+   */
+  contract_type?: string | null
 }
 
 /**
@@ -17063,6 +17193,12 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "consumer_group"
       } & ConsumerGroupNode)
+    | ({
+        kind: "symbol"
+      } & SymbolNode)
+    | ({
+        kind: "feed"
+      } & FeedNode)
   >
 }
 
@@ -18352,6 +18488,12 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "consumer_group"
       } & ConsumerGroupNode)
+    | ({
+        kind: "symbol"
+      } & SymbolNode)
+    | ({
+        kind: "feed"
+      } & FeedNode)
   >
 }
 
