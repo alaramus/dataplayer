@@ -264,7 +264,21 @@ class SymbolNode(BaseNode):
 
 # What a market's read-only table is: every symbol's day, every symbol's
 # rules, or one symbol's candles, trades or order book.
-FeedName = Literal["tickers", "symbols", "candles", "trades", "order_book"]
+FeedName = Literal[
+    "tickers",
+    "symbols",
+    "candles",
+    "trades",
+    "order_book",
+    # What a key reads of its own account (D322).
+    "balances",
+    "positions",
+    "open_orders",
+    "orders",
+    "my_trades",
+    "deposits",
+    "withdrawals",
+]
 
 
 class FeedNode(BaseNode):

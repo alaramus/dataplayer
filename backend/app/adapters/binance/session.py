@@ -11,6 +11,8 @@ would take a market past 80% of its limit is not sent. Nothing is retried by
 itself.
 """
 
+import hashlib
+import hmac
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -18,11 +20,12 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 
 from app.adapters.binance.markets import BY_KEY, HOSTS, MARKETS, Market, MarketKey
-from app.adapters.binance.options import BinanceOptions
+from app.adapters.binance.options import HOSTS_OF, BinanceOptions, key_of
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.resources import Pooling
 from app.core.logs import record_failure, with_ref
@@ -40,6 +43,13 @@ TICKERS_SECONDS = 10.0
 UNKNOWN_SYMBOL = -1121
 # Futures answer trades of the last two days only.
 OUTSIDE_WINDOW = -4166
+# A signed request's time was outside the window Binance accepts.
+STALE_TIMESTAMP = -1021
+# The key is malformed, unknown, not allowed from this address or for this.
+REFUSED_KEY = {-2014, -2015, -1022, -2008}
+# How long a signed request stays good after the time it carries.
+RECV_WINDOW = "10000"
+CLOCK_SECONDS = 3600.0
 
 
 @dataclass(frozen=True)
@@ -74,6 +84,10 @@ class MarketState:
     symbols_read_at: float | None = None
     tickers: list[dict[str, Any]] | None = None
     tickers_at: float = 0.0
+    # How far Binance's clock is ahead of this server's, for a signed
+    # request's time (D322), and when that was measured.
+    offset_ms: int = 0
+    offset_at: float | None = None
 
 
 @dataclass(frozen=True)
@@ -135,7 +149,17 @@ class BinanceSession:
         return self._options
 
     def host(self, market: Market) -> str:
-        return HOSTS[self._options.endpoint][market.key]
+        return HOSTS[HOSTS_OF[self._options.endpoint]][market.key]
+
+    @property
+    def main_hosts(self) -> bool:
+        """Whether this is Binance itself rather than its testnet or data host."""
+        return HOSTS_OF[self._options.endpoint] == "binance"
+
+    @property
+    def keyed(self) -> bool:
+        """Whether this connection reads an account as well as the market."""
+        return key_of(self._options) is not None
 
     @asynccontextmanager
     async def kept(self) -> AsyncIterator[BinanceKept]:
@@ -161,6 +185,68 @@ class BinanceSession:
         async with self.kept() as kept:
             return await self._get(kept, market, name, params, node_id)
 
+    async def signed(
+        self, market: Market, name: str, params: dict[str, str], node_id: str = ""
+    ) -> Any:
+        """A request of the account, signed with the connection's key (D322).
+
+        A time Binance finds outside its window is measured again and the
+        request sent once more: the clocks moved apart, nothing about the
+        request was wrong.
+        """
+        async with self.kept() as kept:
+            for fresh in (False, True):
+                await self._clock(kept, market, fresh=fresh)
+                try:
+                    return await self._get(
+                        kept, market, name, params, node_id, signed=True
+                    )
+                except StaleTimestamp:
+                    continue
+        raise AdapterError(
+            "config", say("Binance's clock and this server's differ too much")
+        )
+
+    async def _clock(self, kept: BinanceKept, market: Market, fresh: bool) -> None:
+        state = kept.markets[market.key]
+        now = time.monotonic()
+        if (
+            not fresh
+            and state.offset_at is not None
+            and now - state.offset_at < CLOCK_SECONDS
+        ):
+            return
+        before = time.time() * 1000
+        answer = await self._get(kept, market, "time", {}, "")
+        after = time.time() * 1000
+        server = answer.get("serverTime") if isinstance(answer, dict) else None
+        if isinstance(server, int):
+            state.offset_ms = int(server - (before + after) / 2)
+            state.offset_at = now
+
+    def _stamped(
+        self, state: MarketState, params: dict[str, str]
+    ) -> tuple[str, dict[str, str]]:
+        """The signed query string, and the header naming the key."""
+        key = key_of(self._options)
+        if key is None:
+            raise ValueError(say("This connection has no API key"))
+        query = urlencode(
+            {
+                **params,
+                "recvWindow": RECV_WINDOW,
+                "timestamp": str(int(time.time() * 1000) + state.offset_ms),
+            }
+        )
+        signature = hmac.new(
+            key.api_secret.get_secret_value().encode(),
+            query.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        return f"{query}&signature={signature}", {
+            "X-MBX-APIKEY": key.api_key.get_secret_value()
+        }
+
     async def _get(
         self,
         kept: BinanceKept,
@@ -168,6 +254,7 @@ class BinanceSession:
         name: str,
         params: dict[str, str],
         node_id: str,
+        signed: bool = False,
     ) -> Any:
         state = kept.markets[market.key]
         now = time.time()
@@ -190,10 +277,13 @@ class BinanceSession:
                     seconds=seconds_left_of_minute(now),
                 ),
             )
+        url = self.host(market) + market.path(name)
         try:
-            response = await kept.client.get(
-                self.host(market) + market.path(name), params=params
-            )
+            if signed:
+                query, headers = self._stamped(state, params)
+                response = await kept.client.get(f"{url}?{query}", headers=headers)
+            else:
+                response = await kept.client.get(url, params=params)
         except httpx.TimeoutException:
             raise AdapterError(
                 "timeout", say("Binance did not answer in time")
@@ -232,6 +322,16 @@ class BinanceSession:
                 say("Binance does not serve this address; choose another endpoint"),
             )
         code = _code_of(response)
+        if code == STALE_TIMESTAMP:
+            return StaleTimestamp()
+        if code in REFUSED_KEY or status == 401:
+            return AdapterError(
+                "auth",
+                say(
+                    "Binance does not accept this API key here: check the key, "
+                    "its permissions and the addresses it is limited to"
+                ),
+            )
         if code == UNKNOWN_SYMBOL:
             return NodeNotFound(node_id)
         if code == OUTSIDE_WINDOW:
@@ -324,7 +424,7 @@ class BinanceSession:
         Asked of the main host only: the market-data host and the testnet
         answer no such path.
         """
-        if self._options.endpoint != "binance":
+        if HOSTS_OF[self._options.endpoint] != "binance":
             return None
         answer = await self.get(BY_KEY["spot"], "/sapi/v1/system/status", {})
         status = answer.get("status") if isinstance(answer, dict) else None
@@ -356,6 +456,10 @@ class BinanceSession:
         return ConnectionCheckResult(
             ok=True, message=say("Connection successful"), latency_ms=elapsed
         )
+
+
+class StaleTimestamp(Exception):
+    """A signed request carried a time Binance would not take; measured again."""
 
 
 def _code_of(response: httpx.Response) -> int | None:

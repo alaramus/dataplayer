@@ -227,7 +227,8 @@ async def test_a_symbol_the_market_does_not_trade_is_not_there(
         "spot:symbol:BTCUSDT:candles:2h:extra",
         "spot:symbol:BTCUSDT:candles:7m",
         "usdm:symbol:BTCUSDT:candles:1s",
-        "spot:symbol:BTCUSDT:orders",
+        "spot:symbol:BTCUSDT:fills",
+        "spot:account:positions:extra",
     ],
 )
 def test_an_id_naming_nothing_of_this_source_is_refused(node_id: str) -> None:

@@ -67,7 +67,7 @@ def _column(
     )
 
 
-def _listed(
+def listed_column(
     name: str, category: TypeCategory, *, nullable: bool = False
 ) -> FetchColumn:
     """A column of a list read whole: sorted and filtered here, by anything."""
@@ -101,11 +101,11 @@ def _whole_number(column: str, text: str) -> int:
         raise ValueError(say("{column} takes a whole number", column=column)) from None
 
 
-def _int(value: Any) -> int | None:
+def whole_of(value: Any) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
-def _bool(value: Any) -> str | None:
+def boolean_of(value: Any) -> str | None:
     return None if not isinstance(value, bool) else ("true" if value else "false")
 
 
@@ -217,19 +217,19 @@ def listed_page(
 
 
 TICKER_COLUMNS = [
-    _listed("symbol", "string"),
-    _listed("last_price", "number"),
-    _listed("price_change", "number"),
-    _listed("price_change_percent", "number"),
-    _listed("weighted_avg_price", "number"),
-    _listed("open_price", "number"),
-    _listed("high_price", "number"),
-    _listed("low_price", "number"),
-    _listed("volume", "number"),
-    _listed("quote_volume", "number"),
-    _listed("trades", "number"),
-    _listed("open_time", "datetime"),
-    _listed("close_time", "datetime"),
+    listed_column("symbol", "string"),
+    listed_column("last_price", "number"),
+    listed_column("price_change", "number"),
+    listed_column("price_change_percent", "number"),
+    listed_column("weighted_avg_price", "number"),
+    listed_column("open_price", "number"),
+    listed_column("high_price", "number"),
+    listed_column("low_price", "number"),
+    listed_column("volume", "number"),
+    listed_column("quote_volume", "number"),
+    listed_column("trades", "number"),
+    listed_column("open_time", "datetime"),
+    listed_column("close_time", "datetime"),
 ]
 
 _TICKER_FIELDS = (
@@ -276,32 +276,32 @@ def ticker_row(
         str(item.get("symbol")),
         *(decimal_text(item.get(name)) for name in _TICKER_FIELDS),
         *volumes,
-        None if _int(item.get("count")) is None else str(item.get("count")),
-        moment(_int(item.get("openTime"))),
-        moment(_int(item.get("closeTime"))),
+        None if whole_of(item.get("count")) is None else str(item.get("count")),
+        moment(whole_of(item.get("openTime"))),
+        moment(whole_of(item.get("closeTime"))),
     ]
 
 
 SPOT_SYMBOL_COLUMNS = [
-    _listed("symbol", "string"),
-    _listed("base", "string"),
-    _listed("quote", "string"),
-    _listed("status", "string"),
-    _listed("price_step", "number", nullable=True),
-    _listed("quantity_step", "number", nullable=True),
-    _listed("min_notional", "number", nullable=True),
+    listed_column("symbol", "string"),
+    listed_column("base", "string"),
+    listed_column("quote", "string"),
+    listed_column("status", "string"),
+    listed_column("price_step", "number", nullable=True),
+    listed_column("quantity_step", "number", nullable=True),
+    listed_column("min_notional", "number", nullable=True),
 ]
 
 FUTURES_SYMBOL_COLUMNS = [
     *SPOT_SYMBOL_COLUMNS,
-    _listed("contract_type", "string", nullable=True),
-    _listed("delivery_time", "datetime", nullable=True),
-    _listed("listed_time", "datetime", nullable=True),
+    listed_column("contract_type", "string", nullable=True),
+    listed_column("delivery_time", "datetime", nullable=True),
+    listed_column("listed_time", "datetime", nullable=True),
 ]
 
 CONTRACT_SYMBOL_COLUMNS = [
     *FUTURES_SYMBOL_COLUMNS,
-    _listed("contract_size", "number", nullable=True),
+    listed_column("contract_size", "number", nullable=True),
 ]
 
 # Binance dates a perpetual contract's delivery in 2100; it has none.
@@ -336,7 +336,7 @@ def symbol_row(market: Market, one: Symbol) -> list[str | None]:
     return row
 
 
-def _paged(
+def paged(
     columns: list[FetchColumn],
     rows: list[list[str | None]],
     request: FetchRequest,
@@ -381,7 +381,7 @@ class Candle:
         under volume and the contracts' worth under quote volume, as on the
         other markets."""
         raw = list(self.raw) + [None] * max(0, 11 - len(self.raw))
-        close_ms = _int(raw[6])
+        close_ms = whole_of(raw[6])
         if contract_size is None:
             volume, quote, taker, taker_quote = (
                 decimal_text(raw[5]),
@@ -402,7 +402,7 @@ class Candle:
             *(decimal_text(raw[index]) for index in range(1, 5)),
             volume,
             quote,
-            str(raw[8]) if _int(raw[8]) is not None else None,
+            str(raw[8]) if whole_of(raw[8]) is not None else None,
             taker,
             taker_quote,
             "true" if close_ms is not None and close_ms < now_ms else "false",
@@ -483,7 +483,7 @@ async def read_candles(
             batch = [
                 Candle(raw[0], raw)
                 for raw in answer
-                if raw and _int(raw[0]) is not None
+                if raw and whole_of(raw[0]) is not None
             ]
             if not batch:
                 break
@@ -507,7 +507,9 @@ async def read_candles(
             params["endTime"] = str(bounds.high)
         answer = await session.get(market, "klines", params, node_id)
         batch = [
-            Candle(raw[0], raw) for raw in answer if raw and _int(raw[0]) is not None
+            Candle(raw[0], raw)
+            for raw in answer
+            if raw and whole_of(raw[0]) is not None
         ]
         found.extend(batch)
         if len(batch) < int(params["limit"]):
@@ -546,7 +548,7 @@ async def candles_page(
     )
     size = await contract_size_of(session, place.market, place.symbol, request.node_id)
     rows = [candle.row(now_ms, size) for candle in candles]
-    return _paged(CANDLE_COLUMNS, rows, request, None)
+    return paged(CANDLE_COLUMNS, rows, request, None)
 
 
 # --- trades ------------------------------------------------------------------
@@ -567,10 +569,10 @@ def trade_row(item: dict[str, Any]) -> list[str | None]:
         str(item["a"]),
         decimal_text(item.get("p")),
         decimal_text(item.get("q")),
-        None if _int(item.get("f")) is None else str(item["f"]),
-        None if _int(item.get("l")) is None else str(item["l"]),
-        moment(_int(item.get("T"))),
-        _bool(item.get("m")),
+        None if whole_of(item.get("f")) is None else str(item["f"]),
+        None if whole_of(item.get("l")) is None else str(item["l"]),
+        moment(whole_of(item.get("T"))),
+        boolean_of(item.get("m")),
     ]
 
 
@@ -578,7 +580,7 @@ def _trades(answer: Any) -> list[dict[str, Any]]:
     return [
         one
         for one in answer
-        if isinstance(one, dict) and _int(one.get("a")) is not None
+        if isinstance(one, dict) and whole_of(one.get("a")) is not None
     ]
 
 
@@ -704,7 +706,7 @@ async def trades_page(
     market, symbol, node_id = place.market, place.symbol, request.node_id
     newest = await newest_trade_id(session, market, symbol, node_id)
     if newest is None:
-        return _paged(TRADE_COLUMNS, [], request, None)
+        return paged(TRADE_COLUMNS, [], request, None)
     bounds = await trade_bounds(session, market, symbol, request.filters, node_id)
     top = newest if bounds.high is None else min(newest, bounds.high)
     bottom = bounds.low
@@ -714,7 +716,7 @@ async def trades_page(
         if bottom is not None:
             first = max(first, bottom)
         if last < first:
-            return _paged(TRADE_COLUMNS, [], request, None)
+            return paged(TRADE_COLUMNS, [], request, None)
         trades = await read_trades(
             session, market, symbol, max(first, 0), last, node_id
         )
@@ -727,7 +729,7 @@ async def trades_page(
         first = bottom + request.offset
         last = min(top, first + request.limit - 1)
         if last < first:
-            return _paged(TRADE_COLUMNS, [], request, None)
+            return paged(TRADE_COLUMNS, [], request, None)
         trades = await read_trades(session, market, symbol, first, last, node_id)
         rows = [trade_row(one) for one in trades]
         has_more = last < top
@@ -786,7 +788,7 @@ async def book_page(
     answer = await session.get(market, "depth", params, request.node_id)
     rows = [row for row in book_rows(answer, levels) if row[0] in sides]
     # The book changes many times a second; a page of it is a moment.
-    return _paged(BOOK_COLUMNS, rows, request, 5)
+    return paged(BOOK_COLUMNS, rows, request, 5)
 
 
 # --- the lists ------------------------------------------------------------------
@@ -810,7 +812,7 @@ async def tickers_page(
     rows = listed_page(
         TICKER_COLUMNS, await ticker_rows(session, place.market), request.filters, sort
     )
-    return _paged(TICKER_COLUMNS, rows, request, 10)
+    return paged(TICKER_COLUMNS, rows, request, 10)
 
 
 async def symbol_rows(
@@ -827,4 +829,4 @@ async def symbols_page(
     rows = listed_page(
         columns, await symbol_rows(session, place.market), request.filters, sort
     )
-    return _paged(columns, rows, request, None)
+    return paged(columns, rows, request, None)

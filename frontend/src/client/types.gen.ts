@@ -5157,7 +5157,19 @@ export type FeedNode = {
   /**
    * Feed
    */
-  feed: "tickers" | "symbols" | "candles" | "trades" | "order_book"
+  feed:
+    | "tickers"
+    | "symbols"
+    | "candles"
+    | "trades"
+    | "order_book"
+    | "balances"
+    | "positions"
+    | "open_orders"
+    | "orders"
+    | "my_trades"
+    | "deposits"
+    | "withdrawals"
   /**
    * Interval
    */

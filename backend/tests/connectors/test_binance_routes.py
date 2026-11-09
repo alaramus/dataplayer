@@ -11,7 +11,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.config import settings
-from tests.adapters.binance_fixture import FakeBinance, install
+from tests.adapters.binance_fixture import API_KEY, API_SECRET, FakeBinance, install
 
 BASE = f"{settings.API_V1_STR}/connectors"
 
@@ -89,3 +89,45 @@ async def test_the_options_refuse_an_endpoint_of_their_own(
         },
     )
     assert response.status_code == 422
+
+
+async def test_a_key_is_kept_secret_and_opens_the_account(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    fake_binance: FakeBinance,
+) -> None:
+    """D322: the key and its secret are stored, never shown, and read with."""
+    headers = normal_user_token_headers
+    response = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={
+            "name": f"binance key {uuid.uuid4()}",
+            "adapter_type": "binance",
+            "options": {
+                "endpoint": "binance_key",
+                "api_key": API_KEY,
+                "api_secret": API_SECRET,
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert API_KEY not in response.text and API_SECRET not in response.text
+    connector = response.json()["id"]
+
+    listed = await client.get(f"{BASE}/{connector}", headers=headers)
+    assert API_SECRET not in listed.text and API_KEY not in listed.text
+
+    checked = await client.post(f"{BASE}/{connector}/check", headers=headers, json={})
+    assert checked.json()["ok"], checked.text
+    market = await client.get(
+        f"{BASE}/{connector}/catalog", headers=headers, params={"node_id": "spot"}
+    )
+    assert "spot:account" in [node["id"] for node in market.json()]
+    page = await client.post(
+        f"{BASE}/{connector}/fetch",
+        headers=headers,
+        json={"node_id": "spot:account:balances"},
+    )
+    assert page.status_code == 200, page.text
+    assert fake_binance.signed

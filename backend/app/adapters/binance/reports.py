@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from app.adapters.binance.account import PERMISSIONS, restrictions
 from app.adapters.binance.markets import BY_KEY, MARKETS
 from app.adapters.binance.session import CEILING_SHARE, BinanceSession
 from app.adapters.catalog import ReportNode
@@ -30,8 +31,10 @@ VALUE_COLUMN = N_("Value")
 
 ENDPOINT_TITLES = {
     "binance": N_("Binance"),
+    "binance_key": N_("Binance, with an API key"),
     "market_data": N_("Binance, market data only"),
     "testnet": N_("Testnet"),
+    "testnet_key": N_("Testnet, with an API key"),
 }
 
 _TABLE = NodeRepresentation(kind="table", title=N_("View as table"))
@@ -142,6 +145,27 @@ async def _markets(session: BinanceSession) -> Rows:
     return rows
 
 
+async def _key(session: BinanceSession) -> Rows:
+    """What Binance says the connection's key may do (D322)."""
+    answer = await restrictions(session)
+    if answer is None:
+        return [(say("What the key may do"), say("not known on the testnet"))]
+    rows: Rows = [
+        (say(word), say("yes") if answer.get(flag) is True else say("no"))
+        for flag, word in PERMISSIONS
+    ]
+    rows.append(
+        (
+            say("limited to listed addresses"),
+            say("yes") if answer.get("ipRestrict") is True else say("no"),
+        )
+    )
+    created = answer.get("createTime")
+    if isinstance(created, int):
+        rows.append((say("created"), _moment(created)))
+    return rows
+
+
 @dataclass(frozen=True)
 class ExchangeReport:
     key: str
@@ -149,6 +173,8 @@ class ExchangeReport:
     description: str
     read: Callable[[BinanceSession], Awaitable[Rows]]
     refresh_seconds: int | None = None
+    # Only a connection with a key has it.
+    keyed: bool = False
 
     @property
     def node_id(self) -> str:
@@ -182,7 +208,20 @@ REPORTS: tuple[ExchangeReport, ...] = (
         N_("How many symbols trade and in how many quote assets"),
         _markets,
     ),
+    ExchangeReport(
+        "key",
+        N_("API key"),
+        N_("What Binance lets this connection's key do"),
+        _key,
+        keyed=True,
+    ),
 )
+
+
+def reports_of(session: BinanceSession) -> list[ExchangeReport]:
+    """The section's reports for this connection: the key's only with a key."""
+    return [one for one in REPORTS if session.keyed or not one.keyed]
+
 
 _BY_ID = {report.node_id: report for report in REPORTS}
 
@@ -225,7 +264,7 @@ class BinanceReports:
 
     def _report(self, node_id: str) -> ExchangeReport:
         report = report_for(node_id)
-        if report is None:
+        if report is None or (report.keyed and not self._session.keyed):
             raise NodeNotFound(node_id)
         return report
 

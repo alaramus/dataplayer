@@ -5,14 +5,17 @@ symbols and feeds, how a feed is read as rows, how a pipeline's link reads
 trades and candles on, or what the connection reports, measures and finds. The contract every source
 keeps is in [contract.md](contract.md).
 
-Decisions here: D316, D317, D318, D319, D320, D321.
+Decisions here: D316, D317, D318, D319, D320, D321, D322.
 
 ## D316. Binance's public market data over REST, one client a connection, under its rate limit
 
-- **Public data only.** No key, nothing changed on Binance. The connection
+- **Nothing changed on Binance.** Public data needs no key; a key reads its
+  account and nothing more (D322). The connection
   names an endpoint from a closed set, each a host for spot, USDⓈ-M and
-  COIN-M futures (D321): Binance (`api`/`fapi`/`dapi.binance.com`), market data only
-  (`data-api.binance.vision` for spot) and the testnet. Nothing is secret.
+  COIN-M futures (D321): Binance (`api`/`fapi`/`dapi.binance.com`), the same
+  with a key, market data only
+  (`data-api.binance.vision` for spot), and the testnet with or without a
+  key. Only a key and its secret are secret.
 - **httpx, one client a connection** (`binance/session.py`), kept in the
   resource store as `BinanceKept` with what outlives a request: each market's
   weight used this minute, a ban it is under, the symbol list (an hour) and
@@ -201,3 +204,37 @@ Known deviations:
   hold one quantity. The guide says so.
 
 Spec: [Binance's COIN-M futures](../../decisions/2026-11-09-binance-coin-m-design.md)
+
+## D322. A key reads its account, signed, and is accepted whatever else it may do
+
+- **A key is an endpoint of its own**: `binance_key` and `testnet_key`, with
+  `api_key` and `api_secret` as `SecretStr` (D4, for Redis's reason, D16).
+  `HOSTS_OF` maps them to the plain endpoints' hosts.
+- **Signed** by `BinanceSession.signed`: `timestamp` from this server's clock
+  plus Binance's offset (measured from `time`, kept an hour), `recvWindow`
+  10 s, HMAC-SHA256 of the query, the key in `X-MBX-APIKEY`. A `-1021`
+  measures the clock again and sends once more — the only request sent
+  twice. A refused key is `auth`, in words that name no key.
+- **What the key may do** comes from `sapi/v1/account/apiRestrictions`. A key
+  that cannot read fails the check; one that can also trade or move money
+  passes it, and the check says so. Never refused: nothing changing is sent
+  whatever the key allows. The testnet has no such path; its key is tried on
+  the spot account. A report **API key** says the flags, on keyed connections.
+- **Catalog**: an **Account** folder in each market — Balances, Positions on
+  futures, Open orders, and on spot of the main hosts Deposits and
+  Withdrawals — and a symbol's **My orders** and **My trades**, all `feed`s.
+  A keyless connection has none of them.
+- **Rows** (`binance/account.py`): each list read whole and sorted and
+  filtered here, empty balances and positions left out, statuses in Binance's
+  words, COIN-M's own trades' quote as D321 has it.
+- **My trades are read on** by id (D319) and keyed on `id` in a made table.
+
+Known deviations:
+
+- **Orders and own trades of a symbol are one request**, the newest thousand;
+  futures answer seven days unless asked.
+- **One key for every market**: the testnet's spot and futures keys differ,
+  so one of its markets refuses a testnet connection's key.
+- **Binance's per-account weight is not counted**, only the address's.
+
+Spec: [A Binance key and the account it reads](../../decisions/2026-11-09-binance-account-design.md)

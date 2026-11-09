@@ -8,7 +8,7 @@ is written here once, so the rest reads a market rather than asking which.
 from dataclasses import dataclass
 from typing import Literal
 
-from app.adapters.binance.options import Endpoint
+from app.adapters.binance.options import Hosts
 from app.core.translation import N_, say
 
 MarketKey = Literal["spot", "usdm", "coinm"]
@@ -55,6 +55,10 @@ class Market:
     # Whether Binance counts its volumes in contracts of a fixed value in the
     # quote asset rather than in the base asset (D321).
     in_contracts: bool = False
+    # Where a key reads its account (D322): balances, positions, own trades.
+    account_path: str = "account"
+    positions_path: str | None = None
+    my_trades_path: str = "userTrades"
 
     def path(self, name: str) -> str:
         """A name under the market's prefix, or a path of the host's own."""
@@ -69,12 +73,18 @@ class Market:
 
     def weight(self, name: str, params: dict[str, str]) -> int:
         """What Binance will charge for a request, by its published table."""
-        return (_spot_weight if self.key == "spot" else _futures_weight)(name, params)
+        if self.key == "spot":
+            return _spot_weight(name, params)
+        return _futures_weight(name, params, coin=self.key == "coinm")
 
 
 def _spot_weight(name: str, params: dict[str, str]) -> int:
     if name == "exchangeInfo":
         return 20
+    if name in {"account", "allOrders", "myTrades"}:
+        return 20
+    if name == "openOrders":
+        return 6 if "symbol" in params else 80
     if name == "ticker/24hr":
         return 2 if "symbol" in params else 80
     if name == "klines":
@@ -93,9 +103,17 @@ def _spot_weight(name: str, params: dict[str, str]) -> int:
     return 1
 
 
-def _futures_weight(name: str, params: dict[str, str]) -> int:
+def _futures_weight(name: str, params: dict[str, str], coin: bool) -> int:
     if name == "exchangeInfo":
         return 1
+    if name in {"account", "/fapi/v3/account", "/fapi/v3/positionRisk"}:
+        return 5
+    if name == "positionRisk":
+        return 1
+    if name == "openOrders":
+        return 1 if "symbol" in params else 40
+    if name in {"allOrders", "userTrades"}:
+        return 20 if coin else 5
     if name == "ticker/24hr":
         return 1 if "symbol" in params else 40
     if name == "klines":
@@ -129,6 +147,7 @@ SPOT = Market(
     candles_per_request=1000,
     intervals=tuple(INTERVAL_MS),
     depths=(5, 10, 20, 50, 100, 500, 1000, 5000),
+    my_trades_path="myTrades",
 )
 
 USDM = Market(
@@ -140,6 +159,8 @@ USDM = Market(
     intervals=tuple(name for name in INTERVAL_MS if name != "1s"),
     depths=(5, 10, 20, 50, 100, 500, 1000),
     trades_window_ms=2 * 86_400_000,
+    account_path="/fapi/v3/account",
+    positions_path="/fapi/v3/positionRisk",
 )
 
 COINM = Market(
@@ -152,11 +173,12 @@ COINM = Market(
     depths=(5, 10, 20, 50, 100, 500, 1000),
     trades_window_ms=2 * 86_400_000,
     in_contracts=True,
+    positions_path="positionRisk",
 )
 
 BY_KEY: dict[MarketKey, Market] = {"spot": SPOT, "usdm": USDM, "coinm": COINM}
 
-HOSTS: dict[Endpoint, dict[MarketKey, str]] = {
+HOSTS: dict[Hosts, dict[MarketKey, str]] = {
     "binance": {
         "spot": "https://api.binance.com",
         "usdm": "https://fapi.binance.com",

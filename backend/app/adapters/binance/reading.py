@@ -1,4 +1,5 @@
-"""A symbol's trades and candles read on by a pipeline's link (D319).
+"""A symbol's trades and candles read on by a pipeline's link (D319), and
+with a key its own trades (D322).
 
 Binance keeps no reader's position, so the bookmark is kept by this
 application, through the store the adapter is handed. A bookmark has the
@@ -9,7 +10,9 @@ asking every time.
 """
 
 import time
+from typing import Any
 
+from app.adapters.binance.account import LISTED, MY_TRADE_COLUMNS, my_trade_row
 from app.adapters.binance.catalog import Place, place_of
 from app.adapters.binance.feeds import (
     CANDLE_COLUMNS,
@@ -40,6 +43,7 @@ LAST_TIME = "time"
 _SHORTEST_MS = {"1M": 28 * DAY_MS}
 # Spot keeps about two years of trades; a reader this far behind is checked.
 _SPOT_KEPT_MS = 700 * DAY_MS
+_READ_ON = {"trades", "candles", "my_trades"}
 
 
 def _now_ms() -> int:
@@ -62,7 +66,7 @@ class BinanceReading:
             place = place_of(node_id)
         except ValueError:
             return False
-        return place.feed in {"trades", "candles"}
+        return place.feed in _READ_ON
 
     def _store(self) -> BookmarkAccess:
         if self._bookmarks is None:
@@ -71,8 +75,10 @@ class BinanceReading:
 
     async def _place(self, node_id: str) -> Place:
         place = place_of(node_id)
-        if place.feed not in {"trades", "candles"} or place.symbol is None:
+        if place.feed not in _READ_ON or place.symbol is None:
             raise ValueError(say("Only trades and candles are read on"))
+        if place.feed == "my_trades" and not self._session.keyed:
+            raise ValueError(say("This connection has no API key"))
         await self._session.symbol(place.market, place.symbol, node_id)
         return place
 
@@ -83,7 +89,53 @@ class BinanceReading:
         kept = await self._store().read(node_id, reader)
         if place.feed == "trades":
             return await self._unread_trades(place, node_id, kept, start)
+        if place.feed == "my_trades":
+            return await self._unread_mine(place, node_id, kept, start)
         return await self._unread_candles(place, node_id, kept, start)
+
+    async def _mine(
+        self, place: Place, node_id: str, params: dict[str, str]
+    ) -> list[dict[str, Any]]:
+        assert place.symbol is not None
+        market = place.market
+        answer = await self._session.signed(
+            market, market.my_trades_path, {"symbol": place.symbol, **params}, node_id
+        )
+        if not isinstance(answer, list):
+            return []
+        return [
+            one
+            for one in answer
+            if isinstance(one, dict)
+            and isinstance(one.get("id"), int)
+            and not isinstance(one.get("id"), bool)
+        ]
+
+    async def _unread_mine(
+        self, place: Place, node_id: str, kept: Bookmark | None, start: ReadStart
+    ) -> UnreadSpan:
+        """The key's own trades of a symbol, by id.
+
+        Their ids are the symbol's trade ids, so far apart: the count is the
+        most there can be, as the span says. The earliest is the first own
+        trade Binance still answers.
+        """
+        newest = await self._mine(place, node_id, {"limit": "1"})
+        line = int(newest[-1]["id"]) + 1 if newest else 0
+        if kept is None or NEXT not in kept.positions:
+            begin = line
+            if start == "earliest" and newest:
+                first = await self._mine(place, node_id, {"fromId": "0", "limit": "1"})
+                begin = int(first[0]["id"]) if first else line
+        else:
+            begin = kept.positions[NEXT]
+        begin = min(begin, line)
+        return UnreadSpan(
+            start=_at({NEXT: begin}),
+            line=_at({NEXT: line}),
+            count=line - begin,
+            fresh=kept is None,
+        )
 
     async def _unread_trades(
         self, place: Place, node_id: str, kept: Bookmark | None, start: ReadStart
@@ -191,7 +243,10 @@ class BinanceReading:
         self, node_id: str, columns: list[str], at: Bookmark, line: Bookmark, limit: int
     ) -> ReadBlock:
         place = await self._place(node_id)
-        shape = TRADE_COLUMNS if place.feed == "trades" else CANDLE_COLUMNS
+        shape = {
+            "trades": TRADE_COLUMNS,
+            "my_trades": MY_TRADE_COLUMNS,
+        }.get(place.feed or "", CANDLE_COLUMNS)
         names = [column.name for column in shape]
         unknown = [one for one in columns if one not in names]
         if unknown:
@@ -205,6 +260,8 @@ class BinanceReading:
             return await self._trades_block(
                 place, node_id, picked, at, begin, end, limit
             )
+        if place.feed == "my_trades":
+            return await self._mine_block(place, node_id, picked, at, begin, end, limit)
         return await self._candles_block(place, node_id, picked, at, begin, end, limit)
 
     async def _trades_block(
@@ -261,9 +318,35 @@ class BinanceReading:
         after[NEXT] = int(candles[-1].raw[6]) + 1 if candles else end
         return ReadBlock(rows=rows, after=_at(after), done=after[NEXT] >= end)
 
+    async def _mine_block(
+        self,
+        place: Place,
+        node_id: str,
+        picked: list[int],
+        at: Bookmark,
+        begin: int,
+        end: int,
+        limit: int,
+    ) -> ReadBlock:
+        assert place.symbol is not None
+        count = str(min(limit, int(LISTED)))
+        found = await self._mine(place, node_id, {"fromId": str(begin), "limit": count})
+        found = [one for one in found if begin <= int(one["id"]) < end]
+        size = await contract_size_of(
+            self._session, place.market, place.symbol, node_id
+        )
+        rows = [
+            [full[index] for index in picked]
+            for full in (my_trade_row(one, size) for one in found)
+        ]
+        after = dict(at.positions)
+        after[NEXT] = int(found[-1]["id"]) + 1 if found else end
+        return ReadBlock(rows=rows, after=_at(after), done=after[NEXT] >= end)
+
     def row_key(self, node_id: str) -> list[str]:
         """A trade is named by its id, a candle of a series by its open time."""
-        return ["id"] if place_of(node_id).feed == "trades" else ["open_time"]
+        feed = place_of(node_id).feed
+        return ["id"] if feed in {"trades", "my_trades"} else ["open_time"]
 
     async def mark_read(self, node_id: str, reader: str, at: Bookmark) -> None:
         place_of(node_id)

@@ -13,6 +13,7 @@ work in general is on the [Connections](connections.md) page.
 - A symbol's candles of any interval, from one second to one month
 - A symbol's trades, newest first, by id or from a time
 - A symbol's order book, bids and asks, with running totals
+- With a key: balances, positions, orders, own trades, deposits, withdrawals
 - Any of them downloaded as a file
 - Binance's status, its clock, and how much of the rate limit is used
 - The rate limit and Binance's answers on a dashboard
@@ -32,6 +33,8 @@ The **Connection** page of the window asks for the **Endpoint**:
 - **Binance, market data only** — spot from `data-api.binance.vision`, which
   serves public data alone and often answers when the main host is busy;
 - **Testnet** — Binance's test network, with prices of its own.
+- **Binance, with an API key** and **Testnet, with an API key** — the same
+  hosts, and the account the key belongs to as well.
 
 Binance refuses some countries. If the check says Binance does not serve this
 address, the DataPlayer server is in one of them, and another endpoint will
@@ -86,6 +89,22 @@ the last one, and **Follow** carries it within seconds.
   **open_time**, so nothing arrives twice.
 - Tickers, Symbols and the order book are a moment, not a history: a link
   takes them whole each run.
+
+## Your account
+
+With a key, each market holds **Account**: **Balances**, **Positions** on
+futures, **Open orders**, and on spot **Deposits** and **Withdrawals** of
+the last ninety days. A symbol adds **My orders** and **My trades**, the
+newest thousand of each. **My trades** can start a pipeline's link, as
+**Trades** can.
+
+- Make the key on Binance with reading only. A key that may also trade or
+  withdraw is accepted and the check says so: DataPlayer only reads, but a
+  key that can only read is safer.
+- If the key is limited to addresses, add the DataPlayer server's.
+- **API key** in **Exchange** says what Binance lets the key do.
+- The testnet gives spot and futures keys of their own; a connection holds
+  one, so the other market refuses it.
 
 ## Exchange
 

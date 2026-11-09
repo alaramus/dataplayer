@@ -14,6 +14,7 @@ funktionieren, steht auf der Seite [Verbindungen](connections.md).
 - Die Kerzen eines Symbols in jedem Intervall, von 1 Sekunde bis 1 Monat
 - Die Trades eines Symbols, die neuesten zuerst, nach ID oder ab einer Zeit
 - Das Orderbuch eines Symbols, Gebote und Angebote mit laufenden Summen
+- Mit Schlüssel: Guthaben, Positionen, Orders, eigene Trades, Ein-/Auszahlungen
 - Jede davon als Datei heruntergeladen
 - Der Status von Binance, seine Uhr und wie viel vom Anfragelimit verbraucht ist
 - Das Anfragelimit und die Antworten von Binance auf einem Dashboard
@@ -34,6 +35,8 @@ Die Seite **Verbindung** des Fensters fragt nach dem **Endpunkt**:
   öffentliche Daten liefert und oft antwortet, wenn der Haupthost ausgelastet
   ist;
 - **Testnetz** — das Testnetz von Binance, mit eigenen Preisen.
+- **Binance, mit API-Schlüssel** und **Testnetz, mit API-Schlüssel** — die
+  gleichen Hosts, und dazu das Konto, dem der Schlüssel gehört.
 
 Binance lehnt einige Länder ab. Sagt die Prüfung, dass Binance diese Adresse
 nicht bedient, steht der DataPlayer-Server in einem davon, und ein anderer
@@ -93,6 +96,23 @@ kam, und **Folgen** überträgt es innerhalb von Sekunden.
   ankommt.
 - Ticker, Symbole und das Orderbuch sind ein Moment, keine Geschichte: eine
   Verbindung nimmt sie bei jedem Lauf ganz.
+
+## Ihr Konto
+
+Mit einem Schlüssel enthält jeder Markt **Konto**: **Guthaben**,
+**Positionen** bei Futures, **Offene Orders** und bei Spot **Einzahlungen**
+und **Auszahlungen** der letzten neunzig Tage. Ein Symbol ergänzt **Meine
+Orders** und **Meine Trades**, je die neuesten tausend. **Meine Trades**
+kann eine Verbindung einer Pipeline beginnen, wie **Trades**.
+
+- Erstellen Sie den Schlüssel bei Binance nur zum Lesen. Ein Schlüssel, der
+  auch handeln oder abheben darf, wird angenommen, und die Prüfung sagt es:
+  DataPlayer liest nur, aber ein Schlüssel nur zum Lesen ist sicherer.
+- Ist der Schlüssel auf Adressen beschränkt, fügen Sie die des
+  DataPlayer-Servers hinzu.
+- **API-Schlüssel** unter **Börse** sagt, was Binance dem Schlüssel erlaubt.
+- Das Testnetz vergibt eigene Schlüssel für Spot und Futures; eine
+  Verbindung hält einen, also lehnt der andere Markt ihn ab.
 
 ## Börse
 

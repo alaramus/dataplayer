@@ -15,6 +15,7 @@ page [Connexions](connections.md).
 - Les bougies d'un symbole de tout intervalle, d'une seconde à un mois
 - Les transactions d'un symbole, récentes d'abord, par id ou depuis une heure
 - Le carnet d'ordres d'un symbole, achats et ventes avec leurs cumuls
+- Avec une clé : soldes, positions, ordres, transactions, dépôts, retraits
 - Chacun d'eux téléchargé en fichier
 - L'état de Binance, son horloge et la part de la limite de requêtes utilisée
 - La limite de requêtes et les réponses de Binance sur un tableau de bord
@@ -35,6 +36,8 @@ La page **Connexion** de la fenêtre demande le **Point d'accès** :
   `data-api.binance.vision`, qui ne sert que des données publiques et répond
   souvent quand l'hôte principal est chargé ;
 - **Réseau de test** — le réseau de test de Binance, avec ses propres prix.
+- **Binance, avec une clé API** et **Réseau de test, avec une clé API** —
+  les mêmes hôtes, et en plus le compte auquel la clé appartient.
 
 Binance refuse certains pays. Si la vérification dit que Binance ne sert pas
 cette adresse, le serveur DataPlayer se trouve dans l'un d'eux, et un autre
@@ -96,6 +99,23 @@ précédente, et **Suivre** le transporte en quelques secondes.
   l'**open_time** de la bougie, si bien que rien n'arrive deux fois.
 - Les tickers, les symboles et le carnet d'ordres sont un instant, pas un
   historique : un lien les prend en entier à chaque exécution.
+
+## Votre compte
+
+Avec une clé, chaque marché contient **Compte** : **Soldes**, **Positions**
+sur les contrats à terme, **Ordres ouverts**, et sur le spot **Dépôts** et
+**Retraits** des quatre-vingt-dix derniers jours. Un symbole ajoute **Mes
+ordres** et **Mes transactions**, les mille plus récents. **Mes
+transactions** peut commencer un lien de pipeline, comme **Transactions**.
+
+- Créez la clé sur Binance en lecture seule. Une clé qui peut aussi négocier
+  ou retirer est acceptée et la vérification le dit : DataPlayer ne fait que
+  lire, mais une clé en lecture seule est plus sûre.
+- Si la clé est limitée à des adresses, ajoutez celle du serveur
+  DataPlayer.
+- **Clé API** dans **Bourse** dit ce que Binance permet à la clé.
+- Le réseau de test donne des clés distinctes au spot et aux contrats à
+  terme ; une connexion en garde une, l'autre marché la refuse donc.
 
 ## Bourse
 

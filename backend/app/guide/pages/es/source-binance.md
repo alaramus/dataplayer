@@ -14,6 +14,7 @@ general se explica en la página [Conexiones](connections.md).
 - Las velas de un símbolo de cualquier intervalo, de un segundo a un mes
 - Las operaciones de un símbolo, las más nuevas primero, por id o desde una hora
 - El libro de órdenes de un símbolo, compras y ventas con sus acumulados
+- Con clave: saldos, posiciones, órdenes, operaciones, depósitos y retiros
 - Cualquiera de ellos descargado como archivo
 - El estado de Binance, su reloj y cuánto del límite de solicitudes se usa
 - El límite de solicitudes y las respuestas de Binance en un panel
@@ -34,6 +35,8 @@ La página **Conexión** de la ventana pide el **Punto de acceso**:
   que solo sirve datos públicos y suele responder cuando el host principal
   está ocupado;
 - **Red de pruebas** — la red de pruebas de Binance, con precios propios.
+- **Binance, con clave API** y **Red de pruebas, con clave API** — los
+  mismos hosts, y además la cuenta a la que pertenece la clave.
 
 Binance rechaza algunos países. Si la comprobación dice que Binance no atiende
 esta dirección, el servidor de DataPlayer está en uno de ellos y otro punto de
@@ -93,6 +96,23 @@ lo lleva en segundos.
   en el **open_time** de la vela, así que nada llega dos veces.
 - Los tickers, los símbolos y el libro de órdenes son un momento, no una
   historia: un enlace los toma enteros en cada ejecución.
+
+## Tu cuenta
+
+Con una clave, cada mercado contiene **Cuenta**: **Saldos**,
+**Posiciones** en futuros, **Órdenes abiertas** y, en spot, **Depósitos**
+y **Retiros** de los últimos noventa días. Un símbolo añade **Mis órdenes**
+y **Mis operaciones**, las mil más recientes. **Mis operaciones** puede
+iniciar un enlace de pipeline, como **Operaciones**.
+
+- Crea la clave en Binance solo de lectura. Una clave que también puede
+  operar o retirar se acepta y la comprobación lo dice: DataPlayer solo lee,
+  pero una clave de solo lectura es más segura.
+- Si la clave está limitada a direcciones, añade la del servidor de
+  DataPlayer.
+- **Clave API** en **Bolsa** dice lo que Binance permite a la clave.
+- La red de pruebas da claves distintas para spot y futuros; una conexión
+  tiene una, así que el otro mercado la rechaza.
 
 ## Bolsa
 

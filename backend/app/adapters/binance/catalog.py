@@ -2,7 +2,9 @@
 
 Node ids, colon-separated: `spot`; `spot:tickers`, `spot:symbols`;
 `spot:quote:USDT`; `spot:symbol:BTCUSDT`, then `:trades`, `:book`, `:candles`
-and `:candles:1h` after it. A symbol never holds a colon (the symbol list
+and `:candles:1h` after it. With a key (D322): `spot:account` and
+`spot:account:balances` and its siblings, and a symbol's `:orders` and
+`:my_trades`. A symbol never holds a colon (the symbol list
 leaves one out), and a symbol a client names is looked up among the
 market's before anything is asked of Binance.
 """
@@ -32,10 +34,36 @@ FEED_TITLES: dict[FeedName, str] = {
     "candles": N_("Candles"),
     "trades": N_("Trades"),
     "order_book": N_("Order book"),
+    "balances": N_("Balances"),
+    "positions": N_("Positions"),
+    "open_orders": N_("Open orders"),
+    "orders": N_("My orders"),
+    "my_trades": N_("My trades"),
+    "deposits": N_("Deposits"),
+    "withdrawals": N_("Withdrawals"),
 }
 
+ACCOUNT_TITLE = N_("Account")
+
 # A symbol's own feeds by the last part of their id.
-SYMBOL_FEEDS: dict[str, FeedName] = {"trades": "trades", "book": "order_book"}
+SYMBOL_FEEDS: dict[str, FeedName] = {
+    "trades": "trades",
+    "book": "order_book",
+    "orders": "orders",
+    "my_trades": "my_trades",
+}
+# The account's feeds of a market, by the last part of their id.
+ACCOUNT_FEEDS: dict[str, FeedName] = {
+    "balances": "balances",
+    "positions": "positions",
+    "open_orders": "open_orders",
+    "deposits": "deposits",
+    "withdrawals": "withdrawals",
+}
+# What only a key reads.
+PRIVATE: frozenset[FeedName] = frozenset(
+    {*ACCOUNT_FEEDS.values(), "orders", "my_trades"}
+)
 
 
 @dataclass(frozen=True)
@@ -43,7 +71,9 @@ class Place:
     """What a node id names, before anything is asked of Binance."""
 
     market: Market
-    what: Literal["market", "tickers", "symbols", "quote", "symbol", "candles", "feed"]
+    what: Literal[
+        "market", "tickers", "symbols", "quote", "symbol", "candles", "feed", "account"
+    ]
     quote: str | None = None
     symbol: str | None = None
     feed: FeedName | None = None
@@ -58,6 +88,10 @@ def place_of(node_id: str) -> Place:
         return Place(market, "market")
     if len(parts) == 2 and parts[1] in {"tickers", "symbols"}:
         return Place(market, "tickers" if parts[1] == "tickers" else "symbols")
+    if len(parts) == 2 and parts[1] == "account":
+        return Place(market, "account")
+    if len(parts) == 3 and parts[1] == "account" and parts[2] in ACCOUNT_FEEDS:
+        return Place(market, "feed", feed=ACCOUNT_FEEDS[parts[2]])
     if len(parts) == 3 and parts[1] == "quote" and parts[2] != "":
         return Place(market, "quote", quote=parts[2])
     if len(parts) >= 3 and parts[1] == "symbol" and parts[2] != "":
@@ -112,10 +146,28 @@ def quote_node(market: Market, quote: str) -> CatalogNode:
     )
 
 
-def market_children(market: Market, symbols: list[Symbol]) -> list[CatalogNode]:
+def account_node(market: Market) -> CatalogNode:
+    return DirectoryNode(
+        id=f"{market.key}:account",
+        name=say(ACCOUNT_TITLE),
+        has_children=True,
+        representations=[],
+    )
+
+
+def account_children(market: Market, feeds: list[FeedName]) -> list[CatalogNode]:
+    by_feed = {feed: part for part, feed in ACCOUNT_FEEDS.items()}
+    return [feed_node(f"{market.key}:account:{by_feed[feed]}", feed) for feed in feeds]
+
+
+def market_children(
+    market: Market, symbols: list[Symbol], keyed: bool = False
+) -> list[CatalogNode]:
+    """The market's lists, its account when there is a key, then its quotes."""
     return [
         feed_node(f"{market.key}:tickers", "tickers"),
         feed_node(f"{market.key}:symbols", "symbols"),
+        *([account_node(market)] if keyed else []),
         *(quote_node(market, quote) for quote, _ in quotes_of(symbols)),
     ]
 
@@ -135,8 +187,18 @@ def symbol_node(market: Market, symbol: Symbol) -> CatalogNode:
     )
 
 
-def symbol_children(market: Market, name: str) -> list[CatalogNode]:
+def symbol_children(
+    market: Market, name: str, keyed: bool = False
+) -> list[CatalogNode]:
     base = symbol_id(market, name)
+    own = (
+        [
+            feed_node(f"{base}:orders", "orders"),
+            feed_node(f"{base}:my_trades", "my_trades"),
+        ]
+        if keyed
+        else []
+    )
     return [
         DirectoryNode(
             id=f"{base}:candles",
@@ -146,6 +208,7 @@ def symbol_children(market: Market, name: str) -> list[CatalogNode]:
         ),
         feed_node(f"{base}:trades", "trades"),
         feed_node(f"{base}:book", "order_book"),
+        *own,
     ]
 
 

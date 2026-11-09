@@ -164,6 +164,13 @@ export const FEED_ICONS: Record<FeedNode["feed"], string> = {
   candles: "candlestick_chart",
   trades: "receipt_long",
   order_book: "format_list_bulleted",
+  balances: "account_balance_wallet",
+  positions: "stacked_line_chart",
+  open_orders: "pending_actions",
+  orders: "history",
+  my_trades: "swap_horiz",
+  deposits: "call_received",
+  withdrawals: "call_made",
 }
 
 /** A znode with no data of its own, and one this connection may not read. */

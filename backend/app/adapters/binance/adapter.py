@@ -1,14 +1,24 @@
-"""Binance's public market data as a source: markets, symbols and their feeds.
+"""Binance's market data as a source: markets, symbols and their feeds, and
+with a key the account it reads (D322).
 
-Read only: nothing on Binance is changed from here, and no key is asked for
-(D316). Everything is read over REST through one client a connection.
+Read only: nothing on Binance is changed from here (D316). Everything is
+read over REST through one client a connection.
 """
 
 import time
 from collections.abc import AsyncIterator
 
+from app.adapters.binance.account import (
+    account_feeds,
+    account_page,
+    more_than_reading,
+    restrictions,
+)
 from app.adapters.binance.catalog import (
+    PRIVATE,
     Place,
+    account_children,
+    account_node,
     candle_nodes,
     market_children,
     market_node,
@@ -30,28 +40,28 @@ from app.adapters.binance.feeds import (
     tickers_page,
     trades_page,
 )
-from app.adapters.binance.markets import HOSTS
+from app.adapters.binance.markets import HOSTS, market_of
 from app.adapters.binance.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.binance.metrics import BinanceMetrics
-from app.adapters.binance.options import BinanceOptions
+from app.adapters.binance.options import HOSTS_OF, BinanceOptions
 from app.adapters.binance.reading import BinanceReading
 from app.adapters.binance.reports import (
-    REPORTS,
     BinanceReports,
     in_section,
     is_section,
     report_for,
     report_node,
+    reports_of,
     section_node,
 )
 from app.adapters.binance.search import BinanceSearch
 from app.adapters.binance.session import BinanceSession
-from app.adapters.catalog import CatalogNode
+from app.adapters.catalog import CatalogNode, FeedName
 from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import MAX_LIMIT, FetchRequest, FetchResult
 from app.adapters.metrics import MetricPreset, MetricSample
-from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
+from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.reading_on import (
     Bookmark,
     BookmarkAccess,
@@ -88,11 +98,50 @@ class BinanceAdapter:
         self._search = BinanceSearch(session)
 
     def connection_string(self) -> str:
-        """The spot host this connection speaks to; there is nothing secret."""
-        return HOSTS[self._session.options.endpoint]["spot"]
+        """The spot host this connection speaks to; a key is never part of it."""
+        return HOSTS[HOSTS_OF[self._session.options.endpoint]]["spot"]
 
     async def check_connection(self) -> ConnectionCheckResult:
-        return await self._session.check()
+        checked = await self._session.check()
+        if not checked.ok or not self._session.keyed:
+            return checked
+        return await self._check_key(checked)
+
+    async def _check_key(self, checked: ConnectionCheckResult) -> ConnectionCheckResult:
+        """The key read with, and said when it may do more than read (D322).
+
+        Accepted either way: nothing changing is ever sent from here, and the
+        owner of the key decides what it is for. The testnet cannot be asked
+        what a key may do, so its key is only tried.
+        """
+        session = self._session
+        try:
+            answer = await restrictions(session)
+            if answer is None:
+                await session.signed(
+                    market_of("spot"), "account", {"omitZeroBalances": "true"}
+                )
+        except AdapterError as failure:
+            return ConnectionCheckResult(
+                ok=False, message=failure.message, error_kind=failure.error_kind
+            )
+        if answer is not None and answer.get("enableReading") is not True:
+            return ConnectionCheckResult(
+                ok=False,
+                message=say("Binance says this key may not read the account"),
+                error_kind="auth",
+            )
+        if answer is not None and more_than_reading(answer):
+            return checked.model_copy(
+                update={
+                    "message": say(
+                        "Connection successful. This key may also trade or move "
+                        "money; DataPlayer only reads, but a key that can only "
+                        "read is safer"
+                    )
+                }
+            )
+        return checked
 
     async def source_features(self) -> SourceFeatures:
         return SourceFeatures(
@@ -102,7 +151,17 @@ class BinanceAdapter:
     # --- the catalog (D317) -----------------------------------------------------
 
     async def _known(self, place: Place, node_id: str) -> None:
-        """A symbol or a quote asset named by a client is one the market has."""
+        """A symbol or a quote asset named by a client is one the market has,
+        and the account's nodes exist only with a key that reads them."""
+        private = place.what == "account" or place.feed in PRIVATE
+        if private and not self._session.keyed:
+            raise NodeNotFound(node_id)
+        if (
+            place.symbol is None
+            and place.feed in PRIVATE
+            and place.feed not in self._account_feeds(place)
+        ):
+            raise NodeNotFound(node_id)
         if place.symbol is not None:
             await self._session.symbol(place.market, place.symbol, node_id)
         if place.quote is not None:
@@ -115,16 +174,19 @@ class BinanceAdapter:
             # The connection's own section first, as Kafka puts its own (D320).
             return [section_node(), *markets()]
         if is_section(node_id):
-            return [report_node(report) for report in REPORTS]
+            return [report_node(report) for report in reports_of(self._session)]
         if in_section(node_id):
-            if report_for(node_id) is None:
+            if report_for(node_id) not in reports_of(self._session):
                 raise NodeNotFound(node_id)
             return []
         place = place_of(node_id)
         await self._known(place, node_id)
         market = place.market
+        keyed = self._session.keyed
         if place.what == "market":
-            return market_children(market, await self._session.symbols(market))
+            return market_children(market, await self._session.symbols(market), keyed)
+        if place.what == "account":
+            return account_children(market, self._account_feeds(place))
         if place.what == "quote":
             return [
                 symbol_node(market, one)
@@ -134,17 +196,20 @@ class BinanceAdapter:
                 if one.quote == place.quote
             ]
         if place.what == "symbol" and place.symbol is not None:
-            return symbol_children(market, place.symbol)
+            return symbol_children(market, place.symbol, keyed)
         if place.what == "candles" and place.symbol is not None:
             return candle_nodes(market, place.symbol)
         return []
+
+    def _account_feeds(self, place: Place) -> list[FeedName]:
+        return account_feeds(place.market, self._session.main_hosts)
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         if is_section(node_id):
             return [section_node()]
         if in_section(node_id):
             report = report_for(node_id)
-            if report is None:
+            if report is None or report not in reports_of(self._session):
                 raise NodeNotFound(node_id)
             return [section_node(), report_node(report)]
         place = place_of(node_id)
@@ -156,6 +221,15 @@ class BinanceAdapter:
         if place.what in {"tickers", "symbols"}:
             found = [one for one in market_children(market, []) if one.id == node_id]
             return path + found
+        if place.what == "account" or (place.symbol is None and place.feed in PRIVATE):
+            path.append(account_node(market))
+            if place.what == "account":
+                return path
+            return path + [
+                one
+                for one in account_children(market, self._account_feeds(place))
+                if one.id == node_id
+            ]
         if place.quote is not None:
             return [*path, quote_node(market, place.quote)]
         assert place.symbol is not None
@@ -163,7 +237,7 @@ class BinanceAdapter:
         path += [quote_node(market, symbol.quote), symbol_node(market, symbol)]
         if place.what == "symbol":
             return path
-        children = symbol_children(market, place.symbol)
+        children = symbol_children(market, place.symbol, self._session.keyed)
         if place.what == "candles" or place.feed == "candles":
             path.append(children[0])
             if place.feed == "candles":
@@ -182,6 +256,8 @@ class BinanceAdapter:
             return await self._reports.fetch(request)
         place = place_of(request.node_id)
         await self._known(place, request.node_id)
+        if place.feed in PRIVATE:
+            return await account_page(self._session, place, request)
         if place.what == "tickers":
             return await tickers_page(self._session, place, request)
         if place.what == "symbols":
