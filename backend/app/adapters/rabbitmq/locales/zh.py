@@ -2,7 +2,8 @@
 
 MESSAGES: dict[str, str] = {
     "RabbitMQ": "RabbitMQ",
-    "A RabbitMQ broker. List its virtual hosts, queues, streams and exchanges, see how many messages wait in a queue and who consumes them, see what is bound to what, and read a stream's messages as rows, newest first, with JSON bodies laid out in columns.": "RabbitMQ 代理。列出其虚拟主机、队列、流和交换器，查看队列中有多少消息在等待以及由谁消费，查看绑定关系，并以行的形式读取流的消息（最新在前），JSON 消息体的字段展开为列。",
+    "A RabbitMQ broker. List its virtual hosts, queues, streams and exchanges, see how many messages wait in a queue and who consumes them, see what is bound to what, and read a stream's messages as rows, newest first, with JSON bodies laid out in columns, and work with rabbitmqadmin in a terminal.": "RabbitMQ 代理。列出其虚拟主机、队列、流和交换器，查看队列中有多少消息在等待以及由谁消费，查看绑定关系，并以行的形式读取流的消息（最新在前），JSON 消息体的字段展开为列，并可在终端中使用 rabbitmqadmin。",
+    "rabbitmqadmin is set up for this connection. Try: rabbitmqadmin show overview · rabbitmqadmin list queues · rabbitmqadmin list exchanges": "rabbitmqadmin 已为此连接配置好。试试：rabbitmqadmin show overview · rabbitmqadmin list queues · rabbitmqadmin list exchanges",
     "(default)": "（默认）",
     "5672, or 5671 with TLS": "5672，使用 TLS 时为 5671",
     "AMQP port": "AMQP 端口",

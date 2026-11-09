@@ -14,10 +14,11 @@ stream en lignes. Le fonctionnement général des connexions est sur la page
 - Les messages d'un stream en lignes, récents d'abord, depuis un offset ou date
 - Les champs des messages JSON, chacun dans sa propre colonne
 - Les messages d'un stream ou les liaisons téléchargés en fichier
+- rabbitmqadmin, configuré pour la connexion, dans un terminal
 
 ## Ce que vous pouvez modifier
 
-- Rien pour l'instant : cette version ne fait que lire
+- Tout ce que rabbitmqadmin peut modifier, tapé dans le terminal
 
 ## Connexion
 
@@ -115,3 +116,21 @@ le menu du catalogue.
 **Télécharger** sur un stream enregistre les messages que sa page afficherait,
 avec ses filtres et son ordre, jusqu'à dix mille. Une file ou un échange
 télécharge ses liaisons.
+
+## rabbitmqadmin
+
+**Terminal** sur une connexion RabbitMQ ouvre bash avec `rabbitmqadmin`, le
+client en ligne de commande de RabbitMQ pour l'API de gestion, déjà pointé sur
+la connexion : son adresse, son utilisateur, son mot de passe et son hôte
+virtuel. Tab complète ses commandes. Essayez :
+
+- `rabbitmqadmin show overview` — le broker d'un coup d'œil
+- `rabbitmqadmin list queues` — toutes les files avec leurs compteurs
+- `rabbitmqadmin list exchanges` — les échanges
+- `rabbitmqadmin -V NOM list queues` — un autre hôte virtuel
+
+Il peut déclarer, supprimer et purger des files et des échanges, publier et
+récupérer des messages et exporter les définitions ; ce qu'il modifie l'est
+aussitôt sur le broker. Le terminal tourne dans un conteneur sur le serveur
+DataPlayer : ce serveur doit avoir le droit de lancer des conteneurs, et
+l'adresse de gestion doit être joignable depuis lui.

@@ -2,11 +2,12 @@
 
 What a RabbitMQ source is, how it reaches a broker through its two doors, what
 its catalog shows of virtual hosts, queues, streams and exchanges, and how a
-stream's messages and the bindings are read as rows. The contract every source
+stream's messages and the bindings are read as rows, and `rabbitmqadmin` in a
+terminal (D328, run as D286 says in [terminals.md](../terminals.md)). The contract every source
 type follows is in [contract.md](contract.md); the other queue is in
 [kafka.md](kafka.md). Read this before changing the `rabbitmq` adapter.
 
-Decisions here: D325, D326, D327.
+Decisions here: D325, D326, D327, D328.
 
 ## D325. A RabbitMQ source looks through the management API and moves messages over AMQP
 
@@ -116,3 +117,27 @@ Known deviations:
 - **A message does not open as a document** yet, as a topic's does not.
 
 Spec: [A RabbitMQ source](../../decisions/2026-11-09-rabbitmq-source-design.md)
+
+## D328. The console is rabbitmqadmin 2, its node written into a file from the environment
+
+The terminal is bash in the `rabbitmq:<release>-management` image of the test
+server's release, whose `rabbitmqadmin` 2 is a client of the same management
+API the catalog reads, with its own bash completion. `rabbitmqctl` and
+`rabbitmq-diagnostics` are not offered: they speak Erlang distribution, which
+needs the node's cookie and a port a broker does not expose to clients.
+
+The connection is one `[default]` node of a TOML file the server composes —
+the management address, user, password, the connection's virtual host or `/`,
+`tls` for an `https` address and the CA bundle — every value a TOML basic
+string with its quote, backslash and control characters escaped. It reaches
+the container in a variable, is written with `printf '%s'` under `umask 077`,
+and the variable is unset before the prompt, as Kafka's settings are (D307);
+`RABBITMQADMIN_CONFIG_FILE_PATH` names the file, so a command uses the
+connection unless it names another node or address.
+
+Known deviations:
+
+- **Commands print wide tables**: `rabbitmqadmin` lists every column, and
+  `--table-style borderless` is the narrowest of its styles.
+
+Spec: [The RabbitMQ console](../../decisions/2026-11-09-rabbitmq-console-design.md)

@@ -2,7 +2,8 @@
 
 MESSAGES: dict[str, str] = {
     "RabbitMQ": "RabbitMQ",
-    "A RabbitMQ broker. List its virtual hosts, queues, streams and exchanges, see how many messages wait in a queue and who consumes them, see what is bound to what, and read a stream's messages as rows, newest first, with JSON bodies laid out in columns.": "एक RabbitMQ ब्रोकर। इसके वर्चुअल होस्ट, क्यू, स्ट्रीम और एक्सचेंज देखें, किसी क्यू में कितने संदेश प्रतीक्षा में हैं और उन्हें कौन लेता है, क्या किससे जुड़ा है, और किसी स्ट्रीम के संदेश पंक्तियों के रूप में पढ़ें — नए पहले, JSON बॉडी के फ़ील्ड कॉलम में।",
+    "A RabbitMQ broker. List its virtual hosts, queues, streams and exchanges, see how many messages wait in a queue and who consumes them, see what is bound to what, and read a stream's messages as rows, newest first, with JSON bodies laid out in columns, and work with rabbitmqadmin in a terminal.": "एक RabbitMQ ब्रोकर। इसके वर्चुअल होस्ट, क्यू, स्ट्रीम और एक्सचेंज देखें, किसी क्यू में कितने संदेश प्रतीक्षा में हैं और उन्हें कौन लेता है, क्या किससे जुड़ा है, और किसी स्ट्रीम के संदेश पंक्तियों के रूप में पढ़ें — नए पहले, JSON बॉडी के फ़ील्ड कॉलम में।, और टर्मिनल में rabbitmqadmin से काम करें।",
+    "rabbitmqadmin is set up for this connection. Try: rabbitmqadmin show overview · rabbitmqadmin list queues · rabbitmqadmin list exchanges": "rabbitmqadmin इस कनेक्शन के लिए तैयार है। आज़माएँ: rabbitmqadmin show overview · rabbitmqadmin list queues · rabbitmqadmin list exchanges",
     "(default)": "(डिफ़ॉल्ट)",
     "5672, or 5671 with TLS": "5672, या TLS के साथ 5671",
     "AMQP port": "AMQP पोर्ट",

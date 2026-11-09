@@ -14,10 +14,11 @@ como filas. Cómo funcionan las conexiones en general está en la página
 - Los mensajes de un stream como filas, recientes primero, desde offset o fecha
 - Los campos de los mensajes JSON, cada uno en su propia columna
 - Los mensajes de un stream o los vínculos descargados como archivo
+- rabbitmqadmin, configurado para la conexión, en una terminal
 
 ## Qué puedes cambiar
 
-- Nada todavía: esta versión solo lee
+- Todo lo que rabbitmqadmin puede cambiar, escrito en la terminal
 
 ## Conexión
 
@@ -112,3 +113,21 @@ del catálogo.
 **Descargar** en un stream guarda los mensajes que mostraría su página, con
 sus filtros y orden, hasta diez mil. Una cola o un exchange descarga sus
 vínculos.
+
+## rabbitmqadmin
+
+**Terminal** en una conexión de RabbitMQ abre bash con `rabbitmqadmin`, el
+cliente de línea de comandos de RabbitMQ para la API de administración, ya
+apuntado a la conexión: su dirección, usuario, contraseña y host virtual. Tab
+completa sus comandos. Prueba:
+
+- `rabbitmqadmin show overview` — el broker de un vistazo
+- `rabbitmqadmin list queues` — todas las colas con sus contadores
+- `rabbitmqadmin list exchanges` — los exchanges
+- `rabbitmqadmin -V NOMBRE list queues` — otro host virtual
+
+Puede declarar, borrar y purgar colas y exchanges, publicar y obtener mensajes
+y exportar definiciones; lo que cambia se cambia en el broker al momento. La
+terminal se ejecuta en un contenedor en el servidor de DataPlayer, así que ese
+servidor debe poder iniciar contenedores, y la dirección de administración
+debe ser accesible desde allí.

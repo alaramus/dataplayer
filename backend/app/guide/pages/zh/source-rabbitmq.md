@@ -11,10 +11,11 @@ RabbitMQ 代理。你可以看到它的虚拟主机、队列、流和交换器�
 - 流的消息以行显示，最新在前，可从偏移量或某一时刻开始
 - JSON 消息的字段，每个字段一列
 - 流的消息或绑定可下载为文件
+- 在终端中使用已为此连接配置好的 rabbitmqadmin
 
 ## 你可以更改的内容
 
-- 暂时没有：此版本只读
+- rabbitmqadmin 能更改的一切，在终端中输入
 
 ## 连接
 
@@ -71,3 +72,14 @@ RabbitMQ 代理。你可以看到它的虚拟主机、队列、流和交换器�
 ## 下载
 
 在流上 **下载** 会保存其页面将显示的消息，按其过滤条件和顺序，最多一万条。队列或交换器下载的是其绑定。
+
+## rabbitmqadmin
+
+RabbitMQ 连接上的 **终端** 会打开 bash 和 `rabbitmqadmin`——RabbitMQ 自带的管理 API 命令行客户端，已指向此连接：地址、用户、密码和虚拟主机。按 Tab 可补全命令。试试：
+
+- `rabbitmqadmin show overview` —— 代理概况
+- `rabbitmqadmin list queues` —— 所有队列及其计数
+- `rabbitmqadmin list exchanges` —— 交换器
+- `rabbitmqadmin -V 名称 list queues` —— 另一个虚拟主机
+
+它可以声明、删除和清空队列与交换器，发布和获取消息，导出定义；它所做的更改会立即作用于代理。终端运行在 DataPlayer 服务器上的容器中，因此该服务器需要被允许启动容器，并且从那里能访问管理地址。

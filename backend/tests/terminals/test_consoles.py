@@ -184,6 +184,33 @@ async def _kafka(client: AsyncClient, headers: dict[str, str], **options: Any) -
     return str(created.json()["id"])
 
 
+async def _rabbitmq(
+    client: AsyncClient, headers: dict[str, str], **options: Any
+) -> str:
+    given = {
+        "host": "rabbitmq",
+        "port": 5672,
+        "management_url": "http://rabbitmq:15672",
+        "user": "ann",
+        "password": 'secret"pass\\word\n=x',
+        "vhost": "dp test/one",
+        **options,
+    }
+    created = await client.post(
+        f"{CONNECTORS}/",
+        headers=headers,
+        json={
+            "name": f"rabbitmq {uuid.uuid4().hex[:8]}",
+            "adapter_type": "rabbitmq",
+            "options": {
+                key: value for key, value in given.items() if value is not None
+            },
+        },
+    )
+    assert created.status_code == 200, created.text
+    return str(created.json()["id"])
+
+
 def _opening(headers: dict[str, str], connector_id: str) -> dict[str, Any]:
     return {
         "type": "open",
@@ -393,6 +420,62 @@ async def test_kafka_s_tools_without_a_user_carry_no_sasl(
     assert "sasl" not in program.environment["DP_PROPERTIES"]
     assert "security.protocol=PLAINTEXT" in program.environment["DP_PROPERTIES"]
     assert "DP_CA" not in program.environment
+
+
+async def test_rabbitmqadmin_is_set_up_with_the_password_only_in_its_file(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _Runner()
+    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    connector_id = await _rabbitmq(client, normal_user_token_headers)
+
+    program = await _program_of(normal_user_token_headers, connector_id, runner)
+
+    assert program.image.startswith("rabbitmq:") and program.image.endswith(
+        "-management"
+    )
+    assert program.argv[:2] == ("sh", "-c")
+    assert "secret" not in repr(program.argv)
+    assert program.environment["RABBITMQADMIN_CONFIG_FILE_PATH"] == (
+        "/tmp/rabbitmqadmin.conf"
+    )
+    # A TOML basic string escapes the quote, the backslash and the line
+    # break, so nothing in the password can end its value (D328).
+    config = program.environment["DP_CONFIG"]
+    assert config.startswith("[default]\n")
+    assert 'base_uri = "http://rabbitmq:15672"' in config
+    assert r'password = "secret\"pass\\word\n=x"' in config
+    assert 'virtual_host = "dp test/one"' in config
+    assert "tls" not in config
+    # The start file drops every variable that carried it before the prompt.
+    assert "unset DP_CONFIG DP_CA DP_RC" in program.environment["DP_RC"]
+    assert "DP_CA" not in program.environment
+
+
+async def test_rabbitmqadmin_without_a_virtual_host_uses_the_root_one(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = _Runner()
+    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    connector_id = await _rabbitmq(
+        client,
+        normal_user_token_headers,
+        vhost=None,
+        management_url="https://rabbitmq:15671",
+        ca_certificate="-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----",
+    )
+
+    program = await _program_of(normal_user_token_headers, connector_id, runner)
+
+    config = program.environment["DP_CONFIG"]
+    assert 'virtual_host = "/"' in config
+    assert "tls = true" in config
+    assert 'ca_certificate_bundle_path = "/tmp/ca.pem"' in config
+    assert program.environment["DP_CA"].startswith("-----BEGIN CERTIFICATE-----")
 
 
 async def test_a_server_that_runs_no_containers_says_so(

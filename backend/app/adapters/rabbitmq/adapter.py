@@ -28,12 +28,14 @@ from app.adapters.rabbitmq.catalog import (
     read_vhosts,
     vhost_node,
 )
+from app.adapters.rabbitmq.console import console_program
 from app.adapters.rabbitmq.options import RabbitmqOptions
 from app.adapters.rabbitmq.session import RabbitmqSession
 from app.adapters.rabbitmq.streams import RabbitmqStreams
 from app.adapters.rabbitmq.summaries import node_summary
 from app.adapters.registry import AdapterContext, register
 from app.adapters.summary import NodeSummary
+from app.adapters.terminal import ConsoleProgram
 from app.core.translation import N_, say
 
 _SCHEMES = {"amqp": False, "amqps": True}
@@ -200,6 +202,10 @@ class RabbitmqAdapter:
         self._own(named.vhost, node_id)
         return await node_summary(self._session, node_id)
 
+    async def console_program(self) -> ConsoleProgram:
+        """rabbitmqadmin, set up for this connection, in a container (D328)."""
+        return console_program(self._session.options)
+
 
 def _compose(host: str, port: int, user: str, vhost: str, tls: bool) -> str:
     scheme = "amqps" if tls else "amqp"
@@ -218,7 +224,8 @@ def _compose(host: str, port: int, user: str, vhost: str, tls: bool) -> str:
         "A RabbitMQ broker. List its virtual hosts, queues, streams and "
         "exchanges, see how many messages wait in a queue and who consumes "
         "them, see what is bound to what, and read a stream's messages as rows, "
-        "newest first, with JSON bodies laid out in columns."
+        "newest first, with JSON bodies laid out in columns, and work with "
+        "rabbitmqadmin in a terminal."
     ),
     options_schema=RabbitmqOptions,
     adapter_class=RabbitmqAdapter,

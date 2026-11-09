@@ -14,10 +14,11 @@ steht auf der Seite [Verbindungen](connections.md).
 - Nachrichten eines Streams als Zeilen, neueste zuerst, ab Offset oder Zeit
 - Die Felder von JSON-Nachrichten, jedes in einer eigenen Spalte
 - Nachrichten eines Streams oder die Bindungen als Datei herunterladen
+- rabbitmqadmin, für die Verbindung eingerichtet, in einem Terminal
 
 ## Was Sie ändern können
 
-- Noch nichts: diese Version liest nur
+- Alles, was rabbitmqadmin ändern kann, im Terminal eingegeben
 
 ## Verbinden
 
@@ -116,3 +117,21 @@ Menü des Katalogs.
 **Herunterladen** auf einem Stream speichert die Nachrichten, die seine Seite
 zeigen würde, mit ihren Filtern und ihrer Reihenfolge, bis zu zehntausend.
 Eine Queue oder ein Exchange lädt die Bindungen herunter.
+
+## rabbitmqadmin
+
+**Terminal** auf einer RabbitMQ-Verbindung öffnet bash mit `rabbitmqadmin`,
+RabbitMQs eigenem Kommandozeilen-Client der Management-API, bereits auf die
+Verbindung eingestellt: Adresse, Benutzer, Passwort und virtueller Host. Tab
+vervollständigt die Befehle. Probieren Sie:
+
+- `rabbitmqadmin show overview` — der Broker auf einen Blick
+- `rabbitmqadmin list queues` — alle Queues mit ihren Zählern
+- `rabbitmqadmin list exchanges` — die Exchanges
+- `rabbitmqadmin -V NAME list queues` — ein anderer virtueller Host
+
+Er kann Queues und Exchanges anlegen, löschen und leeren, Nachrichten
+veröffentlichen und abholen und Definitionen exportieren; was er ändert, ändert
+sich sofort auf dem Broker. Das Terminal läuft in einem Container auf dem
+DataPlayer-Server; dieser muss Container starten dürfen, und die
+Management-Adresse muss von dort erreichbar sein.

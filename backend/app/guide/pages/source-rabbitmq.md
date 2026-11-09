@@ -14,10 +14,11 @@ page.
 - A stream's messages as rows, newest first, from an offset or a moment
 - The fields of JSON messages, each in a column of its own
 - A stream's messages or the bindings downloaded as a file
+- rabbitmqadmin, set up for the connection, in a terminal
 
 ## What you can change
 
-- Nothing yet: this version only reads
+- Anything rabbitmqadmin can change, typed into the terminal
 
 ## Connecting
 
@@ -108,3 +109,21 @@ catalog's menu.
 **Download** on a stream saves the messages its page would show, with its
 filters and order, up to ten thousand. A queue or an exchange downloads its
 bindings.
+
+## rabbitmqadmin
+
+**Terminal** on a RabbitMQ connection opens bash with `rabbitmqadmin`,
+RabbitMQ's own command-line client of the management API, already pointed at
+the connection: its address, user, password and virtual host. Tab completes
+its commands. Try:
+
+- `rabbitmqadmin show overview` — the broker at a glance
+- `rabbitmqadmin list queues` — every queue with its counts
+- `rabbitmqadmin list exchanges` — the exchanges
+- `rabbitmqadmin -V NAME list queues` — another virtual host
+
+It can declare, delete and purge queues and exchanges, publish and get
+messages and export definitions; what it changes is changed on the broker at
+once. The terminal runs in a container on the DataPlayer server, so it needs
+that server to be allowed to start containers, and the management address
+must be reachable from there.

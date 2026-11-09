@@ -2,7 +2,8 @@
 
 MESSAGES: dict[str, str] = {
     "RabbitMQ": "RabbitMQ",
-    "A RabbitMQ broker. List its virtual hosts, queues, streams and exchanges, see how many messages wait in a queue and who consumes them, see what is bound to what, and read a stream's messages as rows, newest first, with JSON bodies laid out in columns.": "Un broker RabbitMQ. Listez ses hôtes virtuels, files, streams et échanges, voyez combien de messages attendent dans une file et qui les consomme, ce qui est lié à quoi, et lisez les messages d'un stream en lignes, les plus récents d'abord, avec les champs des corps JSON en colonnes.",
+    "A RabbitMQ broker. List its virtual hosts, queues, streams and exchanges, see how many messages wait in a queue and who consumes them, see what is bound to what, and read a stream's messages as rows, newest first, with JSON bodies laid out in columns, and work with rabbitmqadmin in a terminal.": "Un broker RabbitMQ. Listez ses hôtes virtuels, files, streams et échanges, voyez combien de messages attendent dans une file et qui les consomme, ce qui est lié à quoi, et lisez les messages d'un stream en lignes, les plus récents d'abord, avec les champs des corps JSON en colonnes, et travaillez avec rabbitmqadmin dans un terminal.",
+    "rabbitmqadmin is set up for this connection. Try: rabbitmqadmin show overview · rabbitmqadmin list queues · rabbitmqadmin list exchanges": "rabbitmqadmin est configuré pour cette connexion. Essayez : rabbitmqadmin show overview · rabbitmqadmin list queues · rabbitmqadmin list exchanges",
     "(default)": "(par défaut)",
     "5672, or 5671 with TLS": "5672, ou 5671 avec TLS",
     "AMQP port": "Port AMQP",
