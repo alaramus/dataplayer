@@ -15,6 +15,7 @@ from typing import Any, assert_never
 from app.adapters.cassandra.cql import SQL, Composable, Identifier
 from app.adapters.cassandra.inspection import ColumnFacts, RelationFacts
 from app.adapters.cassandra.relation import CassandraRelation
+from app.adapters.cassandra.rows import change_reason, handles_of, writable
 from app.adapters.cassandra.session import CassandraSession, PageStates
 from app.adapters.cassandra.types import TEXTS, parse_value, read_cell, type_name
 from app.adapters.fetch import (
@@ -88,6 +89,7 @@ class PreparedRead:
 
 
 def fetch_columns(facts: RelationFacts, *, scylla: bool) -> list[FetchColumn]:
+    changeable = change_reason(facts) is None
     return [
         FetchColumn(
             name=column.name,
@@ -95,7 +97,11 @@ def fetch_columns(facts: RelationFacts, *, scylla: bool) -> list[FetchColumn]:
             # CQL orders only inside one partition named in full.
             sortable=False,
             filter_operators=filter_operators(column, scylla=scylla),
+            # A key column decides where the row is kept (D345).
+            editable=changeable and writable(column),
             nullable=not column.in_key,
+            insertable=changeable and (column.in_key or writable(column)),
+            insert_required=column.in_key,
         )
         for column in facts.columns
     ]
@@ -208,16 +214,22 @@ class CassandraFetch:
         states = await self._session.page_states()
         rows, more = await self._page(prepared, states, request.offset, request.limit)
         types = [column.type for column in prepared.columns]
+        cells = [
+            [read_cell(value, type_) for value, type_ in zip(row, types, strict=True)]
+            for row in rows
+        ]
+        reason = change_reason(prepared.facts)
         return FetchResult(
             columns=prepared.columns,
-            rows=[
-                [
-                    read_cell(value, type_)
-                    for value, type_ in zip(row, types, strict=True)
-                ]
-                for row in rows
-            ],
+            rows=cells,
             has_more=more,
+            row_handles=handles_of(prepared.facts, cells),
+            update_supported=reason is None,
+            update_reason=reason,
+            insert_supported=reason is None,
+            insert_reason=reason,
+            delete_supported=reason is None,
+            delete_reason=reason,
         )
 
     async def _read(

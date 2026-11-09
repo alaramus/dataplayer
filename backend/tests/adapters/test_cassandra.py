@@ -101,9 +101,8 @@ def test_it_claims_only_what_it_does() -> None:
         SupportsContent,
     ):
         assert isinstance(adapter, capability)
-    # Rows are changed from a later slice.
     assert isinstance(adapter, SupportsQuery)
-    assert not isinstance(adapter, SupportsUpdate)
+    assert isinstance(adapter, SupportsUpdate)
 
 
 def test_a_server_is_read_as_its_product_and_number() -> None:

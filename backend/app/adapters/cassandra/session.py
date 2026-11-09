@@ -49,6 +49,7 @@ from app.adapters.cassandra.options import (
     CassandraUserPassword,
     Consistency,
 )
+from app.adapters.cassandra.types import driver_value
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
 from app.adapters.tunnels import TunnelAccess, reach
@@ -628,7 +629,13 @@ class CassandraSession:
             query = SimpleStatement(statement, fetch_size=fetch_size)
         else:
             query = await kept.prepared(statement)
-            query = query.bind(list(params))
+            types = [column.type for column in query.column_metadata or []]
+            query = query.bind(
+                [
+                    driver_value(value, cql_type)
+                    for value, cql_type in zip(params, types, strict=False)
+                ]
+            )
             query.fetch_size = fetch_size
         future = session.execute_async(
             query,

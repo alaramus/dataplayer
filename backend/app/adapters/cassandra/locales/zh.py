@@ -35,4 +35,12 @@ MESSAGES: dict[str, str] = {
     "This is not a CQL statement this console runs": "这不是此控制台运行的 CQL 语句",
     "cqlsh cannot read a user or a password that holds a line break": "cqlsh 无法读取包含换行符的用户名或密码",
     "{command} is a cqlsh command, not CQL; run it in cqlsh in a terminal": "{command} 是 cqlsh 命令，不是 CQL；请在终端中的 cqlsh 里运行",
+    # Changing rows.
+    "A counter table is changed by adding to its counters, in the console": "计数器表通过在控制台中给计数器加值来更改",
+    "A materialized view's rows are written by its table": "物化视图的行由其表写入",
+    "A row with this key is already there": "已存在具有此键的行",
+    "A virtual table is the server's own": "虚拟表属于服务器自身",
+    'Column "{column}" cannot be changed here': "此处无法更改列“{column}”",
+    "Every column of the primary key needs a value: {columns}": "主键的每一列都需要值：{columns}",
+    "The row was changed or deleted since it was read": "该行在读取后已被更改或删除",
 }

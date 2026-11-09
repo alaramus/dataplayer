@@ -6,7 +6,7 @@ every source type follows is in [contract.md](contract.md); reading a relation
 in general is in [relations.md](relations.md). Read this before changing the
 `cassandra` adapter.
 
-Decisions here: D340, D341, D342, D343, D344.
+Decisions here: D340, D341, D342, D343, D344, D345.
 
 ## D340. One type for Cassandra and ScyllaDB, through the address given
 
@@ -136,3 +136,25 @@ before cqlsh starts. A `%` in the user is doubled for ConfigParser, and a line
 break in either is refused. Not through an SSH tunnel.
 
 Spec: [CQL in the console, cqlsh in a terminal](../../decisions/2026-11-10-cassandra-console-design.md)
+
+## D345. A row is its primary key, read again before it changes
+
+A row's handle is its primary key as the page showed it and a digest of the
+row (`app.adapters.row_handles`). A change reads the row again by the key and
+goes on only when it digests the same, then writes a plain `UPDATE`, `INSERT`
+or `DELETE` by the key; no lightweight transaction. Key columns are never
+edited and an insert needs all of them; a duration is not written; a
+collection, a tuple and a user-defined type are written as their JSON, shaped
+by the types the server gives for the prepared statement. A counter table, a
+materialized view, a virtual table and the server's own keyspaces are read
+only. A paste is read whole as its columns' types and every row is checked
+before any is written. One inserted row refuses a key that is there; a block
+replaces rows with the same key.
+
+Known deviations:
+
+- A change made between the read and the write is not seen; a row deleted in
+  that moment comes back with the changed cells only.
+- A block of rows overwrites rows that share a key instead of refusing them.
+
+Spec: [Changing a Cassandra table's rows](../../decisions/2026-11-10-cassandra-rows-design.md)

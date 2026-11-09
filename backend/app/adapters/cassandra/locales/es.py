@@ -35,4 +35,12 @@ MESSAGES: dict[str, str] = {
     "This is not a CQL statement this console runs": "Esta no es una sentencia CQL que ejecute esta consola",
     "cqlsh cannot read a user or a password that holds a line break": "cqlsh no puede leer un usuario o una contraseña con un salto de línea",
     "{command} is a cqlsh command, not CQL; run it in cqlsh in a terminal": "{command} es un comando de cqlsh, no CQL; ejecútelo en cqlsh en un terminal",
+    # Changing rows.
+    "A counter table is changed by adding to its counters, in the console": "Una tabla de contadores se cambia sumando a sus contadores, en la consola",
+    "A materialized view's rows are written by its table": "Las filas de una vista materializada las escribe su tabla",
+    "A row with this key is already there": "Ya hay una fila con esta clave",
+    "A virtual table is the server's own": "Una tabla virtual es del propio servidor",
+    'Column "{column}" cannot be changed here': "La columna «{column}» no se puede cambiar aquí",
+    "Every column of the primary key needs a value: {columns}": "Cada columna de la clave primaria necesita un valor: {columns}",
+    "The row was changed or deleted since it was read": "La fila se cambió o se eliminó después de leerla",
 }

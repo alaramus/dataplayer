@@ -19,6 +19,7 @@ from app.adapters.cassandra.session import (
     options_from_url,
 )
 from app.adapters.cassandra.summary import CassandraSummaries
+from app.adapters.cassandra.update import CassandraUpdate
 from app.adapters.catalog import CatalogNode
 from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.features import SourceFeatures
@@ -39,6 +40,18 @@ from app.adapters.resources import Pooling
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
+)
 from app.core.translation import N_
 
 
@@ -87,6 +100,7 @@ class CassandraAdapter:
         self._content = CassandraContent(self._session, self._relation)
         self._summaries = CassandraSummaries(self._relation)
         self._query = CassandraQuery(self._session, self._inspector)
+        self._update = CassandraUpdate(self._session, self._relation)
         self._metadata = CassandraMetadata(self._session, self._inspector)
         self._generation = CassandraGeneration(self._inspector)
 
@@ -161,6 +175,22 @@ class CassandraAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        """A row found by its key, changed only when it reads as it did (D345)."""
+        return await self._update.update_cell(request)
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        return await self._update.update_cells(request)
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._update.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request)
+
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        return await self._update.delete_rows(request)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62, D343)."""

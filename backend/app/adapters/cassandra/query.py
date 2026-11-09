@@ -39,7 +39,12 @@ from app.adapters.cassandra.session import (
     waited,
 )
 from app.adapters.cassandra.statements import object_of, prepare
-from app.adapters.cassandra.types import build_column_type, parse_value, read_cell
+from app.adapters.cassandra.types import (
+    build_column_type,
+    driver_value,
+    parse_value,
+    read_cell,
+)
 from app.adapters.database_ids import database_id, relation_id
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
@@ -304,7 +309,7 @@ class CassandraExecution:
                 continue
             type_text = _type_text(column.type)
             try:
-                values[name] = parse_value(text, type_text)
+                values[name] = driver_value(parse_value(text, type_text), column.type)
             except ValueError:
                 raise ValueError(
                     say(

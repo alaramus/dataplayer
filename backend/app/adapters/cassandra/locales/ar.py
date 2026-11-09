@@ -35,4 +35,12 @@ MESSAGES: dict[str, str] = {
     "This is not a CQL statement this console runs": "هذه ليست عبارة CQL تشغّلها هذه الوحدة",
     "cqlsh cannot read a user or a password that holds a line break": "لا يستطيع cqlsh قراءة مستخدم أو كلمة مرور تحتوي على فاصل أسطر",
     "{command} is a cqlsh command, not CQL; run it in cqlsh in a terminal": "{command} أمر من أوامر cqlsh وليس CQL؛ شغّله في cqlsh داخل طرفية",
+    # Changing rows.
+    "A counter table is changed by adding to its counters, in the console": "يُغيَّر جدول العدّادات بالإضافة إلى عدّاداته، في وحدة الاستعلام",
+    "A materialized view's rows are written by its table": "يكتب الجدول صفوف عرضه المادي",
+    "A row with this key is already there": "يوجد صف بهذا المفتاح بالفعل",
+    "A virtual table is the server's own": "الجدول الافتراضي يخص الخادم",
+    'Column "{column}" cannot be changed here': "لا يمكن تغيير العمود «{column}» هنا",
+    "Every column of the primary key needs a value: {columns}": "يحتاج كل عمود من المفتاح الأساسي إلى قيمة: {columns}",
+    "The row was changed or deleted since it was read": "تغيّر الصف أو حُذف بعد قراءته",
 }

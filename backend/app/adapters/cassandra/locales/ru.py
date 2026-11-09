@@ -35,4 +35,12 @@ MESSAGES: dict[str, str] = {
     "This is not a CQL statement this console runs": "Это не оператор CQL, который выполняет эта консоль",
     "cqlsh cannot read a user or a password that holds a line break": "cqlsh не может прочитать пользователя или пароль с переводом строки",
     "{command} is a cqlsh command, not CQL; run it in cqlsh in a terminal": "{command} — команда cqlsh, а не CQL; выполните её в cqlsh в терминале",
+    # Changing rows.
+    "A counter table is changed by adding to its counters, in the console": "Таблица счётчиков меняется прибавлением к счётчикам, в консоли",
+    "A materialized view's rows are written by its table": "Строки материализованного представления пишет его таблица",
+    "A row with this key is already there": "Строка с таким ключом уже есть",
+    "A virtual table is the server's own": "Виртуальная таблица принадлежит серверу",
+    'Column "{column}" cannot be changed here': "Столбец «{column}» здесь изменить нельзя",
+    "Every column of the primary key needs a value: {columns}": "Каждому столбцу первичного ключа нужно значение: {columns}",
+    "The row was changed or deleted since it was read": "Строку изменили или удалили после того, как её прочитали",
 }

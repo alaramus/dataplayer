@@ -18,6 +18,7 @@ How connections work in general is on the [Connections](connections.md) page.
 
 ## What you can change
 
+- Table data: edit cells, paste blocks, insert and delete rows
 - Data and structure, through CQL in the console, one change at a time
 
 ## Connecting
@@ -105,3 +106,24 @@ these differences:
 the keyspace it names. It is Cassandra's own cqlsh for ScyllaDB too; both
 speak CQL. It runs in a container on this server, so the host must be one that
 server can reach, and a connection through an SSH tunnel has no terminal yet.
+
+## Changing rows
+
+- Cells are edited, blocks pasted, rows inserted and deleted in a table.
+  Materialized views, virtual tables and the server's own keyspaces are read
+  only, and so is a table of counters: a counter only takes an addition, which
+  the console can write.
+- A row is found by its primary key. The columns of the key are not edited —
+  they decide where the row is kept — and a new row needs a value for each.
+- A row somebody changed after you read the page is refused rather than
+  overwritten. Read the page again and repeat the change. A change made in the
+  same instant as yours is not caught: Cassandra has no transaction to hold the
+  row.
+- Lists, sets, maps, tuples and user-defined types are written as the JSON
+  they are shown as. A duration is not edited.
+- A static column holds one value for the whole partition, so editing it on
+  one row changes it on every row of that partition.
+- Adding one row refuses a key that is already there. Rows pasted or loaded as
+  a block replace a row with the same key, which is how Cassandra writes.
+- A paste is checked whole before anything is written: one value its column
+  cannot hold, and nothing changes.

@@ -372,3 +372,66 @@ def parse_value(text: str, type_text: str) -> Any:
     except json.JSONDecodeError:
         raise ValueError from None
     return _from_json(parsed, type_text)
+
+
+def driver_value(value: Any, cql_type: Any) -> Any:
+    """A value `parse_value` made, shaped as the driver serializes `cql_type`.
+
+    The driver writes a user-defined type from its fields in order, not from
+    a dictionary, and a field's value as its own type; the server's description
+    of a prepared statement names both, so the shaping happens here.
+    """
+    if value is None:
+        return None
+    subtypes = list(getattr(cql_type, "subtypes", ()) or ())
+    fields = getattr(cql_type, "fieldnames", None)
+    if fields is not None:
+        if not isinstance(value, dict):
+            raise ValueError
+        unknown = set(value) - set(fields)
+        if unknown:
+            raise ValueError
+        return tuple(
+            driver_value(_field(value.get(name), subtype), subtype)
+            for name, subtype in zip(fields, subtypes, strict=True)
+        )
+    if not subtypes:
+        return value
+    if isinstance(value, dict):
+        key_type, item_type = subtypes[0], subtypes[-1]
+        return {
+            _hashable(driver_value(_field(key, key_type), key_type)): driver_value(
+                _field(item, item_type), item_type
+            )
+            for key, item in value.items()
+        }
+    if getattr(cql_type, "typename", "") == "tuple":
+        if not isinstance(value, tuple | list) or len(value) != len(subtypes):
+            raise ValueError
+        return tuple(
+            driver_value(_field(item, subtype), subtype)
+            for item, subtype in zip(value, subtypes, strict=True)
+        )
+    if isinstance(value, list | tuple):
+        return [driver_value(_field(item, subtypes[0]), subtypes[0]) for item in value]
+    if isinstance(value, set | frozenset):
+        return {
+            _hashable(driver_value(_field(item, subtypes[0]), subtypes[0]))
+            for item in value
+        }
+    return value
+
+
+def _field(value: Any, cql_type: Any) -> Any:
+    """A field of a user-defined type still in JSON's shapes, read as its type."""
+    if value is None or getattr(cql_type, "fieldnames", None) is not None:
+        return value
+    spelled = getattr(cql_type, "cql_parameterized_type", None)
+    text = str(spelled()) if callable(spelled) else ""
+    if type_name(text) not in _SCALARS:
+        return value
+    if isinstance(value, bool):
+        return parse_value("true" if value else "false", text)
+    if isinstance(value, str | int | float):
+        return parse_value(value if isinstance(value, str) else json.dumps(value), text)
+    return value

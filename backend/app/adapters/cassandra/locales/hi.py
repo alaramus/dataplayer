@@ -35,4 +35,12 @@ MESSAGES: dict[str, str] = {
     "This is not a CQL statement this console runs": "यह ऐसा CQL कथन नहीं है जिसे यह कंसोल चलाता है",
     "cqlsh cannot read a user or a password that holds a line break": "cqlsh पंक्ति-विराम वाला उपयोगकर्ता या पासवर्ड नहीं पढ़ सकता",
     "{command} is a cqlsh command, not CQL; run it in cqlsh in a terminal": "{command} cqlsh का कमांड है, CQL नहीं; इसे टर्मिनल में cqlsh में चलाएँ",
+    # Changing rows.
+    "A counter table is changed by adding to its counters, in the console": "काउंटर टेबल उसके काउंटरों में जोड़कर, कंसोल में बदली जाती है",
+    "A materialized view's rows are written by its table": "मटीरियलाइज़्ड व्यू की पंक्तियाँ उसकी टेबल लिखती है",
+    "A row with this key is already there": "इस कुंजी वाली पंक्ति पहले से मौजूद है",
+    "A virtual table is the server's own": "वर्चुअल टेबल सर्वर की अपनी है",
+    'Column "{column}" cannot be changed here': 'कॉलम "{column}" यहाँ नहीं बदला जा सकता',
+    "Every column of the primary key needs a value: {columns}": "प्राथमिक कुंजी के हर कॉलम को मान चाहिए: {columns}",
+    "The row was changed or deleted since it was read": "पढ़ने के बाद पंक्ति बदली गई या हटाई गई",
 }
