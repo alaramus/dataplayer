@@ -15,6 +15,7 @@ import {
   lookOf,
   nodesOpenOn,
   openConnectorIds,
+  panelsOn,
   panelsOnNodes,
   panelSchema,
   PANEL_ROLES,
@@ -616,6 +617,14 @@ describe("the tabs a watching source reads again (D303)", () => {
   it("names the nodes open on one connection, not the ones elsewhere", () => {
     expect(nodesOpenOn(panels, "c1")).toEqual(["public.orders", "people.json", "notes.txt"])
     expect(nodesOpenOn(panels, "c3")).toEqual([])
+  })
+
+  it("names every tab on one connection, its catalog included, for deleting it", () => {
+    const ids = panelsOn(panels, "c1")
+    expect(ids).toEqual(expect.arrayContaining([samples.catalog.id, samples.rows.id, samples.content.id]))
+    expect(ids).not.toContain(elsewhere.id)
+    expect(ids).not.toContain(samples.connectors.id)
+    expect(panelsOn(panels, "c3")).toEqual([])
   })
 
   it("reads again only the tabs on the nodes that changed", () => {

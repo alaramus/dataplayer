@@ -274,9 +274,9 @@ Known deviations:
   is opened meanwhile is saved under their key once they are, rather than
   dropped when the layout starts following them. The keys a layout was once
   kept under for everyone are removed.
-- **A panel of a deleted connector stays until it is closed**, showing the error
-  the server gave, because the panel cannot tell a deleted connector from a failed
-  request.
+- **Deleting a connector asks whether its tabs go too**, ticked by default; one
+  guarded against closing stays (D66). A kept tab shows the server's error, since
+  it cannot tell a deleted connector from a failed request.
 - **A closed panel's component definition is still held.** The map of bound
   components in `features/workspace/panels.ts` keeps definitions for the page's
   lifetime; the workspace releases the component instance on close.

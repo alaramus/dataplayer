@@ -65,6 +65,7 @@ import {
   lookOf,
   nodesOpenOn,
   openConnectorIds,
+  panelsOn,
   panelsOnNodes,
   panelComponents,
   isRetiredPanel,
@@ -414,6 +415,13 @@ function forget(id: string) {
   windows.close(id)
 }
 
+/** Close the tabs of a deleted connection; one that refuses to go, a console in a transaction, stays (D66). */
+async function closeTabsOn(connectorId: string) {
+  for (const panelId of panelsOn(workspace.panels.value, connectorId)) {
+    if (await closings.mayClose(panelId)) workspace.context.close(panelId)
+  }
+}
+
 function openConnectorWindow(
   connector: ConnectorPublic | null,
   adapterType: string | null,
@@ -456,6 +464,8 @@ function openConnectorWindow(
         catalogOpen.value = true
       },
       onDirty: (dirty) => markDirty(handle.id, dirty),
+      openTabsOf: (connectorId) => panelsOn(workspace.panels.value, connectorId).length,
+      closeTabsOf: closeTabsOn,
       beforeClose: async () => {
         if (!unsaved.value.has(handle.id)) return true
         return await confirm({

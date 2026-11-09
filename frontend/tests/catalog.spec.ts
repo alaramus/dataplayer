@@ -311,6 +311,36 @@ test("the tab icon of the catalog opens the window of its connection", async ({ 
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("deleting a connection asks whether its open tabs go with it", async ({ page }) => {
+  const closed = `e2e-tabs-closed-${Date.now()}`
+  const kept = `e2e-tabs-kept-${Date.now()}`
+  const catalogTabs = page.locator('[data-testid^="workspace-tab-icon-catalog:"]')
+  await login(page)
+
+  // Ticked, as it starts: the tab closes with the connection.
+  await createPostgresConnector(page, closed)
+  await openConnector(page, closed)
+  await expect(catalogTabs).toHaveCount(1)
+  await catalogTabIcon(page).click()
+  await page.getByTestId("delete-connector").click()
+  await expect(page.getByTestId("confirm-also")).toContainText("(1)")
+  await page.getByTestId("confirm-accept").click()
+  await expect(connectorRow(page, closed)).toHaveCount(0)
+  await expect(catalogTabs).toHaveCount(0)
+
+  // Unticked: the tab stays, to say its connection is gone.
+  await createPostgresConnector(page, kept)
+  await openConnector(page, kept)
+  await catalogTabIcon(page).click()
+  await page.getByTestId("delete-connector").click()
+  await page.getByTestId("confirm-also").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(connectorRow(page, kept)).toHaveCount(0)
+  await expect(catalogTabs).toHaveCount(1)
+  await page.locator('[data-testid^="workspace-close-catalog:"]').click()
+  await expect(catalogTabs).toHaveCount(0)
+})
+
 /**
  * The head of a catalog is the same height whatever the source is.
  *

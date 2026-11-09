@@ -390,6 +390,11 @@ function isOn(panel: Panel, connectorId: string): boolean {
   return "connectorId" in panel && panel.connectorId === connectorId
 }
 
+/** Every tab on one connection: what deleting the connection offers to close. */
+export function panelsOn(panels: Panel[], connectorId: string): string[] {
+  return panels.filter((panel) => isOn(panel, connectorId)).map((panel) => panel.id)
+}
+
 /** The nodes open in tabs on one connection, for a source that watches them (D303). */
 export function nodesOpenOn(panels: Panel[], connectorId: string): string[] {
   return panels

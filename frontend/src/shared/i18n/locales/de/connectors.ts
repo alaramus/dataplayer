@@ -120,6 +120,7 @@ export const connectors: Messages["connectors"] = {
     delete_message_service:
       "Die Verbindung „{name}“ wird dauerhaft gelöscht. Der Dienst, den dieser Server dafür gestartet hat, läuft mit seinen Daten weiter; entfernen Sie den Dienst selbst, um das zu beenden.",
     delete: "Löschen",
+    delete_close_tabs: "Auch die geöffneten Tabs schließen ({count})",
     deleted: "Verbindung gelöscht",
     url_copied: "Verbindungszeichenfolge kopiert",
     url_unreadable: "Das ist keine Verbindungszeichenfolge, die diese Quelle liest",

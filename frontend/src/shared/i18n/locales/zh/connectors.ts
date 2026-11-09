@@ -118,6 +118,7 @@ export const connectors: Messages["connectors"] = {
     delete_message: "连接“{name}”将被永久删除。",
     delete_message_service: "连接“{name}”将被永久删除。此服务器为它启动的服务会继续运行并保留其数据；要移除这些，请删除该服务本身。",
     delete: "删除",
+    delete_close_tabs: "同时关闭其已打开的标签页（{count}）",
     deleted: "连接已删除",
     url_copied: "连接字符串已复制",
     url_unreadable: "这不是此数据源能够读取的连接字符串",

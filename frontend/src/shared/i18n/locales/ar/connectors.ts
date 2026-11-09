@@ -121,6 +121,7 @@ export const connectors: Messages["connectors"] = {
     delete_message_service:
       "سيُحذف الاتصال «{name}» نهائيًا. أما الخدمة التي شغّلها هذا الخادم له فتبقى قيد التشغيل، مع بياناتها؛ أزل الخدمة نفسها للتخلص من ذلك.",
     delete: "حذف",
+    delete_close_tabs: "إغلاق علامات التبويب المفتوحة أيضًا ({count})",
     deleted: "تم حذف الاتصال",
     url_copied: "تم نسخ سلسلة الاتصال",
     url_unreadable: "هذه ليست سلسلة اتصال يقرأها هذا المصدر",

@@ -120,6 +120,7 @@ export const connectors: Messages["connectors"] = {
     delete_message_service:
       "La conexión «{name}» se eliminará de forma permanente. El servicio que este servidor inició para ella sigue en ejecución, con sus datos; elimina el servicio en sí para deshacerte de él.",
     delete: "Eliminar",
+    delete_close_tabs: "Cerrar también sus pestañas abiertas ({count})",
     deleted: "Conexión eliminada",
     url_copied: "Cadena de conexión copiada",
     url_unreadable: "Eso no es una cadena de conexión que esta fuente lea",

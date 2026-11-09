@@ -38,6 +38,9 @@ export function connectorWindow(options: {
   beforeClose: () => boolean | Promise<boolean>
   /** The page to open on, for a window opened to do one thing (D61). */
   startOn?: string
+  /** How many tabs are open on a connection, so deleting it can offer to close them. */
+  openTabsOf?: (connectorId: string) => number
+  closeTabsOf?: (connectorId: string) => Promise<void>
 }): OpenWindow {
   const type = options.connector?.adapter_type ?? options.adapterType ?? null
 
@@ -52,6 +55,8 @@ export function connectorWindow(options: {
         draft: options.draft,
         initialName: options.card?.title,
         startOn: options.startOn,
+        openTabsOf: options.openTabsOf,
+        closeTabsOf: options.closeTabsOf,
         onCreated: options.onCreated,
         onClose: options.onClose,
         onBack: options.onBack,

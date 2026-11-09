@@ -89,6 +89,9 @@ const props = defineProps<{
    * opened to look at a connection is about.
    */
   startOn?: string
+  /** The tabs open on a connection: absent where the window is not on a workspace. */
+  openTabsOf?: (connectorId: string) => number
+  closeTabsOf?: (connectorId: string) => Promise<void>
 }>()
 
 const emit = defineEmits<{
@@ -614,6 +617,10 @@ async function remove() {
   // deleting it never touches the container or its data, and saying so is the
   // difference between a promise kept and a surprise (D84).
   const started = ownService.value
+  // A tab on a deleted connection can only say that it is gone; whether it is
+  // still worth reading is the person's call, so it is asked rather than done.
+  const tabs = props.openTabsOf?.(connector.id) ?? 0
+  let closeTabs = true
   const answer = await confirm({
     title: t("connectors.window.delete_title"),
     message: started
@@ -621,10 +628,16 @@ async function remove() {
       : t("connectors.window.delete_message", { name: connector.name }),
     confirmLabel: t("connectors.window.delete"),
     danger: true,
+    alsoLabel: tabs > 0 ? t("connectors.window.delete_close_tabs", { count: tabs }) : undefined,
+    alsoDefault: true,
+    onAlso: (chosen) => {
+      closeTabs = chosen
+    },
   })
   if (!answer) return
 
   await removeConnector.mutateAsync(connector.id)
+  if (tabs > 0 && closeTabs) await props.closeTabsOf?.(connector.id)
   // The dot outlives the row otherwise: a record nobody prunes is a record
   // that grows for as long as the page lives.
   checks.forget(connector.id)

@@ -118,6 +118,7 @@ export const connectors = {
     delete_message_service:
       "The connection \"{name}\" will be deleted permanently. The service this server started for it keeps running, with its data; remove the service itself to take that away.",
     delete: "Delete",
+    delete_close_tabs: "Also close its open tabs ({count})",
     deleted: "Connection deleted",
     url_copied: "Connection string copied",
     url_unreadable: "That is not a connection string this source reads",
