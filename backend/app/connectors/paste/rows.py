@@ -61,12 +61,15 @@ async def columns_of(source: DataAdapter, node_ids: list[str]) -> list[FetchColu
 
 
 async def moving_columns_of(
-    node: SupportsMovingColumns, node_id: str, given: list[FetchColumn] | None
+    node: SupportsMovingColumns,
+    node_id: str,
+    given: list[FetchColumn] | None,
+    wanted: list[FetchColumn] | None = None,
 ) -> list[FetchColumn] | str | None:
     """What a node says its moving rows are (D336), its refusal in a sentence,
     or None for its page's columns."""
     try:
-        return await node.moving_columns(node_id, given)
+        return await node.moving_columns(node_id, given, wanted)
     except NodeNotFound:
         return say("The ticked table no longer exists")
     except ValueError:
@@ -136,6 +139,22 @@ async def into_table(
     if not insertable:
         return refused(kind, say("The ticked table takes no rows"))
     return offered(kind, available=True, source_columns=columns, target_columns=insertable)
+
+
+async def table_columns(
+    destination: DataAdapter, target_end: str | Foreseen
+) -> list[FetchColumn] | None:
+    """The columns of the table rows go into, when it is a table (D338): a
+    node whose moving rows are not its page's is not one."""
+    if isinstance(target_end, Foreseen):
+        return target_end.columns
+    if isinstance(destination, SupportsMovingColumns):
+        if await moving_columns_of(destination, target_end, None) is not None:
+            return None
+    if not isinstance(destination, SupportsFetch):
+        return None
+    found = await _columns(destination, target_end, gone=N_("The ticked table no longer exists"))
+    return None if isinstance(found, str) else found
 
 
 async def new_table(

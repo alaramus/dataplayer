@@ -4,9 +4,9 @@ Decisions D337–D339. The stage after RabbitMQ in pipelines (D335, D336),
 closing three gaps that stage left: a link that reads a queue shares its
 messages with every other consumer, a queue's rows come without the fields of
 the body, and RabbitMQ was the one network database without a tunnel (D327).
-Not implemented yet; the session that implements it moves each statement into
-[rabbitmq.md](../architecture/sources/rabbitmq.md), registers the numbers in
-AGENTS.md and corrects this spec where the code proves it wrong.
+Implemented: the statements live in
+[rabbitmq.md](../architecture/sources/rabbitmq.md), corrected here where the
+code proved this spec wrong.
 
 ## An exchange read on through the link's own queue (D337)
 
@@ -19,8 +19,9 @@ link reads through a queue it owns:
 
 - **Its name is the link's reader**, `dataplayer-link-<link id>`, the name a
   Kafka group already gets (`reader_of`). A pipeline copied gives its links new
-  ids, so two pipelines never share a queue; the implementation checks that
-  the copy does.
+  ids, so two pipelines never share a queue. Corrected in implementation: no
+  pipeline is copied today; a copy, when one comes, owes Kafka's groups the
+  same.
 - **Declared at the start of every step**, not when the pipeline is saved:
   saving never touches a broker. A classic durable queue with
   `x-expires` of seven days, so the queue of a deleted link or an abandoned
@@ -43,6 +44,10 @@ link reads through a queue it owns:
   written, at least once. Earliest and latest mean nothing here either: the
   link sees what the exchange routed after its first step declared the queue.
   The first step therefore reads nothing, and says so in its message.
+  Corrected in implementation: the spec did not say what a first run is for a
+  link making its table (D313). It is a reader with no bookmark this
+  application keeps, written at every `mark_read`, so a queue that expired and
+  was made again adds to the table it made rather than refusing it.
 - **Deleting the link does not delete the queue** at once: the pipeline is
   saved without talking to the broker, and the queue expires. Rejected: a
   delete on save, which would make saving a pipeline fail when a broker is
@@ -50,7 +55,14 @@ link reads through a queue it owns:
 - **The queue is visible** in the catalog as any queue is; its name says whose
   it is. Hiding it would hide messages piling up.
 - **Permissions**: the account needs configure and read on the queue and read
-  on the exchange; a refusal from the broker says which.
+  on the exchange; a refusal from the broker says which. Corrected in
+  implementation: binding needs write on the queue as well, which the refusal
+  says.
+- **Made ready through `SupportsOwnReader`** (added in implementation): the
+  offer carries `ReadingTerms` (whether a key is asked, its default, a line
+  for the panel), and `prepare_reader` runs before every step and before a
+  followed link (D315) asks what is unread; it answers whether the queue was
+  made just now, which the step's sentence says.
 
 A queue keeps being read as before, sharing with its other consumers; the
 form for a queue says so in one line and suggests reading its exchange.
@@ -61,7 +73,7 @@ A stream's fields are found in the messages on its page; a queue's cannot be,
 because looking takes them (D330). So the fields come from the other end, as
 writing finds them (D336): when a link reading on from a queue or an exchange
 writes into a table that exists, the source end is asked its moving columns
-with the target's columns as `given`, and answers the message's own columns
+with the target's columns as `wanted`, and answers the message's own columns
 and, for every target column that is not one of them, a column of that name
 whose value is the top-level field of that name in a JSON body.
 
@@ -81,8 +93,11 @@ whose value is the top-level field of that name in a JSON body.
 - A stream keeps the fields it finds on its page; it is not changed.
 
 The change in the generic code is one argument: `since.py`'s
-`_source_columns` passes the target's columns instead of `None` when the
-target table exists.
+`_source_columns` passes the target's columns when the target table exists.
+Corrected in implementation: the spec had them passed as `given`, which
+already means the rows coming into a node, so a queue could not tell being
+read from being written; they go as a third argument, `wanted`, and a table
+a link before makes counts as existing.
 
 ## RabbitMQ through an SSH tunnel (D339)
 

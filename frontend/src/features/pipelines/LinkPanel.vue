@@ -95,6 +95,14 @@ function rename(value: string | number | null) {
   emit("change", { ...props.link, name: typed === "" ? null : typed.slice(0, 255) })
 }
 
+// What the link's own queue is bound to an exchange by (D337); empty is the
+// exchange type's own default, which the field shows.
+const reading = computed(() => offer.value?.reading ?? null)
+function rebind(value: string | number | null) {
+  const typed = String(value ?? "")
+  emit("change", { ...props.link, binding_key: typed === "" ? null : typed.slice(0, 255) })
+}
+
 const starts = [
   { get label() { return t("pipelines.link_panel.start_earliest") }, value: "earliest" },
   { get label() { return t("pipelines.link_panel.start_latest") }, value: "latest" },
@@ -236,6 +244,17 @@ const columnsWord = computed(() => {
         data-testid="link-panel-follow"
         @update:model-value="emit('change', { ...link, follow: $event })"
       />
+      <AppInput
+        v-if="readsOn && reading?.asks_binding_key"
+        class="link-panel__field"
+        :model-value="link.binding_key ?? ''"
+        :label="t('pipelines.link_panel.binding_key')"
+        :placeholder="t('pipelines.link_panel.binding_key_default', { key: reading.default_binding_key || t('pipelines.link_panel.binding_key_empty') })"
+        compact
+        autocomplete="off"
+        data-testid="link-panel-binding-key"
+        @update:model-value="rebind"
+      />
       <AppSelect
         v-if="readsOn"
         class="link-panel__field"
@@ -281,6 +300,13 @@ const columnsWord = computed(() => {
       data-testid="link-panel-following"
     >
       {{ followWords(followed, (iso) => new Date(iso).toLocaleTimeString()) }}
+    </p>
+    <p
+      v-if="readsOn && reading?.note"
+      class="link-panel__result"
+      data-testid="link-panel-reading-note"
+    >
+      {{ reading.note }}
     </p>
     <p
       v-if="readsOn"

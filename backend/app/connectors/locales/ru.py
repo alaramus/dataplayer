@@ -251,6 +251,7 @@ MESSAGES: dict[str, str] = {
     'The first frame opens a watch': 'Первый кадр открывает наблюдение',
     'Sign in again to watch this': 'Войдите снова, чтобы смотреть это',
     'No such node': 'Такого узла нет',
-    "Only a topic, a stream, a queue, or a symbol's trades or candles, is read on from where the link stopped": "Читать дальше с места остановки связи можно только топик, стрим, очередь или сделки и свечи символа",
-    "Tick a topic, a stream, a queue, or a symbol's trades or candles": "Отметьте топик, стрим, очередь или сделки и свечи символа",
+    "Only a topic, a stream, a queue, an exchange, or a symbol's trades or candles, is read on from where the link stopped": "Читать дальше с места остановки связи можно только топик, стрим, очередь, exchange или сделки и свечи символа",
+    "Tick a topic, a stream, a queue, an exchange, or a symbol's trades or candles": "Отметьте топик, стрим, очередь, exchange или сделки и свечи символа",
+    "{said}; the link began reading now, and gets what arrives from here on": "{said}; связь начала читать сейчас и получает то, что приходит с этого момента",
 }

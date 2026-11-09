@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from app.adapters.layout import layout
+from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_, say
 
 
@@ -39,7 +40,7 @@ class RabbitmqOptions(BaseModel):
         default="localhost",
         title=N_("Host"),
         min_length=1,
-        json_schema_extra=layout(),
+        json_schema_extra=layout(row="address"),
     )
     port: int = Field(
         default=5672,
@@ -47,8 +48,12 @@ class RabbitmqOptions(BaseModel):
         le=65535,
         title=N_("AMQP port"),
         description=N_("5672, or 5671 with TLS"),
-        json_schema_extra=layout(),
+        json_schema_extra=layout(row="address"),
     )
+    # The SSH connection this broker is reached through, if any (D282, D339):
+    # AMQP and the management API both. Under the address, as every source
+    # with one has it.
+    ssh_tunnel: str = ssh_tunnel_field()
     management_url: str = Field(
         default="",
         title=N_("Management address"),

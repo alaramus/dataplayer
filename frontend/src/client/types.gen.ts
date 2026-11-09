@@ -8022,6 +8022,10 @@ export type Link = {
    * Follow
    */
   follow?: boolean
+  /**
+   * Binding Key
+   */
+  binding_key?: string | null
 }
 
 /**
@@ -9681,6 +9685,7 @@ export type PasteOffer = {
    * Reads On
    */
   reads_on?: boolean
+  reading?: ReadingTerms | null
 }
 
 /**
@@ -9832,6 +9837,10 @@ export type PasteRun = {
    * Start
    */
   start?: "earliest" | "latest"
+  /**
+   * Binding Key
+   */
+  binding_key?: string | null
   by_key?: KeyedChoice | null
 }
 
@@ -11386,6 +11395,28 @@ export type QuickTurnMessage = {
    * Content
    */
   content: string
+}
+
+/**
+ * ReadingTerms
+ *
+ * What a link's form asks of a node it reads on, beyond where it starts
+ * (D337): a binding key, when the link reads through a queue of its own
+ * bound to the node, and a line saying how the node shares its messages.
+ */
+export type ReadingTerms = {
+  /**
+   * Asks Binding Key
+   */
+  asks_binding_key?: boolean
+  /**
+   * Default Binding Key
+   */
+  default_binding_key?: string
+  /**
+   * Note
+   */
+  note?: string | null
 }
 
 /**

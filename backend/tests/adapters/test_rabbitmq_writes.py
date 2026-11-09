@@ -352,3 +352,17 @@ async def test_the_management_page_is_opened_from_every_level(vhost: str) -> Non
     told = RabbitmqAdapter(options(browser_url="http://127.0.0.1:49301"))
     done = await told.action("open_management").perform(None, {})
     assert done.open_url == "http://127.0.0.1:49301"
+
+
+async def test_through_a_tunnel_the_management_page_needs_the_browser_address() -> None:
+    """The management address names a host as the SSH server sees it (D339)."""
+    tunneled = RabbitmqAdapter(options(ssh_tunnel=str(uuid.uuid4())))
+
+    offers = await tunneled.action_offers(None)
+
+    assert "open_management" not in {action.name for action in offers.actions}
+    assert "address for the browser" in (offers.reason_for("open_management") or "")
+    told = RabbitmqAdapter(
+        options(ssh_tunnel=str(uuid.uuid4()), browser_url="http://127.0.0.1:49301")
+    )
+    assert "open_management" in {action.name for action in await told.available(None)}

@@ -8,8 +8,10 @@ environment and is written with `printf '%s'`, so none is ever read as shell
 syntax.
 """
 
+from app.adapters.protocol import AdapterError
 from app.adapters.rabbitmq.options import RabbitmqOptions
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.tunnels import tunnel_of
 from app.core.translation import say
 
 # The test server's release (D328): its image carries rabbitmqadmin 2.
@@ -93,6 +95,9 @@ _SCRIPT = (
 
 
 def console_program(options: RabbitmqOptions) -> ConsoleProgram:
+    if tunnel_of(options.ssh_tunnel) is not None:
+        # Its container cannot reach a port on this process's loopback (D339).
+        raise AdapterError("config", say("A console does not go through an SSH tunnel yet"))
     environment = {
         CONFIG_PATH_VARIABLE: CONFIG_PATH,
         CONFIG_VARIABLE: node_config(options),

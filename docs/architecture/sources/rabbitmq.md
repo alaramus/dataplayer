@@ -9,11 +9,13 @@ with a look inside a queue (D330), and the broker's reports, metrics and
 search (D331), a RabbitMQ started here with its lab (D332), and its management page opened
 in the browser (D334), and a stream or a queue read on by a pipeline's link and
 messages taking rows (D335, the columns rows have when they move in
-[pipelines.md](../pipelines.md), D336). The contract every source
+[pipelines.md](../pipelines.md), D336), and both doors through an SSH tunnel
+(D339), a queue's body fields named by the table it goes into (D338), and an
+exchange read on through a queue of the link's own (D337). The contract every source
 type follows is in [contract.md](contract.md); the other queue is in
 [kafka.md](kafka.md). Read this before changing the `rabbitmq` adapter.
 
-Decisions here: D325, D326, D327, D328, D329, D330, D331, D332, D334, D335.
+Decisions here: D325, D326, D327, D328, D329, D330, D331, D332, D334, D335, D337, D338, D339.
 
 ## D325. A RabbitMQ source looks through the management API and moves messages over AMQP
 
@@ -45,8 +47,6 @@ are silenced; the reduction logs once.
 
 Known deviations:
 
-- **No SSH tunnel** (D282): a tunnel carries one port, and this source needs
-  two. Two forwards through one SSH session may come later.
 - **No client certificate, OAuth 2 or list of cluster nodes** in the first
   version; one node serves the whole cluster's state.
 - **The management API's client is not kept** between requests, though the
@@ -305,8 +305,9 @@ once the block is written, acknowledges it to its last delivery and closes
 the channel. A block never kept is handed back when the next block is asked
 for, or when its channel is closed after two minutes, and the broker delivers
 it again marked redelivered: at least once. Other consumers share the queue
-with the link. The columns read are the message's own (D336), without the
-body's fields; a table the link makes has no key; the first run's start
+with the link, and reading its exchange instead gives a link all of them
+(D337). The columns read are the message's own (D336), and the body's
+fields the target table names (D338); a table the link makes has no key; the first run's start
 choice means nothing for a queue.
 
 Rows taken into an exchange, a queue or a stream are messages (D336): every
@@ -317,12 +318,101 @@ mandatory, so where an exchange routes them is its own business.
 
 Known deviations:
 
-- **A queue's body fields are not columns**: finding them needs a look at
-  messages, which is a delivery (D330); a JSON body arrives whole in one
-  column.
 - **The held channel lives in the adapter object of one run**: a process that
   dies between a block and its acknowledgement hands the block back when its
   connection drops, which is the broker's own at least once.
 
 Spec: [RabbitMQ in pipelines](../../decisions/2026-11-09-rabbitmq-pipelines-design.md)
 
+## D337. An exchange is read on through a queue of the link's own
+
+A queue hands each message to one consumer, so an **exchange** with a name is
+a node a link reads on (`reads_on`), read through a queue the link owns and
+nobody else consumes; the default exchange takes no bindings and is not.
+
+- **The queue is named by the link's reader**, `dataplayer-link-<link id>`,
+  the name a Kafka group gets. No pipeline is copied today; a copy, when one
+  comes, gives its links new ids, which Kafka's groups need as much.
+- **It is made ready at the start of every step**, never when the pipeline is
+  saved, through `SupportsOwnReader.prepare_reader`, which a step and a
+  followed link (D315) call before asking what is unread: a classic durable
+  queue with `x-expires` of seven days, `x-max-length` of 1 000 000 and
+  `drop-head`. A queue of that name with other settings is refused by name,
+  never declared again.
+- **It is bound by the link's binding key** (`Link.binding_key`, at most 255
+  characters), asked in the link's panel only when the offer's
+  `ReadingTerms` say so. An empty key is the type's default: `#` for a
+  topic, the empty key for a direct exchange; a fanout takes no key, and a
+  headers exchange is bound with no headers and `x-match: all`. Every other
+  binding from that exchange to that queue is removed, so a key changed needs
+  nothing but a run. Links are part of the pipeline's stored document; were
+  they ever a table, the field would be a new Alembic revision.
+- **It is read as a queue is (D335)**, held and acknowledged once written; the
+  bookmark's one part is the queue's name. The link sees what the exchange
+  routed after its first step made the queue, so that step reads nothing and
+  its sentence says the link began reading now. Earliest and latest mean
+  nothing here. A first run is a reader with no bookmark kept in
+  `reading_bookmark`, as a stream's (D319), which is when a link makes its
+  table (D313); a queue that expired and is made again is not one, and the
+  table goes on.
+- **Deleting the link does not delete the queue**: saving never talks to a
+  broker, and would race a run in flight; the queue expires. It is visible in
+  the catalog as any queue is, so messages piling up are seen.
+- **Permissions**: making the queue needs configure and read on it, binding it
+  write on it and read on the exchange; a refusal says which.
+
+The offer for a queue carries a line saying other consumers share it, and
+suggests reading its exchange.
+
+The spec asked configure and read on the queue for binding too; RabbitMQ asks
+write on the queue to bind it.
+
+Spec: [RabbitMQ: an exchange read by a link, a queue's body fields, an SSH tunnel](../../decisions/2026-11-09-rabbitmq-next-design.md)
+
+## D338. A queue's rows carry the fields of the body the target table names
+
+A stream's fields are found on its page; a queue's cannot be, because looking
+takes messages (D330). So they come from the other end: a link reading on
+from a queue into a table that exists, or that a link before makes, asks the
+queue its moving columns with the table's columns as `wanted` (D336). The
+queue answers its own columns and, for every column of the table that is not
+one of them, a column of that name whose value is the top-level field of that
+name in a JSON body. Pairing by name then pairs `price` with the body's
+`price`, as writing does, so a row sent through RabbitMQ comes back to the
+same columns without a line drawn by hand.
+
+A number, a boolean or a string is its value; an object or an array is its
+JSON text; a missing field, or a body that is not a JSON object, is null, and
+the row is still written. Only top-level fields: a nested one is reached by
+pairing `body` and taking it apart in the database. A new table (D313) gets
+the message's own columns, since nothing is known of it; shaping it from the
+first block would let whatever arrived first decide every later run. A stream
+keeps the fields it finds on its page.
+
+The spec had the target's columns passed as `given`; `given` already means
+the rows coming into a node, so the source end is told them as a third
+argument, `wanted`.
+
+Spec: [RabbitMQ: an exchange read by a link, a queue's body fields, an SSH tunnel](../../decisions/2026-11-09-rabbitmq-next-design.md)
+
+## D339. AMQP and the management API both go through the SSH tunnel
+
+RabbitMQ declares `ssh_tunnel` (D282). Each door is a forwarder of its own
+through the one SSH connection, asked before every connection: AMQP's host and
+port before every aio-pika connection, a reading link's held channel among
+them, and the management address's host and port before every httpx client,
+its path kept. The default management address names the host as the SSH
+server sees it, as every other address of the connection does, and so does the
+connection string.
+
+TLS through a tunnel is refused, for AMQP and for an `https` management
+address alike: a certificate names the broker, not a port on this loopback,
+and the tunnel encrypts already. **Open management** needs the Address for the
+browser through a tunnel, since the management address names a host the
+person's browser does not see; without it the action is refused with that
+reason. The console does not go through a tunnel yet, as no console does.
+Everything else goes through the session and needs nothing of its own; an SSH
+connection a RabbitMQ goes through is protected from deletion as for any
+database, because that rule reads `ssh_tunnel` from the options schema.
+
+Spec: [RabbitMQ: an exchange read by a link, a queue's body fields, an SSH tunnel](../../decisions/2026-11-09-rabbitmq-next-design.md)

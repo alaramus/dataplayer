@@ -12,7 +12,14 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.adapters.protocol import DataAdapter, SupportsReadingOn
+from app.adapters.protocol import (
+    AdapterError,
+    DataAdapter,
+    NodeNotFound,
+    SupportsOwnReader,
+    SupportsReadingOn,
+)
+from app.adapters.reading_on import ReadingTerms
 from app.adapters.resources import ResourceStore
 from app.connectors.access import resolve_adapter
 from app.connectors.paste.kinds import refused
@@ -118,6 +125,11 @@ class Asking:
             and isinstance(source_at, str)
             and source[0].reads_on(source_at)
         )
+        terms = (
+            await _terms(source[0], source_at)
+            if read_on and isinstance(source_at, str)
+            else None
+        )
         answers: list[PasteOffer] = []
         for kind in (*KINDS, *LINK_ONLY):
             if not kind.pipelines or not kind.serves(source[0], target[0]):
@@ -143,5 +155,18 @@ class Asking:
                 )
                 answers.append(await kind.offer(source[0], target[0], pair))
             if read_on and kind in LINK_ONLY and len(answers) > asked:
-                answers[-1] = answers[-1].model_copy(update={"reads_on": True})
+                answers[-1] = answers[-1].model_copy(
+                    update={"reads_on": True, "reading": terms}
+                )
         return answers
+
+
+async def _terms(source: DataAdapter, node_id: str) -> ReadingTerms | None:
+    """What the link's form asks of a node read on (D337); none when the
+    source cannot say, which the offer's own answer already tells."""
+    if not isinstance(source, SupportsOwnReader):
+        return None
+    try:
+        return await source.reading_terms(node_id)
+    except (AdapterError, NodeNotFound, ValueError):
+        return None

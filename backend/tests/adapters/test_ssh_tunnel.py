@@ -2,7 +2,7 @@
 
 Needs `docker compose up -d sshd` and the database each test reads. The SSH
 server reaches them by their service names on its own network — `db`,
-`mysql`, `clickhouse`, `redis` — which is what a host "as that server sees it"
+`mysql`, `clickhouse`, `redis`, `rabbitmq` — which is what a host "as that server sees it"
 means, and what CI names its services too.
 """
 
@@ -19,6 +19,8 @@ from app.adapters.mysql.options import MysqlUserPassword
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError
+from app.adapters.rabbitmq.adapter import RabbitmqAdapter
+from app.adapters.rabbitmq.options import RabbitmqOptions
 from app.adapters.redis.adapter import RedisAdapter
 from app.adapters.redis.options import RedisNoAuth
 from app.adapters.registry import AdapterContext
@@ -153,6 +155,65 @@ async def test_redis_is_read_through_the_ssh_server(through: _Through) -> None:
     result = await RedisAdapter(options, tunnels=through).check_connection()
 
     assert result.ok, result.message
+
+
+def _rabbitmq(**changed: object) -> RabbitmqOptions:
+    user, password = _credentials(services.RABBITMQ.require())
+    return RabbitmqOptions.model_validate(
+        {
+            "host": "rabbitmq",
+            "port": 5672,
+            "user": user,
+            "password": password,
+            "ssh_tunnel": TUNNEL,
+            **changed,
+        }
+    )
+
+
+async def test_rabbitmq_is_reached_through_the_ssh_server_by_both_doors(
+    through: _Through,
+) -> None:
+    """AMQP and the management API, each a forwarder of its own (D339)."""
+    adapter = RabbitmqAdapter(_rabbitmq(), tunnels=through)
+
+    result = await adapter.check_connection()
+
+    assert result.ok, result.message
+    # "Connection successful" only when AMQP answered as well as the API.
+    assert result.message == "Connection successful"
+    assert await adapter.list_children(None)
+    assert adapter.connection_string().startswith("amqp://")
+    assert "@rabbitmq:5672" in adapter.connection_string()
+
+
+async def test_rabbitmq_with_tls_is_refused_through_a_tunnel(through: _Through) -> None:
+    """A certificate names the broker, never a port on this loopback."""
+    adapter = RabbitmqAdapter(
+        _rabbitmq(port=5671, tls=True, management_url="http://rabbitmq:15672"),
+        tunnels=through,
+    )
+
+    with pytest.raises(AdapterError) as refused:
+        async with adapter._session.channel():
+            pass
+
+    assert refused.value.error_kind == "config"
+    assert "TLS" in refused.value.message
+
+
+async def test_rabbitmq_management_over_https_is_refused_through_a_tunnel(
+    through: _Through,
+) -> None:
+    adapter = RabbitmqAdapter(
+        _rabbitmq(management_url="https://rabbitmq:15671"), tunnels=through
+    )
+
+    result = await adapter.check_connection()
+
+    assert not result.ok
+    assert result.error_kind == "config"
+    assert "HTTPS" in result.message
 
 
 async def test_one_target_is_one_port_and_another_is_another(through: _Through) -> None:

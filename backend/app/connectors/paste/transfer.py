@@ -96,6 +96,7 @@ class TransferPlan(BaseModel):
     # Rows read on from a bookmark (D312).
     reader: str | None = None
     start: ReadStart | None = None
+    binding_key: str | None = None
     by_key: KeyedChoice | None = None
 
 
@@ -132,6 +133,10 @@ class Transfer(BaseModel):
     reader: str | None = Field(default=None, max_length=255)
     start: ReadStart | None = None
     fresh: bool = False
+    # A reader that reads through a queue of its own (D337): what binds it,
+    # and whether this step made it, so it held nothing yet.
+    binding_key: str | None = Field(default=None, max_length=255)
+    opened: bool = False
     # A table the link made in this run, and whether with D313's key.
     made_table: bool = False
     keyed: bool = False

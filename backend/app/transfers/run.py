@@ -143,6 +143,7 @@ async def planned(
         target_node_id=plan.target_node_id,
         reader=plan.reader,
         start=plan.start,
+        binding_key=plan.binding_key,
         by_key=plan.by_key,
         items=plan.items,
         bytes_total=plan.bytes_total,

@@ -5,6 +5,9 @@ per operation, since a catalog asks a few times a minute and the API on a
 broker's own port answers in milliseconds. AMQP 0-9-1 moves messages; a
 connection per operation as well, opened, used and closed inside one call.
 
+Both doors go through the connection's SSH tunnel when it names one (D339),
+each address asked of it before every connection, as D282 has it.
+
 Neither driver's text crosses this boundary: aiormq's names the address and
 the user, and an HTTP error carries the URL.
 """
@@ -15,7 +18,7 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any, Literal
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import aio_pika
 import httpx
@@ -29,6 +32,7 @@ from app.adapters.protocol import (
     NodeNotFound,
 )
 from app.adapters.rabbitmq.options import RabbitmqOptions
+from app.adapters.tunnels import TunnelAccess, reach, tunnel_of
 from app.core.logs import record_failure, with_ref
 from app.core.translation import say
 
@@ -51,12 +55,45 @@ def segment(name: str) -> str:
 class RabbitmqSession:
     """A way to reach one broker, opened per operation."""
 
-    def __init__(self, options: RabbitmqOptions) -> None:
+    def __init__(
+        self, options: RabbitmqOptions, tunnels: TunnelAccess | None = None
+    ) -> None:
         self._options = options
+        self._tunnels = tunnels
 
     @property
     def options(self) -> RabbitmqOptions:
         return self._options
+
+    @property
+    def tunneled(self) -> bool:
+        return tunnel_of(self._options.ssh_tunnel) is not None
+
+    async def _reach(self, host: str, port: int, secure: bool, door: Literal["http", "amqp"]) -> tuple[str, int]:
+        """Where to dial `host:port` now: through the tunnel when there is one."""
+        if secure and self.tunneled:
+            # A certificate names the server, not a port on this loopback.
+            raise AdapterError(
+                "config",
+                say("Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already")
+                if door == "http"
+                else say("Through an SSH tunnel, connect without TLS: the tunnel encrypts it already"),
+            )
+        return await reach(self._tunnels, self._options.ssh_tunnel, host, port)
+
+    async def _base_url(self) -> str:
+        """The management API's root as this process dials it."""
+        management = self._options.management()
+        if not self.tunneled:
+            return management
+        parts = urlsplit(management)
+        secure = parts.scheme == "https"
+        port = parts.port or (443 if secure else 80)
+        address, local = await self._reach(
+            str(parts.hostname), port, secure, door="http"
+        )
+        host = f"[{address}]" if ":" in address else address
+        return f"{parts.scheme}://{host}:{local}{parts.path}"
 
     def _ssl_context(self) -> ssl.SSLContext:
         context = ssl.create_default_context()
@@ -64,11 +101,12 @@ class RabbitmqSession:
             context.load_verify_locations(cadata=self._options.ca_certificate)
         return context
 
-    def _client(self) -> httpx.AsyncClient:
+    async def _client(self) -> httpx.AsyncClient:
         options = self._options
         secure = options.management().startswith("https://")
+        base = await self._base_url()
         return httpx.AsyncClient(
-            base_url=options.management() + "/api",
+            base_url=base + "/api",
             auth=(options.user, options.password.get_secret_value()),
             verify=self._ssl_context() if secure else False,
             timeout=TIMEOUT_SECONDS,
@@ -84,8 +122,9 @@ class RabbitmqSession:
         node_id: str = "",
     ) -> Any:
         """The management API's answer to a GET, or a reduced failure."""
+        client = await self._client()
         try:
-            async with self._client() as client:
+            async with client:
                 response = await client.get(path, params=params)
         except httpx.HTTPError as failure:
             raise _unreachable(failure) from None
@@ -109,8 +148,9 @@ class RabbitmqSession:
     ) -> Any:
         """A change through the management API (D330): its answer when it has
         one, or the broker's refusal in this repository's words."""
+        client = await self._client()
         try:
-            async with self._client() as client:
+            async with client:
                 response = await client.request(method, path, json=body)
         except httpx.HTTPError as failure:
             raise _unreachable(failure) from None
@@ -134,10 +174,13 @@ class RabbitmqSession:
         """An AMQP channel on a connection of its own to a virtual host — the
         node's, or the connection's — closed after."""
         options = self._options
+        host, port = await self._reach(
+            options.host, options.port, options.tls, door="amqp"
+        )
         try:
             connection = await aio_pika.connect(
-                host=options.host,
-                port=options.port,
+                host=host,
+                port=port,
                 login=options.user,
                 password=options.password.get_secret_value(),
                 virtualhost=vhost or options.vhost or "/",

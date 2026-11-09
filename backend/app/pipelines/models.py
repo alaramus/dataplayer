@@ -136,6 +136,10 @@ class Link(_Strict):
     by_key: KeyedChoice | None = None
     # Carried as messages arrive while the pipeline follows (D315).
     follow: bool = False
+    # What the link's own queue is bound to an exchange by (D337). Links are
+    # part of the pipeline's stored document; were they ever a table, this
+    # field is a new Alembic revision.
+    binding_key: str | None = PydanticField(default=None, max_length=255)
 
     @field_validator("kind")
     @classmethod

@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.fetch import FetchColumn
 from app.adapters.keyed import MAX_TTL_SECONDS
-from app.adapters.reading_on import ReadStart
+from app.adapters.reading_on import ReadingTerms, ReadStart
 
 # Room for whatever a catalog lets a person tick. Each kind states its own,
 # smaller ceiling as a reason, rather than the request failing validation.
@@ -99,6 +99,8 @@ class PasteRun(PastePair):
     # bookmark starts. A pipeline names the reader after its link.
     reader: str | None = Field(default=None, min_length=1, max_length=255)
     start: ReadStart = "earliest"
+    # What the reader's own queue is bound by, for a node read that way (D337).
+    binding_key: str | None = Field(default=None, max_length=255)
     by_key: KeyedChoice | None = None
 
 
@@ -129,8 +131,9 @@ class PasteOffer(BaseModel):
     source_columns: list[FetchColumn] = Field(default_factory=list)
     target_columns: list[FetchColumn] = Field(default_factory=list)
     # The source is read on from a bookmark (D312), so the panel shows its
-    # reader and where it starts.
+    # reader and where it starts; and what else its form asks (D337).
     reads_on: bool = False
+    reading: ReadingTerms | None = None
 
 
 class PasteOffers(BaseModel):

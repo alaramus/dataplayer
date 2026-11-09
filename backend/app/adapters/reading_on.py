@@ -36,6 +36,19 @@ class UnreadSpan(BaseModel):
     fresh: bool = False
 
 
+class ReadingTerms(BaseModel):
+    """What a link's form asks of a node it reads on, beyond where it starts
+    (D337): a binding key, when the link reads through a queue of its own
+    bound to the node, and a line saying how the node shares its messages."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    asks_binding_key: bool = False
+    # What an empty key means for this node.
+    default_binding_key: str = ""
+    note: str | None = None
+
+
 class ReadBlock(BaseModel):
     """Rows of the asked columns, and the bookmark just after them."""
 

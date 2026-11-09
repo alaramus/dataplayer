@@ -1446,6 +1446,7 @@ export type {
   QuickChatSummary,
   QuickChatUpdate,
   QuickTurnMessage,
+  ReadingTerms,
   RecentTarget,
   ReferenceConnection,
   ReferencedRows,

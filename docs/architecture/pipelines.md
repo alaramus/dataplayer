@@ -469,8 +469,14 @@ Spec: [A pipeline that follows its topics](../decisions/2026-11-08-pipeline-foll
 A node whose page is not what moves through it says so through
 `SupportsMovingColumns`: asked with nothing, the columns rows read out of it
 have; asked with the columns of rows coming in, the columns it takes from
-them. A link reading on asks the source end first, and every link writing
-rows asks the target end first; either answer `None` for the page's columns.
+them. Asked as a source, it is also told the columns of the table the rows go
+into when that table exists (`wanted`), so a node that cannot look at its
+messages answers fields by those names (D338). A link reading on asks the
+source end first, and every link writing rows asks the target end first;
+either answer `None` for the page's columns. A node read through something
+of the reader's own says so through `SupportsOwnReader`: what the link's form
+asks of it, as the offer's `reading`, and making it ready at the start of
+every step (D337).
 Paste in the catalog does not ask: it reads and writes pages.
 
 RabbitMQ is the first: a queue gives messages while its page is its bindings,

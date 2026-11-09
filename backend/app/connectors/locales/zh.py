@@ -250,6 +250,7 @@ MESSAGES: dict[str, str] = {
     'The first frame opens a watch': '第一帧应打开查看',
     'Sign in again to watch this': '请重新登录以查看',
     'No such node': '没有这样的节点',
-    "Only a topic, a stream, a queue, or a symbol's trades or candles, is read on from where the link stopped": "只有主题、流、队列，或交易对的成交或K线，才能从链接停止处继续读取",
-    "Tick a topic, a stream, a queue, or a symbol's trades or candles": "请勾选一个主题、流、队列，或交易对的成交或K线",
+    "Only a topic, a stream, a queue, an exchange, or a symbol's trades or candles, is read on from where the link stopped": "只有主题、流、队列、交换器，或交易对的成交或K线，才能从链接停止处继续读取",
+    "Tick a topic, a stream, a queue, an exchange, or a symbol's trades or candles": "请勾选一个主题、流、队列、交换器，或交易对的成交或K线",
+    "{said}; the link began reading now, and gets what arrives from here on": "{said}；链接现在开始读取，之后到达的内容都会收到",
 }

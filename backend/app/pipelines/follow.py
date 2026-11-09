@@ -23,7 +23,12 @@ from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.cache import DataCache
-from app.adapters.protocol import AdapterError, NodeNotFound, SupportsReadingOn
+from app.adapters.protocol import (
+    AdapterError,
+    NodeNotFound,
+    SupportsOwnReader,
+    SupportsReadingOn,
+)
 from app.adapters.resources import ResourceStore
 from app.connectors.paste.kinds import PastesAsJob
 from app.connectors.paste.registry import kind_named
@@ -235,6 +240,11 @@ class FollowPipeline:
                     )
                 )
             try:
+                if isinstance(source, SupportsOwnReader):
+                    # Its queue must be there before what waits in it is asked (D337).
+                    await source.prepare_reader(
+                        node, step.paste.reader or "", step.paste.binding_key
+                    )
                 span = await source.unread(
                     node, step.paste.reader or "", step.paste.start
                 )

@@ -252,6 +252,7 @@ MESSAGES: dict[str, str] = {
     'The first frame opens a watch': 'Der erste Frame öffnet eine Beobachtung',
     'Sign in again to watch this': 'Melden Sie sich erneut an, um dies zu beobachten',
     'No such node': 'Kein solcher Knoten',
-    "Only a topic, a stream, a queue, or a symbol's trades or candles, is read on from where the link stopped": "Nur ein Topic, ein Stream, eine Queue oder die Trades oder Kerzen eines Symbols werden ab der Stelle weitergelesen, an der die Verknüpfung stand",
-    "Tick a topic, a stream, a queue, or a symbol's trades or candles": "Haken Sie ein Topic, einen Stream, eine Queue oder die Trades oder Kerzen eines Symbols an",
+    "Only a topic, a stream, a queue, an exchange, or a symbol's trades or candles, is read on from where the link stopped": "Nur ein Topic, ein Stream, eine Queue, ein Exchange oder die Trades oder Kerzen eines Symbols werden ab der Stelle weitergelesen, an der die Verknüpfung stand",
+    "Tick a topic, a stream, a queue, an exchange, or a symbol's trades or candles": "Haken Sie ein Topic, einen Stream, eine Queue, einen Exchange oder die Trades oder Kerzen eines Symbols an",
+    "{said}; the link began reading now, and gets what arrives from here on": "{said}; die Verknüpfung hat jetzt zu lesen begonnen und bekommt, was ab jetzt ankommt",
 }

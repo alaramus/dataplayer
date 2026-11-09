@@ -47,7 +47,7 @@ async def _create(
 
 
 def test_every_source_with_an_address_names_its_tunnel_the_same_way() -> None:
-    for name in ("postgres", "mysql", "clickhouse", "redis"):
+    for name in ("postgres", "mysql", "clickhouse", "redis", "rabbitmq"):
         schema = registry.get(name).options_schema
         assert adapter_options.tunnel_reference_names(schema) == {"ssh_tunnel"}, name
     assert adapter_options.tunnel_reference_names(registry.get("ssh").options_schema) == set()

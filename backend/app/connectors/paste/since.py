@@ -27,6 +27,7 @@ from app.adapters.protocol import (
     SupportsInsert,
     SupportsKeyedWrite,
     SupportsMovingColumns,
+    SupportsOwnReader,
     SupportsReadingOn,
     SupportsSkippingInsert,
 )
@@ -56,6 +57,7 @@ from app.connectors.paste.rows import (
     moving_columns_of,
     name_of,
     new_table,
+    table_columns,
     why_ended,
 )
 from app.connectors.paste.transfer import (
@@ -69,7 +71,7 @@ from app.core.access import Access
 from app.core.translation import N_, say
 
 NOT_READ_ON = N_(
-    "Only a topic, a stream, a queue, or a symbol's trades or candles, is read on from where the link stopped"
+    "Only a topic, a stream, a queue, an exchange, or a symbol's trades or candles, is read on from where the link stopped"
 )
 
 # Kafka's key, said in a sentence of its own: the first source that read on.
@@ -90,7 +92,7 @@ class _ReadsOn:
     makes: bool
     doing = N_("Adding new messages")
     done = N_("added")
-    needs = N_("Tick a topic, a stream, a queue, or a symbol's trades or candles")
+    needs = N_("Tick a topic, a stream, a queue, an exchange, or a symbol's trades or candles")
     mode: ClipboardMode = "copy"
     converts = True
     can_replace = False
@@ -119,15 +121,20 @@ class _ReadsOn:
         )
 
     async def _source_columns(
-        self, source: DataAdapter, end: PairEnd
+        self,
+        source: DataAdapter,
+        end: PairEnd,
+        wanted: list[FetchColumn] | None = None,
     ) -> list[FetchColumn] | str:
+        """What is read of `end`; `wanted` is the table it goes into, when it
+        exists, whose names a queue's messages are read by (D338)."""
         if not isinstance(end, str):
             return say(NOT_READ_ON)
         if not isinstance(source, SupportsReadingOn) or not source.reads_on(end):
             return say(NOT_READ_ON)
         # A queue's page is its bindings; what is read of it is messages (D336).
         if isinstance(source, SupportsMovingColumns):
-            moving = await moving_columns_of(source, end, None)
+            moving = await moving_columns_of(source, end, None, wanted)
             if moving is not None:
                 return moving
         return await columns_of(source, [end])
@@ -209,6 +216,11 @@ class _ReadsOn:
     ) -> None:
         item = transfer.items[0]
         node, reader = item.node_id, transfer.reader or ""
+        if isinstance(source, SupportsOwnReader):
+            # Made ready at every step, never on save (D337).
+            transfer.opened = await source.prepare_reader(
+                node, reader, transfer.binding_key
+            )
         span = await source.unread(node, reader, transfer.start or "earliest")
         item.skipped = span.lost
         transfer.fresh = span.fresh
@@ -284,7 +296,12 @@ class _ReadsOn:
                 if transfer.keyed
                 else say("{said}; the table was made", said=said)
             )
-        if transfer.fresh:
+        if transfer.opened:
+            said = say(
+                "{said}; the link began reading now, and gets what arrives from here on",
+                said=said,
+            )
+        elif transfer.fresh:
             said = (
                 say(
                     "{said}; no position was kept, so reading started from the beginning",
@@ -329,7 +346,11 @@ class RowsSinceLast(_ReadsOn):
             return refused(self, say("Tick the table the rows go into"))
         if len(pair.source_node_ids) != 1:
             return refused(self, say("Paste one table at a time"))
-        columns = await self._source_columns(source, pair.source_node_ids[0])
+        columns = await self._source_columns(
+            source,
+            pair.source_node_ids[0],
+            await table_columns(destination, pair.target_node_id),
+        )
         if isinstance(columns, str):
             return refused(self, columns)
         return await into_table(self, destination, pair.target_node_id, columns)
@@ -351,7 +372,9 @@ class RowsSinceLast(_ReadsOn):
             isinstance(target_end, Foreseen) and target_end.kind != "table"
         ):
             return refused(self, say("Tick the table the rows go into"))
-        columns = await self._source_columns(source, source_end)
+        columns = await self._source_columns(
+            source, source_end, await table_columns(destination, target_end)
+        )
         if isinstance(columns, str):
             return refused(self, columns)
         return await into_table(self, destination, target_end, columns)
@@ -378,6 +401,7 @@ class RowsSinceLast(_ReadsOn):
             target_node_id=target,
             reader=request.reader,
             start=request.start,
+            binding_key=request.binding_key,
         )
 
     async def _writer(
@@ -465,6 +489,7 @@ class RowsSinceLastNew(_ReadsOn):
             columns=request.columns,
             reader=request.reader,
             start=request.start,
+            binding_key=request.binding_key,
         )
 
     async def _writer(
@@ -702,6 +727,7 @@ class RowsByKey(_ReadsOn):
             columns=request.columns,
             reader=request.reader,
             start=request.start,
+            binding_key=request.binding_key,
             by_key=request.by_key,
         )
 
@@ -820,7 +846,12 @@ class RowsByKey(_ReadsOn):
                 said=said,
                 count=transfer.other_type,
             )
-        if transfer.fresh:
+        if transfer.opened:
+            said = say(
+                "{said}; the link began reading now, and gets what arrives from here on",
+                said=said,
+            )
+        elif transfer.fresh:
             said = (
                 say(
                     "{said}; no position was kept, so reading started from the beginning",

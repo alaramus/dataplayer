@@ -9,7 +9,13 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit
 
-from app.adapters.actions import Action, ActionSet, ActionType
+from app.adapters.actions import (
+    Action,
+    ActionOffers,
+    ActionSet,
+    ActionType,
+    ActionUnavailability,
+)
 from app.adapters.catalog import CatalogNode
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
@@ -17,6 +23,7 @@ from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.rabbitmq.actions import (
     RABBITMQ_ACTION_TYPES,
+    OpenManagement,
     build_actions,
     offered,
 )
@@ -60,6 +67,7 @@ from app.adapters.reading_on import (
     Bookmark,
     BookmarkAccess,
     ReadBlock,
+    ReadingTerms,
     ReadStart,
     UnreadSpan,
 )
@@ -76,6 +84,7 @@ from app.adapters.search import (
 )
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.tunnels import TunnelAccess
 from app.adapters.update import (
     InsertRowRequest,
     InsertRowResult,
@@ -95,8 +104,9 @@ class RabbitmqAdapter:
         options: RabbitmqOptions,
         pooling: Pooling | None = None,
         bookmarks: BookmarkAccess | None = None,
+        tunnels: TunnelAccess | None = None,
     ) -> None:
-        self._session = RabbitmqSession(options)
+        self._session = RabbitmqSession(options, tunnels)
         self._bindings = RabbitmqBindings(self._session)
         self._streams = RabbitmqStreams(self._session)
         self._writes = RabbitmqWrites(self._session)
@@ -346,9 +356,29 @@ class RabbitmqAdapter:
         return list(self._actions)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
-        return [self._actions.get(name) for name in offered(node_id)]
+        return list((await self.action_offers(node_id)).actions)
 
-    # --- read on by a pipeline's link, and rows it moves (D335, D336) ------------
+    async def action_offers(self, node_id: str | None) -> ActionOffers:
+        names = offered(node_id)
+        options = self._session.options
+        if self._session.tunneled and not options.browser_url:
+            # The management address names a host as the SSH server sees it,
+            # which the person's browser does not (D339).
+            return ActionOffers(
+                [self._actions.get(name) for name in names if name != OpenManagement.name],
+                [
+                    ActionUnavailability(
+                        name=OpenManagement.name,
+                        reason=say(
+                            "Through an SSH tunnel, the management page needs "
+                            "its address for the browser"
+                        ),
+                    )
+                ],
+            )
+        return ActionOffers([self._actions.get(name) for name in names])
+
+    # --- read on by a pipeline's link, and rows it moves (D335–D338) ------------
 
     def reads_on(self, node_id: str) -> bool:
         return self._reading.reads_on(node_id)
@@ -368,13 +398,27 @@ class RabbitmqAdapter:
     def row_key(self, node_id: str) -> list[str]:
         return self._reading.row_key(node_id)
 
+    async def reading_terms(self, node_id: str) -> ReadingTerms:
+        self._own(parse(node_id).vhost, node_id)
+        return await self._reading.reading_terms(node_id)
+
+    async def prepare_reader(
+        self, node_id: str, reader: str, binding_key: str | None
+    ) -> bool:
+        """An exchange's link queue declared and bound (D337)."""
+        self._own(parse(node_id).vhost, node_id)
+        return await self._reading.prepare_reader(node_id, reader, binding_key)
+
     async def moving_columns(
-        self, node_id: str, given: list[FetchColumn] | None
+        self,
+        node_id: str,
+        given: list[FetchColumn] | None,
+        wanted: list[FetchColumn] | None = None,
     ) -> list[FetchColumn] | None:
         if in_section(node_id) or is_section(node_id):
             return None
         self._own(parse(node_id).vhost, node_id)
-        return await self._reading.moving_columns(node_id, given)
+        return await self._reading.moving_columns(node_id, given, wanted)
 
     async def console_program(self) -> ConsoleProgram:
         """rabbitmqadmin, set up for this connection, in a container (D328)."""
@@ -407,4 +451,6 @@ def _compose(host: str, port: int, user: str, vhost: str, tls: bool) -> str:
 def _build(options: RabbitmqOptions, context: AdapterContext) -> RabbitmqAdapter:
     # The pooling keeps what Peek took (D330); a draft has none.
     # The bookmarks keep where a stream's reader stands (D335).
-    return RabbitmqAdapter(options, context.pooling, context.bookmarks)
+    return RabbitmqAdapter(
+        options, context.pooling, context.bookmarks, context.tunnels
+    )

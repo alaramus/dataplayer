@@ -506,7 +506,7 @@ async def test_without_a_runner_there_is_no_console(
     assert frame["code"] == "unsupported"
 
 
-@pytest.mark.parametrize("make", [_mongodb, _redis, _postgres, _zookeeper])
+@pytest.mark.parametrize("make", [_mongodb, _redis, _postgres, _zookeeper, _rabbitmq])
 async def test_a_console_does_not_go_through_a_tunnel(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

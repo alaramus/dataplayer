@@ -47,7 +47,13 @@ from app.adapters.indexes import (
     IndexDropped,
 )
 from app.adapters.keyed import KeyedWriteRequest, KeyedWritten
-from app.adapters.reading_on import Bookmark, ReadBlock, ReadStart, UnreadSpan
+from app.adapters.reading_on import (
+    Bookmark,
+    ReadBlock,
+    ReadingTerms,
+    ReadStart,
+    UnreadSpan,
+)
 from app.adapters.references import (
     ArrivingReference,
     FollowReferenceRequest,
@@ -478,6 +484,24 @@ class SupportsReadingOn(Protocol):
 
 
 @runtime_checkable
+class SupportsOwnReader(Protocol):
+    """A node a link reads on through something of the reader's own, made
+    ready at the start of every step and never when a pipeline is saved
+    (D337): a RabbitMQ exchange, read through a queue named by the reader."""
+
+    async def reading_terms(self, node_id: str) -> ReadingTerms:
+        """What the link's form asks for this node."""
+        ...
+
+    async def prepare_reader(
+        self, node_id: str, reader: str, binding_key: str | None
+    ) -> bool:
+        """Make the reader's own way in as the link says now; True when it was
+        made just now, so it holds nothing yet. Not called: nothing changes."""
+        ...
+
+
+@runtime_checkable
 class SupportsMovingColumns(Protocol):
     """A node whose rows, when they move, are not the rows of its page (D336).
 
@@ -486,10 +510,17 @@ class SupportsMovingColumns(Protocol):
     """
 
     async def moving_columns(
-        self, node_id: str, given: list[FetchColumn] | None
+        self,
+        node_id: str,
+        given: list[FetchColumn] | None,
+        wanted: list[FetchColumn] | None = None,
     ) -> list[FetchColumn] | None:
         """The columns of rows read out of this node (`given` None), or taken
-        into it from rows of the `given` columns; None for its page's."""
+        into it from rows of the `given` columns; None for its page's.
+
+        `wanted` is the table rows read out go into, when there is one: a node
+        whose messages carry fields it cannot look at answers them by those
+        names (D338)."""
         ...
 
 

@@ -54,8 +54,12 @@ Formular; `amqps://` ist TLS, und `%2F` im Pfad ist der virtuelle Host `/`.
 Die Prüfung fragt zuerst die Management-API, dann AMQP. Lehnt nur AMQP ab —
 ein virtueller Host, den der Benutzer nicht öffnen darf, ein unerreichbarer
 Port —, wird die Verbindung trotzdem gespeichert und sagt, warum: der Katalog
-funktioniert, die Nachrichten eines Streams nicht. Ein SSH-Tunnel wird nicht
-unterstützt.
+funktioniert, die Nachrichten eines Streams nicht.
+
+Ein **SSH-Tunnel** trägt AMQP und die Management-API zugleich; Host und
+Management-Adresse sind dann so, wie der SSH-Server sie sieht. Durch einen
+Tunnel ohne TLS verbinden und für **Management öffnen** die **Adresse für den
+Browser** ausfüllen. Das Terminal geht noch nicht durch einen Tunnel.
 
 ## Der Katalog
 
@@ -225,10 +229,26 @@ Verknüpfung schickt Zeilen hinein, andere tragen das Angekommene in Tabellen.
   jeder Consumer: jeder Block wird erst bestätigt, wenn er geschrieben ist.
   Scheitert ein Lauf dazwischen, geht der Block in die Queue zurück und wird
   erneut geholt, als erneut zugestellt markiert. Andere Consumer teilen sich die
-  Nachrichten mit der Verknüpfung; für alle geben Sie ihr eine eigene Queue, an
-  den Exchange gebunden.
-- Die Spalten einer Queue sind die der Nachricht — der Inhalt kommt ganz — und
-  **Erster Lauf liest** bedeutet für sie nichts: sie holt immer, was wartet.
+  Nachrichten mit der Verknüpfung; für alle ziehen Sie die Verknüpfung stattdessen
+  vom Exchange der Queue.
+- Aus einem **Exchange** liest die Verknüpfung über eine eigene Queue,
+  `dataplayer-link-…`, die jeder Lauf anlegt oder findet und mit dem
+  **Binding-Schlüssel** der Verknüpfung bindet: leer ist `#` bei einem
+  Topic-Exchange, also alles; Fanout und Headers brauchen keinen. Die Queue
+  entsteht beim ersten Lauf, der deshalb nichts liest; danach bekommt die
+  Verknüpfung, was der Exchange weiterleitet. Ein geänderter Schlüssel gilt ab
+  dem nächsten Lauf. Die Queue steht im Katalog wie jede andere; eine gelöschte
+  Verknüpfung lässt sie stehen, und sie verschwindet nach einer Woche ohne Lesen
+  von selbst, bis dahin mit höchstens einer Million Nachrichten. Der Benutzer
+  der Verbindung braucht configure, write und read auf diese Queue und read auf
+  den Exchange.
+- Die Spalten einer Queue sind die der Nachricht und, in eine vorhandene
+  Tabelle, ein Feld des JSON-Inhalts für jede andere Spalte dieser Tabelle:
+  eine Spalte `price` nimmt `price` aus dem Inhalt, leer, wenn eine Nachricht
+  keines hat, sodass eine über RabbitMQ gesendete Zeile von selbst
+  zurückkommt. Nur Felder der obersten Ebene; eine neue Tabelle bekommt die
+  Spalten der Nachricht. **Erster Lauf liest** bedeutet für eine Queue nichts:
+  sie holt immer, was wartet.
 - **Folgen** trägt Angekommenes binnen Sekunden, aus einem Stream oder einer
   Queue, wie aus einem Topic.
 

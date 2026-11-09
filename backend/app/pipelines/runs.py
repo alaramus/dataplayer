@@ -137,6 +137,7 @@ def link_step(content: PipelineContent, link: Link, foresight: Foresight) -> Run
             columns=link.columns,
             reader=reader_of(link),
             start=link.start,
+            binding_key=link.binding_key,
             by_key=link.by_key,
         ),
         reads=link.source.made_by,

@@ -53,7 +53,12 @@ formulario; `amqps://` es TLS, y `%2F` en la ruta es el host virtual `/`.
 La comprobación pregunta primero a la API de administración y luego a AMQP.
 Cuando solo AMQP se niega — un host virtual que el usuario no puede abrir, un
 puerto inalcanzable —, la conexión se guarda igualmente y dice por qué: el
-catálogo funciona, los mensajes de un stream no. No se admite túnel SSH.
+catálogo funciona, los mensajes de un stream no.
+
+Un **túnel SSH** lleva AMQP y la API de administración a la vez; el host y la
+dirección de administración son entonces como los ve el servidor SSH. A través
+de un túnel, conéctese sin TLS y rellene la **Dirección para el navegador**
+para **Abrir administración**. El terminal aún no pasa por un túnel.
 
 ## El catálogo
 
@@ -217,9 +222,23 @@ le envía filas y otros llevan lo que llega a tablas.
   consumidor: cada bloque se confirma solo cuando está escrito. Si una ejecución
   falla en medio, el bloque vuelve a la cola y se toma de nuevo, marcado como
   reentregado. Otros consumidores comparten los mensajes con el enlace; para
-  todos, dale al enlace una cola propia vinculada al exchange.
-- Las columnas de una cola son las del mensaje — el cuerpo llega entero — y
-  **La primera ejecución lee** no significa nada para ella: siempre toma lo que
+  todos, traza el enlace desde el exchange de la cola.
+- Desde un **exchange**, el enlace lee a través de una cola propia,
+  `dataplayer-link-…`, que cada ejecución crea o encuentra y vincula con la
+  **Clave de vinculación** del enlace: vacía es `#` en un exchange topic, es
+  decir, todo; fanout y headers no necesitan ninguna. La cola se crea en la
+  primera ejecución, que por eso no lee nada; después el enlace recibe lo que el
+  exchange enruta. Una clave cambiada vale desde la siguiente ejecución. La cola
+  está en el catálogo como cualquier otra; borrar el enlace no la borra, y se va
+  sola tras una semana sin leerse, con un millón de mensajes como mucho mientras
+  tanto. El usuario de la conexión necesita configure, write y read sobre esa
+  cola y read sobre el exchange.
+- Las columnas de una cola son las del mensaje y, hacia una tabla que ya
+  existe, un campo del cuerpo JSON por cada otra columna de esa tabla: una
+  columna `price` toma el `price` del cuerpo, vacío cuando un mensaje no lo
+  tiene, así que una fila enviada por RabbitMQ vuelve sola. Solo campos de
+  primer nivel; una tabla nueva recibe las columnas del mensaje. **La primera
+  ejecución lee** no significa nada para una cola: siempre toma lo que
   espera.
 - **Seguir** lleva lo que llega en segundos, desde un stream o una cola, como
   desde un topic.

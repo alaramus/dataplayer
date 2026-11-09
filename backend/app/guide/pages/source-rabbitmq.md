@@ -53,7 +53,12 @@ A connection string `amqp://user:password@host:5672/vhost` fills the form;
 The check asks the management API first and AMQP after. When only AMQP
 refuses — a virtual host the user may not open, a port not reachable — the
 connection is still saved and says why: the catalog works, a stream's messages
-do not. An SSH tunnel is not supported.
+do not.
+
+An **SSH tunnel** carries AMQP and the management API both; the host
+and the management address are then as the SSH server sees them. Through a
+tunnel, connect without TLS, and fill in the **Address for the browser** for
+**Open management**. The terminal does not go through a tunnel yet.
 
 ## The catalog
 
@@ -211,9 +216,23 @@ sends rows into it, others carry what arrives into tables.
   it does: each block is acknowledged only once it is written. If a run fails
   in between, the block goes back to the queue and is taken again, marked
   redelivered. Other consumers of the queue share its messages with the link;
-  give a link a queue of its own, bound to the exchange, for all of them.
-- A queue's columns are the message's own — its body arrives whole — and
-  **First run reads** means nothing for it: it always takes what waits.
+  draw the link from the queue's exchange instead for all of them.
+- From an **exchange**, the link reads through a queue of its own,
+  `dataplayer-link-…`, which each run makes or finds and binds by the link's
+  **Binding key**: empty is `#` for a topic exchange, everything; a fanout or a
+  headers exchange needs none. The queue is made at the first run, so that run
+  reads nothing, and the link gets what the exchange routes from then on.
+  Changing the key takes effect at the next run. The queue is in the catalog
+  like any other; a link deleted leaves it, and it goes by itself after a
+  week unread, keeping at most a million messages meanwhile. The connection's
+  user needs configure, write and read on that queue and read on the
+  exchange.
+- A queue's columns are the message's own and, into a table that is there,
+  a field of a JSON body for every other column of that table: a column
+  `price` takes the body's `price`, empty when a message has none, so a row
+  sent through RabbitMQ comes back by itself. Only top-level fields; a new
+  table gets the message's own columns. **First run reads** means nothing for
+  a queue: it always takes what waits.
 - **Follow** carries what arrives within seconds, from a stream or a queue,
   as it does from a topic.
 

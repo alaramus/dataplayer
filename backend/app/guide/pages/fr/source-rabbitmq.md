@@ -54,8 +54,12 @@ formulaire ; `amqps://` est TLS, et `%2F` dans le chemin est l'hôte virtuel `/`
 La vérification interroge d'abord l'API de gestion, puis AMQP. Quand seul AMQP
 refuse — un hôte virtuel que l'utilisateur ne peut pas ouvrir, un port
 injoignable — la connexion est tout de même enregistrée et dit pourquoi : le
-catalogue fonctionne, les messages d'un stream non. Le tunnel SSH n'est pas
-pris en charge.
+catalogue fonctionne, les messages d'un stream non.
+
+Un **tunnel SSH** porte à la fois AMQP et l'API de gestion ; l'hôte et
+l'adresse de gestion sont alors tels que le serveur SSH les voit. Via un
+tunnel, connectez-vous sans TLS et remplissez l'**Adresse pour le navigateur**
+pour **Ouvrir la gestion**. Le terminal ne passe pas encore par un tunnel.
 
 ## Le catalogue
 
@@ -221,11 +225,25 @@ y envoie des lignes, d'autres portent ce qui arrive dans des tables.
 - Les mêmes liens depuis une file prennent ses messages en attente, comme tout
   consommateur : chaque bloc n'est acquitté qu'une fois écrit. Si une exécution
   échoue entre les deux, le bloc retourne dans la file et est repris, marqué
-  relivré. Les autres consommateurs partagent les messages avec le lien ; donnez
-  au lien une file à lui, liée à l'échange, pour les avoir tous.
-- Les colonnes d'une file sont celles du message — son corps arrive entier — et
-  **La première exécution lit** n'a pas de sens pour elle : elle prend toujours
-  ce qui attend.
+  relivré. Les autres consommateurs partagent les messages avec le lien ; pour
+  les avoir tous, tracez plutôt le lien depuis l'échange de la file.
+- Depuis un **échange**, le lien lit par une file à lui, `dataplayer-link-…`,
+  que chaque exécution crée ou retrouve et lie par la **Clé de liaison** du
+  lien : vide vaut `#` pour un échange topic, c'est-à-dire tout ; fanout et
+  headers n'en ont pas besoin. La file est créée à la première exécution, qui
+  ne lit donc rien ; ensuite le lien reçoit ce que l'échange route. Une clé
+  changée vaut dès l'exécution suivante. La file est dans le catalogue comme
+  toute autre ; supprimer le lien ne la supprime pas, elle s'en va d'elle-même
+  après une semaine sans lecture, avec au plus un million de messages d'ici là.
+  L'utilisateur de la connexion a besoin de configure, write et read sur cette
+  file et de read sur l'échange.
+- Les colonnes d'une file sont celles du message et, vers une table qui
+  existe déjà, un champ du corps JSON pour chaque autre colonne de cette
+  table : une colonne `price` prend le `price` du corps, vide quand un message
+  n'en a pas, si bien qu'une ligne envoyée par RabbitMQ revient d'elle-même.
+  Seulement les champs de premier niveau ; une nouvelle table reçoit les
+  colonnes du message. **La première exécution lit** n'a pas de sens pour une
+  file : elle prend toujours ce qui attend.
 - **Suivre** porte ce qui arrive en quelques secondes, depuis un stream ou une
   file, comme depuis un topic.
 

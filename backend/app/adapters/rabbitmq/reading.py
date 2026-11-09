@@ -7,6 +7,10 @@ consumer, takes a block without acknowledging it on a channel it holds, and
 acknowledges the block when it is kept — after it was written. A failure in
 between leaves it unacknowledged, and the broker hands it out again once the
 channel closes; a channel nobody acknowledges on is closed after a while.
+
+An exchange is read the same way through a queue of the link's own, named by
+its reader, which `link_queues` makes ready first (D337); the bookmark's one
+part is that queue's name.
 """
 
 import asyncio
@@ -27,6 +31,7 @@ from app.adapters.message_cells import (
     moment,
     text_of,
 )
+from app.adapters.rabbitmq import link_queues
 from app.adapters.rabbitmq.catalog import Named, parse, read_exchange, read_queue
 from app.adapters.rabbitmq.session import RabbitmqSession
 from app.adapters.rabbitmq.streams import (
@@ -43,6 +48,7 @@ from app.adapters.reading_on import (
     Bookmark,
     BookmarkAccess,
     ReadBlock,
+    ReadingTerms,
     ReadStart,
     UnreadSpan,
 )
@@ -81,7 +87,8 @@ def _column(name: str, category: TypeCategory, *, sent: bool) -> FetchColumn:
     )
 
 
-# What a message read out of a queue is (D335): its own columns, no fields.
+# What a message read out of a queue is (D335): its own columns; the body's
+# fields are those the target names (D338).
 QUEUE_COLUMNS = [
     _column("redelivered", "boolean", sent=False),
     _column("exchange", "string", sent=False),
@@ -92,6 +99,19 @@ QUEUE_COLUMNS = [
     _column("properties", "json", sent=True),
     _column("body", "string", sent=True),
 ]
+
+
+_OWN = frozenset(column.name for column in QUEUE_COLUMNS)
+
+
+def body_fields(wanted: list[FetchColumn] | None) -> list[FetchColumn]:
+    """A column for every column of the target that is not a message's own:
+    the top-level field of that name in a JSON body (D338)."""
+    return [
+        _column(column.name, column.type.category, sent=False)
+        for column in wanted or []
+        if column.name not in _OWN and column.name != ""
+    ]
 
 
 def taking_columns(
@@ -145,6 +165,20 @@ def taken_of(incoming: AbstractIncomingMessage) -> Taken:
         properties=properties,
         body=bytes(incoming.body),
     )
+
+
+def _queue_row(one: Taken, columns: list[str]) -> list[str | None]:
+    """A message as a row; its body read as JSON once, when a field is asked."""
+    fields: dict[str, Any] | None = None
+    if any(column not in _OWN for column in columns):
+        fields = json_of(one.body) or {}
+    return [
+        _queue_cell(one, column)
+        if column in _OWN
+        # Any other name is a field of the body, null where there is none (D338).
+        else field_text((fields or {}).get(column))
+        for column in columns
+    ]
 
 
 def _queue_cell(one: Taken, column: str) -> str | None:
@@ -229,9 +263,27 @@ class RabbitmqReading:
 
     def reads_on(self, node_id: str) -> bool:
         try:
-            return parse(node_id).prefix in {"stream", "queue"}
+            named = parse(node_id)
         except ValueError:
             return False
+        return named.prefix in {"stream", "queue"} or link_queues.reads_through(named)
+
+    async def reading_terms(self, node_id: str) -> ReadingTerms:
+        named = await self._named(node_id)
+        exchange_type = None
+        if link_queues.reads_through(named):
+            assert named.name is not None
+            described = await read_exchange(self._session, named.vhost, named.name)
+            exchange_type = str(described.get("type") or "direct")
+        return link_queues.terms_for(named, exchange_type)
+
+    async def prepare_reader(
+        self, node_id: str, reader: str, binding_key: str | None
+    ) -> bool:
+        named = await self._named(node_id)
+        if not link_queues.reads_through(named):
+            return False
+        return await link_queues.prepare(self._session, named, reader, binding_key)
 
     def row_key(self, node_id: str) -> list[str]:
         """A stream's message is named by its offset; a queue's by nothing."""
@@ -242,16 +294,24 @@ class RabbitmqReading:
         )
 
     async def moving_columns(
-        self, node_id: str, given: list[FetchColumn] | None
+        self,
+        node_id: str,
+        given: list[FetchColumn] | None,
+        wanted: list[FetchColumn] | None = None,
     ) -> list[FetchColumn] | None:
         named = parse(node_id)
         if named.name is None:
             return None
         if given is None:
-            # A queue gives messages; a stream gives its page's own rows.
+            # A queue gives messages, with the fields the target names (D338),
+            # and an exchange read through the link's queue gives the same
+            # (D337); a stream gives its page's own rows, fields found there.
             if named.prefix == "queue":
                 await read_queue(self._session, named.vhost, named.name, stream=False)
-                return list(QUEUE_COLUMNS)
+                return [*QUEUE_COLUMNS, *body_fields(wanted)]
+            if link_queues.reads_through(named):
+                await read_exchange(self._session, named.vhost, named.name)
+                return [*QUEUE_COLUMNS, *body_fields(wanted)]
             return None
         if named.prefix == "exchange":
             await read_exchange(self._session, named.vhost, named.name)
@@ -265,14 +325,17 @@ class RabbitmqReading:
 
     async def _named(self, node_id: str) -> Named:
         named = parse(node_id)
-        if named.name is None or named.prefix not in {"stream", "queue"}:
-            raise ValueError(say("Only a stream or a queue is read on"))
+        if named.name is None or not self.reads_on(node_id):
+            raise ValueError(say("Only a stream, a queue or an exchange is read on"))
         own = self._session.options.vhost
         if own and named.vhost != own:
             raise ValueError(say("Not a node of this connection"))
-        await read_queue(
-            self._session, named.vhost, named.name, stream=named.prefix == "stream"
-        )
+        if named.prefix == "exchange":
+            await read_exchange(self._session, named.vhost, named.name)
+        else:
+            await read_queue(
+                self._session, named.vhost, named.name, stream=named.prefix == "stream"
+            )
         return named
 
     def _store(self) -> BookmarkAccess:
@@ -285,12 +348,21 @@ class RabbitmqReading:
     async def unread(self, node_id: str, reader: str, start: ReadStart) -> UnreadSpan:
         named = await self._named(node_id)
         assert named.name is not None
-        if named.prefix == "queue":
-            ready = await self._session.waiting(named.vhost, named.name, node_id)
+        if named.prefix in {"queue", "exchange"}:
+            queue, part = _taken_from(named, reader)
+            ready = await self._session.waiting(named.vhost, queue, node_id)
+            # An exchange's reader with nothing kept is a link's first run,
+            # whose table it may make (D313), even when its queue outlived a
+            # first try (D337).
+            fresh = (
+                named.prefix == "exchange"
+                and await self._store().read(node_id, reader) is None
+            )
             return UnreadSpan(
-                start=Bookmark(positions={TAKEN: 0}),
-                line=Bookmark(positions={TAKEN: ready}),
+                start=Bookmark(positions={part: 0}),
+                line=Bookmark(positions={part: ready}),
                 count=ready,
+                fresh=fresh,
             )
         kept = await self._store().read(node_id, reader)
         async with self._session.channel(node_id, vhost=named.vhost) as channel:
@@ -325,7 +397,25 @@ class RabbitmqReading:
         named = await self._named(node_id)
         assert named.name is not None
         if named.prefix == "queue":
-            return await self._take(node_id, named, columns, at, line, limit)
+            return await self._take(
+                node_id, node_id, named.vhost, named.name, TAKEN, columns, at, line, limit
+            )
+        if named.prefix == "exchange":
+            # The bookmark's one part names the link's queue (D337).
+            if len(at.positions) != 1:
+                raise ValueError(say("Reading stopped moving on"))
+            [queue] = at.positions
+            return await self._take(
+                node_id,
+                _held_as(node_id, queue),
+                named.vhost,
+                queue,
+                queue,
+                columns,
+                at,
+                line,
+                limit,
+            )
         start = at.positions.get(NEXT, 0)
         end = min(line.positions.get(NEXT, start), start + limit)
         if end <= start:
@@ -347,48 +437,46 @@ class RabbitmqReading:
     async def _take(
         self,
         node_id: str,
-        named: Named,
+        held_as: str,
+        vhost: str,
+        queue: str,
+        part: str,
         columns: list[str],
         at: Bookmark,
         line: Bookmark,
         limit: int,
     ) -> ReadBlock:
-        assert named.name is not None
-        for column in columns:
-            _queue_cell(Taken(False, "", "", None, None, {}, {}, b""), column)
+        """A block of `queue`, held under `held_as` until it is kept; `part` is
+        the bookmark's key."""
         # A block taken before and never kept goes back first.
-        await self._let_go(node_id)
-        taken = at.positions.get(TAKEN, 0)
-        want = min(limit, line.positions.get(TAKEN, taken) - taken)
+        await self._let_go(held_as)
+        taken = at.positions.get(part, 0)
+        want = min(limit, line.positions.get(part, taken) - taken)
         if want <= 0:
             return ReadBlock(rows=[], after=at, done=True)
         stack = AsyncExitStack()
-        channel = await stack.enter_async_context(
-            self._session.channel(node_id, vhost=named.vhost)
-        )
+        channel = await stack.enter_async_context(self._session.channel(node_id, vhost=vhost))
         try:
             await channel.set_qos(prefetch_count=want)
-            got = await _consume(channel, named.name, want)
+            got = await _consume(channel, queue, want)
         except BaseException:
             await stack.aclose()
             raise
         held = Held(stack, channel, got[-1] if got else None)
         if got:
-            self._held[node_id] = held
+            self._held[held_as] = held
             held.expiry = asyncio.get_running_loop().call_later(
-                HOLD_SECONDS, lambda: asyncio.ensure_future(self._let_go(node_id))
+                HOLD_SECONDS, lambda: asyncio.ensure_future(self._let_go(held_as))
             )
         else:
             await held.release(acknowledge=False)
-        rows = [
-            [_queue_cell(taken_of(one), column) for column in columns] for one in got
-        ]
+        rows = [_queue_row(taken_of(one), columns) for one in got]
         after = taken + len(got)
         return ReadBlock(
             rows=rows,
-            after=Bookmark(positions={TAKEN: after}),
+            after=Bookmark(positions={part: after}),
             # Fewer than asked for: other consumers took the rest.
-            done=len(got) < want or after >= line.positions.get(TAKEN, after),
+            done=len(got) < want or after >= line.positions.get(part, after),
         )
 
     async def _let_go(self, node_id: str) -> None:
@@ -400,12 +488,31 @@ class RabbitmqReading:
 
     async def mark_read(self, node_id: str, reader: str, at: Bookmark) -> None:
         named = parse(node_id)
-        if named.prefix == "queue":
-            held = self._held.pop(node_id, None)
+        if named.prefix in {"queue", "exchange"}:
+            held_as = (
+                node_id if named.prefix == "queue" else _held_as(node_id, reader)
+            )
+            held = self._held.pop(held_as, None)
             if held is not None:
                 await held.release(acknowledge=True)
+            if named.prefix == "exchange":
+                await self._store().write(node_id, reader, at)
             return
         await self._store().write(node_id, reader, at)
+
+
+def _taken_from(named: Named, reader: str) -> tuple[str, str]:
+    """The queue a block is taken from, and the bookmark's key for it: the
+    queue itself, or the link's own queue for an exchange (D337)."""
+    assert named.name is not None
+    if named.prefix == "exchange":
+        return reader, reader
+    return named.name, TAKEN
+
+
+def _held_as(node_id: str, queue: str) -> str:
+    """Where a block of an exchange is held: one per link's queue."""
+    return f"{node_id} {queue}"
 
 
 async def _consume(
