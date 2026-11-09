@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { openingFrame, readServerFrame } from "./frames"
 import type { LiveRows } from "./frames"
-import { KEPT_TRADES, applyRows, bookOf, candlesOf, dayOf, falling, shown, tradesOf } from "./model"
+import { KEPT_TRADES, applyRows, bookOf, candlesOf, dayOf, falling, shown, tradesOf, widest } from "./model"
 import type { Parts } from "./model"
 import { openWatchLink } from "./watchLink"
 import type { WatchSocketLike, WatchState } from "./watchLink"
@@ -175,5 +175,15 @@ describe("a watch's socket", () => {
 
     expect(sockets[0]!.closed).toBe(true)
     expect(states.at(-1)).toEqual({ kind: "connecting" })
+  })
+})
+
+describe("the room the head's figures keep", () => {
+  it("grows with the longest figure and never shrinks", () => {
+    let held = widest({}, { price: "74028.01" })
+    held = widest(held, { price: "74028" })
+    held = widest(held, { price: "74028.115" })
+
+    expect(held.price).toBe(9)
   })
 })

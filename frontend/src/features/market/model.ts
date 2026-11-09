@@ -179,3 +179,17 @@ export function shown(text: string | null): string {
   const trimmed = text.replace(/0+$/, "")
   return trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed
 }
+
+/**
+ * How many characters each figure of the head has held at most.
+ *
+ * Only ever grows while a symbol is watched: a price that loses a trailing
+ * digit keeps its room, so nothing beside it moves with every trade.
+ */
+export function widest(held: Record<string, number>, figures: Record<string, string>): Record<string, number> {
+  const next = { ...held }
+  for (const [name, text] of Object.entries(figures)) {
+    next[name] = Math.max(next[name] ?? 0, text.length)
+  }
+  return next
+}

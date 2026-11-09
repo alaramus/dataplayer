@@ -9,7 +9,7 @@ import { AppBanner, AppSelect, AppSpinner } from "@/shared/ui"
 import { useAuthStore } from "@/stores/auth"
 
 import MarketChart from "./MarketChart.vue"
-import { applyRows, bookOf, candlesOf, dayOf, falling, shown, tradesOf } from "./model"
+import { applyRows, bookOf, candlesOf, dayOf, falling, shown, tradesOf, widest } from "./model"
 import type { Parts } from "./model"
 import { openWatchLink } from "./watchLink"
 import type { WatchLink, WatchState } from "./watchLink"
@@ -31,6 +31,8 @@ const parts = shallowRef<Parts>({})
 const state = ref<WatchState>({ kind: "connecting" })
 const interval = ref<string | null>(null)
 const intervals = ref<string[]>([])
+// The room each figure has needed so far, so the head does not shift (see `widest`).
+const held = ref<Record<string, number>>({})
 let link: WatchLink | null = null
 
 function socketUrl(): string {
@@ -44,6 +46,7 @@ function socketUrl(): string {
 function watchNode() {
   link?.close()
   parts.value = {}
+  held.value = {}
   const token = useAuthStore().token
   if (token === null) {
     state.value = { kind: "refused", code: "unauthenticated", message: t("terminals.notice.sign_in") }
@@ -81,6 +84,23 @@ function chooseInterval(value: unknown) {
 watch(currentLanguage, watchNode)
 
 const day = computed(() => dayOf(parts.value))
+const figures = computed(() => {
+  const now = day.value
+  return {
+    price: shown(now?.lastPrice ?? null),
+    change: `${shown(now?.change ?? null)} (${shown(now?.changePercent ?? null)}%)`,
+    high: shown(now?.high ?? null),
+    low: shown(now?.low ?? null),
+    volume: shown(now?.volume ?? null),
+    quoteVolume: shown(now?.quoteVolume ?? null),
+  }
+})
+watch(figures, (now) => {
+  held.value = widest(held.value, now)
+}, { immediate: true })
+function room(name: string) {
+  return { minWidth: `${String(held.value[name] ?? 0)}ch` }
+}
 const candles = computed(() => candlesOf(parts.value))
 const book = computed(() => bookOf(parts.value))
 // The levels drawn of each side, best first: enough to see the spread and
@@ -128,28 +148,43 @@ function time(text: string): string {
           class="market-panel__price"
           :class="down ? 'market-panel__down' : 'market-panel__up'"
           data-testid="market-price"
-        >{{ shown(day?.lastPrice ?? null) }}</span>
+          :style="room('price')"
+        >{{ figures.price }}</span>
         <span class="market-panel__fact">
           <span class="market-panel__label">{{ t("content.market.change") }}</span>
-          <span :class="down ? 'market-panel__down' : 'market-panel__up'">
-            {{ shown(day?.change ?? null) }} ({{ shown(day?.changePercent ?? null) }}%)
-          </span>
+          <span
+            class="market-panel__figure"
+            :class="down ? 'market-panel__down' : 'market-panel__up'"
+            :style="room('change')"
+          >{{ figures.change }}</span>
         </span>
         <span class="market-panel__fact">
           <span class="market-panel__label">{{ t("content.market.high") }}</span>
-          {{ shown(day?.high ?? null) }}
+          <span
+            class="market-panel__figure"
+            :style="room('high')"
+          >{{ figures.high }}</span>
         </span>
         <span class="market-panel__fact">
           <span class="market-panel__label">{{ t("content.market.low") }}</span>
-          {{ shown(day?.low ?? null) }}
+          <span
+            class="market-panel__figure"
+            :style="room('low')"
+          >{{ figures.low }}</span>
         </span>
         <span class="market-panel__fact">
           <span class="market-panel__label">{{ t("content.market.volume") }}</span>
-          {{ shown(day?.volume ?? null) }}
+          <span
+            class="market-panel__figure"
+            :style="room('volume')"
+          >{{ figures.volume }}</span>
         </span>
         <span class="market-panel__fact">
           <span class="market-panel__label">{{ t("content.market.quote_volume") }}</span>
-          {{ shown(day?.quoteVolume ?? null) }}
+          <span
+            class="market-panel__figure"
+            :style="room('quoteVolume')"
+          >{{ figures.quoteVolume }}</span>
         </span>
       </div>
       <div class="market-panel__commands">
@@ -308,7 +343,12 @@ function time(text: string): string {
   min-width: 0;
   font-variant-numeric: tabular-nums;
 }
+/* Digits of one width, so the room held for a figure fits any of them. */
+.market-panel__figure {
+  display: inline-block;
+}
 .market-panel__price {
+  display: inline-block;
   font-size: var(--dp-font-size-lg);
   font-weight: 600;
 }
