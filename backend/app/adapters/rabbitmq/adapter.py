@@ -13,6 +13,7 @@ from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.rabbitmq.actions import (
     RABBITMQ_ACTION_TYPES,
@@ -35,14 +36,35 @@ from app.adapters.rabbitmq.catalog import (
     vhost_node,
 )
 from app.adapters.rabbitmq.console import console_program
+from app.adapters.rabbitmq.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.rabbitmq.metrics import RabbitmqMetrics
 from app.adapters.rabbitmq.options import RabbitmqOptions
 from app.adapters.rabbitmq.peeks import RabbitmqPeeks
+from app.adapters.rabbitmq.reports import (
+    REPORTS,
+    RabbitmqReports,
+    in_section,
+    is_section,
+    report_for,
+    report_node,
+    section_node,
+)
+from app.adapters.rabbitmq.search import RabbitmqSearch
 from app.adapters.rabbitmq.session import RabbitmqSession
 from app.adapters.rabbitmq.streams import RabbitmqStreams
 from app.adapters.rabbitmq.summaries import node_summary
 from app.adapters.rabbitmq.writes import RabbitmqWrites
 from app.adapters.registry import AdapterContext, register
 from app.adapters.resources import Pooling
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.update import (
@@ -68,6 +90,9 @@ class RabbitmqAdapter:
         self._writes = RabbitmqWrites(self._session)
         self._peeks = RabbitmqPeeks(self._session, pooling)
         self._actions = ActionSet(build_actions(self._session, self._peeks))
+        self._reports = RabbitmqReports(self._session)
+        self._metrics = RabbitmqMetrics(self._session)
+        self._search = RabbitmqSearch(self._session)
 
     # --- how to reach it, in one line --------------------------------------------
 
@@ -142,10 +167,17 @@ class RabbitmqAdapter:
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
+            # The broker's own section first, as Kafka's cluster is (D331).
             vhosts = await self._vhosts()
             if len(vhosts) == 1:
-                return folders_of(vhosts[0])
-            return [vhost_node(vhost) for vhost in vhosts]
+                return [section_node(), *folders_of(vhosts[0])]
+            return [section_node(), *(vhost_node(vhost) for vhost in vhosts)]
+        if is_section(node_id):
+            return [report_node(report) for report in REPORTS]
+        if in_section(node_id):
+            if report_for(node_id) is None:
+                raise NodeNotFound(node_id)
+            return []
         named = parse(node_id)
         self._own(named.vhost, node_id)
         if named.prefix == "vhost":
@@ -167,6 +199,13 @@ class RabbitmqAdapter:
             raise NodeNotFound(node_id)
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
+        if is_section(node_id):
+            return [section_node()]
+        if in_section(node_id):
+            report = report_for(node_id)
+            if report is None:
+                raise NodeNotFound(node_id)
+            return [section_node(), report_node(report)]
         named = parse(node_id)
         self._own(named.vhost, node_id)
         vhosts = await self._vhosts()
@@ -212,6 +251,8 @@ class RabbitmqAdapter:
         ]
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
+        if in_section(request.node_id):
+            return await self._reports.fetch(request)
         named = parse(request.node_id)
         self._own(named.vhost, request.node_id)
         if named.prefix == "stream":
@@ -223,6 +264,8 @@ class RabbitmqAdapter:
         raise ValueError(say("A level is opened by its contents, not as rows"))
 
     def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        if in_section(request.node_id):
+            return self._reports.export_rows(request)
         named = parse(request.node_id)
         self._own(named.vhost, request.node_id)
         if named.prefix == "stream":
@@ -237,6 +280,32 @@ class RabbitmqAdapter:
         if named.prefix not in {"queue", "stream", "exchange"}:
             raise ValueError(say("Only a queue, a stream or an exchange has details"))
         return await node_summary(self._session, node_id)
+
+    # --- the broker measured, and names found (D331) ---------------------------------
+
+    async def metric_samples(self) -> list[MetricSample]:
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    def enumerate_names(
+        self, limit: int, bounds: SearchBounds
+    ) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names are a few requests, whatever the broker holds; nothing else is
+        searched."""
+        del last
+        return "cheap" if field == "names" else "costly"
 
     # --- messages sent and things changed (D329, D330) ------------------------------
 

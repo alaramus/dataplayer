@@ -14,6 +14,9 @@ page.
 - A stream's messages as rows, newest first, from an offset or a moment
 - The fields of JSON messages, each in a column of its own
 - A stream's messages or the bindings downloaded as a file
+- The broker's reports: overview, nodes, alarms, connections, channels
+- Messages a second and what waits in each queue on a dashboard
+- Queues, streams and exchanges found by name
 - rabbitmqadmin, set up for the connection, in a terminal
 
 ## What you can change
@@ -159,6 +162,32 @@ read in a tab.
   queue again; for a new look, Peek again.
 - A look is kept while DataPlayer runs and for a while after it is last
   opened.
+
+## The Broker section
+
+At the top of the catalog, **Broker** holds what the broker says about itself:
+
+- **Overview** — the release, how many connections, channels, queues,
+  exchanges and consumers, messages ready and unacknowledged, and messages a
+  second in and out;
+- **Nodes** — each node's memory and its limit, free disk and its floor, file
+  descriptors and uptime;
+- **Alarms** — a node short of memory or disk. While one is raised RabbitMQ
+  blocks every publisher; the report is empty when all is well;
+- **Connections** and **Channels** — each client, its user and virtual host,
+  its channels, consumers, prefetch and messages taken and not acknowledged;
+- **Policies** — each policy, what it matches and what it sets.
+
+Overview, Alarms and Connections refresh every ten seconds. A long list shows
+its first five hundred and says so.
+
+## Dashboards and search
+
+- The **RabbitMQ broker** dashboard draws messages a second, what waits in
+  each queue and what is taken and not acknowledged, connections and alarms,
+  for the first hundred queues by name.
+- The search in the header finds queues, streams and exchanges by name, in
+  every virtual host the connection sees.
 
 ## Downloads
 

@@ -75,7 +75,7 @@ async def test_a_connection_is_checked_browsed_and_read(
 
     v = quote(vhost, safe="")
     top = [node["id"] for node in await call("GET", "catalog")]
-    assert top == [f"queues:{v}", f"streams:{v}", f"exchanges:{v}"]
+    assert top == ["broker", f"queues:{v}", f"streams:{v}", f"exchanges:{v}"]
     streams = await call("GET", "catalog", params={"node_id": f"streams:{v}"})
     assert [node["kind"] for node in streams] == ["amqp_stream"]
     stream = streams[0]["id"]

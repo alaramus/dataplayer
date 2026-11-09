@@ -14,6 +14,9 @@ como filas. Cómo funcionan las conexiones en general está en la página
 - Los mensajes de un stream como filas, recientes primero, desde offset o fecha
 - Los campos de los mensajes JSON, cada uno en su propia columna
 - Los mensajes de un stream o los vínculos descargados como archivo
+- Los informes del broker: resumen, nodos, alarmas, conexiones, canales
+- Mensajes por segundo y lo que espera en cada cola en un panel
+- Colas, streams y exchanges encontrados por nombre
 - rabbitmqadmin, configurado para la conexión, en una terminal
 
 ## Qué puedes cambiar
@@ -164,6 +167,33 @@ en una pestaña.
   cola; para un vistazo nuevo, vuelve a echarlo.
 - Un vistazo se guarda mientras DataPlayer funciona, y un tiempo después de
   abrirse por última vez.
+
+## La sección Broker
+
+Arriba del catálogo, **Broker** reúne lo que el broker dice de sí mismo:
+
+- **Resumen** — la versión, cuántas conexiones, canales, colas, exchanges y
+  consumidores, los mensajes listos y sin confirmar, y los mensajes por segundo
+  de entrada y salida;
+- **Nodos** — la memoria de cada nodo y su límite, el disco libre y su umbral,
+  los descriptores de archivo y el tiempo en marcha;
+- **Alarmas** — un nodo sin memoria o disco suficientes. Mientras haya una
+  alarma, RabbitMQ bloquea a todos los emisores; el informe está vacío cuando
+  todo va bien;
+- **Conexiones** y **Canales** — cada cliente, su usuario y host virtual, sus
+  canales, consumidores, prefetch y mensajes tomados sin confirmar;
+- **Políticas** — cada política, a qué se aplica y qué fija.
+
+Resumen, Alarmas y Conexiones se actualizan cada diez segundos. Una lista larga
+muestra sus primeros quinientos y lo dice.
+
+## Paneles y búsqueda
+
+- El panel **Broker de RabbitMQ** dibuja los mensajes por segundo, lo que
+  espera en cada cola y lo tomado sin confirmar, las conexiones y las alarmas,
+  para las primeras cien colas por nombre.
+- La búsqueda de la cabecera encuentra colas, streams y exchanges por nombre,
+  en cada host virtual que ve la conexión.
 
 ## Descargas
 

@@ -14,6 +14,9 @@ steht auf der Seite [Verbindungen](connections.md).
 - Nachrichten eines Streams als Zeilen, neueste zuerst, ab Offset oder Zeit
 - Die Felder von JSON-Nachrichten, jedes in einer eigenen Spalte
 - Nachrichten eines Streams oder die Bindungen als Datei herunterladen
+- Berichte des Brokers: Überblick, Knoten, Alarme, Verbindungen
+- Nachrichten pro Sekunde und Wartendes je Queue auf einem Dashboard
+- Queues, Streams und Exchanges nach Namen finden
 - rabbitmqadmin, für die Verbindung eingerichtet, in einem Terminal
 
 ## Was Sie ändern können
@@ -169,6 +172,34 @@ zurück und öffnet das Gelesene in einem Tab.
   nicht erneut; für einen neuen Blick schauen Sie noch einmal hinein.
 - Ein Blick bleibt, solange DataPlayer läuft, und eine Weile nach dem letzten
   Öffnen.
+
+## Der Abschnitt Broker
+
+Oben im Katalog sammelt **Broker**, was der Broker über sich sagt:
+
+- **Überblick** — die Version, wie viele Verbindungen, Kanäle, Queues,
+  Exchanges und Consumer, bereite und unbestätigte Nachrichten, und Nachrichten
+  pro Sekunde ein und aus;
+- **Knoten** — Speicher jedes Knotens und seine Grenze, freie Platte und ihre
+  Schwelle, Dateideskriptoren und Laufzeit;
+- **Alarme** — ein Knoten mit zu wenig Speicher oder Platte. Solange ein Alarm
+  besteht, blockiert RabbitMQ alle Absender; ist alles in Ordnung, ist der
+  Bericht leer;
+- **Verbindungen** und **Kanäle** — jeder Client, sein Benutzer und virtueller
+  Host, seine Kanäle, Consumer, Prefetch und abgeholte, unbestätigte
+  Nachrichten;
+- **Richtlinien** — jede Richtlinie, worauf sie passt und was sie setzt.
+
+Überblick, Alarme und Verbindungen aktualisieren sich alle zehn Sekunden. Eine
+lange Liste zeigt die ersten fünfhundert und sagt es.
+
+## Dashboards und Suche
+
+- Das Dashboard **RabbitMQ-Broker** zeichnet Nachrichten pro Sekunde, was in
+  jeder Queue wartet und was abgeholt und unbestätigt ist, Verbindungen und
+  Alarme, für die ersten hundert Queues nach Namen.
+- Die Suche in der Kopfzeile findet Queues, Streams und Exchanges nach Namen,
+  in jedem virtuellen Host, den die Verbindung sieht.
 
 ## Herunterladen
 

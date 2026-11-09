@@ -14,6 +14,9 @@ stream en lignes. Le fonctionnement général des connexions est sur la page
 - Les messages d'un stream en lignes, récents d'abord, depuis un offset ou date
 - Les champs des messages JSON, chacun dans sa propre colonne
 - Les messages d'un stream ou les liaisons téléchargés en fichier
+- Les rapports du broker : vue d'ensemble, nœuds, alarmes, connexions
+- Messages par seconde et attente par file sur un tableau de bord
+- Files, streams et échanges trouvés par nom
 - rabbitmqadmin, configuré pour la connexion, dans un terminal
 
 ## Ce que vous pouvez modifier
@@ -167,6 +170,34 @@ ce qu'il a lu dans un onglet.
   file ; pour un nouvel aperçu, recommencez.
 - Un aperçu est conservé tant que DataPlayer tourne, et un moment après sa
   dernière ouverture.
+
+## La section Broker
+
+En haut du catalogue, **Broker** rassemble ce que le broker dit de lui-même :
+
+- **Vue d'ensemble** — la version, le nombre de connexions, canaux, files,
+  échanges et consommateurs, les messages prêts et non acquittés, et les
+  messages par seconde en entrée et en sortie ;
+- **Nœuds** — la mémoire de chaque nœud et sa limite, le disque libre et son
+  seuil, les descripteurs de fichiers et la durée de fonctionnement ;
+- **Alarmes** — un nœud à court de mémoire ou de disque. Tant qu'une alarme est
+  levée, RabbitMQ bloque tous les émetteurs ; le rapport est vide quand tout va
+  bien ;
+- **Connexions** et **Canaux** — chaque client, son utilisateur et son hôte
+  virtuel, ses canaux, consommateurs, prefetch et messages pris sans être
+  acquittés ;
+- **Politiques** — chaque politique, ce qu'elle cible et ce qu'elle définit.
+
+Vue d'ensemble, Alarmes et Connexions se rafraîchissent toutes les dix
+secondes. Une longue liste montre ses cinq cents premiers éléments et le dit.
+
+## Tableaux de bord et recherche
+
+- Le tableau de bord **Broker RabbitMQ** trace les messages par seconde, ce qui
+  attend dans chaque file et ce qui est pris sans être acquitté, les connexions
+  et les alarmes, pour les cent premières files par nom.
+- La recherche de l'en-tête trouve files, streams et échanges par nom, dans
+  chaque hôte virtuel que voit la connexion.
 
 ## Téléchargements
 

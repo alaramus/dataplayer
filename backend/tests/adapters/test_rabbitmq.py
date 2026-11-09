@@ -169,8 +169,10 @@ def test_the_management_address_is_a_plain_http_one() -> None:
 
 async def test_several_virtual_hosts_are_the_top(vhost: str) -> None:
     top = await adapter().list_children(None)
-    assert {node.name for node in top} >= {"/", vhost}
-    assert all(node.kind == "directory" for node in top)
+    # The broker's own section first (D331), then a level per virtual host.
+    assert top[0].id == "broker"
+    assert {node.name for node in top[1:]} >= {"/", vhost}
+    assert all(node.kind == "directory" for node in top[1:])
     inside = await adapter().list_children(f"vhost:{_v(vhost)}")
     assert [node.id for node in inside] == [
         f"queues:{_v(vhost)}",
@@ -182,6 +184,7 @@ async def test_several_virtual_hosts_are_the_top(vhost: str) -> None:
 async def test_a_named_virtual_host_is_the_top_itself(vhost: str) -> None:
     top = await adapter(options(vhost)).list_children(None)
     assert [node.id for node in top] == [
+        "broker",
         f"queues:{_v(vhost)}",
         f"streams:{_v(vhost)}",
         f"exchanges:{_v(vhost)}",

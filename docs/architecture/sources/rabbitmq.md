@@ -5,11 +5,12 @@ its catalog shows of virtual hosts, queues, streams and exchanges, and how a
 stream's messages and the bindings are read as rows, and `rabbitmqadmin` in a
 terminal (D328, run as D286 says in [terminals.md](../terminals.md)), how
 messages are sent (D329) and queues, streams, exchanges and bindings changed,
-with a look inside a queue (D330). The contract every source
+with a look inside a queue (D330), and the broker's reports, metrics and
+search (D331). The contract every source
 type follows is in [contract.md](contract.md); the other queue is in
 [kafka.md](kafka.md). Read this before changing the `rabbitmq` adapter.
 
-Decisions here: D325, D326, D327, D328, D329, D330.
+Decisions here: D325, D326, D327, D328, D329, D330, D331.
 
 ## D325. A RabbitMQ source looks through the management API and moves messages over AMQP
 
@@ -199,3 +200,38 @@ Known deviations:
   new row does.
 
 Spec: [Writing to RabbitMQ](../../decisions/2026-11-09-rabbitmq-writes-design.md)
+
+## D331. A Broker section of reports, metrics from the overview and queues, names searched
+
+The top of the catalog starts with a Broker section, before the virtual hosts
+or the three levels, as Kafka's Cluster section does (D310). Its reports are
+management API answers read into setting-and-value rows: Overview (release,
+counts, messages ready and unacknowledged, rates), Nodes (memory, disk, file
+descriptors, uptime), Alarms (a node over its memory or under its disk limit,
+which blocks every publisher; empty when all is well), Connections, Channels
+and Policies. Overview, Alarms and Connections refresh every ten seconds; a
+paged list past five hundred says it was cut. Report ids are `broker` and
+`report:<key>`, outside the virtual hosts' ids.
+
+A metrics poll reads the overview, the nodes and the first hundred queues by
+name: `broker` (connections, channels, consumers, queues, nodes in alarm),
+`messages` (published, delivered and redelivered as counters; ready and
+unacknowledged in all) and `queue` (each queue's ready and unacknowledged, a
+stream's messages), labelled by name, `vhost/name` outside the root virtual
+host. The preset **RabbitMQ broker** draws them. No message content is a
+metric.
+
+Search reads queue and exchange names from the API, across the virtual hosts
+the connection sees, five hundred a page up to twenty pages, and keeps the
+best-classed matches; each is scoped to its level, with the virtual host
+first in its path when the top lists them. The same names are kept for the
+search over everything (D213). Names are the cheap field; nothing else is
+searched.
+
+Known deviations:
+
+- **A connection's channels and state arrive with a later sample** than the
+  connection itself: the Connections report may show it a few seconds before
+  it shows what it holds.
+
+Spec: [RabbitMQ's reports, metrics and search](../../decisions/2026-11-09-rabbitmq-reports-design.md)
