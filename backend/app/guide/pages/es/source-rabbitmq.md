@@ -198,6 +198,32 @@ muestra sus primeros quinientos y lo dice.
 - La búsqueda de la cabecera encuentra colas, streams y exchanges por nombre,
   en cada host virtual que ve la conexión.
 
+## En un pipeline
+
+RabbitMQ puede estar en medio de un pipeline, como un topic de Kafka: un enlace
+le envía filas y otros llevan lo que llega a tablas.
+
+- **Añadir filas** a un exchange, una cola o un stream envía cada fila como un
+  mensaje. Cada columna que no es propia del mensaje se vuelve un campo de un
+  cuerpo JSON con su propio nombre: una fila de tabla o una operación de Binance
+  llega como `{"price": …, "qty": …}`, y las columnas del mismo nombre se
+  emparejan solas. Hacia un exchange, empareja una columna con **routing_key**:
+  una fila sin ella va adonde el exchange envía una clave vacía.
+- **Añadir mensajes nuevos a una tabla**, desde un stream, lee solo lo llegado
+  desde la última ejecución del enlace. DataPlayer guarda dónde se detuvo, por
+  offset. **Añadir mensajes nuevos a una tabla nueva** pone una clave en el
+  offset de la tabla que crea, así un mensaje escrito dos veces se guarda una.
+- Los mismos enlaces desde una cola toman sus mensajes en espera, como cualquier
+  consumidor: cada bloque se confirma solo cuando está escrito. Si una ejecución
+  falla en medio, el bloque vuelve a la cola y se toma de nuevo, marcado como
+  reentregado. Otros consumidores comparten los mensajes con el enlace; para
+  todos, dale al enlace una cola propia vinculada al exchange.
+- Las columnas de una cola son las del mensaje — el cuerpo llega entero — y
+  **La primera ejecución lee** no significa nada para ella: siempre toma lo que
+  espera.
+- **Seguir** lleva lo que llega en segundos, desde un stream o una cola, como
+  desde un topic.
+
 ## Descargas
 
 **Descargar** en un stream guarda los mensajes que mostraría su página, con

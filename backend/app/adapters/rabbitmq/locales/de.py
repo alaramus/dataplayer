@@ -162,4 +162,6 @@ MESSAGES: dict[str, str] = {
     "Where Open management takes you; empty for the management address": "Wohin Management öffnen führt; leer für die Management-Adresse",
     "Open management": "Management öffnen",
     "The management page opens in a new tab": "Die Management-Seite öffnet sich in einem neuen Tab",
+    "Only a stream or a queue is read on": "Nur ein Stream oder eine Queue wird weitergelesen",
+    "Rows are sent to a stream, a queue or an exchange": "Zeilen gehen an einen Stream, eine Queue oder einen Exchange",
 }

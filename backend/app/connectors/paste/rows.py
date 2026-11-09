@@ -17,6 +17,7 @@ from app.adapters.protocol import (
     SupportsDropCreated,
     SupportsFetch,
     SupportsInsert,
+    SupportsMovingColumns,
     SupportsNodePath,
 )
 from app.adapters.relation import ColumnType
@@ -59,6 +60,21 @@ async def columns_of(source: DataAdapter, node_ids: list[str]) -> list[FetchColu
     return await _columns(source, node_ids[0], gone=N_("The copied node no longer exists"))
 
 
+async def moving_columns_of(
+    node: SupportsMovingColumns, node_id: str, given: list[FetchColumn] | None
+) -> list[FetchColumn] | str | None:
+    """What a node says its moving rows are (D336), its refusal in a sentence,
+    or None for its page's columns."""
+    try:
+        return await node.moving_columns(node_id, given)
+    except NodeNotFound:
+        return say("The ticked table no longer exists")
+    except ValueError:
+        return say(NOT_ROWS)
+    except AdapterError:
+        return say("The connection is unavailable")
+
+
 async def _columns(source: SupportsFetch, node_id: str, *, gone: str) -> list[FetchColumn] | str:
     try:
         page = await source.fetch(FetchRequest(node_id=node_id, limit=1))
@@ -99,8 +115,15 @@ async def into_table(
 ) -> PasteOffer:
     """The offer of rows read by `columns` into a table that is there, or
     that a link before will make (D178)."""
-    if isinstance(target_end, Foreseen):
-        target: list[FetchColumn] | str = target_end.columns
+    moving = (
+        await moving_columns_of(destination, target_end, columns)
+        if isinstance(target_end, str) and isinstance(destination, SupportsMovingColumns)
+        else None
+    )
+    if moving is not None:
+        target: list[FetchColumn] | str = moving
+    elif isinstance(target_end, Foreseen):
+        target = target_end.columns
     elif not isinstance(destination, SupportsFetch):
         return refused(kind, say("This connection cannot take rows"))
     else:

@@ -204,6 +204,34 @@ lange Liste zeigt die ersten fünfhundert und sagt es.
 - Die Suche in der Kopfzeile findet Queues, Streams und Exchanges nach Namen,
   in jedem virtuellen Host, den die Verbindung sieht.
 
+## In einer Pipeline
+
+RabbitMQ kann in der Mitte einer Pipeline stehen, wie ein Kafka-Topic: eine
+Verknüpfung schickt Zeilen hinein, andere tragen das Angekommene in Tabellen.
+
+- **Zeilen hinzufügen** an einen Exchange, eine Queue oder einen Stream schickt
+  jede Zeile als Nachricht. Jede Spalte, die nicht zur Nachricht selbst gehört,
+  wird ein Feld eines JSON-Inhalts unter ihrem Namen: eine Tabellenzeile oder ein
+  Binance-Trade kommt als `{"price": …, "qty": …}` an, gleichnamige Spalten
+  paaren sich von selbst. An einen Exchange paaren Sie eine Spalte mit
+  **routing_key**: eine Zeile ohne geht dorthin, wohin der Exchange einen leeren
+  Schlüssel schickt.
+- **Neue Nachrichten zu einer Tabelle hinzufügen** liest aus einem Stream nur, was
+  seit dem letzten Lauf der Verknüpfung ankam. Die Stelle hält DataPlayer, nach
+  Offset. **Neue Nachrichten zu einer neuen Tabelle hinzufügen** gibt der
+  angelegten Tabelle einen Schlüssel auf den Offset, so bleibt eine zweimal
+  geschriebene Nachricht einmal.
+- Dieselben Verknüpfungen aus einer Queue holen ihre wartenden Nachrichten wie
+  jeder Consumer: jeder Block wird erst bestätigt, wenn er geschrieben ist.
+  Scheitert ein Lauf dazwischen, geht der Block in die Queue zurück und wird
+  erneut geholt, als erneut zugestellt markiert. Andere Consumer teilen sich die
+  Nachrichten mit der Verknüpfung; für alle geben Sie ihr eine eigene Queue, an
+  den Exchange gebunden.
+- Die Spalten einer Queue sind die der Nachricht — der Inhalt kommt ganz — und
+  **Erster Lauf liest** bedeutet für sie nichts: sie holt immer, was wartet.
+- **Folgen** trägt Angekommenes binnen Sekunden, aus einem Stream oder einer
+  Queue, wie aus einem Topic.
+
 ## Herunterladen
 
 **Herunterladen** auf einem Stream speichert die Nachrichten, die seine Seite

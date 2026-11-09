@@ -2,9 +2,9 @@
 
 Read this before changing the pipelines space, a pipeline's cards, links,
 run, schedule or history, the answer of what a person's connections can
-give each other, or a link that reads a topic on from where it stopped, into a table it may make or into keys holding the latest per key, and a pipeline following its topics.
+give each other, or a link that reads a topic on from where it stopped, into a table it may make or into keys holding the latest per key, and a pipeline following its topics, and a node whose moving rows are not its page's (D336).
 
-Decisions here: D174, D175, D176, D177, D178, D179, D180, D312, D313, D314, D315.
+Decisions here: D174, D175, D176, D177, D178, D179, D180, D312, D313, D314, D315, D336.
 
 ## D174. What two connections can give each other is asked of no node
 
@@ -463,3 +463,20 @@ Known deviations:
   kept.
 
 Spec: [A pipeline that follows its topics](../decisions/2026-11-08-pipeline-following-design.md)
+
+## D336. A node may say which columns its rows have when they move
+
+A node whose page is not what moves through it says so through
+`SupportsMovingColumns`: asked with nothing, the columns rows read out of it
+have; asked with the columns of rows coming in, the columns it takes from
+them. A link reading on asks the source end first, and every link writing
+rows asks the target end first; either answer `None` for the page's columns.
+Paste in the catalog does not ask: it reads and writes pages.
+
+RabbitMQ is the first: a queue gives messages while its page is its bindings,
+and an exchange, a queue or a stream takes from rows of any columns the
+message's own a sender sets plus a body field named as each column coming in,
+so pairing by name puts a whole row into a JSON body (D335).
+
+Spec: [RabbitMQ in pipelines](../decisions/2026-11-09-rabbitmq-pipelines-design.md)
+

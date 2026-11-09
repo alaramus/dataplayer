@@ -251,4 +251,6 @@ MESSAGES: dict[str, str] = {
     'The first frame opens a watch': 'La première trame ouvre un suivi',
     'Sign in again to watch this': 'Reconnectez-vous pour suivre ceci',
     'No such node': 'Aucun nœud de ce nom',
+    "Only a topic, a stream, a queue, or a symbol's trades or candles, is read on from where the link stopped": "Seuls un topic, un stream, une file, ou les transactions ou bougies d'un symbole se lisent depuis l'endroit où le lien s'est arrêté",
+    "Tick a topic, a stream, a queue, or a symbol's trades or candles": "Cochez un topic, un stream, une file, ou les transactions ou bougies d'un symbole",
 }

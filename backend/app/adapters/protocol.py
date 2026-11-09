@@ -38,7 +38,7 @@ from app.adapters.content import (
 # Re-exported: every driver names the kind through this module.
 from app.adapters.errors import ErrorKind as ErrorKind
 from app.adapters.export import ExportBatch, ExportRequest
-from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.hypertable_design import HypertableDesignState
 from app.adapters.indexes import (
     CreateIndexRequest,
@@ -474,6 +474,22 @@ class SupportsReadingOn(Protocol):
     def row_key(self, node_id: str) -> list[str]:
         """The columns naming one row of this node, which a table a link makes
         is keyed by so a block read twice arrives once (D313)."""
+        ...
+
+
+@runtime_checkable
+class SupportsMovingColumns(Protocol):
+    """A node whose rows, when they move, are not the rows of its page (D336).
+
+    A RabbitMQ queue's page is its bindings while what leaves it is messages;
+    an exchange takes messages and holds none. Asked by a link before the page.
+    """
+
+    async def moving_columns(
+        self, node_id: str, given: list[FetchColumn] | None
+    ) -> list[FetchColumn] | None:
+        """The columns of rows read out of this node (`given` None), or taken
+        into it from rows of the `given` columns; None for its page's."""
         ...
 
 

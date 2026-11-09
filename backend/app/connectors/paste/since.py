@@ -26,6 +26,7 @@ from app.adapters.protocol import (
     SupportsFetch,
     SupportsInsert,
     SupportsKeyedWrite,
+    SupportsMovingColumns,
     SupportsReadingOn,
     SupportsSkippingInsert,
 )
@@ -52,6 +53,7 @@ from app.connectors.paste.rows import (
     columns_of,
     into_table,
     made_table,
+    moving_columns_of,
     name_of,
     new_table,
     why_ended,
@@ -67,7 +69,7 @@ from app.core.access import Access
 from app.core.translation import N_, say
 
 NOT_READ_ON = N_(
-    "Only a topic, or a symbol's trades or candles, is read on from where the link stopped"
+    "Only a topic, a stream, a queue, or a symbol's trades or candles, is read on from where the link stopped"
 )
 
 # Kafka's key, said in a sentence of its own: the first source that read on.
@@ -88,7 +90,7 @@ class _ReadsOn:
     makes: bool
     doing = N_("Adding new messages")
     done = N_("added")
-    needs = N_("Tick a topic, or a symbol's trades or candles")
+    needs = N_("Tick a topic, a stream, a queue, or a symbol's trades or candles")
     mode: ClipboardMode = "copy"
     converts = True
     can_replace = False
@@ -123,6 +125,11 @@ class _ReadsOn:
             return say(NOT_READ_ON)
         if not isinstance(source, SupportsReadingOn) or not source.reads_on(end):
             return say(NOT_READ_ON)
+        # A queue's page is its bindings; what is read of it is messages (D336).
+        if isinstance(source, SupportsMovingColumns):
+            moving = await moving_columns_of(source, end, None)
+            if moving is not None:
+                return moving
         return await columns_of(source, [end])
 
     def _source_checked(

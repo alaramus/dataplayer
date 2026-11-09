@@ -162,4 +162,6 @@ MESSAGES: dict[str, str] = {
     "Where Open management takes you; empty for the management address": "“打开管理页面”前往的地址；留空则为管理地址",
     "Open management": "打开管理页面",
     "The management page opens in a new tab": "管理页面将在新标签页中打开",
+    "Only a stream or a queue is read on": "只有流或队列可以继续读取",
+    "Rows are sent to a stream, a queue or an exchange": "行会发送到流、队列或交换器",
 }

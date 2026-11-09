@@ -143,11 +143,12 @@ async def test_properties_amqp_does_not_name_are_refused(vhost: str) -> None:
     assert isinstance(answer, ValuesRejected)
 
 
-async def test_a_queue_takes_no_rows(vhost: str) -> None:
+async def test_a_level_takes_no_rows(vhost: str) -> None:
+    """A stream, a queue and an exchange take messages (D336); a level none."""
     with pytest.raises(ValueError):
         await _adapter().insert_row(
             InsertRowRequest(
-                node_id=_id("queue", vhost, QUEUE),
+                node_id=f"queues:{_v(vhost)}",
                 values=[InsertValue(column="body", value="x")],
             )
         )

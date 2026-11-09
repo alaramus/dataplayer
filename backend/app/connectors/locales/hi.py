@@ -251,4 +251,6 @@ MESSAGES: dict[str, str] = {
     'The first frame opens a watch': 'पहला फ़्रेम देखना शुरू करता है',
     'Sign in again to watch this': 'इसे देखने के लिए फिर से साइन इन करें',
     'No such node': 'ऐसा कोई नोड नहीं',
+    "Only a topic, a stream, a queue, or a symbol's trades or candles, is read on from where the link stopped": "केवल टॉपिक, स्ट्रीम, क्यू, या किसी सिंबल के ट्रेड या कैंडल ही वहाँ से आगे पढ़े जाते हैं जहाँ लिंक रुका था",
+    "Tick a topic, a stream, a queue, or a symbol's trades or candles": "कोई टॉपिक, स्ट्रीम, क्यू, या किसी सिंबल के ट्रेड या कैंडल चुनें",
 }

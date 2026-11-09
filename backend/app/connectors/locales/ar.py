@@ -247,4 +247,6 @@ MESSAGES: dict[str, str] = {
     'The first frame opens a watch': 'الإطار الأول يفتح متابعة',
     'Sign in again to watch this': 'سجّل الدخول مجددًا لمتابعة هذا',
     'No such node': 'لا توجد عقدة كهذه',
+    "Only a topic, a stream, a queue, or a symbol's trades or candles, is read on from where the link stopped": "لا يُقرأ من حيث توقف الرابط إلا موضوع أو تدفق أو طابور أو صفقات رمز أو شموعه",
+    "Tick a topic, a stream, a queue, or a symbol's trades or candles": "حدّد موضوعًا أو تدفقًا أو طابورًا أو صفقات رمز أو شموعه",
 }

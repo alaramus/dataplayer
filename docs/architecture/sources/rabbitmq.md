@@ -7,11 +7,13 @@ terminal (D328, run as D286 says in [terminals.md](../terminals.md)), how
 messages are sent (D329) and queues, streams, exchanges and bindings changed,
 with a look inside a queue (D330), and the broker's reports, metrics and
 search (D331), a RabbitMQ started here with its lab (D332), and its management page opened
-in the browser (D334). The contract every source
+in the browser (D334), and a stream or a queue read on by a pipeline's link and
+messages taking rows (D335, the columns rows have when they move in
+[pipelines.md](../pipelines.md), D336). The contract every source
 type follows is in [contract.md](contract.md); the other queue is in
 [kafka.md](kafka.md). Read this before changing the `rabbitmq` adapter.
 
-Decisions here: D325, D326, D327, D328, D329, D330, D331, D332, D334.
+Decisions here: D325, D326, D327, D328, D329, D330, D331, D332, D334, D335.
 
 ## D325. A RabbitMQ source looks through the management API and moves messages over AMQP
 
@@ -283,3 +285,44 @@ service fills in when it starts and again whenever the runtime gives it
 another (D333).
 
 Spec: [A service with more than one port](../../decisions/2026-11-09-service-ports-design.md)
+
+## D335. A stream is read on from a bookmark; a queue is consumed and acknowledged once written
+
+Both implement `SupportsReadingOn` (D312), so the link kinds that read on and
+following (D315) take them as they take a topic.
+
+**A stream**: the bookmark is kept by this application in `reading_bookmark`
+(D319), the next offset under `""`, since RabbitMQ keeps a reader's offset
+only for the stream protocol. The line is the end when the step starts;
+`earliest` is the first offset still kept, `latest` the end; a bookmark before
+the first kept offset counts the gap as lost. A table the link makes is keyed
+by `offset` (D313).
+
+**A queue**: the link is a consumer. The line is the number of ready messages
+when the step starts. A block is taken without acknowledgement on a channel
+the adapter holds, with a prefetch of the block's size; `mark_read`, called
+once the block is written, acknowledges it to its last delivery and closes
+the channel. A block never kept is handed back when the next block is asked
+for, or when its channel is closed after two minutes, and the broker delivers
+it again marked redelivered: at least once. Other consumers share the queue
+with the link. The columns read are the message's own (D336), without the
+body's fields; a table the link makes has no key; the first run's start
+choice means nothing for a queue.
+
+Rows taken into an exchange, a queue or a stream are messages (D336): every
+column that is not the message's own becomes a field of a JSON body, its text
+read as JSON when it is a number, a boolean or an object. A queue is published
+to by its name, an exchange with each row's `routing_key`; rows are not
+mandatory, so where an exchange routes them is its own business.
+
+Known deviations:
+
+- **A queue's body fields are not columns**: finding them needs a look at
+  messages, which is a delivery (D330); a JSON body arrives whole in one
+  column.
+- **The held channel lives in the adapter object of one run**: a process that
+  dies between a block and its acknowledgement hands the block back when its
+  connection drops, which is the broker's own at least once.
+
+Spec: [RabbitMQ in pipelines](../../decisions/2026-11-09-rabbitmq-pipelines-design.md)
+

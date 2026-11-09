@@ -12,7 +12,7 @@ from urllib.parse import quote, unquote, urlsplit
 from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.export import ExportBatch, ExportRequest
-from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.rabbitmq.actions import (
@@ -40,6 +40,7 @@ from app.adapters.rabbitmq.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.rabbitmq.metrics import RabbitmqMetrics
 from app.adapters.rabbitmq.options import RabbitmqOptions
 from app.adapters.rabbitmq.peeks import RabbitmqPeeks
+from app.adapters.rabbitmq.reading import RabbitmqReading
 from app.adapters.rabbitmq.reports import (
     REPORTS,
     RabbitmqReports,
@@ -55,6 +56,13 @@ from app.adapters.rabbitmq.session import RabbitmqSession
 from app.adapters.rabbitmq.streams import RabbitmqStreams
 from app.adapters.rabbitmq.summaries import node_summary
 from app.adapters.rabbitmq.writes import RabbitmqWrites
+from app.adapters.reading_on import (
+    Bookmark,
+    BookmarkAccess,
+    ReadBlock,
+    ReadStart,
+    UnreadSpan,
+)
 from app.adapters.registry import AdapterContext, register
 from app.adapters.resources import Pooling
 from app.adapters.search import (
@@ -83,7 +91,10 @@ class RabbitmqAdapter:
     """Facade over a session and the capabilities built on it (D2b)."""
 
     def __init__(
-        self, options: RabbitmqOptions, pooling: Pooling | None = None
+        self,
+        options: RabbitmqOptions,
+        pooling: Pooling | None = None,
+        bookmarks: BookmarkAccess | None = None,
     ) -> None:
         self._session = RabbitmqSession(options)
         self._bindings = RabbitmqBindings(self._session)
@@ -95,6 +106,7 @@ class RabbitmqAdapter:
         self._metrics = RabbitmqMetrics(self._session)
         self._search = RabbitmqSearch(self._session)
         self._samples = RabbitmqSamples(self._session)
+        self._reading = RabbitmqReading(self._session, bookmarks)
 
     # --- how to reach it, in one line --------------------------------------------
 
@@ -336,6 +348,34 @@ class RabbitmqAdapter:
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return [self._actions.get(name) for name in offered(node_id)]
 
+    # --- read on by a pipeline's link, and rows it moves (D335, D336) ------------
+
+    def reads_on(self, node_id: str) -> bool:
+        return self._reading.reads_on(node_id)
+
+    async def unread(self, node_id: str, reader: str, start: ReadStart) -> UnreadSpan:
+        self._own(parse(node_id).vhost, node_id)
+        return await self._reading.unread(node_id, reader, start)
+
+    async def read_on(
+        self, node_id: str, columns: list[str], at: Bookmark, line: Bookmark, limit: int
+    ) -> ReadBlock:
+        return await self._reading.read_on(node_id, columns, at, line, limit)
+
+    async def mark_read(self, node_id: str, reader: str, at: Bookmark) -> None:
+        await self._reading.mark_read(node_id, reader, at)
+
+    def row_key(self, node_id: str) -> list[str]:
+        return self._reading.row_key(node_id)
+
+    async def moving_columns(
+        self, node_id: str, given: list[FetchColumn] | None
+    ) -> list[FetchColumn] | None:
+        if in_section(node_id) or is_section(node_id):
+            return None
+        self._own(parse(node_id).vhost, node_id)
+        return await self._reading.moving_columns(node_id, given)
+
     async def console_program(self) -> ConsoleProgram:
         """rabbitmqadmin, set up for this connection, in a container (D328)."""
         return console_program(self._session.options)
@@ -366,4 +406,5 @@ def _compose(host: str, port: int, user: str, vhost: str, tls: bool) -> str:
 )
 def _build(options: RabbitmqOptions, context: AdapterContext) -> RabbitmqAdapter:
     # The pooling keeps what Peek took (D330); a draft has none.
-    return RabbitmqAdapter(options, context.pooling)
+    # The bookmarks keep where a stream's reader stands (D335).
+    return RabbitmqAdapter(options, context.pooling, context.bookmarks)

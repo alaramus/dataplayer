@@ -36,7 +36,7 @@ documentation.
 | ClickHouse, its HTTP interface, its catalog, values, pages, row edits, structure changes, the table designer, reports, search, export, catalog actions and console | [sources/clickhouse.md](docs/architecture/sources/clickhouse.md) |
 | ZooKeeper, the server it reaches, its znode tree, a znode's data, stat, ACL and children, making and deleting znodes, reports, metrics, search, export, its service and lab, zkCli | [sources/zookeeper.md](docs/architecture/sources/zookeeper.md) |
 | Kafka, the cluster it reaches, its topics and consumer groups, a topic's messages as rows, a group's positions and lag, sending messages, making and changing topics, moving a group's positions or deleting a group, reports, metrics, search, export, its service and lab, Kafka's tools in a terminal | [sources/kafka.md](docs/architecture/sources/kafka.md) |
-| RabbitMQ, the broker it reaches through the management API and AMQP, its virtual hosts, queues, streams and exchanges, a queue's and an exchange's bindings, a stream's messages as rows, sending messages, making and deleting queues, streams and exchanges, binding, purging, Peek, reports, metrics, search, its service and lab, its management page, rabbitmqadmin in a terminal | [sources/rabbitmq.md](docs/architecture/sources/rabbitmq.md) |
+| RabbitMQ, the broker it reaches through the management API and AMQP, its virtual hosts, queues, streams and exchanges, a queue's and an exchange's bindings, a stream's messages as rows, sending messages, making and deleting queues, streams and exchanges, binding, purging, Peek, reports, metrics, search, its service and lab, its management page, a stream or queue read on by a link and messages taking rows, rabbitmqadmin in a terminal | [sources/rabbitmq.md](docs/architecture/sources/rabbitmq.md) |
 | Binance, the endpoint it reaches, its rate limit, its markets and COIN-M's contracts, an API key and the account it reads, quote assets and symbols, tickers, trading rules, candles, trades and the order book as rows, trades and candles read on by a link and their bookmarks, a symbol's market watched live, its reports, metrics and search | [sources/binance.md](docs/architecture/sources/binance.md) |
 | MongoDB, the server it reaches, its catalog, its query console, how a collection becomes columns, how documents are read and changed, fields and indexes, reports, search, export, catalog actions, copying collections, backups, metrics, its service and lab | [sources/mongodb.md](docs/architecture/sources/mongodb.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
@@ -66,7 +66,7 @@ documentation.
 | A floating window, the forms in it, detaching a tab, a pair of catalogs | [windows.md](docs/architecture/windows.md) |
 | A notification, something waiting for an answer, running work on screen | [notifications.md](docs/architecture/notifications.md) |
 | A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
-| A pipeline, its cards, links, run, schedule and history, what connections can give each other, a link reading a topic on | [pipelines.md](docs/architecture/pipelines.md) |
+| A pipeline, its cards, links, run, schedule and history, what connections can give each other, a link reading a topic on, a node's columns when rows move | [pipelines.md](docs/architecture/pipelines.md) |
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | The agent, its tools, sending data to a third party, quick chat | [ai.md](docs/architecture/ai.md) |
@@ -120,7 +120,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/ssh](docs/architecture/sources/ssh.md) | D144–D147, D153, D154, D266, D282 |
 | [terminals](docs/architecture/terminals.md) | D148, D149, D286 |
 | [sources/explorer](docs/architecture/sources/explorer.md) | D150–D152, D324 |
-| [pipelines](docs/architecture/pipelines.md) | D174–D180, D312–D315 |
+| [pipelines](docs/architecture/pipelines.md) | D174–D180, D312–D315, D336 |
 | [search](docs/architecture/search.md) | D197–D205 |
 | [search-kept](docs/architecture/search-kept.md) | D212–D222 |
 | [localization](docs/architecture/localization.md) | D224–D227, D281 |
@@ -131,7 +131,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/zookeeper](docs/architecture/sources/zookeeper.md) | D297–D303 |
 | [sources/kafka](docs/architecture/sources/kafka.md) | D304–D311 |
 | [sources/binance](docs/architecture/sources/binance.md) | D316–D323 |
-| [sources/rabbitmq](docs/architecture/sources/rabbitmq.md) | D325–D332, D334 |
+| [sources/rabbitmq](docs/architecture/sources/rabbitmq.md) | D325–D332, D334, D335 |
 
 ## Working rules
 

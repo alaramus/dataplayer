@@ -202,6 +202,33 @@ secondes. Une longue liste montre ses cinq cents premiers éléments et le dit.
 - La recherche de l'en-tête trouve files, streams et échanges par nom, dans
   chaque hôte virtuel que voit la connexion.
 
+## Dans un pipeline
+
+RabbitMQ peut se tenir au milieu d'un pipeline, comme un topic Kafka : un lien
+y envoie des lignes, d'autres portent ce qui arrive dans des tables.
+
+- **Ajouter des lignes** à un échange, une file ou un stream envoie chaque ligne
+  comme un message. Chaque colonne qui n'est pas propre au message devient un
+  champ d'un corps JSON sous son propre nom : une ligne de table ou une
+  transaction Binance arrive comme `{"price": …, "qty": …}`, et les colonnes de
+  même nom s'apparient d'elles-mêmes. Vers un échange, appariez une colonne avec
+  **routing_key** : une ligne sans elle va où l'échange envoie une clé vide.
+- **Ajouter les nouveaux messages à une table**, depuis un stream, ne lit que ce
+  qui est arrivé depuis la dernière exécution du lien. L'endroit où il s'est
+  arrêté est gardé par DataPlayer, par offset. **Ajouter les nouveaux messages à
+  une nouvelle table** met une clé sur l'offset de la table créée : un message
+  écrit deux fois est gardé une fois.
+- Les mêmes liens depuis une file prennent ses messages en attente, comme tout
+  consommateur : chaque bloc n'est acquitté qu'une fois écrit. Si une exécution
+  échoue entre les deux, le bloc retourne dans la file et est repris, marqué
+  relivré. Les autres consommateurs partagent les messages avec le lien ; donnez
+  au lien une file à lui, liée à l'échange, pour les avoir tous.
+- Les colonnes d'une file sont celles du message — son corps arrive entier — et
+  **La première exécution lit** n'a pas de sens pour elle : elle prend toujours
+  ce qui attend.
+- **Suivre** porte ce qui arrive en quelques secondes, depuis un stream ou une
+  file, comme depuis un topic.
+
 ## Téléchargements
 
 **Télécharger** sur un stream enregistre les messages que sa page afficherait,

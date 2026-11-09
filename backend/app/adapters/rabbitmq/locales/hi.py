@@ -162,4 +162,6 @@ MESSAGES: dict[str, str] = {
     "Where Open management takes you; empty for the management address": "मैनेजमेंट खोलें कहाँ ले जाता है; खाली हो तो मैनेजमेंट पता",
     "Open management": "मैनेजमेंट खोलें",
     "The management page opens in a new tab": "मैनेजमेंट पेज नए टैब में खुलता है",
+    "Only a stream or a queue is read on": "केवल स्ट्रीम या क्यू ही आगे पढ़े जाते हैं",
+    "Rows are sent to a stream, a queue or an exchange": "पंक्तियाँ स्ट्रीम, क्यू या एक्सचेंज में भेजी जाती हैं",
 }

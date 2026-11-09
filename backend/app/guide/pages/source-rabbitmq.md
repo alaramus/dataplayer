@@ -192,6 +192,31 @@ its first five hundred and says so.
 - The search in the header finds queues, streams and exchanges by name, in
   every virtual host the connection sees.
 
+## In a pipeline
+
+RabbitMQ can sit in the middle of a pipeline, as a Kafka topic can: one link
+sends rows into it, others carry what arrives into tables.
+
+- **Add rows** into an exchange, a queue or a stream sends each row as a
+  message. Every column that is not a message's own becomes a field of a JSON
+  body under its own name, so a row of a table or a Binance trade arrives as
+  `{"price": …, "qty": …}`; columns of the same name pair by themselves. Into
+  an exchange, pair a column with **routing_key**: a row without one goes
+  wherever the exchange sends an empty key.
+- **Add new messages to a table**, from a stream, reads only what arrived since
+  the link's last run. The place it stopped is kept by DataPlayer, by offset.
+  **Add new messages to a new table** keys the table it makes on the offset,
+  so a message written twice is kept once.
+- The same links from a queue take its waiting messages, as any consumer of
+  it does: each block is acknowledged only once it is written. If a run fails
+  in between, the block goes back to the queue and is taken again, marked
+  redelivered. Other consumers of the queue share its messages with the link;
+  give a link a queue of its own, bound to the exchange, for all of them.
+- A queue's columns are the message's own — its body arrives whole — and
+  **First run reads** means nothing for it: it always takes what waits.
+- **Follow** carries what arrives within seconds, from a stream or a queue,
+  as it does from a topic.
+
 ## Downloads
 
 **Download** on a stream saves the messages its page would show, with its
