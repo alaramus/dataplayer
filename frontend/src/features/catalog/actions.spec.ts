@@ -5,6 +5,7 @@ import { at, first } from "@/shared/testing/collections"
 import {
   byKind,
   tickableKinds,
+  tickableKindsOf,
   clientCommandOf,
   clientMenu,
   groupingChoices,
@@ -842,5 +843,16 @@ describe("what ticked nodes admit, by kind", () => {
     const items = [{ kind: "table", summarizable: true }, { kind: "report", summarizable: false }]
 
     expect(tickableKinds([], items)).toEqual(new Set(["table"]))
+  })
+
+  it("draws no tick box on a source with no actions at all", () => {
+    const items = [{ kind: "symbol" }, { kind: "feed" }]
+
+    expect(tickableKindsOf(undefined, 501, items)).toEqual(new Set())
+  })
+
+  it("keeps every box while the vocabulary is not known yet", () => {
+    expect(tickableKindsOf(undefined, null, [{ kind: "table" }])).toBeNull()
+    expect(tickableKindsOf(undefined, 500, [{ kind: "table" }])).toBeNull()
   })
 })

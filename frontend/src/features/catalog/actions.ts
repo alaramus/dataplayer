@@ -266,6 +266,23 @@ export function tickableKinds(
   ])
 }
 
+/**
+ * The kinds a box is drawn for, from the vocabulary as far as it is known.
+ *
+ * A source with no actions at all answers 501, and that is settled: an empty
+ * vocabulary rather than one still unknown. Null — not known yet, every row
+ * keeps its box — gave a market's symbols boxes that ticked nothing.
+ */
+export function tickableKindsOf(
+  vocabulary: ActionInfo[] | undefined,
+  status: number | null,
+  items: readonly { kind: string; summarizable?: boolean | null }[] = []
+): Set<string> | null {
+  if (vocabulary) return tickableKinds(vocabulary, items)
+  if (status === 501) return tickableKinds([], items)
+  return null
+}
+
 /** Why a line is off when its subject is empty, keyed by what it acts on. */
 function noTarget(actsOn: ActionInfo["acts_on"]): string {
   return t(`catalog.actions.no_target.${actsOn}`)

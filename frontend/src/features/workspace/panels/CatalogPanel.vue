@@ -7,7 +7,7 @@ import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
 import { useLiveChanges } from "@/features/catalog/liveChanges"
-import { reloadedBy, replacementsOf, tickableKinds, ticksAfter } from "@/features/catalog/actions"
+import { reloadedBy, replacementsOf, tickableKindsOf, ticksAfter } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { useCatalogLoader, useNodeActions, useNodePathLoader, useNodeSearcher } from "@/features/catalog/api"
 import type { SearchScope } from "@/features/catalog/api"
@@ -83,7 +83,9 @@ const vocabulary = useNodeActions(
   connectorId,
   computed(() => (level.currentId.value === null || level.currentId.value === "" ? null : [level.currentId.value]))
 )
-const tickable = computed(() => (vocabulary.data.value ? tickableKinds(vocabulary.data.value, level.items.value) : null))
+const tickable = computed(() =>
+  tickableKindsOf(vocabulary.data.value, statusOf(vocabulary.error.value), level.items.value)
+)
 
 /**
  * The colour of the connection this catalog belongs to, if it was given one.
