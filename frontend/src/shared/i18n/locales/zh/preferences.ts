@@ -24,6 +24,10 @@ export const preferences: Messages["preferences"] = {
   tour_summary:
     "首次访问时的短片，应用的每个主要部分各一段。随时可在此重新打开。",
   replay_tour: "重播引导",
+  storage: "个人存储",
+  storage_summary: "您在此服务器上的文件，以及管理员设定的上限",
+  storage_used: "已使用 {used}，共 {limit}",
+  storage_unlimited: "已使用 {used}，不限",
   checks: "检查连接是否可访问",
   checks_summary:
     "工作区打开时，会按此计划探测每个连接，其旁的圆点显示上次的响应。探测会打开自己的连接，因此对于缓慢或远程的服务器，值得降低询问频率。",

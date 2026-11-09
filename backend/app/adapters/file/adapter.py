@@ -23,7 +23,9 @@ class FileAdapter(Explorer):
 
     def __init__(self, options: FileOptions, context: AdapterContext) -> None:
         root = context.home_dir.joinpath(*PurePosixPath(options.below_home).parts)
-        self._local = LocalStorage(root, home_dir=context.home_dir)
+        self._local = LocalStorage(
+            root, home_dir=context.home_dir, limit_bytes=context.home_limit_bytes
+        )
         super().__init__(self._local)
 
     @property

@@ -56,6 +56,9 @@ test("keeps how often connections are checked", async ({ page }) => {
   await expect(page.getByTestId("preferences")).toBeVisible()
   // The theme lives in the General section the address opens.
   await expectField(page, "preference-theme", "Theme")
+  // So does how full the person's own storage is (D324).
+  await expect(page.getByTestId("preference-storage")).toContainText(/in use/)
+  await page.getByTestId("preferences").screenshot({ path: "test-results/preferences-general.png" })
 
   await page.getByTestId("preferences-section-connections").click()
   const checks = page.locator(".q-field").filter({ has: page.getByTestId(CHECKS) }).first()

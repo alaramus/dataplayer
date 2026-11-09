@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     # Holds one directory per user. A file connector can only ever reach
     # inside the directory of its owner.
     USER_STORAGE_ROOT: Path = Path("/data/users")
+    # How much one directory may hold, in megabytes, where a superuser has not
+    # set another figure for that person; 0 is no limit (D324).
+    USER_STORAGE_QUOTA_MB: int = Field(default=0, ge=0)
 
     # Where each process keeps its log as a file of JSON lines, rotated by
     # size, beside standard output. Unset keeps standard output alone (D184).

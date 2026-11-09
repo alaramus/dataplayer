@@ -23,6 +23,7 @@ from app.api.main import api_router
 from app.connectors.health import unreachable_of
 from app.core import logs
 from app.core.config import settings
+from app.core.db import async_session_maker
 from app.core.failures import RecordFailures
 from app.core.translation import RequestLanguage
 from app.jobs.recovery import settle_stranded
@@ -59,6 +60,7 @@ from app.source_operations.handler import handlers as source_operation_handlers
 from app.source_operations.recovery import settle_interrupted_operations
 from app.transfers.handler import RunTransfer
 from app.transfers.handler import handlers as transfer_handlers
+from app.users import quota
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -174,6 +176,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     # the generic sweep ends the jobs (D123).
     await settle_interrupted_operations(application.state.data_cache)
     await settle_stranded()
+    async with async_session_maker() as session:
+        await quota.load(session)
     await to_thread.run_sync(remove_stranded_snapshots)
     # Copies of remote files a previous process held are nobody's now (D152).
     await to_thread.run_sync(copies().clear)

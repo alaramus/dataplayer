@@ -5,6 +5,7 @@ this path themselves: they are handed the resolved root, so the boundary has a
 single definition and cannot be widened by a request.
 """
 
+import os
 import shutil
 import uuid
 from pathlib import Path
@@ -42,3 +43,28 @@ def remove_home(user_id: uuid.UUID) -> None:
     if home.is_symlink() or not home.is_dir():
         return
     shutil.rmtree(home)
+
+
+def used_bytes(directory: Path) -> int:
+    """What the files below a directory take, links not followed (D324).
+
+    Walked each time rather than kept: a SQLite file grows and a program in a
+    container writes without telling the server. Blocking work.
+    """
+    total = 0
+    pending = [directory]
+    while pending:
+        try:
+            listing = os.scandir(pending.pop())
+        except OSError:
+            continue
+        with listing:
+            for item in listing:
+                try:
+                    if item.is_dir(follow_symlinks=False):
+                        pending.append(Path(item.path))
+                    elif item.is_file(follow_symlinks=False):
+                        total += item.stat(follow_symlinks=False).st_size
+                except OSError:
+                    continue
+    return total

@@ -24,6 +24,10 @@ export const preferences: Messages["preferences"] = {
   tour_summary:
     "Les courts clips de la première visite, un pour chaque partie principale de l'application. Elle peut être rouverte ici à tout moment.",
   replay_tour: "Rejouer la visite",
+  storage: "Stockage personnel",
+  storage_summary: "Vos propres fichiers sur ce serveur et la limite fixée par un administrateur",
+  storage_used: "{used} sur {limit} utilisés",
+  storage_unlimited: "{used} utilisés, aucune limite",
   checks: "Vérifier que les connexions sont joignables",
   checks_summary:
     "Chaque connexion est sondée selon ce programme pendant qu'un espace de travail est ouvert, et le point à côté indique la dernière réponse. Une sonde ouvre sa propre connexion, aussi un serveur lent ou distant mérite d'être interrogé moins souvent.",

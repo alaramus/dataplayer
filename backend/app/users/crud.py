@@ -6,7 +6,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_password_hash, verify_password
-from app.users import invitations, storage
+from app.users import invitations, quota, storage
 from app.users.models import User, UserCreate, UserInvite, UserUpdate
 
 
@@ -29,6 +29,7 @@ async def create_invited_user(*, session: AsyncSession, user_in: UserInvite) -> 
     session.add(db_obj)
     await session.commit()
     await session.refresh(db_obj)
+    quota.remember(db_obj.id, db_obj.storage_quota_mb)
     await to_thread.run_sync(storage.create_home, db_obj.id)
     return db_obj
 
@@ -55,6 +56,7 @@ async def update_user(
     session.add(db_user)
     await session.commit()
     await session.refresh(db_user)
+    quota.remember(db_user.id, db_user.storage_quota_mb)
     return db_user
 
 
@@ -70,6 +72,7 @@ async def delete_user(*, session: AsyncSession, user: User) -> None:
     # Related rows are removed by the database-level cascade.
     await session.delete(user)
     await session.commit()
+    quota.remember(user_id, None)
     await to_thread.run_sync(storage.remove_home, user_id)
 
 

@@ -14,6 +14,8 @@ export interface UserForm {
   fullName: string
   isActive: boolean
   isSuperuser: boolean
+  /** Megabytes the person's storage may hold; null leaves the server's figure (D324). */
+  storageQuotaMb: number | null
 }
 
 export function emptyForm(): UserForm {
@@ -22,6 +24,7 @@ export function emptyForm(): UserForm {
     fullName: "",
     isActive: true,
     isSuperuser: false,
+    storageQuotaMb: null,
   }
 }
 
@@ -31,6 +34,7 @@ export function formOf(user: UserPublic): UserForm {
     fullName: user.full_name ?? "",
     isActive: user.is_active ?? true,
     isSuperuser: user.is_superuser ?? false,
+    storageQuotaMb: user.storage_quota_mb ?? null,
   }
 }
 
@@ -45,6 +49,9 @@ export function validate(form: UserForm): Record<string, string> {
   if (!/^\S+@\S+\.\S+$/.test(form.email)) {
     errors.email = t("admin.users.email_invalid")
   }
+  if (form.storageQuotaMb !== null && (!Number.isInteger(form.storageQuotaMb) || form.storageQuotaMb < 0)) {
+    errors.storageQuotaMb = t("admin.users.storage_limit_invalid")
+  }
   return errors
 }
 
@@ -54,6 +61,7 @@ export function toCreate(form: UserForm): UserInvite {
     full_name: form.fullName === "" ? null : form.fullName,
     is_active: form.isActive,
     is_superuser: form.isSuperuser,
+    storage_quota_mb: form.storageQuotaMb,
   }
 }
 
@@ -63,7 +71,16 @@ export function toUpdate(form: UserForm): UserUpdate {
     full_name: form.fullName === "" ? null : form.fullName,
     is_active: form.isActive,
     is_superuser: form.isSuperuser,
+    storage_quota_mb: form.storageQuotaMb,
   }
+}
+
+/** What the table says of a person's limit: theirs, or the server's. */
+export function storageLimitText(user: UserPublic): string {
+  const megabytes = user.storage_quota_mb ?? null
+  if (megabytes === null) return t("admin.users.storage_limit_server")
+  if (megabytes === 0) return t("admin.users.storage_limit_none")
+  return t("admin.users.storage_limit_mb", { n: megabytes })
 }
 
 /**

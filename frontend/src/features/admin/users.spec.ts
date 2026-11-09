@@ -4,6 +4,7 @@ import type { UserPublic } from "@/client"
 import {
   emptyForm,
   formOf,
+  storageLimitText,
   toCreate,
   toUpdate,
   undeletableReason,
@@ -33,6 +34,25 @@ describe("what is sent", () => {
 
   it("sends an empty name as nothing rather than as an empty string", () => {
     expect(toCreate({ ...emptyForm(), email: "a@b.co" }).full_name).toBeNull()
+  })
+})
+
+describe("the storage limit (D324)", () => {
+  it("sends an empty field as null, which leaves the server's figure", () => {
+    expect(toUpdate(formOf(user)).storage_quota_mb).toBeNull()
+    expect(toUpdate({ ...formOf(user), storageQuotaMb: 500 }).storage_quota_mb).toBe(500)
+  })
+
+  it("refuses a negative or fractional figure", () => {
+    expect(validate({ ...formOf(user), storageQuotaMb: -1 }).storageQuotaMb).toBeTruthy()
+    expect(validate({ ...formOf(user), storageQuotaMb: 1.5 }).storageQuotaMb).toBeTruthy()
+    expect(validate({ ...formOf(user), storageQuotaMb: 0 })).toEqual({})
+  })
+
+  it("tells the server's figure, no limit and a person's own apart in the table", () => {
+    const texts = [null, 0, 250].map((n) => storageLimitText({ ...user, storage_quota_mb: n }))
+    expect(new Set(texts).size).toBe(3)
+    expect(texts[2]).toContain("250")
   })
 })
 

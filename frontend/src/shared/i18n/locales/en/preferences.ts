@@ -22,6 +22,10 @@ export const preferences = {
   tour_summary:
     "The short clips from the first visit, one for each main part of the application. Opens here again whenever it is wanted.",
   replay_tour: "Replay tour",
+  storage: "Personal storage",
+  storage_summary: "Your own files on this server, against the limit an administrator set",
+  storage_used: "{used} of {limit} in use",
+  storage_unlimited: "{used} in use, no limit",
   checks: "Check that connections are reachable",
   checks_summary:
     "Every connection is probed on this schedule while a workspace is open, and the dot beside it says what the last answer was. A probe opens a connection of its own, so a slow or distant server is worth asking less often.",

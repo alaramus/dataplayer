@@ -20,7 +20,7 @@ from app.adapters.catalog import NodeKind
 from app.adapters.features import FeatureCode
 from app.core.access import Access
 from app.core.problems import ProblemDetail
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 
 class NodeReplacement(BaseModel):
@@ -123,6 +123,25 @@ class ActionRefused(Exception):
         super().__init__(message)
         self.reason: RefusalReason = reason
         self.message = message
+
+
+class StorageFull(ActionRefused, ValueError):
+    """A write that would take a person's directory past its limit (D324).
+
+    A ValueError as well: saving a file's text or a table's rows is not an
+    action, and those routes answer a ValueError with its message.
+    """
+
+    def __init__(self, used_bytes: int, limit_bytes: int) -> None:
+        megabyte = 1024 * 1024
+        super().__init__(
+            "too_large",
+            say(
+                "Your personal storage is full: {used} MB of {limit} MB in use",
+                used=-(-used_bytes // megabyte),
+                limit=limit_bytes // megabyte,
+            ),
+        )
 
 
 class UnknownAction(Exception):

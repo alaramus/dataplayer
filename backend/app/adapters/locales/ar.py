@@ -91,4 +91,5 @@ MESSAGES: dict[str, str] = {
     "A backup does not go through an SSH tunnel yet": "لا يمكن للنسخة الاحتياطية بعدُ أن تمر عبر نفق SSH",
     'Follow changes as they happen': 'متابعة التغييرات فور حدوثها',
     "Show a node's details": 'عرض تفاصيل عقدة',
+    "Your personal storage is full: {used} MB of {limit} MB in use": "مساحة التخزين الشخصية ممتلئة: {used} ميغابايت مستخدمة من {limit} ميغابايت",
 }

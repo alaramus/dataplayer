@@ -24,6 +24,10 @@ export const preferences: Messages["preferences"] = {
   tour_summary:
     "Los breves clips de la primera visita, uno por cada parte principal de la aplicación. Se abre aquí de nuevo siempre que se quiera.",
   replay_tour: "Repetir el recorrido",
+  storage: "Almacenamiento personal",
+  storage_summary: "Sus propios archivos en este servidor y el límite que fijó un administrador",
+  storage_used: "{used} de {limit} en uso",
+  storage_unlimited: "{used} en uso, sin límite",
   checks: "Comprobar que las conexiones son accesibles",
   checks_summary:
     "Cada conexión se sondea según esta programación mientras hay un espacio de trabajo abierto, y el punto que la acompaña indica cuál fue la última respuesta. Un sondeo abre una conexión propia, así que conviene preguntar con menos frecuencia a un servidor lento o lejano.",

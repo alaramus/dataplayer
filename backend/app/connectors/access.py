@@ -25,7 +25,7 @@ from app.connectors.tunnels import OwnerTunnels
 from app.core.access import Access, at_least
 from app.core.problems import Problem, ProblemCode
 from app.core.translation import say
-from app.users import storage
+from app.users import quota, storage
 from app.users.models import User
 
 # A code per level, not the level as a parameter (D225).
@@ -111,6 +111,7 @@ def context_for(
     """
     return AdapterContext(
         home_dir=storage.home_dir(owner_id),
+        home_limit_bytes=quota.limit_bytes(owner_id),
         pooling=pooling,
         keys=OwnerKeys(owner_id),
         tunnels=OwnerTunnels(owner_id),

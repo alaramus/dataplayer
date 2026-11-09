@@ -27,7 +27,7 @@ from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.protocol import ConnectionCheckResult
 from app.core.config import settings
 from app.main import app
-from app.users import crud, storage
+from app.users import crud, quota, storage
 from tests.utils.database import working_postgres_options
 from tests.utils.files import look
 from tests.utils.relation_fixture import make_schema, run
@@ -938,6 +938,33 @@ async def test_uploading_over_a_taken_name_is_a_conflict(
     )
 
     assert response.status_code == 409
+
+
+async def test_an_upload_past_the_owners_limit_is_refused_and_lands_nowhere(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], home: Path, db: AsyncSession
+) -> None:
+    # Through the API, so the limit is shown to reach the source from its owner (D324).
+    user = await crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
+    assert user is not None
+    connector_id = await _file_connector(client, normal_user_token_headers)
+    quota.remember(user.id, 1)
+    try:
+        response = await _upload(
+            client,
+            normal_user_token_headers,
+            connector_id,
+            "too-big.bin",
+            b"x" * (storage.used_bytes(home) + 1024 * 1024),
+            "reports",
+        )
+    finally:
+        quota.remember(user.id, None)
+
+    assert response.status_code == 413, response.text
+    assert response.json()["detail"]["reason"] == "too_large"
+    assert "personal storage is full" in response.json()["detail"]["message"]
+    assert not (home / "reports" / "too-big.bin").exists()
+    assert not [path for path in (home / "reports").iterdir() if path.name.startswith(".upload-")]
 
 
 @pytest.mark.usefixtures("home")

@@ -33,3 +33,11 @@ export function useUpdatePreferences() {
     },
   })
 }
+
+/** How full the person's own storage is, against its limit (D324). */
+export function useMyStorage() {
+  return useQuery({
+    queryKey: ["storage", "me"] as const,
+    queryFn: async () => (await UsersService.readMyStorage()).data,
+  })
+}

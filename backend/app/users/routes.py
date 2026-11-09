@@ -1,6 +1,7 @@
 import uuid
 from typing import Any
 
+from anyio import to_thread
 from fastapi import APIRouter, Depends
 from sqlmodel import col, func, select
 
@@ -9,10 +10,11 @@ from app.core.problems import Problem
 from app.core.schemas import Message
 from app.core.security import get_password_hash, verify_password
 from app.core.translation import say
-from app.users import crud, invitations, preferences
+from app.users import crud, invitations, preferences, quota, storage
 from app.users.deps import CurrentUser, get_current_active_superuser
 from app.users.models import (
     InvitationLink,
+    StorageUsage,
     UpdatePassword,
     User,
     UserBrief,
@@ -159,6 +161,13 @@ async def read_user_me(current_user: CurrentUser) -> Any:
     Get current user.
     """
     return current_user
+
+
+@router.get("/me/storage", response_model=StorageUsage)
+async def read_my_storage(current_user: CurrentUser) -> Any:
+    """How full the caller's personal storage is, against its limit (D324)."""
+    used = await to_thread.run_sync(storage.used_bytes, storage.home_dir(current_user.id))
+    return StorageUsage(used_bytes=used, limit_bytes=quota.limit_bytes(current_user.id))
 
 
 @router.get("/me/preferences", response_model=preferences.PreferencesPublic)

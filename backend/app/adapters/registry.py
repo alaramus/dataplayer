@@ -58,6 +58,8 @@ class AdapterContext:
     """
 
     home_dir: Path
+    # How much the home may hold, in bytes; None is no limit (D324).
+    home_limit_bytes: int | None = None
     # Absent for a draft: it has no identity to key long-lived things by, and
     # a check is meant to exercise credentials rather than reuse a connection.
     pooling: Pooling | None = None

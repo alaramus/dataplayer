@@ -18,6 +18,7 @@ nothing in this repository depends on either.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-11-09 | [A limit on personal storage](2026-11-09-personal-storage-limit-design.md) | D324: `USER_STORAGE_QUOTA_MB` for every home and a superuser's figure for one person, held by the process; every write the server makes into a home judged against a walk of it, a write that does not grow it always passing; usage shown in Preferences. |
 | 2026-11-09 | [A symbol's market, watched live](2026-11-09-binance-market-view-design.md) | D323: a Market node per symbol opened as a `market` representation; a live watch told as rows part by part (`SupportsLive`) over a socket of its own; Binance's snapshot over REST then its streams, one upstream per address shared by every watcher; USDⓈ-M's split stream paths; a chart, book and tape on one screen. On the branch `binance-account` |
 | 2026-11-09 | [A Binance key and the account it reads](2026-11-09-binance-account-design.md) | D322: a key as two more endpoints with secret fields; signed requests with Binance's clock offset; a key that may trade accepted with a warning; an Account folder per market and a symbol's own orders and trades as rows; own trades read on by a link. On the branch `binance-account` |
 | 2026-11-09 | [Binance's COIN-M futures](2026-11-09-binance-coin-m-design.md) | D321: a third market from `dapi`, its volumes turned from contracts into the base and quote asset so the columns mean the same on every market; trades and the book stay in contracts. On the branch `binance-account` |

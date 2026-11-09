@@ -59,9 +59,16 @@ for (const theme of ["light", "dark"] as const) {
     await page.getByTestId("user-name").fill("Updated person")
     await page.getByTestId("user-active").uncheck()
     await page.getByTestId("user-superuser").check()
+    await page.getByTestId("user-storage-limit").fill("250")
     await edit.screenshot({ path: `test-results/account-edit-${theme}.png` })
     await page.getByTestId("user-save").click()
     await expect(edit).toHaveCount(0)
-    expect(update).toEqual({ email: user.email, full_name: "Updated person", is_active: false, is_superuser: true })
+    expect(update).toEqual({
+      email: user.email,
+      full_name: "Updated person",
+      is_active: false,
+      is_superuser: true,
+      storage_quota_mb: 250,
+    })
   })
 }

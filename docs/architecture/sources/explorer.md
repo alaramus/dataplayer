@@ -5,7 +5,7 @@ storage a source brings to it. Read this before adding a source that is made
 of files — FTP, an object store, a remote disk — or before changing how a file
 source lists, reads or writes.
 
-Decisions here: D150, D151, D152.
+Decisions here: D150, D151, D152, D324.
 
 ```
 backend/app/adapters/
@@ -150,3 +150,23 @@ Known deviations:
   as reachable as the homes beside it, and gone within an hour of its last read.
 
 Spec: [A remote tree of files through the explorer](../../decisions/2026-09-19-remote-files-design.md)
+
+## D324. A person's storage has a limit
+
+`USER_STORAGE_QUOTA_MB` is the limit for every home, 0 none; a superuser may
+set another for one person (`user.storage_quota_mb`, null for the server's).
+`LocalStorage` refuses a write that grows the whole home past it — publishing a
+staged file, a copy, a folder filled in place — with `StorageFull`, a 413
+`too_large` refusal. A write that does not grow the home always passes.
+Usage is walked, not counted, and Preferences shows it (`/users/me/storage`).
+
+Known deviations:
+
+- **The figures set for people are the process's**, loaded at start and kept
+  by the user routes; correct while the backend is one (D124).
+- **Writes the server does not make are not stopped**: a SQLite file growing,
+  a program in a container. The next write it makes is refused instead.
+- **Unpacking beside the archive is judged after it lands**, and what landed
+  stays; into a new folder, the folder goes.
+
+Spec: [A limit on personal storage](../../decisions/2026-11-09-personal-storage-limit-design.md)

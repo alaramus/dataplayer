@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref } from "vue"
+import { computed, ref } from "vue"
 
 import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
+import { useMyStorage } from "@/features/preferences/api"
 import { useLanguageChoice } from "@/features/preferences/languageChoice"
+import { storageWording } from "@/features/preferences/storage"
 import VoiceSelect from "@/features/speech/VoiceSelect.vue"
 import { speechSupported } from "@/features/speech/voices"
 import { t } from "@/shared/i18n"
-import { AppButton, AppForm, AppSelect, AppSettingRow } from "@/shared/ui"
+import { AppButton, AppForm, AppProgress, AppSelect, AppSettingRow } from "@/shared/ui"
 import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
@@ -23,6 +25,9 @@ const speechOk = speechSupported()
 const tourOpen = ref(false)
 
 const language = useLanguageChoice()
+
+const storage = useMyStorage()
+const storageShown = computed(() => storage.data.value ? storageWording(storage.data.value) : null)
 </script>
 
 <template>
@@ -69,6 +74,23 @@ const language = useLanguageChoice()
       </AppForm>
     </AppSettingRow>
     <AppSettingRow
+      v-if="storageShown"
+      :title="t('preferences.storage')"
+      :summary="t('preferences.storage_summary')"
+    >
+      <div
+        class="preferences-section__storage"
+        data-testid="preference-storage"
+      >
+        <span>{{ storageShown.text }}</span>
+        <AppProgress
+          v-if="storageShown.fraction !== null"
+          :value="storageShown.fraction"
+          :label="t('preferences.storage')"
+        />
+      </div>
+    </AppSettingRow>
+    <AppSettingRow
       :title="t('preferences.tour')"
       :summary="t('preferences.tour_summary')"
     >
@@ -87,6 +109,11 @@ const language = useLanguageChoice()
 
 <style scoped>
 .preferences-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-1);
+}
+.preferences-section__storage {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-1);

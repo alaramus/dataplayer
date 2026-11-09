@@ -753,6 +753,9 @@ import type {
   usersReadMyPreferencesData,
   usersReadMyPreferencesErrors,
   usersReadMyPreferencesResponses,
+  usersReadMyStorageData,
+  usersReadMyStorageErrors,
+  usersReadMyStorageResponses,
   usersReadUserByIdData,
   usersReadUserByIdErrors,
   usersReadUserByIdResponses,
@@ -1147,6 +1150,26 @@ export class UsersService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Read My Storage
+   *
+   * How full the caller's personal storage is, against its limit (D324).
+   */
+  public static readMyStorage<ThrowOnError extends boolean = true>(
+    options?: Options<usersReadMyStorageData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      usersReadMyStorageResponses,
+      usersReadMyStorageErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/users/me/storage",
+      ...options,
     })
   }
 

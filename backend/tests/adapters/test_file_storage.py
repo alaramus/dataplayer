@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from app.adapters.actions import StorageFull
 from app.adapters.explorer.storage import (
     ROOT,
     Place,
@@ -163,3 +164,71 @@ def test_a_renamed_node_does_not_take_a_name_already_there(root: Path) -> None:
     storage.rename(storage.place("reports"), storage.child(archive, "reports"))
 
     assert storage.entry(storage.place("archive/reports/q3.csv")) is not None
+
+
+# --- the limit on a person's directory (D324) --------------------------------
+# The fixture's home holds reports/q3.csv, 8 bytes.
+
+
+def _write(storage: LocalStorage, target: Place, body: bytes, *, replace: bool = False) -> None:
+    with storage.staged(target) as staged:
+        staged.write_bytes(body)
+        storage.publish(staged, target, replace=replace)
+
+
+def test_a_write_past_the_limit_is_refused_and_lands_nowhere(root: Path) -> None:
+    storage = LocalStorage(root, limit_bytes=8 + 10)
+
+    with pytest.raises(StorageFull) as refused:
+        _write(storage, storage.child(ROOT, "big.bin"), b"x" * 11)
+
+    assert refused.value.reason == "too_large"
+    assert [path.name for path in root.iterdir()] == ["reports"]
+
+
+def test_a_write_inside_the_limit_lands(root: Path) -> None:
+    storage = LocalStorage(root, limit_bytes=8 + 10)
+
+    _write(storage, storage.child(ROOT, "small.bin"), b"x" * 10)
+
+    assert (root / "small.bin").read_bytes() == b"x" * 10
+
+
+def test_somebody_over_the_limit_can_still_shrink_a_file(root: Path) -> None:
+    (root / "big.bin").write_bytes(b"x" * 100)
+    storage = LocalStorage(root, limit_bytes=10)
+
+    _write(storage, storage.place("big.bin"), b"x", replace=True)
+
+    assert (root / "big.bin").read_bytes() == b"x"
+
+
+def test_a_copy_past_the_limit_is_refused(root: Path) -> None:
+    storage = LocalStorage(root, limit_bytes=8 + 4)
+
+    with pytest.raises(StorageFull):
+        storage.copy(storage.place("reports"), storage.child(ROOT, "again"))
+    assert not (root / "again").exists()
+
+
+def test_the_limit_counts_the_whole_home_not_only_the_connection(root: Path) -> None:
+    (root / "elsewhere.bin").write_bytes(b"x" * 50)
+    storage = LocalStorage(root / "reports", home_dir=root, limit_bytes=60)
+
+    with pytest.raises(StorageFull):
+        storage.copy(storage.place("q3.csv"), storage.child(ROOT, "q4.csv"))
+
+
+def test_what_lands_in_place_past_the_limit_is_refused_afterwards(root: Path) -> None:
+    storage = LocalStorage(root, limit_bytes=8 + 4)
+
+    with pytest.raises(StorageFull), storage.filled(ROOT) as folder:
+        (folder / "unpacked.bin").write_bytes(b"x" * 5)
+
+
+def test_no_limit_refuses_nothing(root: Path) -> None:
+    storage = LocalStorage(root)
+
+    storage.copy(storage.place("reports"), storage.child(ROOT, "again"))
+
+    assert (root / "again" / "q3.csv").exists()

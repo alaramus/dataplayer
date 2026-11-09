@@ -13845,6 +13845,22 @@ export type StatementPublic = {
 }
 
 /**
+ * StorageUsage
+ *
+ * How full a person's directory is, and its limit; null is none (D324).
+ */
+export type StorageUsage = {
+  /**
+   * Used Bytes
+   */
+  used_bytes: number
+  /**
+   * Limit Bytes
+   */
+  limit_bytes: number | null
+}
+
+/**
  * StoreConnect
  *
  * An existing TimescaleDB, in the PostgreSQL adapter's options.
@@ -15169,6 +15185,10 @@ export type UserInvite = {
    * Is Superuser
    */
   is_superuser?: boolean
+  /**
+   * Storage Quota Mb
+   */
+  storage_quota_mb?: number | null
 }
 
 /**
@@ -15211,6 +15231,10 @@ export type UserPublic = {
    * Password Set
    */
   password_set?: boolean
+  /**
+   * Storage Quota Mb
+   */
+  storage_quota_mb?: number | null
 }
 
 /**
@@ -15255,6 +15279,10 @@ export type UserUpdate = {
    * Password
    */
   password?: string | null
+  /**
+   * Storage Quota Mb
+   */
+  storage_quota_mb?: number | null
 }
 
 /**
@@ -16286,6 +16314,32 @@ export type usersUpdatePasswordMeResponses = {
 
 export type usersUpdatePasswordMeResponse =
   usersUpdatePasswordMeResponses[keyof usersUpdatePasswordMeResponses]
+
+export type usersReadMyStorageData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/users/me/storage"
+}
+
+export type usersReadMyStorageErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type usersReadMyStorageError = usersReadMyStorageErrors[keyof usersReadMyStorageErrors]
+
+export type usersReadMyStorageResponses = {
+  /**
+   * Successful Response
+   */
+  200: StorageUsage
+}
+
+export type usersReadMyStorageResponse =
+  usersReadMyStorageResponses[keyof usersReadMyStorageResponses]
 
 export type usersReadMyPreferencesData = {
   body?: never

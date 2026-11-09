@@ -29,6 +29,7 @@ class UserInvite(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
     is_active: bool = True
     is_superuser: bool = False
+    storage_quota_mb: int | None = Field(default=None, ge=0)
 
 
 class UserRegister(SQLModel):
@@ -44,6 +45,8 @@ class UserUpdate(SQLModel):
     is_superuser: bool | None = None
     full_name: str | None = Field(default=None, max_length=255)
     password: str | None = Field(default=None, min_length=8, max_length=128)
+    # Null puts the person back on the server's figure (D324).
+    storage_quota_mb: int | None = Field(default=None, ge=0)
 
 
 class UserUpdateMe(SQLModel):
@@ -69,6 +72,8 @@ class User(UserBase, table=True):
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore
     )
+    # Not on UserBase: signing up would let a person name their own (D324).
+    storage_quota_mb: int | None = Field(default=None, ge=0)
 
     @property
     def password_set(self) -> bool:
@@ -81,6 +86,14 @@ class UserPublic(UserBase):
     created_at: datetime | None = None
     # False until the person has chosen one through their link.
     password_set: bool = True
+    storage_quota_mb: int | None = None
+
+
+class StorageUsage(SQLModel):
+    """How full a person's directory is, and its limit; null is none (D324)."""
+
+    used_bytes: int
+    limit_bytes: int | None
 
 
 class InvitationLink(SQLModel):

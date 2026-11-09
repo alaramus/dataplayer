@@ -13,6 +13,7 @@ import {
 import {
   emptyForm,
   formOf,
+  storageLimitText,
   toCreate,
   toUpdate,
   undeletableReason,
@@ -32,6 +33,7 @@ import {
   AppForm,
   AppIconButton,
   AppInput,
+  AppNumberInput,
   AppTable,
   useConfirm,
   useToast,
@@ -73,6 +75,7 @@ const columns = computed<TableColumns>(() => [
   { name: "full_name", label: t("admin.users.columns.name"), field: "full_name", align: "left", sortable: true },
   { name: "role", label: t("admin.users.columns.role"), field: "id", align: "left" },
   { name: "state", label: t("admin.users.columns.state"), field: "id", align: "left" },
+  { name: "storage", label: t("admin.users.columns.storage"), field: (user: UserPublic) => storageLimitText(user), align: "left" },
   { name: "actions", label: "", field: "id", align: "right" },
 ])
 
@@ -270,6 +273,13 @@ async function remove(user: UserPublic) {
           v-model="form.isSuperuser"
           :label="t('admin.users.superuser')"
           data-testid="user-superuser"
+        />
+        <AppNumberInput
+          v-model="form.storageQuotaMb"
+          :label="t('admin.users.storage_limit')"
+          :hint="t('admin.users.storage_limit_hint')"
+          :error="errors.storageQuotaMb"
+          data-testid="user-storage-limit"
         />
       </AppForm>
 

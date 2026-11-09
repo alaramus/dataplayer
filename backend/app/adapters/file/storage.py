@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import BinaryIO, cast
 
-from app.adapters.actions import ActionRefused, ConnectorDraft
+from app.adapters.actions import ActionRefused, ConnectorDraft, StorageFull
 from app.adapters.explorer.storage import (
     LOCAL_SEARCH,
     ROOT,
@@ -33,14 +33,18 @@ from app.adapters.explorer.storage import (
 from app.adapters.file.options import FileOptions
 from app.adapters.protocol import ConnectionCheckResult
 from app.core.translation import say
+from app.users.storage import used_bytes
 
 
 class LocalStorage(PathPlaces):
     search_limits = LOCAL_SEARCH
 
-    def __init__(self, root: Path, *, home_dir: Path | None = None) -> None:
+    def __init__(
+        self, root: Path, *, home_dir: Path | None = None, limit_bytes: int | None = None
+    ) -> None:
         self._root = root
         self._home_dir = home_dir if home_dir is not None else root
+        self._limit_bytes = limit_bytes
 
     @property
     def root(self) -> Path:
@@ -188,6 +192,8 @@ class LocalStorage(PathPlaces):
         expected_version: str | None = None,
     ) -> None:
         target = self.path_of(place)
+        arriving = _size(staged)
+        self._admit(arriving - (_size(target) if replace else 0), counted=arriving)
         if not replace:
             # A link makes the name a claim rather than a check: a second
             # request between somebody's check and this line fails here
@@ -218,6 +224,9 @@ class LocalStorage(PathPlaces):
     @contextmanager
     def filled(self, place: Place) -> Iterator[Path]:
         yield self.path_of(place)
+        # Written in place, so judged once it has landed; the caller undoes
+        # what it can (D324).
+        self._admit(None)
 
     def make_directory(self, place: Place) -> None:
         self.path_of(place).mkdir()
@@ -245,6 +254,7 @@ class LocalStorage(PathPlaces):
 
     def copy(self, place: Place, to: Place) -> None:
         source = self.path_of(place)
+        self._admit(used_bytes(source) if source.is_dir() else _size(source))
         if source.is_dir():
             shutil.copytree(source, self.path_of(to), symlinks=True)
         else:
@@ -259,6 +269,20 @@ class LocalStorage(PathPlaces):
 
     def remove_empty(self, place: Place) -> None:
         self.path_of(place).rmdir()
+
+    def _admit(self, growth: int | None, *, counted: int = 0) -> None:
+        """Refuse a write that grows the home past its limit (D324).
+
+        `growth` is what the write adds, None where it has landed already and
+        is not known; `counted` is how much of it already lies in the home, as
+        a staged file does. A write that does not grow the home always
+        passes, so somebody over the limit can still replace or shrink a file.
+        """
+        if self._limit_bytes is None or (growth is not None and growth <= 0):
+            return
+        after = used_bytes(self._home_dir) + (growth or 0) - counted
+        if after > self._limit_bytes:
+            raise StorageFull(after, self._limit_bytes)
 
     # --- a folder as a connection of its own ---------------------------------
 
@@ -283,6 +307,13 @@ class LocalStorage(PathPlaces):
             adapter_type="file",
             options=options.model_dump(mode="json"),
         )
+
+
+def _size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
 
 
 def _entry(place: Place, facts: os.stat_result, is_link: bool) -> Entry:

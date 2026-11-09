@@ -24,6 +24,10 @@ export const preferences: Messages["preferences"] = {
   tour_summary:
     "Die kurzen Clips vom ersten Besuch, einer für jeden Hauptteil der Anwendung. Lässt sich hier jederzeit erneut öffnen.",
   replay_tour: "Tour wiederholen",
+  storage: "Persönlicher Speicher",
+  storage_summary: "Ihre eigenen Dateien auf diesem Server und das vom Administrator gesetzte Limit",
+  storage_used: "{used} von {limit} belegt",
+  storage_unlimited: "{used} belegt, kein Limit",
   checks: "Prüfen, ob Verbindungen erreichbar sind",
   checks_summary:
     "Jede Verbindung wird nach diesem Zeitplan geprüft, solange ein Arbeitsbereich geöffnet ist, und der Punkt daneben zeigt die letzte Antwort. Eine Prüfung öffnet eine eigene Verbindung, daher lohnt es sich, einen langsamen oder entfernten Server seltener abzufragen.",

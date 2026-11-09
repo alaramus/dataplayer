@@ -94,4 +94,5 @@ MESSAGES: dict[str, str] = {
     "A backup does not go through an SSH tunnel yet": "备份暂不支持经由 SSH 隧道进行",
     'Follow changes as they happen': '实时跟踪变化',
     "Show a node's details": '显示节点详情',
+    "Your personal storage is full: {used} MB of {limit} MB in use": "个人存储空间已满：已使用 {used} MB，共 {limit} MB",
 }
