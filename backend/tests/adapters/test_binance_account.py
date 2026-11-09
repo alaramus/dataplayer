@@ -310,3 +310,13 @@ async def test_own_trades_are_read_on_by_their_id(fake_binance: FakeBinance) -> 
     assert block.done
     asked = [one.params for one in fake_binance.asked if one.path == "/api/v3/myTrades"]
     assert "10" in [one.get("fromId") for one in asked]
+
+
+def test_the_endpoint_stays_first_in_a_form_with_a_key() -> None:
+    """Choosing a key adds its fields below the choice, never above it."""
+    for model in (BinanceMainKey, BinanceTestnetKey):
+        assert list(model.model_json_schema()["properties"]) == [
+            "endpoint",
+            "api_key",
+            "api_secret",
+        ]

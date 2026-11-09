@@ -42,6 +42,10 @@ class BinanceTestnet(BaseModel):
 
 
 class _Keyed(BaseModel):
+    # Declared first so the form keeps the endpoint at the top whichever is
+    # chosen: a field a subclass narrows keeps the place its parent gave it,
+    # and the key's fields would otherwise push the choice down.
+    endpoint: str
     api_key: SecretStr = Field(
         title=N_("API key"), min_length=1, json_schema_extra=layout()
     )
