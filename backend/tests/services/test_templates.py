@@ -260,3 +260,22 @@ def test_a_kafka_broker_asks_for_no_password_and_announces_where_it_is() -> None
     assert isinstance(start, Fixed)
     assert "KAFKA_ADVERTISED_LISTENERS" in start.value
     assert template.environment["KAFKA_LOG_DIRS"] == Fixed(template.data_path)
+
+
+def test_a_rabbitmq_broker_places_amqp_and_reaches_management_by_name() -> None:
+    """AMQP is the port a template places; the management API answers on the
+    service network, so the connector leaves its address empty (D332)."""
+    template = template_for("rabbitmq")
+
+    assert template.image.endswith("-management")
+    assert template.adapter_type == "rabbitmq"
+    assert template.container_port == 5672
+    assert generated_slots(template) == ("password",)
+    assert template.choosable == frozenset({"password"})
+    assert template.unprotected is None
+    assert "management_url" not in template.connector_options
+    assert template.connector_options["password"] == "password"
+    assert template.environment["RABBITMQ_DEFAULT_PASS"] == "password"
+    # Its data is kept under a node name that does not change with the
+    # container's hostname.
+    assert template.environment["RABBITMQ_NODENAME"] == Fixed("rabbit@localhost")

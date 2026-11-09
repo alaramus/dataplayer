@@ -157,4 +157,5 @@ MESSAGES: dict[str, str] = {
     "{shown} of {total} are shown": "se muestran {shown} de {total}",
     "{user} on {vhost}, {client}, {channels} channels, {state}": "{user} en {vhost}, {client}, {channels} canales, {state}",
     "{user} on {vhost}, {consumers} consumers, prefetch {prefetch}, {unacked} unacknowledged": "{user} en {vhost}, {consumers} consumidores, prefetch {prefetch}, {unacked} sin confirmar",
+    "{count} messages in the lab's exchanges, queues and the stream {stream}": "{count} mensajes en los exchanges, las colas y el stream {stream} del laboratorio",
 }

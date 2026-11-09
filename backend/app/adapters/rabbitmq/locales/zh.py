@@ -157,4 +157,5 @@ MESSAGES: dict[str, str] = {
     "{shown} of {total} are shown": "显示 {total} 个中的 {shown} 个",
     "{user} on {vhost}, {client}, {channels} channels, {state}": "{user} 在 {vhost}，{client}，{channels} 个通道，{state}",
     "{user} on {vhost}, {consumers} consumers, prefetch {prefetch}, {unacked} unacknowledged": "{user} 在 {vhost}，{consumers} 个消费者，预取 {prefetch}，未确认 {unacked}",
+    "{count} messages in the lab's exchanges, queues and the stream {stream}": "示例交换器、队列和流 {stream} 中共有 {count} 条消息",
 }

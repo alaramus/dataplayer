@@ -157,4 +157,5 @@ MESSAGES: dict[str, str] = {
     "{shown} of {total} are shown": "{total} में से {shown} दिखाए गए",
     "{user} on {vhost}, {client}, {channels} channels, {state}": "{user}, {vhost} पर, {client}, {channels} चैनल, {state}",
     "{user} on {vhost}, {consumers} consumers, prefetch {prefetch}, {unacked} unacknowledged": "{user}, {vhost} पर, {consumers} उपभोक्ता, प्रीफ़ेच {prefetch}, {unacked} अपुष्ट",
+    "{count} messages in the lab's exchanges, queues and the stream {stream}": "लैब के एक्सचेंज, क्यू और स्ट्रीम {stream} में {count} संदेश",
 }

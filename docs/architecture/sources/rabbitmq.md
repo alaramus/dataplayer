@@ -6,11 +6,11 @@ stream's messages and the bindings are read as rows, and `rabbitmqadmin` in a
 terminal (D328, run as D286 says in [terminals.md](../terminals.md)), how
 messages are sent (D329) and queues, streams, exchanges and bindings changed,
 with a look inside a queue (D330), and the broker's reports, metrics and
-search (D331). The contract every source
+search (D331), and a RabbitMQ started here with its lab (D332). The contract every source
 type follows is in [contract.md](contract.md); the other queue is in
 [kafka.md](kafka.md). Read this before changing the `rabbitmq` adapter.
 
-Decisions here: D325, D326, D327, D328, D329, D330, D331.
+Decisions here: D325, D326, D327, D328, D329, D330, D331, D332.
 
 ## D325. A RabbitMQ source looks through the management API and moves messages over AMQP
 
@@ -235,3 +235,38 @@ Known deviations:
   it shows what it holds.
 
 Spec: [RabbitMQ's reports, metrics and search](../../decisions/2026-11-09-rabbitmq-reports-design.md)
+
+## D332. A RabbitMQ started here places AMQP and is managed by its name; it has a lab
+
+The `rabbitmq` service template runs `rabbitmq:4.3.7-management` with the user
+`dataplayer` and a password the server makes up unless the requester names
+one, as `RABBITMQ_DEFAULT_USER` and `RABBITMQ_DEFAULT_PASS`; there is no
+unprotected shape. `RABBITMQ_NODENAME` is fixed to `rabbit@localhost`, since
+RabbitMQ keeps its data under the node's name and would otherwise take the
+container's hostname, new with every container.
+
+The template's one port is AMQP's, 5672: published on the loopback for the
+owner's tools and given to the connection as its host and port. The
+management API is not published. The application reaches a service by its
+container name on the service network, where every port answers, and the
+connection leaves its management address empty, so it is
+`http://<container>:15672` (D325); readiness waits for that API too.
+
+Asked for sample data, the adapter fills the connection's virtual host — `/`
+for a service — with a topic exchange `lab.orders`, a classic queue
+`lab.billing` on `orders.#` dead-lettering to the fanout `lab.dead-letter` and
+its queue `lab.dead`, a quorum queue `lab.shipping` on `orders.paid`, a headers
+exchange `lab.alerts` with `lab.alerts.critical` bound on `x-match=all,
+level=critical`, and a stream `lab.trades` of three hundred JSON trades and a
+few bodies that are bytes. Nothing consumes, so the counts stay as left.
+
+Known deviations:
+
+- **The management API is reached from inside DataPlayer only**: a tool on the
+  owner's machine reaches AMQP alone, as Kafka's published port reaches the
+  first broker only (D311).
+- **No copy to another connection and no backup**: RabbitMQ's own way is its
+  definitions export and shovels, which `rabbitmqadmin` in the terminal offers
+  (D328); messages are not something a backup here would carry.
+
+Spec: [A RabbitMQ started here, and its lab](../../decisions/2026-11-09-rabbitmq-service-design.md)

@@ -135,3 +135,20 @@ RabbitMQ 连接上的 **终端** 会打开 bash 和 `rabbitmqadmin`——RabbitM
 - `rabbitmqadmin -V 名称 list queues` —— 另一个虚拟主机
 
 它可以声明、删除和清空队列与交换器，发布和获取消息，导出定义；它所做的更改会立即作用于代理。终端运行在 DataPlayer 服务器上的容器中，因此该服务器需要被允许启动容器，并且从那里能访问管理地址。
+
+## 你自己的 RabbitMQ
+
+如果此服务器可以运行容器，**服务** 可以在本机启动一个 RabbitMQ 代理。其用户为 `dataplayer`，若你不指定密码，会为你生成一个；连接会自动创建。
+
+请求示例数据即可获得一个实验环境：
+
+- `lab.orders` —— 一个 topic 交换器，路由 `orders.new` 和 `orders.paid`；
+- `lab.billing` —— 绑定到 `orders.#` 的 classic 队列，有六十个订单在等待，被拒绝的消息进入 `lab.dead-letter`；
+- `lab.shipping` —— 绑定到 `orders.paid` 的 quorum 队列，因此只包含已支付的订单；
+- `lab.dead-letter` 和 `lab.dead` —— 一个 fanout 交换器及其后的队列；
+- `lab.alerts` 和 `lab.alerts.critical` —— 一个 headers 交换器，以及只接收 `level` 为 `critical` 的告警的队列；
+- `lab.trades` —— 一个流，包含一天内的三百笔 JSON 交易和几条以字节存储的传感器读数，以十六进制显示。
+
+实验环境中没有消费者，因此所有计数都保持原样。
+
+从本机可通过代理的 AMQP 端口访问它，即服务行中显示的端口。其管理 API 只在 DataPlayer 内部响应：目录、报告、操作和终端在那里使用它，你自己电脑上的工具只能访问 AMQP。

@@ -224,3 +224,30 @@ veröffentlichen und abholen und Definitionen exportieren; was er ändert, ände
 sich sofort auf dem Broker. Das Terminal läuft in einem Container auf dem
 DataPlayer-Server; dieser muss Container starten dürfen, und die
 Management-Adresse muss von dort erreichbar sein.
+
+## Ein eigenes RabbitMQ
+
+**Dienste** kann einen RabbitMQ-Broker auf diesem Rechner starten, wenn dieser
+Server Container starten darf. Sein Benutzer ist `dataplayer`, sein Passwort
+wird für Sie erfunden, wenn Sie keines angeben; seine Verbindung wird für Sie
+angelegt.
+
+Fordern Sie Beispieldaten an, um ein Lab zu bekommen:
+
+- `lab.orders` — ein Topic-Exchange, der `orders.new` und `orders.paid` leitet;
+- `lab.billing` — eine Classic-Queue, an `orders.#` gebunden, sechzig wartende
+  Bestellungen, Abgelehntes geht an `lab.dead-letter`;
+- `lab.shipping` — eine Quorum-Queue, an `orders.paid` gebunden, sie hält also
+  nur die bezahlten Bestellungen;
+- `lab.dead-letter` und `lab.dead` — ein Fanout-Exchange und die Queue dahinter;
+- `lab.alerts` und `lab.alerts.critical` — ein Headers-Exchange und eine Queue,
+  die nur die Alarme mit `level` gleich `critical` nimmt;
+- `lab.trades` — ein Stream aus dreihundert JSON-Trades über einen Tag und
+  einigen Sensorwerten als Bytes, hexadezimal angezeigt.
+
+Im Lab holt niemand etwas ab, also bleibt jede Zahl, wo sie war.
+
+Von diesem Rechner aus ist der Broker über seinen AMQP-Port erreichbar, den die
+Zeile des Dienstes zeigt. Seine Management-API antwortet nur innerhalb von
+DataPlayer: Katalog, Berichte, Aktionen und Terminal nutzen sie dort, und ein
+Werkzeug auf Ihrem eigenen Rechner erreicht nur AMQP.

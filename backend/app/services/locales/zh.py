@@ -90,4 +90,5 @@ MESSAGES: dict[str, str] = {
     "A MongoDB server of its own, started on this machine with a password nobody has to choose.": "在本机启动的专属 MongoDB 服务器，无需自行设置密码。",
     'A ZooKeeper server of its own, started on this machine, with a lab of znodes to walk through.': '在本机启动的专属 ZooKeeper 服务器，附带一棵可供浏览的示例 znode 树。',
     'A Kafka broker of its own, started on this machine, with a lab of topics and a consumer group to try the source on.': '在本机启动的独立 Kafka broker，附带演示主题和一个消费者组，便于试用该数据源。',
+    "A RabbitMQ broker of its own, started on this machine with a password nobody has to choose, and a lab of exchanges, queues and a stream.": "在本机启动的专属 RabbitMQ 代理，密码无需自行设定，并附带示例交换器、队列和一个流。",
 }

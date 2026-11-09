@@ -615,6 +615,28 @@ async def test_a_kafka_is_reached_by_its_address_and_has_no_password(
     assert handed.json()["url"] == "127.0.0.1:49221"
 
 
+async def test_a_rabbitmq_hands_over_its_password_and_an_amqp_address(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """A broker started here has a password made up for it, and the address
+    its owner's tools get is AMQP's, the one port placed (D332)."""
+    engine.gives_port = 49222
+    accepted = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={"template_key": "rabbitmq"}
+    )
+    assert accepted.status_code == 200, accepted.text
+    await _wait(accepted.json()["job"]["id"])
+
+    handed = await client.post(
+        f"{BASE}/{accepted.json()['service']['id']}/credentials/reveal",
+        headers=normal_user_token_headers,
+    )
+
+    assert handed.status_code == 200, handed.text
+    assert handed.json()["password"]
+    assert handed.json()["url"] == "amqp://dataplayer@127.0.0.1:49222"
+
+
 @pytest.mark.usefixtures("engine")
 async def test_nobody_else_may_ask_for_that_password(
     client: AsyncClient,

@@ -212,3 +212,29 @@ messages and export definitions; what it changes is changed on the broker at
 once. The terminal runs in a container on the DataPlayer server, so it needs
 that server to be allowed to start containers, and the management address
 must be reachable from there.
+
+## A RabbitMQ of your own
+
+**Services** can start a RabbitMQ broker on this machine, if this server may
+run containers. Its user is `dataplayer` and its password is made up for you
+unless you give one; its connection is made for you.
+
+Ask for sample data to get a lab:
+
+- `lab.orders` — a topic exchange routing `orders.new` and `orders.paid`;
+- `lab.billing` — a classic queue bound to `orders.#`, sixty orders waiting,
+  dead-lettering to `lab.dead-letter`;
+- `lab.shipping` — a quorum queue bound to `orders.paid`, so it holds the paid
+  orders only;
+- `lab.dead-letter` and `lab.dead` — a fanout exchange and the queue behind it;
+- `lab.alerts` and `lab.alerts.critical` — a headers exchange and a queue that
+  takes only the alerts whose `level` is `critical`;
+- `lab.trades` — a stream of three hundred JSON trades over one day and a few
+  sensor readings stored as bytes, shown in hex.
+
+Nothing in the lab consumes, so every count stays where it was left.
+
+The broker is reached from this machine on its AMQP port, the one the service
+row shows. Its management API answers only inside DataPlayer: the catalog, the
+reports, the actions and the terminal use it there, and a tool on your own
+computer reaches AMQP only.

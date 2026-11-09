@@ -49,6 +49,7 @@ from app.adapters.rabbitmq.reports import (
     report_node,
     section_node,
 )
+from app.adapters.rabbitmq.samples import RabbitmqSamples
 from app.adapters.rabbitmq.search import RabbitmqSearch
 from app.adapters.rabbitmq.session import RabbitmqSession
 from app.adapters.rabbitmq.streams import RabbitmqStreams
@@ -93,6 +94,7 @@ class RabbitmqAdapter:
         self._reports = RabbitmqReports(self._session)
         self._metrics = RabbitmqMetrics(self._session)
         self._search = RabbitmqSearch(self._session)
+        self._samples = RabbitmqSamples(self._session)
 
     # --- how to reach it, in one line --------------------------------------------
 
@@ -282,6 +284,10 @@ class RabbitmqAdapter:
         return await node_summary(self._session, node_id)
 
     # --- the broker measured, and names found (D331) ---------------------------------
+
+    async def install_sample_data(self) -> str:
+        """The lab, for a broker started here (D332)."""
+        return await self._samples.install_sample_data()
 
     async def metric_samples(self) -> list[MetricSample]:
         return await self._metrics.metric_samples()

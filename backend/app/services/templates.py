@@ -540,6 +540,42 @@ KAFKA = ServiceTemplate(
     startup_timeout_seconds=90,
 )
 
+# AMQP is the one port a template places; the management API answers on the
+# service network, where the application reaches every port of a container,
+# and the connector leaves its address empty for `http://<host>:15672` (D332).
+RABBITMQ = ServiceTemplate(
+    key="rabbitmq",
+    title=N_("RabbitMQ"),
+    description=N_(
+        "A RabbitMQ broker of its own, started on this machine with a password "
+        "nobody has to choose, and a lab of exchanges, queues and a stream."
+    ),
+    # The release the source type is tested against, and whose rabbitmqadmin
+    # its terminal runs (D328).
+    image="rabbitmq:4.3.7-management",
+    container_port=5672,
+    data_path="/var/lib/rabbitmq",
+    credentials={USER: Fixed("dataplayer"), PASSWORD: Generated()},
+    choosable=frozenset({PASSWORD}),
+    environment={
+        "RABBITMQ_DEFAULT_USER": USER,
+        "RABBITMQ_DEFAULT_PASS": PASSWORD,
+        # The data is kept under the node's name, otherwise the container's
+        # hostname: a container made again for the same volume would be a new
+        # node beside its own data.
+        "RABBITMQ_NODENAME": Fixed("rabbit@localhost"),
+    },
+    command=(),
+    adapter_type="rabbitmq",
+    connector_options={
+        "host": HOST,
+        "port": PORT,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=90,
+)
+
 REDIS = ServiceTemplate(
     key="redis",
     title=N_("Redis"),
@@ -654,7 +690,17 @@ SSH = ServiceTemplate(
 
 
 SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
-    POSTGRES, TIMESCALE, MYSQL, MARIADB, CLICKHOUSE, MONGODB, REDIS, ZOOKEEPER, KAFKA, SSH
+    POSTGRES,
+    TIMESCALE,
+    MYSQL,
+    MARIADB,
+    CLICKHOUSE,
+    MONGODB,
+    REDIS,
+    ZOOKEEPER,
+    KAFKA,
+    RABBITMQ,
+    SSH,
 )
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}

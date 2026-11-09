@@ -222,3 +222,30 @@ récupérer des messages et exporter les définitions ; ce qu'il modifie l'est
 aussitôt sur le broker. Le terminal tourne dans un conteneur sur le serveur
 DataPlayer : ce serveur doit avoir le droit de lancer des conteneurs, et
 l'adresse de gestion doit être joignable depuis lui.
+
+## Un RabbitMQ à vous
+
+**Services** peut lancer un broker RabbitMQ sur cette machine, si ce serveur a
+le droit de lancer des conteneurs. Son utilisateur est `dataplayer` et son mot
+de passe est inventé pour vous, sauf si vous en donnez un ; sa connexion est
+créée pour vous.
+
+Demandez des données d'exemple pour obtenir un lab :
+
+- `lab.orders` — un échange topic qui route `orders.new` et `orders.paid` ;
+- `lab.billing` — une file classic liée à `orders.#`, soixante commandes en
+  attente, ses rejets partant vers `lab.dead-letter` ;
+- `lab.shipping` — une file quorum liée à `orders.paid`, qui ne contient donc
+  que les commandes payées ;
+- `lab.dead-letter` et `lab.dead` — un échange fanout et la file derrière lui ;
+- `lab.alerts` et `lab.alerts.critical` — un échange headers et une file qui ne
+  prend que les alertes dont le `level` est `critical` ;
+- `lab.trades` — un stream de trois cents transactions JSON sur une journée et
+  de quelques relevés de capteur en octets, affichés en hexadécimal.
+
+Rien dans le lab ne consomme : chaque compteur reste où il a été laissé.
+
+Depuis cette machine, le broker est joignable sur son port AMQP, celui que
+montre la ligne du service. Son API de gestion ne répond qu'à l'intérieur de
+DataPlayer : le catalogue, les rapports, les actions et le terminal l'y
+utilisent, et un outil sur votre ordinateur n'atteint qu'AMQP.
