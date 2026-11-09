@@ -18,6 +18,11 @@ stream en lignes. Le fonctionnement général des connexions est sur la page
 
 ## Ce que vous pouvez modifier
 
+- Des messages envoyés à un stream, un par un ou collés en lignes
+- Un message publié vers un échange ou une file
+- De nouvelles files, streams et échanges, et leur suppression
+- Des liaisons créées et supprimées
+- Une file purgée, ou un aperçu unique de ses messages
 - Tout ce que rabbitmqadmin peut modifier, tapé dans le terminal
 
 ## Connexion
@@ -110,6 +115,58 @@ le menu du catalogue.
 - Un échange : son type, s'il survit à un redémarrage, s'il est supprimé quand
   inutilisé ou s'il est interne, et ses messages entrants et sortants par
   seconde.
+
+## Envoyer des messages à un stream
+
+- **+** au-dessus des lignes d'un stream ajoute un message. Remplissez ce qu'il
+  faut : tout peut rester vide. Il passe par l'échange par défaut, avec le nom
+  du stream comme clé de routage.
+- **body** est du texte ; `0x` suivi de chiffres hexadécimaux est envoyé comme
+  ces octets. Laissez-le vide et remplissez les champs `body.` pour envoyer un
+  objet JSON de ces champs.
+- **headers** est un objet JSON, comme `{"source": "manual"}` ; **properties**
+  est un objet JSON de ce qu'AMQP nomme : `message_id`, `correlation_id`,
+  `reply_to`, `priority`, `expiration`, `type`, `app_id`, `delivery_mode`.
+- Un **timestamp** vide n'en envoie aucun.
+- Les lignes collées dans un stream sont envoyées comme messages. Si une valeur
+  ne peut être lue, rien n'est envoyé et la cellule est indiquée.
+- La nouvelle ligne n'a pas d'offset avant que la page soit relue : c'est le
+  stream qui le donne.
+
+## Modifier les files, streams et échanges
+
+Cochez une file, un stream ou un échange, ou rien sur son niveau, et ouvrez le
+menu du catalogue :
+
+- **Nouvelle file**, **Nouveau stream**, **Nouvel échange** — chacun sur son
+  niveau. Une file est classic ou quorum ; un stream garde les messages pendant
+  une durée comme `7D` et jusqu'à une taille ; les arguments sont un
+  `nom=valeur` par ligne, comme `x-max-length=10000`.
+- **Publier** — un message vers un échange avec une clé de routage, ou vers
+  une file. Un message que l'échange ne route vers aucune file est perdu, et la
+  fenêtre le dit.
+- **Lier** — depuis un échange vers la file cochée, ou depuis l'échange coché
+  vers une file ou un échange, avec une clé de routage. **Délier** choisit une
+  des liaisons du nœud coché.
+- **Purger** — tous les messages prêts d'une file partent ; ceux que des
+  consommateurs ont pris sans les acquitter restent chez eux.
+- **Supprimer** — la fenêtre dit combien de messages et de liaisons partent.
+  Les échanges propres à RabbitMQ ne sont pas supprimés.
+
+## Jeter un œil
+
+Les messages d'une file ne sont pas affichés à son ouverture : les lire les
+prendrait. **Jeter un œil** en prend jusqu'à cent, les remet aussitôt et ouvre
+ce qu'il a lu dans un onglet.
+
+- Chaque message revient marqué **relivré**. Une file quorum compte l'aperçu
+  dans sa limite de livraisons, au-delà de laquelle un message part en
+  dead-letter ou est abandonné, et un consommateur peut recevoir les messages
+  dans le désordre. La fenêtre demande avant de regarder.
+- L'onglet est l'aperçu tel qu'il a été pris. Le parcourir ne relit pas la
+  file ; pour un nouvel aperçu, recommencez.
+- Un aperçu est conservé tant que DataPlayer tourne, et un moment après sa
+  dernière ouverture.
 
 ## Téléchargements
 

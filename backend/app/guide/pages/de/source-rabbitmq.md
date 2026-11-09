@@ -18,6 +18,11 @@ steht auf der Seite [Verbindungen](connections.md).
 
 ## Was Sie ändern können
 
+- Nachrichten an einen Stream, einzeln oder als Zeilen eingefügt
+- Eine Nachricht an einen Exchange oder eine Queue veröffentlicht
+- Neue Queues, Streams und Exchanges, und ihr Löschen
+- Bindungen angelegt und entfernt
+- Eine Queue geleert, oder einmal in ihre Nachrichten geschaut
 - Alles, was rabbitmqadmin ändern kann, im Terminal eingegeben
 
 ## Verbinden
@@ -111,6 +116,59 @@ Menü des Katalogs.
   Argumente.
 - Ein Exchange: Typ, ob er einen Neustart übersteht, ob er ungenutzt gelöscht
   wird oder intern ist, und Nachrichten pro Sekunde ein und aus.
+
+## Nachrichten an einen Stream senden
+
+- **+** über den Zeilen eines Streams fügt eine Nachricht hinzu. Füllen Sie,
+  was Sie brauchen: alles darf leer bleiben. Sie geht über den
+  Standard-Exchange, mit dem Namen des Streams als Routing-Key.
+- **body** ist Text; `0x` gefolgt von Hex-Ziffern wird als diese Bytes
+  gesendet. Lassen Sie ihn leer und füllen Sie die `body.`-Felder, um ein
+  JSON-Objekt daraus zu senden.
+- **headers** ist ein JSON-Objekt, etwa `{"source": "manual"}`;
+  **properties** ist ein JSON-Objekt aus dem, was AMQP benennt: `message_id`,
+  `correlation_id`, `reply_to`, `priority`, `expiration`, `type`, `app_id`,
+  `delivery_mode`.
+- Ein leerer **timestamp** sendet keinen.
+- In einen Stream eingefügte Zeilen werden als Nachrichten gesendet. Lässt sich
+  ein Wert nicht lesen, wird nichts gesendet und die Zelle genannt.
+- Die neue Zeile zeigt keinen Offset, bis die Seite neu gelesen wird: den
+  vergibt der Stream.
+
+## Queues, Streams und Exchanges ändern
+
+Haken Sie eine Queue, einen Stream oder einen Exchange an, oder nichts auf
+seiner Ebene, und öffnen Sie das Menü des Katalogs:
+
+- **Neue Queue**, **Neuer Stream**, **Neuer Exchange** — jeweils auf ihrer
+  Ebene. Eine Queue ist classic oder quorum; ein Stream behält Nachrichten für
+  eine Dauer wie `7D` und bis zu einer Größe; Argumente sind ein `Name=Wert` pro
+  Zeile, etwa `x-max-length=10000`.
+- **Veröffentlichen** — eine Nachricht an einen Exchange mit Routing-Key oder
+  an eine Queue. Eine Nachricht, die der Exchange an keine Queue leitet, geht
+  verloren, und das Fenster sagt es.
+- **Binden** — von einem Exchange an die angehakte Queue, oder vom angehakten
+  Exchange an eine Queue oder einen Exchange, mit Routing-Key. **Lösen** wählt
+  eine der Bindungen des angehakten Knotens.
+- **Leeren** — alle bereiten Nachrichten einer Queue gehen; abgeholte und
+  noch nicht bestätigte bleiben bei ihren Consumern.
+- **Löschen** — das Fenster sagt, wie viele Nachrichten und Bindungen gehen.
+  RabbitMQs eigene Exchanges werden nicht gelöscht.
+
+## Hineinschauen
+
+Die Nachrichten einer Queue werden beim Öffnen nicht gezeigt: sie zu lesen
+hieße, sie zu nehmen. **Hineinschauen** nimmt bis zu hundert, legt sie sofort
+zurück und öffnet das Gelesene in einem Tab.
+
+- Jede Nachricht kommt als **erneut zugestellt** markiert zurück. Eine
+  Quorum-Queue zählt den Blick auf ihr Zustelllimit an, nach dem eine Nachricht
+  in den Dead-Letter geht oder verworfen wird, und ein Consumer kann die
+  Nachrichten in anderer Reihenfolge bekommen. Das Fenster fragt vorher.
+- Der Tab ist der Blick, wie er genommen wurde. Durchblättern liest die Queue
+  nicht erneut; für einen neuen Blick schauen Sie noch einmal hinein.
+- Ein Blick bleibt, solange DataPlayer läuft, und eine Weile nach dem letzten
+  Öffnen.
 
 ## Herunterladen
 

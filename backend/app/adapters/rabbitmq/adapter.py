@@ -9,10 +9,16 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit
 
+from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
+from app.adapters.rabbitmq.actions import (
+    RABBITMQ_ACTION_TYPES,
+    build_actions,
+    offered,
+)
 from app.adapters.rabbitmq.bindings import RabbitmqBindings
 from app.adapters.rabbitmq.catalog import (
     FOLDERS,
@@ -30,12 +36,21 @@ from app.adapters.rabbitmq.catalog import (
 )
 from app.adapters.rabbitmq.console import console_program
 from app.adapters.rabbitmq.options import RabbitmqOptions
+from app.adapters.rabbitmq.peeks import RabbitmqPeeks
 from app.adapters.rabbitmq.session import RabbitmqSession
 from app.adapters.rabbitmq.streams import RabbitmqStreams
 from app.adapters.rabbitmq.summaries import node_summary
+from app.adapters.rabbitmq.writes import RabbitmqWrites
 from app.adapters.registry import AdapterContext, register
+from app.adapters.resources import Pooling
 from app.adapters.summary import NodeSummary
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.update import (
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+)
 from app.core.translation import N_, say
 
 _SCHEMES = {"amqp": False, "amqps": True}
@@ -44,10 +59,15 @@ _SCHEMES = {"amqp": False, "amqps": True}
 class RabbitmqAdapter:
     """Facade over a session and the capabilities built on it (D2b)."""
 
-    def __init__(self, options: RabbitmqOptions) -> None:
+    def __init__(
+        self, options: RabbitmqOptions, pooling: Pooling | None = None
+    ) -> None:
         self._session = RabbitmqSession(options)
         self._bindings = RabbitmqBindings(self._session)
         self._streams = RabbitmqStreams(self._session)
+        self._writes = RabbitmqWrites(self._session)
+        self._peeks = RabbitmqPeeks(self._session, pooling)
+        self._actions = ActionSet(build_actions(self._session, self._peeks))
 
     # --- how to reach it, in one line --------------------------------------------
 
@@ -162,6 +182,18 @@ class RabbitmqAdapter:
                 return [*top, folder_node(folder, named.vhost)]
         if named.name is None:
             raise NodeNotFound(node_id)
+        if named.prefix == "peek":
+            # A look hangs under the queue it was taken of, listed nowhere.
+            snapshot = await self._peeks.snapshot(node_id)
+            queue = await read_queue(
+                self._session, named.vhost, named.name, stream=False
+            )
+            return [
+                *top,
+                folder_node("queues", named.vhost),
+                queue_node(named.vhost, queue),
+                self._peeks.node(node_id, snapshot),
+            ]
         if named.prefix == "exchange":
             described = await read_exchange(self._session, named.vhost, named.name)
             return [
@@ -184,6 +216,8 @@ class RabbitmqAdapter:
         self._own(named.vhost, request.node_id)
         if named.prefix == "stream":
             return await self._streams.fetch(request)
+        if named.prefix == "peek":
+            return await self._peeks.fetch(request)
         if named.prefix in {"queue", "exchange"}:
             return await self._bindings.fetch(request)
         raise ValueError(say("A level is opened by its contents, not as rows"))
@@ -200,7 +234,32 @@ class RabbitmqAdapter:
     async def node_summary(self, node_id: str) -> NodeSummary:
         named = parse(node_id)
         self._own(named.vhost, node_id)
+        if named.prefix not in {"queue", "stream", "exchange"}:
+            raise ValueError(say("Only a queue, a stream or an exchange has details"))
         return await node_summary(self._session, node_id)
+
+    # --- messages sent and things changed (D329, D330) ------------------------------
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        self._own(parse(request.node_id).vhost, request.node_id)
+        return await self._writes.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        self._own(parse(request.node_id).vhost, request.node_id)
+        return await self._writes.insert_rows(request)
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return RABBITMQ_ACTION_TYPES
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.get(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return list(self._actions)
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return [self._actions.get(name) for name in offered(node_id)]
 
     async def console_program(self) -> ConsoleProgram:
         """rabbitmqadmin, set up for this connection, in a container (D328)."""
@@ -231,5 +290,5 @@ def _compose(host: str, port: int, user: str, vhost: str, tls: bool) -> str:
     adapter_class=RabbitmqAdapter,
 )
 def _build(options: RabbitmqOptions, context: AdapterContext) -> RabbitmqAdapter:
-    del context
-    return RabbitmqAdapter(options)
+    # The pooling keeps what Peek took (D330); a draft has none.
+    return RabbitmqAdapter(options, context.pooling)

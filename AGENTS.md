@@ -36,7 +36,7 @@ documentation.
 | ClickHouse, its HTTP interface, its catalog, values, pages, row edits, structure changes, the table designer, reports, search, export, catalog actions and console | [sources/clickhouse.md](docs/architecture/sources/clickhouse.md) |
 | ZooKeeper, the server it reaches, its znode tree, a znode's data, stat, ACL and children, making and deleting znodes, reports, metrics, search, export, its service and lab, zkCli | [sources/zookeeper.md](docs/architecture/sources/zookeeper.md) |
 | Kafka, the cluster it reaches, its topics and consumer groups, a topic's messages as rows, a group's positions and lag, sending messages, making and changing topics, moving a group's positions or deleting a group, reports, metrics, search, export, its service and lab, Kafka's tools in a terminal | [sources/kafka.md](docs/architecture/sources/kafka.md) |
-| RabbitMQ, the broker it reaches through the management API and AMQP, its virtual hosts, queues, streams and exchanges, a queue's and an exchange's bindings, a stream's messages as rows, rabbitmqadmin in a terminal | [sources/rabbitmq.md](docs/architecture/sources/rabbitmq.md) |
+| RabbitMQ, the broker it reaches through the management API and AMQP, its virtual hosts, queues, streams and exchanges, a queue's and an exchange's bindings, a stream's messages as rows, sending messages, making and deleting queues, streams and exchanges, binding, purging, Peek, rabbitmqadmin in a terminal | [sources/rabbitmq.md](docs/architecture/sources/rabbitmq.md) |
 | Binance, the endpoint it reaches, its rate limit, its markets and COIN-M's contracts, an API key and the account it reads, quote assets and symbols, tickers, trading rules, candles, trades and the order book as rows, trades and candles read on by a link and their bookmarks, a symbol's market watched live, its reports, metrics and search | [sources/binance.md](docs/architecture/sources/binance.md) |
 | MongoDB, the server it reaches, its catalog, its query console, how a collection becomes columns, how documents are read and changed, fields and indexes, reports, search, export, catalog actions, copying collections, backups, metrics, its service and lab | [sources/mongodb.md](docs/architecture/sources/mongodb.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
@@ -131,7 +131,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/zookeeper](docs/architecture/sources/zookeeper.md) | D297–D303 |
 | [sources/kafka](docs/architecture/sources/kafka.md) | D304–D311 |
 | [sources/binance](docs/architecture/sources/binance.md) | D316–D323 |
-| [sources/rabbitmq](docs/architecture/sources/rabbitmq.md) | D325–D328 |
+| [sources/rabbitmq](docs/architecture/sources/rabbitmq.md) | D325–D330 |
 
 ## Working rules
 

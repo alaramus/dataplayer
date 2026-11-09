@@ -62,6 +62,8 @@ class Named:
     prefix: str
     vhost: str
     name: str | None = None
+    # A snapshot of a queue's messages, by its number (D330).
+    snapshot: int | None = None
 
 
 def _encode(text: str) -> str:
@@ -71,8 +73,19 @@ def _encode(text: str) -> str:
 def parse(node_id: str) -> Named:
     """The parts of a node id of this source, or a refusal."""
     prefix, colon, rest = node_id.partition(":")
-    if colon == "" or prefix not in {"vhost", *FOLDERS, *_LEAF_OF.values()}:
+    if colon == "" or prefix not in {
+        "vhost",
+        "peek",
+        *FOLDERS,
+        *_LEAF_OF.values(),
+    }:
         raise ValueError(say("Not a node of this connection"))
+    if prefix == "peek":
+        vhost, _, tail = rest.partition("/")
+        name, slash, number = tail.rpartition("/")
+        if vhost == "" or slash == "" or not number.isdigit():
+            raise ValueError(say("Not a node of this connection"))
+        return Named(prefix, unquote(vhost), unquote(name), int(number))
     if prefix in {"queue", "stream", "exchange"}:
         vhost, slash, name = rest.partition("/")
         if slash == "" or vhost == "":
@@ -81,6 +94,10 @@ def parse(node_id: str) -> Named:
     if rest == "" or "/" in rest:
         raise ValueError(say("Not a node of this connection"))
     return Named(prefix, unquote(rest))
+
+
+def peek_id(vhost: str, queue: str, number: int) -> str:
+    return f"peek:{_encode(vhost)}/{_encode(queue)}/{number}"
 
 
 def vhost_id(vhost: str) -> str:

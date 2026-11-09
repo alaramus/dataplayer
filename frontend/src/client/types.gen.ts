@@ -276,6 +276,10 @@ export type ActionResult = {
    */
   created_node_id?: string | null
   /**
+   * Open Node Id
+   */
+  open_node_id?: string | null
+  /**
    * Refused
    */
   refused?: Array<NodeRefusal>

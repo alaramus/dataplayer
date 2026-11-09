@@ -537,6 +537,16 @@ export function reloadedBy(outcome: ActionOutcome): (string | null)[] {
   return [...seen]
 }
 
+/**
+ * What an action asks to be opened once it is done: a record of what it read,
+ * such as a look inside a queue (D330). Only for one node: a set of them would
+ * open a tab per node nobody asked to see.
+ */
+export function openedBy(outcome: ActionOutcome): string | undefined {
+  if (outcome.done.length !== 1) return undefined
+  return outcome.done[0]?.open_node_id ?? undefined
+}
+
 export function replacementsOf(outcome: ActionOutcome) {
   return outcome.done.flatMap((result) =>
     result.replacement === null || result.replacement === undefined

@@ -12,7 +12,7 @@ from app.adapters.fetch import FetchRequest, InFilter
 from app.adapters.kafka.actions import parse_settings
 from app.adapters.kafka.groups import commit_positions
 from app.adapters.kafka.session import KafkaClients, KafkaSession
-from app.adapters.kafka.writes import bytes_of
+from app.adapters.message_cells import bytes_of
 from app.adapters.summary import KafkaTopicContents
 from app.adapters.update import (
     InsertRowRequest,

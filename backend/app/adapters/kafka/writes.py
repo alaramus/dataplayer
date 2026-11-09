@@ -24,6 +24,7 @@ from app.adapters.kafka.messages import (
     sending_reason,
 )
 from app.adapters.kafka.session import SEND_SECONDS, KafkaClients, KafkaSession
+from app.adapters.message_cells import bytes_of, field_value
 from app.adapters.relation import TypeCategory
 from app.adapters.update import (
     InsertRowRequest,
@@ -53,28 +54,6 @@ class Unreadable(ValueError):
     def __init__(self, column: str) -> None:
         super().__init__(column)
         self.column = column
-
-
-def bytes_of(text: str) -> bytes:
-    """`0x` and hex digits is those bytes, as they are shown; anything else UTF-8."""
-    if text.startswith("0x") and len(text) % 2 == 0 and len(text) > 2:
-        try:
-            return bytes.fromhex(text[2:])
-        except ValueError:
-            pass
-    return text.encode("utf-8")
-
-
-def _field_value(text: str, category: TypeCategory) -> Any:
-    """A field of a JSON value, read as its column's JSON type."""
-    if category in {"number", "boolean", "json"}:
-        parsed = jsontext.load(text)
-        if category == "number" and not isinstance(parsed, jsontext.JsonNumber):
-            raise ValueError(text)
-        if category == "boolean" and not isinstance(parsed, bool):
-            raise ValueError(text)
-        return parsed
-    return text
 
 
 def outgoing(
@@ -121,7 +100,7 @@ def outgoing(
         # Fields given and no value: the value is a JSON object of them.
         document = {
             name: read(
-                FIELD_PREFIX + name, lambda text, c=category: _field_value(text, c)
+                FIELD_PREFIX + name, lambda text, c=category: field_value(text, c)
             )
             for name, category in fields.items()
             if given.get(FIELD_PREFIX + name) not in {None, ""}

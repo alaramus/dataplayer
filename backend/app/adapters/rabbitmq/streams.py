@@ -250,13 +250,16 @@ def _column(
     ops: list[FilterOp],
     *,
     sortable: bool = False,
+    insertable: bool = True,
 ) -> FetchColumn:
+    # Every column a message is sent with may be left empty (D329).
     return FetchColumn(
         name=name,
         type=ColumnType(sql=sql, category=category),
         sortable=sortable,
         filter_operators=ops,
         nullable=True,
+        insertable=insertable,
     )
 
 
@@ -267,10 +270,14 @@ class Shape:
 
     def columns(self) -> list[FetchColumn]:
         columns = [
-            _column("offset", "offset", "number", RANGE_OPS, sortable=True),
+            _column(
+                "offset", "offset", "number", RANGE_OPS, sortable=True, insertable=False
+            ),
             _column("timestamp", "timestamp", "datetime", _FROM_OPS),
-            _column("exchange", "exchange", "string", TEXT_OPS),
-            _column("routing_key", "routing_key", "string", TEXT_OPS),
+            # The stream's to say: a row is sent through the default exchange
+            # with the stream's name as its routing key.
+            _column("exchange", "exchange", "string", TEXT_OPS, insertable=False),
+            _column("routing_key", "routing_key", "string", TEXT_OPS, insertable=False),
             _column("content_type", "content_type", "string", TEXT_OPS),
             _column("headers", "headers", "json", _JSON_OPS),
             _column("properties", "properties", "json", _JSON_OPS),
@@ -490,6 +497,7 @@ class RabbitmqStreams:
             row_handles=[str(message.offset) for message in page],
             has_more=len(merged) > request.offset + request.limit or collected.unread,
             page_commands=["download", "chart", "share"],
+            insert_supported=True,
         )
 
     async def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:

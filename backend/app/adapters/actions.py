@@ -60,6 +60,10 @@ class ActionResult(BaseModel):
     # knowledge of what the action was: it holds an id it can walk to, or it
     # holds nothing.
     created_node_id: str | None = None
+    # What the client opens as soon as the action is done: a record of what
+    # the action read, such as a look inside a queue (D330), rather than
+    # something it made. Apart from `created_node_id`, which is offered.
+    open_node_id: str | None = None
     # Nodes of a selection left as they were, each with its reason: a set is
     # carried out as far as it goes and says what it could not do.
     refused: list[NodeRefusal] = Field(default_factory=list)

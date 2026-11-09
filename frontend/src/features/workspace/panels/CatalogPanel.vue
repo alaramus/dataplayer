@@ -7,7 +7,7 @@ import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
 import { useLiveChanges } from "@/features/catalog/liveChanges"
-import { reloadedBy, replacementsOf, tickableKindsOf, ticksAfter } from "@/features/catalog/actions"
+import { openedBy, reloadedBy, replacementsOf, tickableKindsOf, ticksAfter } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { useCatalogLoader, useNodeActions, useNodePathLoader, useNodeSearcher } from "@/features/catalog/api"
 import type { SearchScope } from "@/features/catalog/api"
@@ -941,12 +941,25 @@ function untick() {
   if (!asTree.value) level.checked.value = []
 }
 
+/** Open what an action read, walking the source's own path to it (D21). */
+async function openRead(nodeId: string) {
+  try {
+    const path = await loadPath(props.connectorId, nodeId)
+    const last = path[path.length - 1]
+    if (last !== undefined) onOpen(toListNodes([last])[0]!)
+  } catch (cause) {
+    toast.error(messageOf(cause, t("workspace.catalog.open_failed", { name: nodeId })))
+  }
+}
+
 async function afterAction(outcome: ActionOutcome) {
   for (const replacement of replacementsOf(outcome)) {
     level.replaceNode(replacement)
     workspace.replaceNode(props.connectorId, replacement)
   }
   settleTicks(outcome)
+  const opened = openedBy(outcome)
+  if (opened !== undefined) void openRead(opened)
   const branches = reloadedBy(outcome)
   if (branches.length > 0) ownChangeAt = changes.announce(props.connectorId)
   if (asTree.value) {

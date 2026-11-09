@@ -178,3 +178,25 @@ def predicate[M](
     if one.op == "ne":
         return lambda message: cell(message, column) != needle
     return lambda message: cell(message, column) == needle
+
+
+def bytes_of(text: str) -> bytes:
+    """`0x` and hex digits is those bytes, as they are shown; anything else UTF-8."""
+    if text.startswith("0x") and len(text) % 2 == 0 and len(text) > 2:
+        try:
+            return bytes.fromhex(text[2:])
+        except ValueError:
+            pass
+    return text.encode("utf-8")
+
+
+def field_value(text: str, category: TypeCategory) -> Any:
+    """A field of a JSON body, read as its column's JSON type."""
+    if category in {"number", "boolean", "json"}:
+        parsed = jsontext.load(text)
+        if category == "number" and not isinstance(parsed, jsontext.JsonNumber):
+            raise ValueError(text)
+        if category == "boolean" and not isinstance(parsed, bool):
+            raise ValueError(text)
+        return parsed
+    return text

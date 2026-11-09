@@ -83,7 +83,8 @@ async def test_a_connection_is_checked_browsed_and_read(
     page = await call("POST", "fetch", json={"node_id": stream, "limit": 3})
     assert page["columns"][0]["name"] == "offset"
     assert page["row_handles"][0].isdigit()
-    assert not page.get("insert_supported")
+    # A message is sent as a new row of a stream (D329).
+    assert page["insert_supported"]
 
     summary = await call("GET", "node-summary", params={"node_id": stream})
     assert summary["contents"]["kind"] == "amqp_stream"

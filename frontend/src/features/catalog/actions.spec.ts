@@ -10,6 +10,7 @@ import {
   clientMenu,
   groupingChoices,
   nodeSetOf,
+  openedBy,
   replacementsOf,
   reloadedBy,
   summarize,
@@ -445,6 +446,13 @@ describe("what became of a set", () => {
     }
 
     expect(reloadedBy(outcome)).toEqual(["reports", "archive", null])
+  })
+
+  it("opens what one action read, and nothing for a set (D330)", () => {
+    const looked = { message: "Looked into billing", reload_node_ids: [], open_node_id: "peek:%2F/billing/1" }
+    expect(openedBy({ done: [looked], failures: [], total: 1 })).toBe("peek:%2F/billing/1")
+    expect(openedBy({ done: [looked, looked], failures: [], total: 2 })).toBeUndefined()
+    expect(openedBy({ done: [result("a gone", "reports")], failures: [], total: 1 })).toBeUndefined()
   })
 
   it("leaves ticked only what the action could not be carried out on", () => {

@@ -18,6 +18,11 @@ page.
 
 ## What you can change
 
+- Messages sent to a stream, one by one or pasted as rows
+- A message published to an exchange or a queue
+- New queues, streams and exchanges, and deleting them
+- Bindings made and removed
+- A queue purged, or its messages looked at once with Peek
 - Anything rabbitmqadmin can change, typed into the terminal
 
 ## Connecting
@@ -103,6 +108,57 @@ catalog's menu.
   kept message arrived, its leader and members, its consumers and arguments.
 - An exchange: its type, whether it survives a restart, is deleted when unused
   or is internal, and its messages in and out per second.
+
+## Sending messages to a stream
+
+- **+** over a stream's rows adds a message. Fill what you need: everything
+  may stay empty. It goes through the default exchange, with the stream's
+  name as its routing key.
+- **body** is text; `0x` followed by hex digits is sent as those bytes. Leave
+  it empty and fill the `body.` fields to send a JSON object of them.
+- **headers** is a JSON object, such as `{"source": "manual"}`;
+  **properties** is a JSON object of what AMQP names: `message_id`,
+  `correlation_id`, `reply_to`, `priority`, `expiration`, `type`, `app_id`,
+  `delivery_mode`.
+- **timestamp** empty sends none.
+- Rows pasted into a stream are sent as messages. If one value cannot be read,
+  nothing is sent and the cell is named.
+- The new row shows no offset until the page is read again: the stream gives
+  it one.
+
+## Changing queues, streams and exchanges
+
+Tick a queue, a stream or an exchange, or none on its level, and open the
+catalog's menu:
+
+- **New queue**, **New stream**, **New exchange** — on their own levels. A
+  queue is classic or quorum; a stream keeps messages for an age such as `7D`
+  and up to a size; arguments are one `name=value` per line, such as
+  `x-max-length=10000`.
+- **Publish** — a message to an exchange with a routing key, or to a queue.
+  A message the exchange routes to no queue is lost, and the window says so.
+- **Bind** — from an exchange to the ticked queue, or from the ticked exchange
+  to a queue or exchange, with a routing key. **Unbind** chooses one of the
+  ticked node's bindings.
+- **Purge** — every ready message of a queue goes; messages consumers have
+  taken and not yet acknowledged stay with them.
+- **Delete** — the window says how many messages and bindings go. RabbitMQ's
+  own exchanges are not deleted.
+
+## Peek
+
+A queue's messages are not shown when it is opened: reading them takes them.
+**Peek** takes up to a hundred and puts them back at once, and opens what it
+read in a tab.
+
+- Each message comes back marked **redelivered**. A quorum queue counts the
+  look towards its delivery limit, after which a message is dead-lettered or
+  dropped, and a consumer may get the messages out of their order. The window
+  asks before it looks.
+- The tab is the look as it was taken. Paging through it does not read the
+  queue again; for a new look, Peek again.
+- A look is kept while DataPlayer runs and for a while after it is last
+  opened.
 
 ## Downloads
 

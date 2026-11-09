@@ -3,11 +3,13 @@
 What a RabbitMQ source is, how it reaches a broker through its two doors, what
 its catalog shows of virtual hosts, queues, streams and exchanges, and how a
 stream's messages and the bindings are read as rows, and `rabbitmqadmin` in a
-terminal (D328, run as D286 says in [terminals.md](../terminals.md)). The contract every source
+terminal (D328, run as D286 says in [terminals.md](../terminals.md)), how
+messages are sent (D329) and queues, streams, exchanges and bindings changed,
+with a look inside a queue (D330). The contract every source
 type follows is in [contract.md](contract.md); the other queue is in
 [kafka.md](kafka.md). Read this before changing the `rabbitmq` adapter.
 
-Decisions here: D325, D326, D327, D328.
+Decisions here: D325, D326, D327, D328, D329, D330.
 
 ## D325. A RabbitMQ source looks through the management API and moves messages over AMQP
 
@@ -115,6 +117,8 @@ Known deviations:
   upper bound would need every message's own time.
 - **Learning the end costs a read** of the last chunk on every page.
 - **A message does not open as a document** yet, as a topic's does not.
+- **A new row shows no offset** until the page is read again: AMQP does not
+  tell a publisher where a stream put its message.
 
 Spec: [A RabbitMQ source](../../decisions/2026-11-09-rabbitmq-source-design.md)
 
@@ -141,3 +145,57 @@ Known deviations:
   `--table-style borderless` is the narrowest of its styles.
 
 Spec: [The RabbitMQ console](../../decisions/2026-11-09-rabbitmq-console-design.md)
+
+## D329. A message is a new row of a stream, or the Publish action anywhere else
+
+A stream's page takes new rows: the grid's **+**, a paste and a pipeline's Add
+rows publish into it through the default exchange, the stream's name as the
+routing key. The columns sent are timestamp, content type, headers, properties
+and body, and the body's fields; offset, exchange and routing key are the
+stream's. A body written `0x…` is those bytes, an empty body with fields is a
+JSON object of them, headers and properties are JSON objects and properties
+are limited to what AMQP names. A block is read whole before anything is sent,
+so one unreadable cell rejects it with the cell named, then it is published on
+a channel with publisher confirms, each message waited for; no transaction.
+The text-to-bytes and field readers are Kafka's, shared in
+`app/adapters/message_cells.py`.
+
+A queue's and an exchange's page is their bindings, so a message for them is
+the **Publish** action: an exchange with a routing key, a queue through the
+default exchange. It is published mandatory, and one routed to no queue is
+refused as lost rather than counted as sent.
+
+Spec: [Writing to RabbitMQ](../../decisions/2026-11-09-rabbitmq-writes-design.md)
+
+## D330. Queues, streams, exchanges and bindings change through the API; Peek keeps what it read
+
+New queue, New stream and New exchange are offered on their levels; Delete,
+Bind and Unbind on a queue, stream or exchange; Publish, Purge and Peek on a
+queue. Every change is a `PUT`, `POST` or `DELETE` to the management API, and a
+400 is reduced by its reason's kind: a name taken with other settings, a
+stream asked what only a queue does, or a plain refusal. A name is at most 255
+bytes and never `amq.`; arguments are `name=value` lines, a value read as JSON
+when it is JSON. The broker's own exchanges are not deleted, and the default
+exchange takes only Publish. A preview counts a queue's messages over AMQP (a
+passive declare), not from the management API's sample, which lags by seconds.
+
+Peek is the management API's `get` with `ack_requeue_true`, at most a hundred
+messages, offered only as an action with a warning in its confirmation:
+looking is a delivery, marking messages redelivered and counting towards a
+quorum queue's delivery limit. What it read is kept as a snapshot in the
+resource store, twenty a connection, and the result's `open_node_id` names it;
+the catalog opens it at once. A snapshot is a `report` node,
+`peek:<v>/<queue>/<n>`, under its queue in `path_to` and listed nowhere; its
+rows are position, redelivered, exchange, routing key, timestamp, content type,
+headers, properties, body and the body's fields, and paging it never reads the
+queue. A draft has no store, so it does not peek.
+
+Known deviations:
+
+- **A snapshot outlives nothing**: the resource store lets it go when the
+  process ends or the connection's entries go idle, and the tab then says the
+  node is missing.
+- **Publish takes no properties** beyond content type and headers; a stream's
+  new row does.
+
+Spec: [Writing to RabbitMQ](../../decisions/2026-11-09-rabbitmq-writes-design.md)

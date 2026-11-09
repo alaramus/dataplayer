@@ -18,6 +18,11 @@ como filas. Cómo funcionan las conexiones en general está en la página
 
 ## Qué puedes cambiar
 
+- Mensajes enviados a un stream, de uno en uno o pegados como filas
+- Un mensaje publicado a un exchange o a una cola
+- Colas, streams y exchanges nuevos, y borrarlos
+- Vínculos creados y quitados
+- Una cola purgada, o un vistazo único a sus mensajes
 - Todo lo que rabbitmqadmin puede cambiar, escrito en la terminal
 
 ## Conexión
@@ -107,6 +112,58 @@ del catálogo.
   consumidores y argumentos.
 - Un exchange: su tipo, si sobrevive a un reinicio, si se borra sin uso o es
   interno, y sus mensajes que entran y salen por segundo.
+
+## Enviar mensajes a un stream
+
+- **+** sobre las filas de un stream añade un mensaje. Rellena lo que
+  necesites: todo puede quedar vacío. Pasa por el exchange predeterminado, con
+  el nombre del stream como clave de enrutamiento.
+- **body** es texto; `0x` seguido de dígitos hexadecimales se envía como esos
+  bytes. Déjalo vacío y rellena los campos `body.` para enviar un objeto JSON
+  con ellos.
+- **headers** es un objeto JSON, como `{"source": "manual"}`; **properties**
+  es un objeto JSON de lo que AMQP nombra: `message_id`, `correlation_id`,
+  `reply_to`, `priority`, `expiration`, `type`, `app_id`, `delivery_mode`.
+- Un **timestamp** vacío no envía ninguno.
+- Las filas pegadas en un stream se envían como mensajes. Si un valor no se
+  puede leer, no se envía nada y se indica la celda.
+- La fila nueva no muestra offset hasta que se vuelve a leer la página: lo da
+  el stream.
+
+## Cambiar colas, streams y exchanges
+
+Marca una cola, un stream o un exchange, o nada en su nivel, y abre el menú
+del catálogo:
+
+- **Nueva cola**, **Nuevo stream**, **Nuevo exchange** — cada uno en su nivel.
+  Una cola es classic o quorum; un stream guarda mensajes durante un tiempo
+  como `7D` y hasta un tamaño; los argumentos son un `nombre=valor` por línea,
+  como `x-max-length=10000`.
+- **Publicar** — un mensaje a un exchange con clave de enrutamiento, o a una
+  cola. Un mensaje que el exchange no enruta a ninguna cola se pierde, y la
+  ventana lo dice.
+- **Vincular** — desde un exchange a la cola marcada, o desde el exchange
+  marcado a una cola o exchange, con clave de enrutamiento. **Desvincular**
+  elige uno de los vínculos del nodo marcado.
+- **Purgar** — se van todos los mensajes listos de una cola; los que los
+  consumidores tomaron y aún no confirmaron se quedan con ellos.
+- **Borrar** — la ventana dice cuántos mensajes y vínculos se van. Los
+  exchanges propios de RabbitMQ no se borran.
+
+## Echar un vistazo
+
+Los mensajes de una cola no se muestran al abrirla: leerlos sería tomarlos.
+**Echar un vistazo** toma hasta cien, los devuelve al momento y abre lo leído
+en una pestaña.
+
+- Cada mensaje vuelve marcado como **reentregado**. Una cola quorum cuenta el
+  vistazo para su límite de entregas, tras el cual un mensaje va a dead-letter
+  o se descarta, y un consumidor puede recibir los mensajes fuera de orden. La
+  ventana pregunta antes de mirar.
+- La pestaña es el vistazo tal como se tomó. Recorrerla no vuelve a leer la
+  cola; para un vistazo nuevo, vuelve a echarlo.
+- Un vistazo se guarda mientras DataPlayer funciona, y un tiempo después de
+  abrirse por última vez.
 
 ## Descargas
 

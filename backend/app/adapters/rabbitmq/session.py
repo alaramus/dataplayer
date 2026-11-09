@@ -14,7 +14,7 @@ import ssl
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 
 import aio_pika
@@ -100,6 +100,33 @@ class RabbitmqSession:
                 "network", say("The management API did not answer as RabbitMQ does")
             ) from None
 
+    async def change(
+        self,
+        method: Literal["PUT", "POST", "DELETE"],
+        path: str,
+        body: dict[str, Any] | None = None,
+        node_id: str = "",
+    ) -> Any:
+        """A change through the management API (D330): its answer when it has
+        one, or the broker's refusal in this repository's words."""
+        try:
+            async with self._client() as client:
+                response = await client.request(method, path, json=body)
+        except httpx.HTTPError as failure:
+            raise _unreachable(failure) from None
+        if response.status_code == 404 and node_id:
+            raise NodeNotFound(node_id)
+        if response.status_code == 400:
+            raise _refused_change(response)
+        if response.status_code >= 400:
+            raise _refused_http(response.status_code)
+        if not response.content:
+            return None
+        try:
+            return response.json()
+        except ValueError:
+            return None
+
     @asynccontextmanager
     async def channel(
         self, node_id: str = "", vhost: str | None = None
@@ -129,6 +156,13 @@ class RabbitmqSession:
             raise
         except (amqp.AMQPError, OSError, TimeoutError) as failure:
             raise reduced(failure, node_id) from None
+
+    async def waiting(self, vhost: str, queue: str, node_id: str = "") -> int:
+        """Messages ready in a queue now, as AMQP counts them: the management
+        API's numbers are a sample taken every few seconds (D330)."""
+        async with self.channel(node_id, vhost=vhost) as channel:
+            declared = await channel.declare_queue(queue, passive=True)
+            return int(declared.declaration_result.message_count or 0)
 
     async def check(self) -> ConnectionCheckResult:
         """The management API and then AMQP, in words that name no address.
@@ -191,6 +225,23 @@ def _refused_http(status: int) -> AdapterError:
         )
     logger.warning("RabbitMQ management API answered %s", status)
     return AdapterError("unknown", say("The RabbitMQ broker could not do that"))
+
+
+def _refused_change(response: httpx.Response) -> AdapterError:
+    """A 400 to a change: the broker's reason is read for its kind, never
+    passed on — it names the virtual host and repeats the request."""
+    try:
+        reason = str(response.json().get("reason", ""))
+    except ValueError, AttributeError:
+        reason = ""
+    logger.info("RabbitMQ refused a change: %s", reason[:300])
+    if "inequivalent arg" in reason:
+        return AdapterError(
+            "config", say("Something of that name exists already, with other settings")
+        )
+    if "not supported by stream" in reason:
+        return AdapterError("config", say("A stream does not do that"))
+    return AdapterError("config", say("The RabbitMQ broker refused that"))
 
 
 def reduced(failure: BaseException, node_id: str = "") -> AdapterError | NodeNotFound:
