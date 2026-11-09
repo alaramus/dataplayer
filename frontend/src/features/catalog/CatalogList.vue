@@ -67,12 +67,19 @@ const toast = useToast()
  * from the root of its connection, in the form the head's path copy writes,
  * and anything else's name. A file name alone is rarely what is pasted.
  */
+function copiesPath(node: ListNode): boolean {
+  // A list with no tick column is a source nothing can be done to, and every
+  // source of files renames and deletes: its folders are a market's or a
+  // quote asset's, named rather than placed (D323).
+  return !props.noTicks && (node.kind === "file" || node.kind === "directory")
+}
+
 function copiedText(node: ListNode): string {
-  return node.kind === "file" || node.kind === "directory" ? levelPath(node.id) : node.label
+  return copiesPath(node) ? levelPath(node.id) : node.label
 }
 
 function copyTooltip(node: ListNode): string {
-  return node.kind === "file" || node.kind === "directory"
+  return copiesPath(node)
     ? t("catalog.list.copy_path", { name: node.label })
     : t("catalog.list.copy_name", { name: node.label })
 }

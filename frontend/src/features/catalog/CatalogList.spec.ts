@@ -332,3 +332,19 @@ describe("a list with no tick column", () => {
     expect(wrapper.find('[data-testid="catalog-copy-Cluster"]').exists()).toBe(false)
   })
 })
+
+describe("copying in a list with no tick column", () => {
+  it("copies a folder's name rather than a path", async () => {
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
+    const folder: ListNode = { ...table("spot:symbol:FILBTC:candles", "Candles"), kind: "directory" }
+    const wrapper = mount(CatalogList, {
+      props: { items: [folder], checked: [], loading: false, tickable: new Set<string>(), noTicks: true },
+      global: { plugins: [[Quasar, { plugins: { Notify } }]] },
+    })
+
+    await wrapper.find('[data-testid="catalog-copy-Candles"]').trigger("click")
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith("Candles")
+  })
+})
