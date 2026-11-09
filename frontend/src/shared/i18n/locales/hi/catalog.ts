@@ -216,6 +216,8 @@ export const catalog: Messages["catalog"] = {
     group_rebalancing: "पुनर्संतुलन",
     group_dead: "समाप्त",
     group_unknown: "स्थिति अज्ञात",
+    internal: "आंतरिक",
+    unacknowledged: "{n} अपुष्ट",
   },
   count: {
     row: "{n} पंक्ति | {n} पंक्तियाँ",

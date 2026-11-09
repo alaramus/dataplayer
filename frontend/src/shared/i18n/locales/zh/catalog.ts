@@ -216,6 +216,8 @@ export const catalog: Messages["catalog"] = {
     group_rebalancing: "重新平衡中",
     group_dead: "已失效",
     group_unknown: "状态未知",
+    internal: "内部",
+    unacknowledged: "{n} 条未确认",
   },
   count: {
     row: "{n} 行",

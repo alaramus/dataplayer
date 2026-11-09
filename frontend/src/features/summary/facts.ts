@@ -202,6 +202,12 @@ function contentsFacts(contents: NodeContents): Fact[] {
       return kafkaTopicFacts(contents)
     case "kafka_group":
       return kafkaGroupFacts(contents)
+    case "amqp_queue":
+      return amqpQueueFacts(contents)
+    case "amqp_stream":
+      return amqpStreamFacts(contents)
+    case "amqp_exchange":
+      return amqpExchangeFacts(contents)
     case "directory": {
       const facts: Fact[] = []
       addCount(facts, t("summary.facts.entries"), contents.entries)
@@ -320,6 +326,87 @@ function kafkaGroupFacts(contents: Extract<NodeContents, { kind: "kafka_group" }
   if ((contents.topics ?? []).length > 0) {
     facts.push({ label: t("summary.facts.kafka_topics"), value: (contents.topics ?? []).join(", ") })
   }
+  return facts
+}
+
+type AmqpQueue = Extract<NodeContents, { kind: "amqp_queue" }>
+type AmqpStream = Extract<NodeContents, { kind: "amqp_stream" }>
+type AmqpExchange = Extract<NodeContents, { kind: "amqp_exchange" }>
+type AmqpConsumers = AmqpQueue["consumers"]
+type AmqpArguments = AmqpQueue["arguments"]
+
+function addRate(facts: Fact[], label: string, rate: number | null | undefined) {
+  if (rate === null || rate === undefined) return
+  facts.push({ label, value: t("summary.values.amqp_rate", { n: Math.round(rate * 10) / 10 }) })
+}
+
+/** Who takes from a queue or reads a stream, one line each (D326). */
+function addConsumers(facts: Fact[], consumers: AmqpConsumers) {
+  for (const one of consumers ?? []) {
+    const parts = [one.channel ?? "—"]
+    if (one.prefetch !== null && one.prefetch !== undefined) {
+      parts.push(t("summary.values.amqp_prefetch", { n: one.prefetch }))
+    }
+    if (one.acknowledges === false) parts.push(t("summary.values.amqp_no_ack"))
+    facts.push({ label: t("summary.facts.amqp_consumer", { tag: one.tag }), value: parts.join(", ") })
+  }
+}
+
+/** The arguments it was declared with, as RabbitMQ names them. */
+function addArguments(facts: Fact[], settings: AmqpArguments) {
+  for (const setting of settings ?? []) facts.push({ label: setting.name, value: setting.value })
+}
+
+function addText(facts: Fact[], label: string, value: string | null | undefined) {
+  if (value === null || value === undefined || value === "") return
+  facts.push({ label, value })
+}
+
+/**
+ * What waits in a queue and who takes it, as the management API last measured
+ * — RabbitMQ samples every few seconds (D326).
+ */
+function amqpQueueFacts(contents: AmqpQueue): Fact[] {
+  const facts: Fact[] = [{ label: t("summary.facts.amqp_type"), value: contents.queue_type }]
+  addText(facts, t("summary.facts.amqp_state"), contents.state)
+  addCount(facts, t("summary.facts.amqp_ready"), contents.ready)
+  addCount(facts, t("summary.facts.amqp_unacknowledged"), contents.unacknowledged)
+  addRate(facts, t("summary.facts.amqp_rate_in"), contents.rate_in)
+  addRate(facts, t("summary.facts.amqp_rate_out"), contents.rate_out)
+  addText(facts, t("summary.facts.amqp_node"), contents.node)
+  addText(facts, t("summary.facts.amqp_policy"), contents.policy)
+  addConsumers(facts, contents.consumers)
+  addArguments(facts, contents.arguments)
+  return facts
+}
+
+function amqpStreamFacts(contents: AmqpStream): Fact[] {
+  const facts: Fact[] = []
+  addCount(facts, t("summary.facts.amqp_messages"), contents.messages)
+  addCount(facts, t("summary.facts.amqp_segments"), contents.segments)
+  addRate(facts, t("summary.facts.amqp_rate_in"), contents.rate_in)
+  addMoment(facts, t("summary.facts.amqp_first_at"), contents.first_at)
+  addText(facts, t("summary.facts.amqp_leader"), contents.leader)
+  if ((contents.members ?? []).length > 0) {
+    facts.push({ label: t("summary.facts.amqp_members"), value: (contents.members ?? []).join(", ") })
+  }
+  addText(facts, t("summary.facts.amqp_policy"), contents.policy)
+  addConsumers(facts, contents.consumers)
+  addArguments(facts, contents.arguments)
+  return facts
+}
+
+function amqpExchangeFacts(contents: AmqpExchange): Fact[] {
+  const yes = (value: boolean | undefined) => t(value === true ? "summary.yes" : "summary.no")
+  const facts: Fact[] = [
+    { label: t("summary.facts.amqp_type"), value: contents.exchange_type },
+    { label: t("summary.facts.amqp_durable"), value: yes(contents.durable) },
+    { label: t("summary.facts.amqp_auto_delete"), value: yes(contents.auto_delete) },
+    { label: t("summary.facts.amqp_internal"), value: yes(contents.internal) },
+  ]
+  addRate(facts, t("summary.facts.amqp_rate_in"), contents.rate_in)
+  addRate(facts, t("summary.facts.amqp_rate_out"), contents.rate_out)
+  addArguments(facts, contents.arguments)
   return facts
 }
 

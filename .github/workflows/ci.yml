@@ -150,6 +150,21 @@ jobs:
         ports:
           - 9094:9094
           - 9095:9095
+      # The RabbitMQ the RabbitMQ source tests read (D325): AMQP on 5673 and
+      # its management API 10000 ports above, as the tests expect.
+      rabbitmq:
+        image: rabbitmq:4.3.7-management
+        env:
+          RABBITMQ_DEFAULT_USER: dataplayer
+          RABBITMQ_DEFAULT_PASS: dataplayer
+        ports:
+          - 5673:5672
+          - 15673:15672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_port_connectivity"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 30
       # The ZooKeeper the ZooKeeper source tests read (D297).
       zookeeper:
         image: zookeeper:3.9
@@ -187,6 +202,7 @@ jobs:
       TEST_MONGODB_URL: mongodb://root:dataplayer@127.0.0.1:27018/?authSource=admin
       TEST_ZOOKEEPER_URL: zookeeper://127.0.0.1:2182
       TEST_KAFKA_URL: kafka://127.0.0.1:9094
+      TEST_RABBITMQ_URL: amqp://dataplayer:dataplayer@127.0.0.1:5673
       # backend/scripts/test.sh runs the suite this way, and the private routes
       # exist only in development: without it their tests get a 404.
       FASTAPI_ENV: development

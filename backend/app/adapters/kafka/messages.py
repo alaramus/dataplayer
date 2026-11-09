@@ -11,12 +11,10 @@ import json
 import time
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 
 from confluent_kafka import KafkaError, KafkaException, TopicPartition
 
-from app.adapters import jsontext
 from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
 from app.adapters.fetch import (
     FetchColumn,
@@ -25,13 +23,26 @@ from app.adapters.fetch import (
     Filter,
     FilterOp,
     InFilter,
-    NullFilter,
     ScalarFilter,
 )
 from app.adapters.kafka.catalog import is_internal, partitions_of, topic_of, watermarks
 from app.adapters.kafka.session import TIMEOUT_SECONDS, KafkaClients, KafkaSession
+from app.adapters.message_cells import (
+    RANGE_OPS,
+    TEXT_OPS,
+    body_shape,
+    field_text,
+    json_of,
+    milliseconds_of,
+    moment,
+    predicate,
+    text_of,
+)
 from app.adapters.relation import ColumnType, TypeCategory
 from app.core.translation import say
+
+# Read from here by the rest of the package.
+__all__ = ["milliseconds_of", "moment"]
 
 # How deep a page may reach from either end, per partition (D306).
 DEPTH_CEILING = 10_000
@@ -41,9 +52,6 @@ SCAN_CEILING = 100_000
 
 # Newest messages read to find the fields of JSON values.
 SAMPLE = 200
-
-# Characters of a key or a value shown in a cell.
-CELL_CHARACTERS = 65_536
 
 # How long reading one page may take, all partitions together. A consume waits
 # until it has its number of messages or its time is up, so each wait is short.
@@ -66,47 +74,6 @@ class Message:
     headers: tuple[tuple[str, bytes | None], ...]
 
 
-def text_of(raw: bytes | None) -> str | None:
-    """UTF-8 as text, anything else as hex, as MongoDB's bytes are (D284)."""
-    if raw is None:
-        return None
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        text = "0x" + raw.hex()
-    if len(text) > CELL_CHARACTERS:
-        return text[:CELL_CHARACTERS] + "…"
-    return text
-
-
-def json_of(raw: bytes | None) -> Any:
-    """A value that is a JSON object, or nothing."""
-    if raw is None or not raw.lstrip().startswith(b"{"):
-        return None
-    try:
-        parsed = jsontext.load(raw.decode("utf-8"))
-    except ValueError:
-        return None
-    return parsed if isinstance(parsed, dict) else None
-
-
-def is_json(raw: bytes | None) -> bool:
-    if raw is None:
-        return True
-    try:
-        jsontext.load(raw.decode("utf-8"))
-    except ValueError:
-        return False
-    return True
-
-
-def moment(milliseconds: int | None) -> str | None:
-    if milliseconds is None:
-        return None
-    at = datetime.fromtimestamp(milliseconds / 1000, tz=UTC)
-    return at.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
 def headers_of(message: Message) -> str | None:
     if not message.headers:
         return None
@@ -115,36 +82,7 @@ def headers_of(message: Message) -> str | None:
     )
 
 
-def field_text(value: Any) -> str | None:
-    """A field of a JSON value as a cell: a string as itself, the rest as JSON."""
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    return jsontext.encode(value)
-
-
-def _category(value: Any) -> TypeCategory:
-    if isinstance(value, bool):
-        return "boolean"
-    if isinstance(value, jsontext.JsonNumber):
-        return "number"
-    if isinstance(value, str):
-        return "string"
-    return "json"
-
-
 # --- the columns ----------------------------------------------------------
-
-_TEXT_OPS: list[FilterOp] = [
-    "eq",
-    "ne",
-    "contains",
-    "starts_with",
-    "is_null",
-    "is_not_null",
-]
-_RANGE_OPS: list[FilterOp] = ["gte", "gt", "lte", "lt"]
 
 
 def _column(
@@ -170,10 +108,10 @@ def _column(
 def fixed_columns(value_category: TypeCategory) -> list[FetchColumn]:
     return [
         _column("partition", "partition", "number", ["eq", "in"]),
-        _column("offset", "offset", "number", _RANGE_OPS, insertable=False),
-        _column("timestamp", "timestamp", "datetime", _RANGE_OPS, sortable=True),
-        _column("key", "bytes", "string", _TEXT_OPS),
-        _column("value", "bytes", value_category, _TEXT_OPS),
+        _column("offset", "offset", "number", RANGE_OPS, insertable=False),
+        _column("timestamp", "timestamp", "datetime", RANGE_OPS, sortable=True),
+        _column("key", "bytes", "string", TEXT_OPS),
+        _column("value", "bytes", value_category, TEXT_OPS),
         _column("headers", "headers", "json", ["contains", "is_null", "is_not_null"]),
     ]
 
@@ -189,32 +127,14 @@ class Shape:
     def columns(self) -> list[FetchColumn]:
         columns = fixed_columns(self.value_category)
         for name, category in self.fields:
-            ops = [*_TEXT_OPS, *(_RANGE_OPS if category == "number" else [])]
+            ops = [*TEXT_OPS, *(RANGE_OPS if category == "number" else [])]
             columns.append(_column(FIELD_PREFIX + name, "field", category, ops))
         return columns
 
 
 def shape_of(messages: list[Message]) -> Shape:
-    all_json = all(is_json(message.value) for message in messages)
-    found: dict[str, TypeCategory] = {}
-    for message in messages:
-        value = json_of(message.value)
-        if value is None:
-            continue
-        for name, item in value.items():
-            if item is None:
-                found.setdefault(name, "string")
-                continue
-            category = _category(item)
-            known = found.get(name)
-            if known is None:
-                found[name] = category
-            elif known != category:
-                found[name] = "string"
-    return Shape(
-        value_category="json" if all_json and messages else "string",
-        fields=tuple(found.items()),
-    )
+    category, fields = body_shape([message.value for message in messages])
+    return Shape(value_category=category, fields=fields)
 
 
 def row_of(message: Message, fields: list[str]) -> list[str | None]:
@@ -238,16 +158,6 @@ def _number(column: str, text: str) -> int:
         return int(text)
     except ValueError:
         raise ValueError(say("{column} takes a whole number", column=column)) from None
-
-
-def milliseconds_of(text: str) -> int:
-    try:
-        at = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
-    except ValueError:
-        raise ValueError(say("timestamp takes a date and time")) from None
-    if at.tzinfo is None:
-        at = at.replace(tzinfo=UTC)
-    return int(at.timestamp() * 1000)
 
 
 @dataclass
@@ -331,52 +241,6 @@ def cell(message: Message, column: str) -> str | None:
     return None if value is None else field_text(value.get(column[len(FIELD_PREFIX) :]))
 
 
-def _as_number(text: str) -> float | None:
-    try:
-        return float(text)
-    except ValueError:
-        return None
-
-
-def _predicate(one: Filter) -> Callable[[Message], bool]:
-    column = one.column
-    if isinstance(one, NullFilter):
-        wanted_null = one.op == "is_null"
-        return lambda message: (cell(message, column) is None) == wanted_null
-    if isinstance(one, InFilter):
-        values = set(one.values)
-        return lambda message: cell(message, column) in values
-    needle = one.value
-    folded = needle.casefold()
-    if one.op in {"gt", "gte", "lt", "lte"}:
-        limit = _as_number(needle)
-        if limit is None:
-            raise ValueError(say("{column} takes a number", column=column))
-
-        def compares(message: Message) -> bool:
-            text = cell(message, column)
-            number = None if text is None else _as_number(text)
-            if number is None:
-                return False
-            return {
-                "gt": number > limit,
-                "gte": number >= limit,
-                "lt": number < limit,
-                "lte": number <= limit,
-            }[one.op]
-
-        return compares
-    if one.op == "contains":
-        return lambda message: folded in (cell(message, column) or "").casefold()
-    if one.op == "starts_with":
-        return lambda message: (
-            (cell(message, column) or "").casefold().startswith(folded)
-        )
-    if one.op == "ne":
-        return lambda message: cell(message, column) != needle
-    return lambda message: cell(message, column) == needle
-
-
 def predicates(
     filters: list[Filter], columns: list[FetchColumn]
 ) -> list[Callable[[Message], bool]]:
@@ -392,7 +256,7 @@ def predicates(
             )
         if one.column in {"partition", "offset", "timestamp"}:
             continue
-        found.append(_predicate(one))
+        found.append(predicate(one, cell))
     return found
 
 

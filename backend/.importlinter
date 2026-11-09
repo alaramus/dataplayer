@@ -388,6 +388,7 @@ source_modules =
     app.adapters.ssh
     app.adapters.mongodb
     app.adapters.zookeeper
+    app.adapters.rabbitmq
 forbidden_modules =
     confluent_kafka
 
@@ -416,6 +417,82 @@ forbidden_modules =
     app.adapters.clickhouse
     app.adapters.mongodb
     app.adapters.zookeeper
+
+# The RabbitMQ driver, by the rule psycopg follows (D325). aiormq is named
+# apart from aio_pika: it is a distribution of its own, and the errors a
+# session reduces are its.
+[importlinter:contract:rabbitmq-sdk-is-contained]
+name = aio_pika and aiormq are imported only by the rabbitmq adapter
+type = forbidden
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.pipelines
+    app.transfers
+    app.search
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.ai
+    app.terminals
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.fetch
+    app.adapters.routes
+    app.adapters.actions
+    app.adapters.operations
+    app.adapters.resources
+    app.adapters.file
+    app.adapters.explorer
+    app.adapters.postgres
+    app.adapters.mysql
+    app.adapters.sqlite
+    app.adapters.clickhouse
+    app.adapters.redis
+    app.adapters.ssh
+    app.adapters.mongodb
+    app.adapters.zookeeper
+    app.adapters.kafka
+forbidden_modules =
+    aio_pika
+    aiormq
+    pamqp
+
+# And no other source's driver reaches the RabbitMQ adapter.
+[importlinter:contract:other-drivers-stay-out-of-rabbitmq]
+name = the rabbitmq adapter imports no other source's driver
+type = forbidden
+source_modules =
+    app.adapters.rabbitmq
+forbidden_modules =
+    psycopg
+    psycopg_pool
+    pglast
+    sqlglot
+    aiomysql
+    pymysql
+    sqlite3
+    redis
+    asyncssh
+    pymongo
+    bson
+    kazoo
+    confluent_kafka
+    app.adapters.postgres
+    app.adapters.mysql
+    app.adapters.sqlite
+    app.adapters.clickhouse
+    app.adapters.mongodb
+    app.adapters.zookeeper
+    app.adapters.kafka
 
 # And no other source's driver reaches the MongoDB adapter.
 [importlinter:contract:other-drivers-stay-out-of-mongodb]

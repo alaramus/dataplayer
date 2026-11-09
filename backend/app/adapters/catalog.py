@@ -247,6 +247,47 @@ class ConsumerGroupNode(BaseNode):
     members: int | None = None
 
 
+class AmqpQueueNode(BaseNode):
+    """One RabbitMQ queue: what waits in it and who takes it (D326).
+
+    Not opened for its messages: a queue hands one out and forgets it, so it
+    cannot be read without being drained. It is opened as its bindings.
+    """
+
+    kind: Literal["amqp_queue"] = "amqp_queue"
+    has_children: bool = False
+    # classic or quorum, or a plugin's: the broker's own word, an open set.
+    queue_type: str
+    # running, idle, flow, down: the broker's word as well.
+    state: str | None = None
+    ready: int | None = None
+    unacknowledged: int | None = None
+    consumers: int | None = None
+
+
+class AmqpStreamNode(BaseNode):
+    """One RabbitMQ stream: a log kept for its retention, read from any
+    position without taking anything from anybody (D326)."""
+
+    kind: Literal["amqp_stream"] = "amqp_stream"
+    has_children: bool = False
+    messages: int | None = None
+    consumers: int | None = None
+
+
+class ExchangeNode(BaseNode):
+    """One RabbitMQ exchange: keeps nothing, routes to what is bound (D326)."""
+
+    kind: Literal["exchange"] = "exchange"
+    has_children: bool = False
+    # direct, topic, fanout, headers, or a plugin's.
+    exchange_type: str
+    durable: bool = True
+    internal: bool = False
+    # The default exchange and the `amq.*` ones every virtual host is made with.
+    is_system: bool = False
+
+
 class SymbolNode(BaseNode):
     """One pair traded on a market, as Binance lists it (D317).
 
@@ -313,6 +354,9 @@ CatalogNode = Annotated[
     | ZnodeNode
     | TopicNode
     | ConsumerGroupNode
+    | AmqpQueueNode
+    | AmqpStreamNode
+    | ExchangeNode
     | SymbolNode
     | FeedNode,
     Field(discriminator="kind"),
@@ -337,6 +381,9 @@ NodeKind = Literal[
     "znode",
     "topic",
     "consumer_group",
+    "amqp_queue",
+    "amqp_stream",
+    "exchange",
     "symbol",
     "feed",
 ]

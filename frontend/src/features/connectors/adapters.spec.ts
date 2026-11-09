@@ -4,7 +4,7 @@ import { adapterIcon, categoryIcon, UNKNOWN_CATEGORY_ICON, UNKNOWN_ADAPTER_ICON 
 
 describe("the icon of a source type", () => {
   it("tells the types apart", () => {
-    const drawn = ["postgres", "mongodb", "redis", "zookeeper", "kafka", "binance", "file", "ssh"].map(adapterIcon)
+    const drawn = ["postgres", "mongodb", "redis", "zookeeper", "kafka", "rabbitmq", "binance", "file", "ssh"].map(adapterIcon)
     expect(new Set(drawn).size).toBe(drawn.length)
   })
 
@@ -18,7 +18,7 @@ describe("the icon of a source type", () => {
   })
 
   it("falls back for a type the backend gained since this build", () => {
-    expect(adapterIcon("rabbitmq")).toBe(UNKNOWN_ADAPTER_ICON)
+    expect(adapterIcon("zeromq")).toBe(UNKNOWN_ADAPTER_ICON)
   })
 })
 

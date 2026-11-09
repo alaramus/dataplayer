@@ -54,6 +54,7 @@ dependencies = [
     "kazoo>=2.10,<3",
     # Kafka's client on librdkafka, synchronous, called through the thread pool (D304).
     "confluent-kafka>=2.12,<3",
+    "aio-pika>=10.2.3",
 ]
 
 [dependency-groups]

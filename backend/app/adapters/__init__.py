@@ -7,6 +7,7 @@ from app.adapters import (  # noqa: F401
     mongodb,
     mysql,
     postgres,
+    rabbitmq,
     redis,
     sqlite,
     ssh,

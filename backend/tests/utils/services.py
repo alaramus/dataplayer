@@ -76,6 +76,9 @@ _PROTOCOLS = {
     "zookeeper": _Protocol(2181, b"srvr", (b"Z",)),
     # Kafka waits to be asked; its reply starts with its length.
     "kafka": _Protocol(9092, _kafka_api_versions(), (b"",)),
+    # An AMQP 0-9-1 header is answered by Connection.Start, a method frame
+    # whose type is 1.
+    "amqp": _Protocol(5672, b"AMQP\x00\x00\x09\x01", (b"\x01",)),
 }
 
 _required = False
@@ -217,6 +220,17 @@ KAFKA = Server(
     read=lambda: os.environ.get("TEST_KAFKA_URL", "kafka://127.0.0.1:9094"),
 )
 
+# The development RabbitMQ (`rabbitmq` in compose.override.yml). Its management
+# API answers 10000 ports above AMQP, as RabbitMQ's own defaults do (D325).
+RABBITMQ = Server(
+    name="RabbitMQ",
+    variable="TEST_RABBITMQ_URL",
+    start="docker compose up -d rabbitmq",
+    read=lambda: os.environ.get(
+        "TEST_RABBITMQ_URL", "amqp://dataplayer:dataplayer@127.0.0.1:5673"
+    ),
+)
+
 SERVERS = (
     POSTGRES,
     REDIS,
@@ -228,6 +242,7 @@ SERVERS = (
     MONGODB,
     ZOOKEEPER,
     KAFKA,
+    RABBITMQ,
 )
 
 

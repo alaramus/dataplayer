@@ -217,6 +217,8 @@ export const catalog: Messages["catalog"] = {
     group_rebalancing: "rééquilibrage",
     group_dead: "supprimé",
     group_unknown: "état inconnu",
+    internal: "interne",
+    unacknowledged: "{n} non acquittés",
   },
   count: {
     row: "{n} ligne | {n} lignes",

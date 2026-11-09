@@ -214,6 +214,8 @@ export const catalog = {
     group_rebalancing: "rebalancing",
     group_dead: "gone",
     group_unknown: "state unknown",
+    internal: "internal",
+    unacknowledged: "{n} unacknowledged",
   },
   count: {
     row: "{n} row | {n} rows",

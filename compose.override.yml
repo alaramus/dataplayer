@@ -200,6 +200,21 @@ services:
       - "127.0.0.1:9094:9094"
       - "127.0.0.1:9095:9095"
 
+  # The RabbitMQ the RabbitMQ source tests read (D325): AMQP and the
+  # management API on the host's 5673 and 15673, the backend reaching
+  # `rabbitmq:5672` and `rabbitmq:15672`; user and password `dataplayer`.
+  # Behind the `tools` profile.
+  rabbitmq:
+    image: rabbitmq:4.3.7-management
+    profiles: ["tools"]
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: dataplayer
+      RABBITMQ_DEFAULT_PASS: dataplayer
+    ports:
+      - "127.0.0.1:5673:5672"
+      - "127.0.0.1:15673:15672"
+
   # dataplayer-monitor-agent reporting the machine Docker runs on to the
   # metrics process, started with
   # `docker compose --profile monitor-agent up -d monitor-agent`. It signs

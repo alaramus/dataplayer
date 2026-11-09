@@ -219,6 +219,8 @@ export const catalog: Messages["catalog"] = {
     group_rebalancing: "إعادة توازن",
     group_dead: "منتهية",
     group_unknown: "حالة غير معروفة",
+    internal: "داخلي",
+    unacknowledged: "{n} بلا تأكيد",
   },
   count: {
     row: "لا صفوف | صف واحد | صفان | {n} صفوف | {n} صفًا | {n} صف",

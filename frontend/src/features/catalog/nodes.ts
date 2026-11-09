@@ -58,6 +58,11 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   // directories (D305).
   topic: "leaf",
   consumer_group: "leaf",
+  // Opened for their bindings or a stream's messages; the levels above them
+  // are directories (D326).
+  amqp_queue: "leaf",
+  amqp_stream: "leaf",
+  exchange: "leaf",
   // A symbol is walked into for its feeds until it has a view of its own;
   // the rule below makes a leaf with nothing to open a place (D317).
   symbol: "leaf",
@@ -153,6 +158,9 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   znode: "data_object",
   topic: "view_stream",
   consumer_group: "groups",
+  amqp_queue: "inbox",
+  amqp_stream: "view_stream",
+  exchange: "alt_route",
   symbol: "currency_exchange",
   feed: "table_rows",
 }
@@ -353,6 +361,14 @@ function captionOf(node: CatalogNode): string | undefined {
       return topicCaption(node)
     case "consumer_group":
       return groupCaption(node)
+    case "amqp_queue":
+      return queueCaption(node)
+    case "amqp_stream":
+      return streamCaption(node)
+    case "exchange":
+      return node.internal === true
+        ? `${node.exchange_type} · ${t("catalog.nodes.internal")}`
+        : node.exchange_type
     case "symbol":
       return `${node.base} / ${node.quote}`
     case "database":
@@ -461,6 +477,30 @@ function groupCaption(node: Extract<CatalogNode, { kind: "consumer_group" }>): s
   return parts.join(" · ")
 }
 
+/**
+ * A queue's type in RabbitMQ's own word, what waits in it, what is taken and
+ * not yet acknowledged, and who takes it (D326).
+ */
+function queueCaption(node: Extract<CatalogNode, { kind: "amqp_queue" }>): string {
+  const parts = [node.queue_type]
+  if (node.ready !== null && node.ready !== undefined) parts.push(counted(node.ready, "message"))
+  if ((node.unacknowledged ?? 0) > 0) {
+    parts.push(t("catalog.nodes.unacknowledged", { n: node.unacknowledged ?? 0 }))
+  }
+  if ((node.consumers ?? 0) > 0) parts.push(counted(node.consumers ?? 0, "consumer"))
+  return parts.join(" · ")
+}
+
+/** A stream's messages and its readers (D326). */
+function streamCaption(node: Extract<CatalogNode, { kind: "amqp_stream" }>): string | undefined {
+  const parts: string[] = []
+  if (node.messages !== null && node.messages !== undefined) {
+    parts.push(counted(node.messages, "message"))
+  }
+  if ((node.consumers ?? 0) > 0) parts.push(counted(node.consumers ?? 0, "consumer"))
+  return parts.length === 0 ? undefined : parts.join(" · ")
+}
+
 /** A number of seconds in the largest unit that still says something. */
 export function formatDuration(seconds: number): string {
   if (seconds < 60) return t("catalog.duration.seconds", { n: seconds })
@@ -509,6 +549,7 @@ function isSystem(node: CatalogNode): boolean {
     case "view":
     case "znode":
     case "topic":
+    case "exchange":
       return node.is_system ?? false
     default:
       return false

@@ -90,6 +90,62 @@ suite("describe", () => {
     expect(labelled(described.contents, "Assignor")).toBeUndefined()
   })
 
+  it("prints what waits in a RabbitMQ queue and who takes it (D326)", () => {
+    const described = describe(
+      summary({
+        node_id: "queue:%2F/billing",
+        name: "billing",
+        kind: "amqp_queue",
+        size_bytes: null,
+        modified_at: null,
+        permissions: null,
+        contents: {
+          kind: "amqp_queue",
+          queue_type: "quorum",
+          state: "running",
+          ready: 3,
+          unacknowledged: 1,
+          rate_in: 2.25,
+          rate_out: null,
+          node: "rabbit@one",
+          policy: null,
+          arguments: [{ name: "x-queue-type", value: "quorum" }],
+          consumers: [{ tag: "ctag-1", channel: "10.0.0.5:50000 (1)", prefetch: 10, acknowledges: false }],
+        },
+      })
+    )
+
+    expect(labelled(described.facts, "Kind")).toBe("Queue")
+    expect(labelled(described.contents, "Type")).toBe("quorum")
+    expect(labelled(described.contents, "Ready")).toBe("3")
+    expect(labelled(described.contents, "In")).toBe("2.3/s")
+    expect(labelled(described.contents, "Out")).toBeUndefined()
+    expect(labelled(described.contents, "Policy")).toBeUndefined()
+    expect(labelled(described.contents, "Consumer ctag-1")).toBe(
+      "10.0.0.5:50000 (1), prefetch 10, no acknowledgement"
+    )
+    expect(labelled(described.contents, "x-queue-type")).toBe("quorum")
+  })
+
+  it("prints an exchange's type and flags (D326)", () => {
+    const described = describe(
+      summary({
+        node_id: "exchange:%2F/dp.orders",
+        name: "dp.orders",
+        kind: "exchange",
+        size_bytes: null,
+        modified_at: null,
+        permissions: null,
+        contents: { kind: "amqp_exchange", exchange_type: "topic", durable: true, internal: false },
+      })
+    )
+
+    expect(labelled(described.facts, "Kind")).toBe("Exchange")
+    expect(labelled(described.contents, "Type")).toBe("topic")
+    expect(labelled(described.contents, "Durable")).toBe("Yes")
+    expect(labelled(described.contents, "Internal")).toBe("No")
+  })
+
   it("prints a znode's stat and one line per entry of its ACL (D298)", () => {
     const described = describe(
       summary({

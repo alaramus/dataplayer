@@ -18,6 +18,7 @@ const ICONS: Record<string, string> = {
   mongodb: "img:/icons/services/mongodb.svg",
   zookeeper: "img:/icons/services/zookeeper.svg",
   kafka: "img:/icons/services/kafka.svg",
+  rabbitmq: "img:/icons/services/rabbitmq.svg",
   binance: "img:/icons/services/binance.svg",
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",

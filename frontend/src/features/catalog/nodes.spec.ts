@@ -222,6 +222,57 @@ describe("a Kafka topic and consumer group (D305)", () => {
   })
 })
 
+describe("a RabbitMQ queue, stream and exchange (D326)", () => {
+  const queue = (over: Partial<Extract<CatalogNode, { kind: "amqp_queue" }>> = {}) => ({
+    kind: "amqp_queue" as const,
+    id: "queue:%2F/billing",
+    name: "billing",
+    has_children: false,
+    representations: [{ kind: "table" as const, title: "View the bindings" }],
+    queue_type: "classic",
+    ready: 3,
+    unacknowledged: 0,
+    consumers: 0,
+    ...over,
+  })
+  const stream = {
+    kind: "amqp_stream" as const,
+    id: "stream:%2F/orders.log",
+    name: "orders.log",
+    has_children: false,
+    representations: [{ kind: "table" as const, title: "View the messages" }],
+    messages: 61,
+    consumers: 1,
+  }
+  const exchange = (over: Partial<Extract<CatalogNode, { kind: "exchange" }>> = {}) => ({
+    kind: "exchange" as const,
+    id: "exchange:%2F/dp.orders",
+    name: "dp.orders",
+    has_children: false,
+    representations: [{ kind: "table" as const, title: "View the bindings" }],
+    exchange_type: "topic",
+    ...over,
+  })
+
+  it("says a queue's type, what waits in it and who takes it", () => {
+    expect(first(toListNodes([queue()])).caption).toBe("classic · 3 messages")
+    expect(
+      first(toListNodes([queue({ queue_type: "quorum", unacknowledged: 2, consumers: 1 })])).caption
+    ).toBe("quorum · 3 messages · 2 unacknowledged · 1 consumer")
+    expect(first(toListNodes([queue()])).icon).toBe(ICONS.amqp_queue)
+    expect(roleOf(queue())).toBe("leaf")
+  })
+
+  it("says a stream's messages and readers", () => {
+    expect(first(toListNodes([stream])).caption).toBe("61 messages · 1 consumer")
+  })
+
+  it("says an exchange's type, and whether only exchanges may publish to it", () => {
+    expect(first(toListNodes([exchange()])).caption).toBe("topic")
+    expect(first(toListNodes([exchange({ internal: true })])).caption).toBe("topic · internal")
+  })
+})
+
 describe("a Binance symbol and its feeds (D317)", () => {
   const symbol = {
     kind: "symbol" as const,

@@ -305,6 +305,79 @@ class KafkaGroupContents(BaseModel):
     lag: int | None = None
 
 
+class AmqpSetting(BaseModel):
+    """An argument a queue, stream or exchange was declared with (D326)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    value: str
+
+
+class AmqpConsumer(BaseModel):
+    """Who takes from a queue, as the management API names them."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    tag: str
+    # The broker's name for the channel: the client's address, then its number.
+    channel: str | None = None
+    prefetch: int | None = None
+    # Whether it acknowledges what it takes; a consumer that does not loses
+    # whatever it had taken when it goes.
+    acknowledges: bool = True
+    active: bool | None = None
+
+
+class AmqpQueueContents(BaseModel):
+    """What a queue holds and who takes it, as the management API last
+    measured (D326)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["amqp_queue"] = "amqp_queue"
+    queue_type: str
+    state: str | None = None
+    ready: int | None = None
+    unacknowledged: int | None = None
+    # Messages a second, in and out, as the broker averaged them.
+    rate_in: float | None = None
+    rate_out: float | None = None
+    node: str | None = None
+    policy: str | None = None
+    arguments: list[AmqpSetting] = Field(default_factory=list)
+    consumers: list[AmqpConsumer] = Field(default_factory=list)
+
+
+class AmqpStreamContents(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["amqp_stream"] = "amqp_stream"
+    messages: int | None = None
+    segments: int | None = None
+    rate_in: float | None = None
+    # When its oldest kept message arrived, by the stream's own clock.
+    first_at: datetime | None = None
+    leader: str | None = None
+    members: list[str] = Field(default_factory=list)
+    policy: str | None = None
+    arguments: list[AmqpSetting] = Field(default_factory=list)
+    consumers: list[AmqpConsumer] = Field(default_factory=list)
+
+
+class AmqpExchangeContents(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["amqp_exchange"] = "amqp_exchange"
+    exchange_type: str
+    durable: bool = True
+    auto_delete: bool = False
+    internal: bool = False
+    rate_in: float | None = None
+    rate_out: float | None = None
+    arguments: list[AmqpSetting] = Field(default_factory=list)
+
+
 NodeContents = Annotated[
     TextContents
     | DelimitedContents
@@ -321,7 +394,10 @@ NodeContents = Annotated[
     | RelationContents
     | ZnodeContents
     | KafkaTopicContents
-    | KafkaGroupContents,
+    | KafkaGroupContents
+    | AmqpQueueContents
+    | AmqpStreamContents
+    | AmqpExchangeContents,
     Field(discriminator="kind"),
 ]
 

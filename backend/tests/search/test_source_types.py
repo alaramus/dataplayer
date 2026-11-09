@@ -68,4 +68,4 @@ async def test_a_template_of_another_kind_does_not_offer_this_one(db: AsyncSessi
 
 
 async def test_nothing_matching_finds_nothing(db: AsyncSession) -> None:
-    assert await _found(db, "rabbitmq") == []
+    assert await _found(db, "zeromq") == []

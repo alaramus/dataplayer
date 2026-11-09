@@ -217,6 +217,8 @@ export const catalog: Messages["catalog"] = {
     group_rebalancing: "перебалансировка",
     group_dead: "удалена",
     group_unknown: "состояние неизвестно",
+    internal: "внутренний",
+    unacknowledged: "без подтверждения: {n}",
   },
   count: {
     row: "{n} строка | {n} строки | {n} строк | {n} строки",

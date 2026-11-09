@@ -161,6 +161,9 @@ export type ActionInfo = {
     | "znode"
     | "topic"
     | "consumer_group"
+    | "amqp_queue"
+    | "amqp_stream"
+    | "exchange"
     | "symbol"
     | "feed"
   >
@@ -782,6 +785,291 @@ export type AgentUpdate = {
    * Name
    */
   name: string
+}
+
+/**
+ * AmqpConsumer
+ *
+ * Who takes from a queue, as the management API names them.
+ */
+export type AmqpConsumer = {
+  /**
+   * Tag
+   */
+  tag: string
+  /**
+   * Channel
+   */
+  channel?: string | null
+  /**
+   * Prefetch
+   */
+  prefetch?: number | null
+  /**
+   * Acknowledges
+   */
+  acknowledges?: boolean
+  /**
+   * Active
+   */
+  active?: boolean | null
+}
+
+/**
+ * AmqpExchangeContents
+ */
+export type AmqpExchangeContents = {
+  /**
+   * Kind
+   */
+  kind?: "amqp_exchange"
+  /**
+   * Exchange Type
+   */
+  exchange_type: string
+  /**
+   * Durable
+   */
+  durable?: boolean
+  /**
+   * Auto Delete
+   */
+  auto_delete?: boolean
+  /**
+   * Internal
+   */
+  internal?: boolean
+  /**
+   * Rate In
+   */
+  rate_in?: number | null
+  /**
+   * Rate Out
+   */
+  rate_out?: number | null
+  /**
+   * Arguments
+   */
+  arguments?: Array<AmqpSetting>
+}
+
+/**
+ * AmqpQueueContents
+ *
+ * What a queue holds and who takes it, as the management API last
+ * measured (D326).
+ */
+export type AmqpQueueContents = {
+  /**
+   * Kind
+   */
+  kind?: "amqp_queue"
+  /**
+   * Queue Type
+   */
+  queue_type: string
+  /**
+   * State
+   */
+  state?: string | null
+  /**
+   * Ready
+   */
+  ready?: number | null
+  /**
+   * Unacknowledged
+   */
+  unacknowledged?: number | null
+  /**
+   * Rate In
+   */
+  rate_in?: number | null
+  /**
+   * Rate Out
+   */
+  rate_out?: number | null
+  /**
+   * Node
+   */
+  node?: string | null
+  /**
+   * Policy
+   */
+  policy?: string | null
+  /**
+   * Arguments
+   */
+  arguments?: Array<AmqpSetting>
+  /**
+   * Consumers
+   */
+  consumers?: Array<AmqpConsumer>
+}
+
+/**
+ * AmqpQueueNode
+ *
+ * One RabbitMQ queue: what waits in it and who takes it (D326).
+ *
+ * Not opened for its messages: a queue hands one out and forgets it, so it
+ * cannot be read without being drained. It is opened as its bindings.
+ */
+export type AmqpQueueNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "amqp_queue"
+  /**
+   * Queue Type
+   */
+  queue_type: string
+  /**
+   * State
+   */
+  state?: string | null
+  /**
+   * Ready
+   */
+  ready?: number | null
+  /**
+   * Unacknowledged
+   */
+  unacknowledged?: number | null
+  /**
+   * Consumers
+   */
+  consumers?: number | null
+}
+
+/**
+ * AmqpSetting
+ *
+ * An argument a queue, stream or exchange was declared with (D326).
+ */
+export type AmqpSetting = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Value
+   */
+  value: string
+}
+
+/**
+ * AmqpStreamContents
+ */
+export type AmqpStreamContents = {
+  /**
+   * Kind
+   */
+  kind?: "amqp_stream"
+  /**
+   * Messages
+   */
+  messages?: number | null
+  /**
+   * Segments
+   */
+  segments?: number | null
+  /**
+   * Rate In
+   */
+  rate_in?: number | null
+  /**
+   * First At
+   */
+  first_at?: string | null
+  /**
+   * Leader
+   */
+  leader?: string | null
+  /**
+   * Members
+   */
+  members?: Array<string>
+  /**
+   * Policy
+   */
+  policy?: string | null
+  /**
+   * Arguments
+   */
+  arguments?: Array<AmqpSetting>
+  /**
+   * Consumers
+   */
+  consumers?: Array<AmqpConsumer>
+}
+
+/**
+ * AmqpStreamNode
+ *
+ * One RabbitMQ stream: a log kept for its retention, read from any
+ * position without taking anything from anybody (D326).
+ */
+export type AmqpStreamNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "amqp_stream"
+  /**
+   * Messages
+   */
+  messages?: number | null
+  /**
+   * Consumers
+   */
+  consumers?: number | null
 }
 
 /**
@@ -1534,6 +1822,9 @@ export type CardRow = {
     | "znode"
     | "topic"
     | "consumer_group"
+    | "amqp_queue"
+    | "amqp_stream"
+    | "exchange"
     | "symbol"
     | "feed"
     | null
@@ -4844,6 +5135,58 @@ export type EntryNode = {
    * Is Encrypted
    */
   is_encrypted?: boolean
+}
+
+/**
+ * ExchangeNode
+ *
+ * One RabbitMQ exchange: keeps nothing, routes to what is bound (D326).
+ */
+export type ExchangeNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "exchange"
+  /**
+   * Exchange Type
+   */
+  exchange_type: string
+  /**
+   * Durable
+   */
+  durable?: boolean
+  /**
+   * Internal
+   */
+  internal?: boolean
+  /**
+   * Is System
+   */
+  is_system?: boolean
 }
 
 /**
@@ -8324,6 +8667,15 @@ export type NodeMatch = {
         kind: "consumer_group"
       } & ConsumerGroupNode)
     | ({
+        kind: "amqp_queue"
+      } & AmqpQueueNode)
+    | ({
+        kind: "amqp_stream"
+      } & AmqpStreamNode)
+    | ({
+        kind: "exchange"
+      } & ExchangeNode)
+    | ({
         kind: "symbol"
       } & SymbolNode)
     | ({
@@ -8494,6 +8846,9 @@ export type NodeSummary = {
     | "znode"
     | "topic"
     | "consumer_group"
+    | "amqp_queue"
+    | "amqp_stream"
+    | "exchange"
     | "symbol"
     | "feed"
   /**
@@ -8572,6 +8927,15 @@ export type NodeSummary = {
     | ({
         kind: "kafka_group"
       } & KafkaGroupContents)
+    | ({
+        kind: "amqp_queue"
+      } & AmqpQueueContents)
+    | ({
+        kind: "amqp_stream"
+      } & AmqpStreamContents)
+    | ({
+        kind: "amqp_exchange"
+      } & AmqpExchangeContents)
     | null
   /**
    * Notice
@@ -8668,6 +9032,15 @@ export type NodeTarget = {
     | ({
         kind: "consumer_group"
       } & ConsumerGroupNode)
+    | ({
+        kind: "amqp_queue"
+      } & AmqpQueueNode)
+    | ({
+        kind: "amqp_stream"
+      } & AmqpStreamNode)
+    | ({
+        kind: "exchange"
+      } & ExchangeNode)
     | ({
         kind: "symbol"
       } & SymbolNode)
@@ -11187,6 +11560,15 @@ export type ReferencedRows = {
         kind: "consumer_group"
       } & ConsumerGroupNode)
     | ({
+        kind: "amqp_queue"
+      } & AmqpQueueNode)
+    | ({
+        kind: "amqp_stream"
+      } & AmqpStreamNode)
+    | ({
+        kind: "exchange"
+      } & ExchangeNode)
+    | ({
         kind: "symbol"
       } & SymbolNode)
     | ({
@@ -11476,6 +11858,15 @@ export type RelationCreated = {
     | ({
         kind: "consumer_group"
       } & ConsumerGroupNode)
+    | ({
+        kind: "amqp_queue"
+      } & AmqpQueueNode)
+    | ({
+        kind: "amqp_stream"
+      } & AmqpStreamNode)
+    | ({
+        kind: "exchange"
+      } & ExchangeNode)
     | ({
         kind: "symbol"
       } & SymbolNode)
@@ -11982,6 +12373,9 @@ export type ResultRow = {
     | "znode"
     | "topic"
     | "consumer_group"
+    | "amqp_queue"
+    | "amqp_stream"
+    | "exchange"
     | "symbol"
     | "feed"
 }
@@ -17262,6 +17656,15 @@ export type connectorsReadCatalogResponses = {
         kind: "consumer_group"
       } & ConsumerGroupNode)
     | ({
+        kind: "amqp_queue"
+      } & AmqpQueueNode)
+    | ({
+        kind: "amqp_stream"
+      } & AmqpStreamNode)
+    | ({
+        kind: "exchange"
+      } & ExchangeNode)
+    | ({
         kind: "symbol"
       } & SymbolNode)
     | ({
@@ -18556,6 +18959,15 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "consumer_group"
       } & ConsumerGroupNode)
+    | ({
+        kind: "amqp_queue"
+      } & AmqpQueueNode)
+    | ({
+        kind: "amqp_stream"
+      } & AmqpStreamNode)
+    | ({
+        kind: "exchange"
+      } & ExchangeNode)
     | ({
         kind: "symbol"
       } & SymbolNode)
