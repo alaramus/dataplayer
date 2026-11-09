@@ -6,7 +6,7 @@ every source type follows is in [contract.md](contract.md); reading a relation
 in general is in [relations.md](relations.md). Read this before changing the
 `cassandra` adapter.
 
-Decisions here: D340, D341, D342, D343, D344, D345.
+Decisions here: D340, D341, D342, D343, D344, D345, D346.
 
 ## D340. One type for Cassandra and ScyllaDB, through the address given
 
@@ -158,3 +158,18 @@ Known deviations:
 - A block of rows overwrites rows that share a key instead of refusing them.
 
 Spec: [Changing a Cassandra table's rows](../../decisions/2026-11-10-cassandra-rows-design.md)
+
+## D346. Columns added, dropped and, in the key, renamed; one-column indexes
+
+A table's model offers what CQL's `ALTER TABLE` does: add a column of a type
+from a closed list (CQL's scalars, and a list, a set and a map of text), drop
+one outside the primary key, rename one of the primary key — Cassandra renames
+nothing else, and a regular column is refused before anything is sent. There
+is no default, no `NOT NULL` outside the key and no change of type. A
+secondary index covers one column, is never unique, and is named from the
+table and the column; its methods are the server's: SAI and legacy on
+Cassandra 5, legacy on Cassandra 4, the global index on ScyllaDB. A refusal
+the server gives, such as a column a view reads, is passed on in its words. A
+view, a virtual table and the server's own keyspaces change nothing.
+
+Spec: [Changing a Cassandra table's structure](../../decisions/2026-11-10-cassandra-structure-design.md)

@@ -6,10 +6,15 @@ from app.adapters.cassandra.inspection import (
     Inspector,
     RelationFacts,
 )
-from app.adapters.cassandra.session import quoted_name
+from app.adapters.cassandra.session import ServerProfile, quoted_name
+from app.adapters.cassandra.vocabulary import (
+    CASSANDRA_COLUMN_TYPE_OPTIONS,
+    index_methods,
+)
 from app.adapters.database_ids import parse
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import Column, Constraint, Index, PrimaryKey, RelationModel
+from app.adapters.words import worded_titles
 from app.core.translation import say
 
 
@@ -58,7 +63,12 @@ def _index(index: IndexFacts) -> Index:
     )
 
 
-def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
+def model_of(
+    node_id: str, facts: RelationFacts, profile: ServerProfile | None = None
+) -> RelationModel:
+    """The model; with the server's profile, also what its structure may become (D346)."""
+    refused = structure_reason(facts)
+    changeable = refused is None and profile is not None
     constraints: list[Constraint] = []
     if facts.primary_key:
         constraints.append(
@@ -87,6 +97,21 @@ def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
         ],
         constraints=constraints,
         indexes=[_index(index) for index in facts.indexes],
+        column_changes_supported=changeable,
+        column_changes_reason=refused,
+        # No default, no NOT NULL and no change of type in CQL; only a key
+        # column is renamed, which the change itself checks.
+        column_operations=["add", "drop", "rename"] if changeable else [],
+        column_type_options=worded_titles(CASSANDRA_COLUMN_TYPE_OPTIONS)
+        if changeable
+        else [],
+        index_changes_supported=changeable,
+        index_changes_reason=refused,
+        index_methods=(
+            worded_titles(index_methods(profile.scylla, profile.version))
+            if changeable and profile is not None
+            else []
+        ),
         constraint_changes_reason=say(
             "Cassandra has no unique keys and no foreign keys"
         ),
@@ -97,6 +122,8 @@ def structure_reason(facts: RelationFacts) -> str | None:
     """Why this relation's structure cannot be changed, or nothing."""
     if facts.is_system:
         return say('"{keyspace}" belongs to the server', keyspace=facts.keyspace)
+    if facts.is_virtual:
+        return say("A virtual table is the server's own")
     if facts.is_view:
         return say("Only a table's structure can be changed")
     return None
@@ -114,7 +141,8 @@ class CassandraRelation:
         return facts
 
     async def relation_model(self, node_id: str) -> RelationModel:
-        return model_of(node_id, await self.facts(node_id))
+        facts = await self.facts(node_id)
+        return model_of(node_id, facts, await self._inspector.profile())
 
     async def relation_models_for_nodes(
         self, node_ids: list[str]
@@ -136,7 +164,8 @@ class CassandraRelation:
             found = await self._inspector.relations(
                 keyspace, place[1], names=list(wanted)
             )
+            profile = await self._inspector.profile()
             models.extend(
-                model_of(wanted[name], facts) for name, facts in found.items()
+                model_of(wanted[name], facts, profile) for name, facts in found.items()
             )
         return models

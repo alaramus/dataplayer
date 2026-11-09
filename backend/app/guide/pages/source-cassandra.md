@@ -19,6 +19,7 @@ How connections work in general is on the [Connections](connections.md) page.
 ## What you can change
 
 - Table data: edit cells, paste blocks, insert and delete rows
+- Columns and secondary indexes of a table
 - Data and structure, through CQL in the console, one change at a time
 
 ## Connecting
@@ -127,3 +128,17 @@ server can reach, and a connection through an SSH tunnel has no terminal yet.
   a block replace a row with the same key, which is how Cassandra writes.
 - A paste is checked whole before anything is written: one value its column
   cannot hold, and nothing changes.
+
+## Changing the structure
+
+- A table's columns are added and dropped. A column of the primary key is not
+  dropped; the server also refuses to drop one an index or a materialized view
+  reads, and says which.
+- Only a column of the primary key can be renamed: Cassandra renames nothing
+  else. Cassandra has no defaults, no column outside the key that must have a
+  value, and no change of a column's type, so none is offered.
+- A secondary index is made on one column and dropped. Cassandra 5 offers the
+  storage-attached index (SAI) and the legacy one, ScyllaDB its global index.
+  None is unique.
+- Materialized views, virtual tables and the server's own keyspaces are not
+  changed.

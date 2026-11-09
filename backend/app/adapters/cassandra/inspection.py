@@ -10,7 +10,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from app.adapters.cassandra.session import CassandraSession
+from app.adapters.cassandra.session import CassandraSession, ServerProfile
 from app.adapters.cassandra.types import build_column_type
 from app.adapters.protocol import AdapterError
 from app.adapters.relation import ColumnType
@@ -159,6 +159,9 @@ class Inspector:
 
     async def scylla(self) -> bool:
         return (await self._session.profile()).scylla
+
+    async def profile(self) -> ServerProfile:
+        return await self._session.profile()
 
     async def has_virtual_schema(self) -> bool:
         if self._virtual is None:

@@ -18,12 +18,25 @@ from app.adapters.cassandra.session import (
     compose_url_with_password,
     options_from_url,
 )
+from app.adapters.cassandra.structure import CassandraStructure
 from app.adapters.cassandra.summary import CassandraSummaries
 from app.adapters.cassandra.update import CassandraUpdate
 from app.adapters.catalog import CatalogNode
+from app.adapters.column_changes import (
+    AddColumnRequest,
+    ColumnChangeResult,
+    DropColumnRequest,
+    RenameColumnRequest,
+)
 from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.indexes import (
+    CreateIndexRequest,
+    CreateIndexResult,
+    DropIndexRequest,
+    IndexDropped,
+)
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.query import (
     GeneratedQuery,
@@ -101,6 +114,9 @@ class CassandraAdapter:
         self._summaries = CassandraSummaries(self._relation)
         self._query = CassandraQuery(self._session, self._inspector)
         self._update = CassandraUpdate(self._session, self._relation)
+        self._structure = CassandraStructure(
+            self._session, self._relation, self._inspector
+        )
         self._metadata = CassandraMetadata(self._session, self._inspector)
         self._generation = CassandraGeneration(self._inspector)
 
@@ -191,6 +207,22 @@ class CassandraAdapter:
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         return await self._update.delete_rows(request)
+
+    async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
+        return await self._structure.add_column(request)
+
+    async def drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
+        return await self._structure.drop_column(request)
+
+    async def rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
+        """Only a column of the primary key: CQL renames nothing else (D346)."""
+        return await self._structure.rename_column(request)
+
+    async def create_index(self, request: CreateIndexRequest) -> CreateIndexResult:
+        return await self._structure.create_index(request)
+
+    async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
+        return await self._structure.drop_index(request)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62, D343)."""
