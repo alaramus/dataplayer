@@ -275,11 +275,11 @@ export function tickableKinds(
  */
 export function tickableKindsOf(
   vocabulary: ActionInfo[] | undefined,
-  status: number | null,
+  noActions: boolean,
   items: readonly { kind: string; summarizable?: boolean | null }[] = []
 ): Set<string> | null {
   if (vocabulary) return tickableKinds(vocabulary, items)
-  if (status === 501) return tickableKinds([], items)
+  if (noActions) return tickableKinds([], items)
   return null
 }
 

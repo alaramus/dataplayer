@@ -20,6 +20,12 @@ const props = defineProps<{
   checked: string[]
   /** The kinds a tick box is drawn for; null draws one everywhere. */
   tickable?: Set<string> | null
+  /**
+   * The list has no tick column at all: no head to tick everything from and
+   * no stand-in where a box would have been. Named in the negative because an
+   * absent boolean prop is false.
+   */
+  noTicks?: boolean
   loading: boolean
   /**
    * Whether to name the grouping a row came from. It says nothing while only
@@ -132,6 +138,15 @@ function tickableNode(node: ListNode): boolean {
  */
 const ownItems = computed(() => props.items.filter(tickableNode))
 
+/**
+ * Whether a row's name is offered for copying: the source's own rows. Without
+ * a tick column nothing says which those are but the kind, and a report or a
+ * section of them is the catalog's way around the source.
+ */
+function copyable(node: ListNode): boolean {
+  return props.noTicks ? node.kind !== "report" : tickableNode(node)
+}
+
 const allChecked = computed(() => {
   const ticking = ownItems.value
   return ticking.length > 0 && ticking.every((node) => props.checked.includes(node.id))
@@ -167,7 +182,7 @@ const countLabel = computed(() => {
          catalog's own sections has neither, and "4 items" beside a box that
          ticks nothing was a promise the level could not keep. -->
     <div
-      v-if="loading || ownItems.length > 0"
+      v-if="!noTicks && (loading || ownItems.length > 0)"
       class="catalog-list__head"
     >
       <AppCheckbox
@@ -189,6 +204,7 @@ const countLabel = computed(() => {
     <div
       v-else
       class="catalog-list__rows"
+      :class="{ 'catalog-list__rows--no-ticks': noTicks }"
       data-testid="catalog-list"
     >
       <!-- Above everything, and above the empty state too: a folder with
@@ -209,6 +225,7 @@ const countLabel = computed(() => {
              wide it is. Hidden by visibility, so it is out of the tab order
              as well as out of sight. -->
         <span
+          v-if="!noTicks"
           class="catalog-list__tick-space"
           aria-hidden="true"
         >
@@ -251,7 +268,7 @@ const countLabel = computed(() => {
         @keydown.space.prevent="emit('open', node)"
       >
         <span
-          v-if="!tickableNode(node)"
+          v-if="!noTicks && !tickableNode(node)"
           class="catalog-list__tick-space catalog-list__tick-space--source"
           aria-hidden="true"
         >
@@ -267,7 +284,7 @@ const countLabel = computed(() => {
           />
         </span>
         <span
-          v-else
+          v-else-if="!noTicks"
           @click.stop
         >
           <AppCheckbox
@@ -288,7 +305,7 @@ const countLabel = computed(() => {
             size="var(--dp-icon-sm)"
           />
           <AppIconButton
-            v-if="tickableNode(node)"
+            v-if="copyable(node)"
             class="catalog-list__copy"
             :icon="appIcons.copy"
             :tooltip="copyTooltip(node)"
@@ -379,6 +396,11 @@ const countLabel = computed(() => {
     auto auto minmax(5ch, 1fr) minmax(0, auto) minmax(0, auto) minmax(0, auto);
   align-content: start;
   column-gap: var(--dp-space-2);
+}
+/* The same columns without the first: a row's first child is its mark. */
+.catalog-list__rows--no-ticks {
+  grid-template-columns:
+    auto minmax(5ch, 1fr) minmax(0, auto) minmax(0, auto) minmax(0, auto);
 }
 .catalog-list__empty {
   grid-column: 1 / -1;

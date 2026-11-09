@@ -58,6 +58,7 @@ test("walks from a market to a symbol and reads its feeds as rows", async ({ pag
   // Nothing in the menu acts on market data, so no row carries a box.
   await expect(page.getByTestId("catalog-check-USDT")).toHaveCount(0)
   await expect(page.getByTestId("catalog-check-all")).toHaveCount(0)
+  await expect(page.locator(".catalog-list__tick-space")).toHaveCount(0)
 
   // Tickers open as a page of rows, the busiest first.
   await openNode(page, "Tickers")

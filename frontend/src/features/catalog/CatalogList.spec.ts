@@ -309,3 +309,26 @@ describe("a row that was pointed at", () => {
     expect(wrapper.findAll("[data-revealed]")).toHaveLength(0)
   })
 })
+
+describe("a list with no tick column", () => {
+  it("draws no box, no stand-in and no head, and still copies a name", () => {
+    const wrapper = mount(CatalogList, {
+      props: {
+        items: [...items, report("report:cluster", "Cluster", "What it says")],
+        checked: [],
+        loading: false,
+        tickable: new Set<string>(),
+        noTicks: true,
+        sourceIcon: "img:/icons/services/binance.svg",
+        hasParent: true,
+      },
+      global: { plugins: [[Quasar, { plugins: { Notify } }]] },
+    })
+    expect(wrapper.find(".q-checkbox").exists()).toBe(false)
+    expect(wrapper.find(".catalog-list__tick-space").exists()).toBe(false)
+    expect(wrapper.find('[data-testid="catalog-check-all"]').exists()).toBe(false)
+    expect(wrapper.find(".catalog-list__rows--no-ticks").exists()).toBe(true)
+    expect(wrapper.find('[data-testid="catalog-copy-orders"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="catalog-copy-Cluster"]').exists()).toBe(false)
+  })
+})

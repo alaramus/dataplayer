@@ -83,9 +83,18 @@ const vocabulary = useNodeActions(
   connectorId,
   computed(() => (level.currentId.value === null || level.currentId.value === "" ? null : [level.currentId.value]))
 )
-const tickable = computed(() =>
-  tickableKindsOf(vocabulary.data.value, statusOf(vocabulary.error.value), level.items.value)
+// No actions at all is the source's answer rather than the level's, kept once
+// heard so the next level does not draw boxes while it asks again.
+const noActions = ref(false)
+watch(
+  () => vocabulary.error.value,
+  (cause) => {
+    if (statusOf(cause) === 501) noActions.value = true
+  }
 )
+const tickable = computed(() => tickableKindsOf(vocabulary.data.value, noActions.value, level.items.value))
+// A source nothing can be done to has no tick column at all, not one filled in.
+const ticks = computed(() => !noActions.value || (tickable.value?.size ?? 0) > 0)
 
 /**
  * The colour of the connection this catalog belongs to, if it was given one.
@@ -1290,6 +1299,7 @@ async function afterAction(outcome: ActionOutcome) {
       :items="level.items.value"
       :checked="level.checked.value"
       :tickable="tickable"
+      :no-ticks="!ticks"
       :source-icon="adapterIcon(adapterType)"
       :loading="level.loading.value"
       :show-group="level.selectedGroups.value.length > 1"
