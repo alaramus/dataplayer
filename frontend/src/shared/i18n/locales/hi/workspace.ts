@@ -119,6 +119,7 @@ export const workspace: Messages["workspace"] = {
     do_not_ask: "फिर न पूछें",
     open_failed: "{name} खोला नहीं जा सका",
     no_viewer: "{name} के लिए अभी कोई व्यूअर नहीं है",
+    whole_tree: "पूरा ट्री",
     top: "इस कनेक्शन का शीर्ष",
     copy_path: "इस स्तर का पथ कॉपी करें",
     duplicate: "इसके बगल में कैटलॉग की डुप्लिकेट बनाएँ",

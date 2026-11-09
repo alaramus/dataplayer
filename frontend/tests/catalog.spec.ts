@@ -14,6 +14,7 @@ import {
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { toast } from "./utils/notices"
+import { signedApi } from "./utils/search"
 import {
   catalogTabIcon,
   connectorRow,
@@ -339,6 +340,32 @@ test("deleting a connection asks whether its open tabs go with it", async ({ pag
   await expect(catalogTabs).toHaveCount(1)
   await page.locator('[data-testid^="workspace-close-catalog:"]').click()
   await expect(catalogTabs).toHaveCount(0)
+})
+
+test("a tree with nothing to choose still says where it stands", async ({ page, request }) => {
+  const name = `e2e-tree-${Date.now()}`
+  await login(page)
+  const api = await signedApi(page)
+  const made = await request.post(`${api.base}/connectors/`, {
+    headers: api.headers,
+    data: {
+      name,
+      adapter_type: "zookeeper",
+      options: { host: "zookeeper", port: 2181, auth_method: "anonymous" },
+    },
+  })
+  expect(made.ok(), await made.text()).toBe(true)
+  const id = (await made.json() as { id: string }).id
+  try {
+    await page.reload()
+    await openConnector(page, name)
+    const place = page.getByTestId("catalog-place")
+    await expect(place).toContainText("Whole tree")
+    await expect(page.getByTestId("catalog-path")).toHaveCount(0)
+    await page.getByTestId("catalog-panel").screenshot({ path: "test-results/catalog-tree-place.png" })
+  } finally {
+    await request.delete(`${api.base}/connectors/${id}`, { headers: api.headers })
+  }
 })
 
 /**

@@ -119,6 +119,7 @@ export const workspace: Messages["workspace"] = {
     do_not_ask: "不再询问",
     open_failed: "无法打开 {name}",
     no_viewer: "{name} 还没有查看器",
+    whole_tree: "整棵树",
     top: "此连接的顶层",
     copy_path: "复制此层级的路径",
     duplicate: "在旁复制目录",

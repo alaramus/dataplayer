@@ -121,6 +121,7 @@ export const workspace: Messages["workspace"] = {
     do_not_ask: "عدم السؤال مرة أخرى",
     open_failed: "تعذّر فتح {name}",
     no_viewer: "{name} ليس له عارض بعد",
+    whole_tree: "الشجرة كاملة",
     top: "أعلى هذا الاتصال",
     copy_path: "نسخ مسار هذا المستوى",
     duplicate: "مضاعفة الكتالوج بجانب هذا",

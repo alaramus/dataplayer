@@ -117,6 +117,7 @@ export const workspace = {
     do_not_ask: "Do not ask again",
     open_failed: "Could not open {name}",
     no_viewer: "{name} has no viewer yet",
+    whole_tree: "Whole tree",
     top: "The top of this connection",
     copy_path: "Copy the path of this level",
     duplicate: "Duplicate catalog beside this one",

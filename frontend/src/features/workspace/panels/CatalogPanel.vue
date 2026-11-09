@@ -1062,13 +1062,29 @@ async function afterAction(outcome: ActionOutcome) {
           />
         </div>
 
+        <!-- A tree has no path and, without groupings, nothing else for this
+             line to say; it still says where we are, so the line keeps its
+             shape rather than leaving a hole before the commands. -->
+        <div
+          v-if="answered && !showsLocation"
+          class="catalog-panel__crumbs catalog-panel__place"
+          data-testid="catalog-place"
+        >
+          <q-icon
+            :name="appIcons.accountTree"
+            size="var(--dp-icon-sm)"
+            class="catalog-panel__place-icon"
+          />
+          <span class="catalog-panel__place-text">{{ t("workspace.catalog.whole_tree") }}</span>
+        </div>
+
         <!-- The commands in groups with a line between two, as the grid's are:
              this tab, a second catalog beside it, and the menu of what can be
              done last, where a row of commands usually keeps it. A group draws
              the line on its left, so one that is not shown takes its line
              away; the menu draws its own, as it may have nothing to offer. -->
         <div class="catalog-panel__commands">
-          <AppToolbarRule v-if="showsLocation" />
+          <AppToolbarRule v-if="showsLocation || answered" />
           <!-- The catalog is the way to a node and not a view of one, so it
                offers no "show in catalog" of its own (D112). Its reload carries
                how old this level is — the whole level, including the groupings
@@ -1479,6 +1495,20 @@ async function afterAction(outcome: ActionOutcome) {
   cursor: default;
   font-weight: 500;
   color: var(--dp-text);
+}
+.catalog-panel__place {
+  min-height: var(--dp-control-height);
+  padding: 0 var(--dp-space-2);
+  gap: var(--dp-space-1);
+  color: var(--dp-text-muted);
+}
+.catalog-panel__place-icon {
+  color: var(--dp-text-faint);
+}
+.catalog-panel__place-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .catalog-panel__chevron {
   color: var(--dp-text-faint);

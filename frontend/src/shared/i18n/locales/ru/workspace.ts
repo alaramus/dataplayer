@@ -120,6 +120,7 @@ export const workspace: Messages["workspace"] = {
     do_not_ask: "Больше не спрашивать",
     open_failed: "Не удалось открыть «{name}»",
     no_viewer: "Для «{name}» пока нет просмотрщика",
+    whole_tree: "Всё дерево",
     top: "Корень подключения",
     copy_path: "Копировать путь этого уровня",
     duplicate: "Дублировать каталог рядом",

@@ -120,6 +120,7 @@ export const workspace: Messages["workspace"] = {
     do_not_ask: "Nicht mehr fragen",
     open_failed: "{name} konnte nicht geöffnet werden",
     no_viewer: "{name} hat noch keinen Betrachter",
+    whole_tree: "Ganzer Baum",
     top: "Die Wurzel dieser Verbindung",
     copy_path: "Den Pfad dieser Ebene kopieren",
     duplicate: "Katalog daneben duplizieren",
