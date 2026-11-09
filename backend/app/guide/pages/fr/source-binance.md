@@ -1,7 +1,7 @@
 # Binance
 
 Les données de marché publiques de Binance : spot et contrats à terme
-USDⓈ-M. Vous voyez la dernière journée et les règles de négociation de chaque
+USDⓈ-M et COIN-M. Vous voyez la dernière journée et les règles de négociation de chaque
 symbole, et lisez en lignes les bougies, les transactions et le carnet
 d'ordres d'un symbole. Rien n'est modifié sur Binance, et aucune clé n'est
 nécessaire. Le fonctionnement des connexions en général est décrit sur la
@@ -9,7 +9,7 @@ page [Connexions](connections.md).
 
 ## Ce que vous pouvez voir
 
-- Le spot et les contrats à terme USDⓈ-M, symboles groupés par devise de cotation
+- Le spot, les contrats USDⓈ-M et COIN-M, symboles par devise de cotation
 - Les dernières 24 heures de chaque symbole : prix, variation, haut, bas, volume
 - Les règles de chaque symbole : pas de prix, pas de quantité, ordre minimal
 - Les bougies d'un symbole de tout intervalle, d'une seconde à un mois
@@ -29,7 +29,8 @@ page [Connexions](connections.md).
 
 La page **Connexion** de la fenêtre demande le **Point d'accès** :
 
-- **Binance** — les hôtes principaux, `api.binance.com` et `fapi.binance.com` ;
+- **Binance** — les hôtes principaux, `api.binance.com`, `fapi.binance.com` et
+  `dapi.binance.com` ;
 - **Binance, données de marché seulement** — le spot depuis
   `data-api.binance.vision`, qui ne sert que des données publiques et répond
   souvent quand l'hôte principal est chargé ;
@@ -42,7 +43,8 @@ point d'accès n'y changera rien.
 ## Le catalogue
 
 - D'abord **Bourse** : ce que Binance et cette connexion disent d'eux-mêmes.
-- **Spot** et **Contrats à terme USDⓈ-M**. Chacun contient **Tickers**,
+- **Spot**, **Contrats à terme USDⓈ-M** et **Contrats à terme COIN-M**.
+  Chacun contient **Tickers**,
   **Symboles** et un dossier par devise de cotation — **USDT**, **USDC**,
   **BTC** et les autres —, celui qui a le plus de symboles en premier.
 - Une devise de cotation contient ses symboles : seulement ceux qui se
@@ -71,6 +73,11 @@ point d'accès n'y changera rien.
   profondeur. Pour remonter plus loin, filtrez par heure.
 - Les prix et les quantités sont des décimaux exacts, tels que Binance les
   écrit.
+- **COIN-M** compte en contrats de 100 USD pour BTC et 10 USD pour les
+  autres. Ses tickers et bougies donnent quand même **volume** dans l'actif
+  de base et **quote_volume** en USD, comme tout marché ; **Symboles**
+  ajoute **contract_size**. La **quantity** d'une transaction ou du carnet
+  est en contrats.
 
 ## Dans un pipeline
 

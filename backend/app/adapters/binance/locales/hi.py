@@ -17,6 +17,7 @@ MESSAGES: dict[str, str] = {
     "{column} cannot be sorted": "{column} को क्रमबद्ध नहीं किया जा सकता",
     "Spot": "स्पॉट",
     "USDⓈ-M futures": "USDⓈ-M फ़्यूचर्स",
+    "COIN-M futures": "COIN-M फ़्यूचर्स",
     "Not a market of this connection": "इस कनेक्शन का बाज़ार नहीं",
     "Endpoint": "एंडपॉइंट",
     "Binance, market data only": "Binance, केवल बाज़ार डेटा",

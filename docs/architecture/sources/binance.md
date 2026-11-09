@@ -5,13 +5,13 @@ symbols and feeds, how a feed is read as rows, how a pipeline's link reads
 trades and candles on, or what the connection reports, measures and finds. The contract every source
 keeps is in [contract.md](contract.md).
 
-Decisions here: D316, D317, D318, D319, D320.
+Decisions here: D316, D317, D318, D319, D320, D321.
 
 ## D316. Binance's public market data over REST, one client a connection, under its rate limit
 
 - **Public data only.** No key, nothing changed on Binance. The connection
-  names an endpoint from a closed set, each a pair of hosts for spot and
-  USDⓈ-M futures: Binance (`api`/`fapi.binance.com`), market data only
+  names an endpoint from a closed set, each a host for spot, USDⓈ-M and
+  COIN-M futures (D321): Binance (`api`/`fapi`/`dapi.binance.com`), market data only
   (`data-api.binance.vision` for spot) and the testnet. Nothing is secret.
 - **httpx, one client a connection** (`binance/session.py`), kept in the
   resource store as `BinanceKept` with what outlives a request: each market's
@@ -51,7 +51,7 @@ Spec: [A Binance source](../../decisions/2026-11-08-binance-source-design.md)
 ## D317. Markets, quote assets, symbols and a node per candle interval
 
 ```
-spot | usdm                         directory
+spot | usdm | coinm                 directory
   :tickers, :symbols                feed
   :quote:USDT …                     directory, fullest first
     :symbol:BTCUSDT                 symbol
@@ -178,3 +178,26 @@ Known deviations:
   walking.
 
 Spec: [Binance's reports, metrics, search and guide](../../decisions/2026-11-08-binance-reports-design.md)
+
+## D321. COIN-M futures, their volumes in the base and quote asset like the rest
+
+- **A third market**, `coinm`, from `dapi.binance.com` under `/dapi/v1` (the
+  testnet's `testnet.binancefuture.com`; the market-data endpoint uses the
+  main host, as for USDⓈ-M). The limit is 2400 a minute with USDⓈ-M's
+  weights, trades go two days back, there are no `1s` candles. Its only quote
+  asset is USD.
+- **Columns keep one meaning across markets.** Binance counts COIN-M in
+  contracts of a whole number of USD (`contractSize`: 100 for BTC, 10 for the
+  rest) and gives the base asset's volume beside them. `volume` is that base
+  volume and `quote_volume` the contracts times the size, exact; the same for
+  a candle's taker volumes. `Market.in_contracts` says which market does
+  this, and `feeds.in_quote` is the one conversion.
+- The symbols list on COIN-M gains `contract_size`.
+
+Known deviations:
+
+- **A trade's and a book level's `quantity` are contracts.** Their worth in
+  the base asset divides by the price, which is not exact, and those rows
+  hold one quantity. The guide says so.
+
+Spec: [Binance's COIN-M futures](../../decisions/2026-11-09-binance-coin-m-design.md)

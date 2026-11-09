@@ -24,6 +24,7 @@ from app.adapters.binance.feeds import (
     book_page,
     candles_page,
     checked_candles,
+    contract_size_of,
     read_candles,
     symbols_page,
     tickers_page,
@@ -234,7 +235,12 @@ class BinanceAdapter:
                 DEPTH_CEILING,
                 request.node_id,
             )
-            return [one.row(now) for one in candles], [c.name for c in CANDLE_COLUMNS]
+            size = await contract_size_of(
+                self._session, place.market, place.symbol, request.node_id
+            )
+            return [one.row(now, size) for one in candles], [
+                c.name for c in CANDLE_COLUMNS
+            ]
         rows: list[list[str | None]] = []
         names: list[str] = []
         offset = 0

@@ -1,6 +1,6 @@
 # Binance
 
-Die öffentlichen Marktdaten von Binance: Spot und USDⓈ-M-Futures. Sie sehen
+Die öffentlichen Marktdaten von Binance: Spot, USDⓈ-M- und COIN-M-Futures. Sie sehen
 den letzten Tag und die Handelsregeln jedes Symbols und lesen die Kerzen,
 Trades und das Orderbuch eines Symbols als Zeilen. Auf Binance wird nichts
 geändert, und kein Schlüssel ist nötig. Wie Verbindungen allgemein
@@ -8,7 +8,7 @@ funktionieren, steht auf der Seite [Verbindungen](connections.md).
 
 ## Was Sie sehen können
 
-- Spot und USDⓈ-M-Futures, die Symbole nach Quote-Asset gruppiert
+- Spot, USDⓈ-M- und COIN-M-Futures, die Symbole nach Quote-Asset
 - Die letzten 24 Stunden jedes Symbols: Preis, Änderung, Hoch, Tief, Volumen
 - Die Handelsregeln jedes Symbols: Preisschritt, Mengenschritt, Mindestorder
 - Die Kerzen eines Symbols in jedem Intervall, von 1 Sekunde bis 1 Monat
@@ -28,7 +28,8 @@ funktionieren, steht auf der Seite [Verbindungen](connections.md).
 
 Die Seite **Verbindung** des Fensters fragt nach dem **Endpunkt**:
 
-- **Binance** — die Haupthosts, `api.binance.com` und `fapi.binance.com`;
+- **Binance** — die Haupthosts, `api.binance.com`, `fapi.binance.com` und
+  `dapi.binance.com`;
 - **Binance, nur Marktdaten** — Spot von `data-api.binance.vision`, das nur
   öffentliche Daten liefert und oft antwortet, wenn der Haupthost ausgelastet
   ist;
@@ -41,7 +42,7 @@ Endpunkt hilft nicht.
 ## Der Katalog
 
 - Zuerst **Börse**: was Binance und diese Verbindung über sich sagen.
-- **Spot** und **USDⓈ-M-Futures**. Jeder enthält **Ticker**, **Symbole** und
+- **Spot**, **USDⓈ-M-Futures** und **COIN-M-Futures**. Jeder enthält **Ticker**, **Symbole** und
   einen Ordner je Quote-Asset — **USDT**, **USDC**, **BTC** und die übrigen —,
   den mit den meisten Symbolen zuerst.
 - Ein Quote-Asset enthält seine Symbole: nur die, die gerade gehandelt werden.
@@ -68,6 +69,11 @@ Endpunkt hilft nicht.
 - Eine Seite mit Kerzen oder Trades reicht höchstens zehntausend Zeilen tief.
   Um weiter zurückzublicken, nach Zeit filtern.
 - Preise und Mengen sind exakte Dezimalzahlen, wie Binance sie schreibt.
+- **COIN-M** zählt in Kontrakten zu 100 USD bei BTC und 10 USD bei den
+  übrigen. Ticker und Kerzen geben trotzdem **volume** im Basis-Asset und
+  **quote_volume** in USD, wie jeder Markt; **Symbole** ergänzt
+  **contract_size**. Die **quantity** eines Trades und des Orderbuchs sind
+  Kontrakte.
 
 ## In einer Pipeline
 

@@ -17,6 +17,7 @@ MESSAGES: dict[str, str] = {
     "{column} cannot be sorted": "{column} 不能排序",
     "Spot": "现货",
     "USDⓈ-M futures": "USDⓈ-M 期货",
+    "COIN-M futures": "COIN-M 期货",
     "Not a market of this connection": "不是此连接的市场",
     "Endpoint": "接入点",
     "Binance, market data only": "Binance，仅市场数据",

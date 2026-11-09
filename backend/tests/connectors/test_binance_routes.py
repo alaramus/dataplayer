@@ -52,6 +52,7 @@ async def test_a_connection_is_checked_browsed_and_read(
         "exchange",
         "spot",
         "usdm",
+        "coinm",
     ]
     symbols = await call("GET", "catalog", params={"node_id": "spot:quote:USDT"})
     assert symbols[0]["kind"] == "symbol"

@@ -56,6 +56,8 @@ class Symbol:
     price_step: str | None = None
     quantity_step: str | None = None
     min_notional: str | None = None
+    # What one contract is worth in the quote asset, on COIN-M (D321).
+    contract_size: int | None = None
 
 
 @dataclass
@@ -397,6 +399,7 @@ def symbols_of(info: dict[str, Any]) -> list[Symbol]:
                     or _filter(filters, "MIN_NOTIONAL", "minNotional")
                     or _filter(filters, "MIN_NOTIONAL", "notional")
                 ),
+                contract_size=_whole(item.get("contractSize")),
             )
         )
     return found

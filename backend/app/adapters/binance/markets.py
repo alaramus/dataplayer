@@ -1,6 +1,6 @@
-"""The two markets, as Binance's REST answers them (D316).
+"""The three markets, as Binance's REST answers them (D316, D321).
 
-Spot and USDⓈ-M futures speak the same language from different hosts, under
+Spot, USDⓈ-M and COIN-M futures speak the same language from different hosts, under
 different paths, with different weights and ceilings; everything that differs
 is written here once, so the rest reads a market rather than asking which.
 """
@@ -11,8 +11,8 @@ from typing import Literal
 from app.adapters.binance.options import Endpoint
 from app.core.translation import N_, say
 
-MarketKey = Literal["spot", "usdm"]
-MARKETS: tuple[MarketKey, ...] = ("spot", "usdm")
+MarketKey = Literal["spot", "usdm", "coinm"]
+MARKETS: tuple[MarketKey, ...] = ("spot", "usdm", "coinm")
 
 INTERVAL_MS: dict[str, int] = {
     "1s": 1_000,
@@ -52,6 +52,9 @@ class Market:
     # How far back trades can be asked for at all; spot keeps about two
     # years and answers older ids from its oldest instead of refusing.
     trades_window_ms: int | None = None
+    # Whether Binance counts its volumes in contracts of a fixed value in the
+    # quote asset rather than in the base asset (D321).
+    in_contracts: bool = False
 
     def path(self, name: str) -> str:
         """A name under the market's prefix, or a path of the host's own."""
@@ -139,26 +142,41 @@ USDM = Market(
     trades_window_ms=2 * 86_400_000,
 )
 
-BY_KEY: dict[MarketKey, Market] = {"spot": SPOT, "usdm": USDM}
+COINM = Market(
+    key="coinm",
+    title=N_("COIN-M futures"),
+    prefix="/dapi/v1",
+    weight_limit=2400,
+    candles_per_request=1500,
+    intervals=tuple(name for name in INTERVAL_MS if name != "1s"),
+    depths=(5, 10, 20, 50, 100, 500, 1000),
+    trades_window_ms=2 * 86_400_000,
+    in_contracts=True,
+)
+
+BY_KEY: dict[MarketKey, Market] = {"spot": SPOT, "usdm": USDM, "coinm": COINM}
 
 HOSTS: dict[Endpoint, dict[MarketKey, str]] = {
     "binance": {
         "spot": "https://api.binance.com",
         "usdm": "https://fapi.binance.com",
+        "coinm": "https://dapi.binance.com",
     },
     "market_data": {
         "spot": "https://data-api.binance.vision",
         "usdm": "https://fapi.binance.com",
+        "coinm": "https://dapi.binance.com",
     },
     "testnet": {
         "spot": "https://testnet.binance.vision",
         "usdm": "https://testnet.binancefuture.com",
+        "coinm": "https://testnet.binancefuture.com",
     },
 }
 
 
 def market_of(key: str) -> Market:
-    for market in (SPOT, USDM):
+    for market in (SPOT, USDM, COINM):
         if market.key == key:
             return market
     raise ValueError(say("Not a market of this connection"))

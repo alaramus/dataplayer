@@ -1,6 +1,6 @@
 # Binance
 
-Los datos de mercado públicos de Binance: spot y futuros USDⓈ-M. Ves el
+Los datos de mercado públicos de Binance: spot y futuros USDⓈ-M y COIN-M. Ves el
 último día y las reglas de negociación de cada símbolo, y lees como filas las
 velas, las operaciones y el libro de órdenes de un símbolo. No se cambia nada
 en Binance y no hace falta ninguna clave. Cómo funcionan las conexiones en
@@ -8,7 +8,7 @@ general se explica en la página [Conexiones](connections.md).
 
 ## Qué puedes ver
 
-- Spot y futuros USDⓈ-M, con los símbolos agrupados por activo de cotización
+- Spot y futuros USDⓈ-M y COIN-M, símbolos por activo de cotización
 - Las últimas 24 horas de cada símbolo: precio, cambio, máximo, mínimo, volumen
 - Las reglas de cada símbolo: paso de precio, paso de cantidad, orden mínima
 - Las velas de un símbolo de cualquier intervalo, de un segundo a un mes
@@ -28,8 +28,8 @@ general se explica en la página [Conexiones](connections.md).
 
 La página **Conexión** de la ventana pide el **Punto de acceso**:
 
-- **Binance** — los hosts principales, `api.binance.com` y
-  `fapi.binance.com`;
+- **Binance** — los hosts principales, `api.binance.com`,
+  `fapi.binance.com` y `dapi.binance.com`;
 - **Binance, solo datos de mercado** — spot desde `data-api.binance.vision`,
   que solo sirve datos públicos y suele responder cuando el host principal
   está ocupado;
@@ -42,7 +42,7 @@ acceso no servirá.
 ## El catálogo
 
 - Primero **Bolsa**: lo que Binance y esta conexión dicen de sí mismos.
-- **Spot** y **Futuros USDⓈ-M**. Cada uno contiene **Tickers**, **Símbolos** y
+- **Spot**, **Futuros USDⓈ-M** y **Futuros COIN-M**. Cada uno contiene **Tickers**, **Símbolos** y
   una carpeta por activo de cotización — **USDT**, **USDC**, **BTC** y el
   resto —, primero la que tiene más símbolos.
 - Un activo de cotización contiene sus símbolos: solo los que se negocian
@@ -68,6 +68,11 @@ acceso no servirá.
   defecto. Un filtro sobre **side** deja un solo lado.
 - Una página de velas u operaciones llega como mucho a diez mil filas de
   profundidad. Para mirar más atrás, filtra por hora.
+- **COIN-M** cuenta en contratos de 100 USD para BTC y 10 USD para el
+  resto. Sus tickers y velas dan igualmente **volume** en el activo base y
+  **quote_volume** en USD, como todo mercado; **Símbolos** añade
+  **contract_size**. La **quantity** de una operación y del libro son
+  contratos.
 - Los precios y las cantidades son decimales exactos, tal como los escribe
   Binance.
 

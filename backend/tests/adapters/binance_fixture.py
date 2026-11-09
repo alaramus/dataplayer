@@ -40,6 +40,12 @@ FUTURES_SYMBOLS = [
     ("OLDUSDT", "OLD", "USDT", "SETTLING", "PERPETUAL", PERPETUAL_DELIVERY),
 ]
 
+# COIN-M: name, base, contract size in USD (D321).
+COIN_SYMBOLS = [
+    ("BTCUSD_PERP", "BTC", 100),
+    ("ETHUSD_PERP", "ETH", 10),
+]
+
 SPOT_DEPTHS = {5, 10, 20, 50, 100, 500, 1000, 5000}
 FUTURES_DEPTHS = {5, 10, 20, 50, 100, 500, 1000}
 
@@ -69,6 +75,8 @@ class FakeBinance:
     trades: int = TRADES
     # Answer every request with this status and headers instead.
     refuse: tuple[int, dict[str, str], dict[str, Any]] | None = None
+    # Whether the request being answered is COIN-M's.
+    coin: bool = False
 
     @property
     def last_trade_ms(self) -> int:
@@ -91,7 +99,8 @@ class FakeBinance:
         if self.refuse is not None:
             status, headers, body = self.refuse
             return httpx.Response(status, headers=headers, json=body)
-        futures = url.path.startswith("/fapi/")
+        self.coin = url.path.startswith("/dapi/")
+        futures = self.coin or url.path.startswith("/fapi/")
         name = url.path.split("/", 3)[3]
         body, weight = self._body(name, params, futures)
         self.used += weight
@@ -111,7 +120,10 @@ class FakeBinance:
         if name == "exchangeInfo":
             return self._info(params, futures), 20
         symbol = params.get("symbol")
-        known = {row[0] for row in (FUTURES_SYMBOLS if futures else SPOT_SYMBOLS)}
+        rows: list[tuple[Any, ...]] = (
+            COIN_SYMBOLS if self.coin else FUTURES_SYMBOLS if futures else SPOT_SYMBOLS
+        )
+        known = {row[0] for row in rows}
         if name == "ticker/24hr":
             return self._tickers(futures), 40 if futures else 80
         if symbol not in known:
@@ -127,7 +139,26 @@ class FakeBinance:
     def _info(self, params: dict[str, str], futures: bool) -> dict[str, Any]:
         limit = 2400 if futures else 6000
         symbols: list[dict[str, Any]] = []
-        if futures:
+        if self.coin:
+            for name, base, size in COIN_SYMBOLS:
+                symbols.append(
+                    {
+                        "symbol": name,
+                        "pair": name.split("_")[0],
+                        "baseAsset": base,
+                        "quoteAsset": "USD",
+                        "contractStatus": "TRADING",
+                        "contractType": "PERPETUAL",
+                        "deliveryDate": PERPETUAL_DELIVERY,
+                        "onboardDate": 1_597_042_800_000,
+                        "contractSize": size,
+                        "filters": [
+                            {"filterType": "PRICE_FILTER", "tickSize": "0.1"},
+                            {"filterType": "LOT_SIZE", "stepSize": "1"},
+                        ],
+                    }
+                )
+        elif futures:
             for name, base, quote, status, contract, delivery in FUTURES_SYMBOLS:
                 symbols.append(
                     {
@@ -167,6 +198,27 @@ class FakeBinance:
         }
 
     def _tickers(self, futures: bool) -> list[dict[str, Any]]:
+        if self.coin:
+            return [
+                {
+                    "symbol": name,
+                    "pair": name.split("_")[0],
+                    "lastPrice": "74444.0",
+                    "priceChange": "-1224.9",
+                    "priceChangePercent": "-1.619",
+                    "weightedAvgPrice": "74752.7",
+                    "openPrice": "75668.9",
+                    "highPrice": "76058.7",
+                    "lowPrice": "73321.5",
+                    # Contracts, and the base asset beside them.
+                    "volume": "6508293",
+                    "baseVolume": "8706.4",
+                    "count": 186358,
+                    "openTime": self.now_ms - 86_400_000,
+                    "closeTime": self.now_ms,
+                }
+                for name, _, _ in COIN_SYMBOLS
+            ]
         rows = FUTURES_SYMBOLS if futures else SPOT_SYMBOLS
         found = []
         for index, row in enumerate(rows):

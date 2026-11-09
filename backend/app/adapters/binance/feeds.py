@@ -240,15 +240,42 @@ _TICKER_FIELDS = (
     "openPrice",
     "highPrice",
     "lowPrice",
-    "volume",
-    "quoteVolume",
 )
 
 
-def ticker_row(item: dict[str, Any]) -> list[str | None]:
+def in_quote(contracts: Any, contract_size: int | None) -> str | None:
+    """A count of contracts as what they are worth in the quote asset (D321).
+
+    Exact: a contract is a whole number of the quote asset, so nothing is
+    divided and nothing rounds.
+    """
+    text = decimal_text(contracts)
+    if text is None or contract_size is None:
+        return None
+    return str(Decimal(text) * contract_size)
+
+
+def ticker_row(
+    item: dict[str, Any], contract_size: int | None = None
+) -> list[str | None]:
+    """A symbol's last day. On COIN-M Binance counts `volume` in contracts and
+    names the base asset's `baseVolume`; the columns keep one meaning across
+    markets, so the base goes under volume and the contracts' worth under
+    quote volume."""
+    if contract_size is None:
+        volumes = [
+            decimal_text(item.get("volume")),
+            decimal_text(item.get("quoteVolume")),
+        ]
+    else:
+        volumes = [
+            decimal_text(item.get("baseVolume")),
+            in_quote(item.get("volume"), contract_size),
+        ]
     return [
         str(item.get("symbol")),
         *(decimal_text(item.get(name)) for name in _TICKER_FIELDS),
+        *volumes,
         None if _int(item.get("count")) is None else str(item.get("count")),
         moment(_int(item.get("openTime"))),
         moment(_int(item.get("closeTime"))),
@@ -272,12 +299,19 @@ FUTURES_SYMBOL_COLUMNS = [
     _listed("listed_time", "datetime", nullable=True),
 ]
 
+CONTRACT_SYMBOL_COLUMNS = [
+    *FUTURES_SYMBOL_COLUMNS,
+    _listed("contract_size", "number", nullable=True),
+]
+
 # Binance dates a perpetual contract's delivery in 2100; it has none.
 _NEVER_MS = 4_000_000_000_000
 
 
 def symbol_columns(market: Market) -> list[FetchColumn]:
-    return SPOT_SYMBOL_COLUMNS if market.key == "spot" else FUTURES_SYMBOL_COLUMNS
+    if market.key == "spot":
+        return SPOT_SYMBOL_COLUMNS
+    return CONTRACT_SYMBOL_COLUMNS if market.in_contracts else FUTURES_SYMBOL_COLUMNS
 
 
 def symbol_row(market: Market, one: Symbol) -> list[str | None]:
@@ -297,6 +331,8 @@ def symbol_row(market: Market, one: Symbol) -> list[str | None]:
             moment(delivery if delivery is not None and delivery < _NEVER_MS else None),
             moment(one.onboard_ms),
         ]
+    if market.in_contracts:
+        row.append(None if one.contract_size is None else str(one.contract_size))
     return row
 
 
@@ -339,22 +375,47 @@ class Candle:
     open_ms: int
     raw: list[Any]
 
-    def row(self, now_ms: int) -> list[str | None]:
-        raw = self.raw
-        close_ms = _int(raw[6]) if len(raw) > 6 else None
+    def row(self, now_ms: int, contract_size: int | None = None) -> list[str | None]:
+        """One candle. On COIN-M Binance's volume and taker volume are counts of
+        contracts and the base asset's are beside them (D321): the base goes
+        under volume and the contracts' worth under quote volume, as on the
+        other markets."""
+        raw = list(self.raw) + [None] * max(0, 11 - len(self.raw))
+        close_ms = _int(raw[6])
+        if contract_size is None:
+            volume, quote, taker, taker_quote = (
+                decimal_text(raw[5]),
+                decimal_text(raw[7]),
+                decimal_text(raw[9]),
+                decimal_text(raw[10]),
+            )
+        else:
+            volume, quote, taker, taker_quote = (
+                decimal_text(raw[7]),
+                in_quote(raw[5], contract_size),
+                decimal_text(raw[10]),
+                in_quote(raw[9], contract_size),
+            )
         return [
             moment(self.open_ms),
             moment(close_ms),
-            *(
-                decimal_text(raw[index]) if len(raw) > index else None
-                for index in range(1, 6)
-            ),
-            decimal_text(raw[7]) if len(raw) > 7 else None,
-            str(raw[8]) if len(raw) > 8 and _int(raw[8]) is not None else None,
-            decimal_text(raw[9]) if len(raw) > 9 else None,
-            decimal_text(raw[10]) if len(raw) > 10 else None,
+            *(decimal_text(raw[index]) for index in range(1, 5)),
+            volume,
+            quote,
+            str(raw[8]) if _int(raw[8]) is not None else None,
+            taker,
+            taker_quote,
             "true" if close_ms is not None and close_ms < now_ms else "false",
         ]
+
+
+async def contract_size_of(
+    session: BinanceSession, market: Market, symbol: str, node_id: str
+) -> int | None:
+    """What one of the symbol's contracts is worth, where volumes are counted in them."""
+    if not market.in_contracts:
+        return None
+    return (await session.symbol(market, symbol, node_id)).contract_size
 
 
 @dataclass(frozen=True)
@@ -483,7 +544,8 @@ async def candles_page(
         need,
         request.node_id,
     )
-    rows = [candle.row(now_ms) for candle in candles]
+    size = await contract_size_of(session, place.market, place.symbol, request.node_id)
+    rows = [candle.row(now_ms, size) for candle in candles]
     return _paged(CANDLE_COLUMNS, rows, request, None)
 
 
@@ -733,11 +795,11 @@ async def book_page(
 async def ticker_rows(
     session: BinanceSession, market: Market
 ) -> list[list[str | None]]:
-    trading = {one.name for one in await session.symbols(market)}
+    sizes = {one.name: one.contract_size for one in await session.symbols(market)}
     return [
-        ticker_row(item)
+        ticker_row(item, sizes[item["symbol"]] if market.in_contracts else None)
         for item in await session.tickers(market)
-        if item.get("symbol") in trading
+        if item.get("symbol") in sizes
     ]
 
 

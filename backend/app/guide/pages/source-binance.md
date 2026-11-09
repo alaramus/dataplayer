@@ -1,13 +1,13 @@
 # Binance
 
-Binance's public market data: spot and USDⓈ-M futures. You see every symbol's
+Binance's public market data: spot, USDⓈ-M and COIN-M futures. You see every symbol's
 last day and trading rules, and read a symbol's candles, trades and order book
 as rows. Nothing is changed on Binance, and no key is needed. How connections
 work in general is on the [Connections](connections.md) page.
 
 ## What you can see
 
-- Spot and USDⓈ-M futures, each with its symbols grouped by quote asset
+- Spot, USDⓈ-M and COIN-M futures, symbols grouped by quote asset
 - Every symbol's last 24 hours: price, change, high, low and volume
 - Every symbol's trading rules: price step, quantity step, minimum order
 - A symbol's candles of any interval, from one second to one month
@@ -27,7 +27,8 @@ work in general is on the [Connections](connections.md) page.
 
 The **Connection** page of the window asks for the **Endpoint**:
 
-- **Binance** — the main hosts, `api.binance.com` and `fapi.binance.com`;
+- **Binance** — the main hosts, `api.binance.com`, `fapi.binance.com` and
+  `dapi.binance.com`;
 - **Binance, market data only** — spot from `data-api.binance.vision`, which
   serves public data alone and often answers when the main host is busy;
 - **Testnet** — Binance's test network, with prices of its own.
@@ -39,7 +40,7 @@ not help.
 ## The catalog
 
 - **Exchange** first: what Binance and this connection say about themselves.
-- **Spot** and **USDⓈ-M futures**. Each holds **Tickers**, **Symbols**, and a
+- **Spot**, **USDⓈ-M futures** and **COIN-M futures**. Each holds **Tickers**, **Symbols**, and a
   folder per quote asset — **USDT**, **USDC**, **BTC** and the rest — the one
   with most symbols first.
 - A quote asset holds its symbols: only those trading now.
@@ -63,6 +64,11 @@ not help.
 - A page of candles or trades reaches at most ten thousand rows deep. To look
   further back, filter by time.
 - Prices and quantities are exact decimals, as Binance writes them.
+- **COIN-M** counts in contracts worth 100 USD for BTC and 10 USD for the
+  rest. Its tickers and candles still give **volume** in the base asset and
+  **quote_volume** in USD, like every market; **Symbols** add
+  **contract_size**. A trade's and an order book's **quantity** are
+  contracts.
 
 ## In a pipeline
 

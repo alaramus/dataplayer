@@ -43,13 +43,14 @@ async def _page(node_id: str, **kwargs: object) -> list[list[str | None]]:
 # --- the connection --------------------------------------------------------------
 
 
-async def test_a_check_pings_both_markets(fake_binance: FakeBinance) -> None:
+async def test_a_check_pings_every_market(fake_binance: FakeBinance) -> None:
     result = await _adapter().check_connection()
 
     assert result.ok
     assert {(one.host, one.path) for one in fake_binance.asked} == {
         ("api.binance.com", "/api/v3/ping"),
         ("fapi.binance.com", "/fapi/v1/ping"),
+        ("dapi.binance.com", "/dapi/v1/ping"),
     }
 
 
@@ -134,7 +135,7 @@ async def test_the_top_is_the_exchange_section_and_the_two_markets(
     del fake_binance
     nodes = await _adapter().list_children(None)
 
-    assert [node.id for node in nodes] == ["exchange", "spot", "usdm"]
+    assert [node.id for node in nodes] == ["exchange", "spot", "usdm", "coinm"]
 
 
 async def test_a_market_holds_its_lists_then_its_quotes_fullest_first(
@@ -515,3 +516,92 @@ async def test_tickers_export_every_trading_symbol(fake_binance: FakeBinance) ->
     assert sorted(row[0] or "" for row in rows) == sorted(
         ["BTCUSDT", "ETHUSDT", "币安人生USDT", "ETHBTC"]
     )
+
+
+# --- COIN-M (D321) ----------------------------------------------------------------
+
+
+async def test_coin_m_lists_its_symbols_under_the_usd_they_are_valued_in(
+    fake_binance: FakeBinance,
+) -> None:
+    del fake_binance
+    adapter = _adapter()
+
+    market = await adapter.list_children("coinm")
+    symbols = await adapter.list_children("coinm:quote:USD")
+
+    assert [node.id for node in market] == [
+        "coinm:tickers",
+        "coinm:symbols",
+        "coinm:quote:USD",
+    ]
+    assert [node.name for node in symbols] == ["BTCUSD_PERP", "ETHUSD_PERP"]
+
+
+async def test_coin_m_symbols_say_what_a_contract_is_worth(
+    fake_binance: FakeBinance,
+) -> None:
+    del fake_binance
+    result = await _adapter().fetch(FetchRequest(node_id="coinm:symbols"))
+    names = [column.name for column in result.columns]
+    rows = {row[0]: row for row in result.rows}
+
+    assert names[-1] == "contract_size"
+    assert rows["BTCUSD_PERP"][-1] == "100"
+    assert rows["ETHUSD_PERP"][-1] == "10"
+
+
+async def test_coin_m_tickers_count_volume_in_the_base_and_its_worth_in_usd(
+    fake_binance: FakeBinance,
+) -> None:
+    del fake_binance
+    result = await _adapter().fetch(FetchRequest(node_id="coinm:tickers"))
+    names = [column.name for column in result.columns]
+    rows = {row[0]: row for row in result.rows}
+
+    btc = rows["BTCUSD_PERP"]
+    assert btc[names.index("volume")] == "8706.4"
+    # 6508293 contracts of 100 USD.
+    assert btc[names.index("quote_volume")] == "650829300"
+    assert rows["ETHUSD_PERP"][names.index("quote_volume")] == "65082930"
+
+
+async def test_coin_m_candles_carry_the_base_volume_and_the_contracts_worth(
+    fake_binance: FakeBinance,
+) -> None:
+    del fake_binance
+    result = await _adapter().fetch(
+        FetchRequest(node_id="coinm:symbol:ETHUSD_PERP:candles:1h", limit=1)
+    )
+    names = [column.name for column in result.columns]
+    row = result.rows[0]
+
+    assert row[names.index("volume")] == "500.00000000"
+    # 5 contracts of 10 USD, and 2 bought by takers.
+    assert row[names.index("quote_volume")] == "50.00000000"
+    assert row[names.index("taker_buy_volume")] == "200.00000000"
+    assert row[names.index("taker_buy_quote_volume")] == "20.00000000"
+
+
+async def test_coin_m_reads_its_trades_and_book_from_its_own_host(
+    fake_binance: FakeBinance,
+) -> None:
+    await _page("coinm:symbol:BTCUSD_PERP:trades", limit=1)
+    await _page("coinm:symbol:BTCUSD_PERP:book", limit=1)
+
+    asked = {(one.host, one.path) for one in fake_binance.asked}
+    assert ("dapi.binance.com", "/dapi/v1/aggTrades") in asked
+    assert ("dapi.binance.com", "/dapi/v1/depth") in asked
+
+
+async def test_spot_candles_keep_binance_volumes_as_they_are(
+    fake_binance: FakeBinance,
+) -> None:
+    del fake_binance
+    result = await _adapter().fetch(
+        FetchRequest(node_id="spot:symbol:BTCUSDT:candles:1h", limit=1)
+    )
+    names = [column.name for column in result.columns]
+
+    assert result.rows[0][names.index("volume")] == "5.00000000"
+    assert result.rows[0][names.index("quote_volume")] == "500.00000000"

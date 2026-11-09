@@ -16,6 +16,7 @@ from app.adapters.binance.feeds import (
     HOUR_MS,
     TRADE_COLUMNS,
     Candle,
+    contract_size_of,
     newest_trade_id,
     oldest_trade_id,
     read_trades,
@@ -251,8 +252,10 @@ class BinanceReading:
         candles = [Candle(int(raw[0]), raw) for raw in answer if raw]
         candles = [one for one in candles if begin <= one.open_ms < end]
         now = _now_ms()
+        size = await contract_size_of(self._session, market, place.symbol, node_id)
         rows = [
-            [full[index] for index in picked] for full in (c.row(now) for c in candles)
+            [full[index] for index in picked]
+            for full in (c.row(now, size) for c in candles)
         ]
         after = dict(at.positions)
         after[NEXT] = int(candles[-1].raw[6]) + 1 if candles else end

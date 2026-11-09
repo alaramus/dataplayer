@@ -47,7 +47,7 @@ async def test_the_exchange_section_holds_four_reports(
         await adapter.list_children("report:gone")
 
 
-async def test_the_status_says_binance_is_normal_and_both_markets_answer(
+async def test_the_status_says_binance_is_normal_and_every_market_answers(
     fake_binance: FakeBinance,
 ) -> None:
     del fake_binance
@@ -58,6 +58,7 @@ async def test_the_status_says_binance_is_normal_and_both_markets_answer(
         "System status": "normal",
         "Spot": "reached",
         "USDⓈ-M futures": "reached",
+        "COIN-M futures": "reached",
     }
 
 
@@ -93,6 +94,7 @@ async def test_the_markets_count_their_trading_symbols(
     assert rows["Spot: symbols trading"] == "4"
     assert rows["Spot: quote assets"] == "2"
     assert rows["USDⓈ-M futures: symbols trading"] == "2"
+    assert rows["COIN-M futures: symbols trading"] == "2"
 
 
 async def test_the_clock_says_each_market_against_this_server(
@@ -106,6 +108,8 @@ async def test_the_clock_says_each_market_against_this_server(
         "Spot: ahead of this server",
         "USDⓈ-M futures: server time",
         "USDⓈ-M futures: ahead of this server",
+        "COIN-M futures: server time",
+        "COIN-M futures: ahead of this server",
         "This server's time",
     }
     assert rows["Spot: ahead of this server"].endswith(" ms")
@@ -134,7 +138,7 @@ async def test_a_market_that_does_not_answer_is_measured_as_down(
     samples = await _adapter().metric_samples()
     up = {one.label: one.value for one in samples if one.metric == "reachable"}
 
-    assert up == {"spot": 0.0, "usdm": 0.0}
+    assert up == {"spot": 0.0, "usdm": 0.0, "coinm": 0.0}
 
 
 async def test_a_search_finds_a_symbol_by_its_name_before_its_assets(

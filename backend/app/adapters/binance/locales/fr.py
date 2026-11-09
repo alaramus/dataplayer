@@ -17,6 +17,7 @@ MESSAGES: dict[str, str] = {
     "{column} cannot be sorted": "{column} ne peut pas être trié",
     "Spot": "Spot",
     "USDⓈ-M futures": "Contrats à terme USDⓈ-M",
+    "COIN-M futures": "Contrats à terme COIN-M",
     "Not a market of this connection": "Pas un marché de cette connexion",
     "Endpoint": "Point d'accès",
     "Binance, market data only": "Binance, données de marché seulement",
