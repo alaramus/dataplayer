@@ -215,6 +215,52 @@ services:
       - "127.0.0.1:5673:5672"
       - "127.0.0.1:15673:15672"
 
+  # A Cassandra and a ScyllaDB for the backend suite and for a person to point
+  # a Cassandra connection at (D340): CQL on 9042 as `cassandra` and `scylla`
+  # from the backend, 127.0.0.1:9043 and 127.0.0.1:9044 from this machine,
+  # user and password `cassandra`. Published on the loopback only. Cassandra's
+  # image has no setting for a password check, so its configuration is edited
+  # before it starts; materialized views and functions are switched on so a
+  # catalog has them to show. ScyllaDB since 2025 makes no first superuser by
+  # itself, so it is named with a SHA-512 crypt of `cassandra`; each `$` of it
+  # is written `\$$`, because Compose reads `$$` as `$` and the image passes
+  # its arguments through a shell. Behind the `tools` profile.
+  cassandra:
+    image: cassandra:5.0
+    profiles: ["tools"]
+    environment:
+      MAX_HEAP_SIZE: 1G
+      HEAP_NEWSIZE: 256M
+    entrypoint:
+      - bash
+      - -c
+      - >-
+        sed -i
+        -e 's/^authenticator: .*/authenticator: PasswordAuthenticator/'
+        -e 's/^authorizer: .*/authorizer: CassandraAuthorizer/'
+        -e 's/^materialized_views_enabled: .*/materialized_views_enabled: true/'
+        -e 's/^user_defined_functions_enabled: .*/user_defined_functions_enabled: true/'
+        -e 's/^sasi_indexes_enabled: .*/sasi_indexes_enabled: true/'
+        /etc/cassandra/cassandra.yaml
+        && exec docker-entrypoint.sh cassandra -f
+    ports:
+      - "127.0.0.1:9043:9042"
+
+  scylla:
+    image: scylladb/scylla:2026.3
+    profiles: ["tools"]
+    command:
+      - --smp=1
+      - --memory=750M
+      - --overprovisioned=1
+      - --developer-mode=1
+      - --authenticator=PasswordAuthenticator
+      - --authorizer=CassandraAuthorizer
+      - --auth-superuser-name=cassandra
+      - --auth-superuser-salted-password=\$$6\$$dataplayer\$$gGIHHoZqUhgE4YVKS2u4aliaE1CyijpZ3vqWELCqka5rzwM8hdpgdp.CcmtSttYfJ7Szziwsl8dbln7T9G5yS1
+    ports:
+      - "127.0.0.1:9044:9042"
+
   # dataplayer-monitor-agent reporting the machine Docker runs on to the
   # metrics process, started with
   # `docker compose --profile monitor-agent up -d monitor-agent`. It signs

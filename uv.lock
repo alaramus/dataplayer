@@ -161,6 +161,7 @@ dependencies = [
     { name = "pymongo" },
     { name = "python-multipart" },
     { name = "redis" },
+    { name = "scylla-driver" },
     { name = "sqlglot" },
     { name = "sqlmodel" },
     { name = "tenacity" },
@@ -219,6 +220,7 @@ requires-dist = [
     { name = "pymongo", specifier = ">=4.19,<5" },
     { name = "python-multipart", specifier = ">=0.0.27,<1.0.0" },
     { name = "redis", specifier = ">=5.0,<7.0" },
+    { name = "scylla-driver", specifier = ">=3.29.13" },
     { name = "sqlglot", specifier = ">=30.17.0" },
     { name = "sqlmodel", specifier = ">=0.0.39,<1.0.0" },
     { name = "tenacity", specifier = ">=8.2.3,<10.0.0" },
@@ -986,6 +988,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bb/29/745f7d30d47fe0f251d3ad3dc2978a23141917661998763bebb6da007eb1/filetype-1.2.0.tar.gz", hash = "sha256:66b56cd6474bf41d8c54660347d37afcc3f7d1970648de365c102ef77548aadb", size = 998020, upload-time = "2022-11-02T17:34:04.141Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/18/79/1b8fa1bb3568781e84c9200f951c735f3f157429f44be0495da55894d620/filetype-1.2.0-py2.py3-none-any.whl", hash = "sha256:7ce71b6880181241cf7ac8697a2f1eb6a8bd9b429f7ad6d27b8db9ba5f1c2d25", size = 19970, upload-time = "2022-11-02T17:34:01.425Z" },
+]
+
+[[package]]
+name = "geomet"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2a/8c/dde022aa6747b114f6b14a7392871275dea8867e2bd26cddb80cc6d66620/geomet-1.1.0.tar.gz", hash = "sha256:51e92231a0ef6aaa63ac20c443377ba78a303fd2ecd179dc3567de79f3c11605", size = 28732, upload-time = "2023-11-14T15:43:36.764Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/af/90/3bc780df088d439714af8295196a4332a26559ae66fd99865e36f92efa9e/geomet-1.1.0-py3-none-any.whl", hash = "sha256:4372fe4e286a34acc6f2e9308284850bd8c4aa5bc12065e2abbd4995900db12f", size = 31522, upload-time = "2023-11-14T15:43:35.305Z" },
 ]
 
 [[package]]
@@ -2770,6 +2784,27 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ed/20/656d67f5b25ca9bda4e02b1de25867b2954e1d19e03648060f167ad0f4cc/ruff-0.16.5-py3-none-win32.whl", hash = "sha256:288b0a5f080492fe5635db849f9e2e84aa3cce7b7f0e955997d416c507c76a26", size = 10034250, upload-time = "2026-08-27T16:34:11.8Z" },
     { url = "https://files.pythonhosted.org/packages/5b/42/ee8e68a207b9127fcde6c3d7e197def432f346cb1af159e1fa14ca0d1cdc/ruff-0.16.5-py3-none-win_amd64.whl", hash = "sha256:ddc6385fb2137f616357ca03d6c74f4be987f80fed4008566b754f6032b8546f", size = 10516714, upload-time = "2026-08-27T16:34:13.963Z" },
     { url = "https://files.pythonhosted.org/packages/73/e3/7df5a396e445b9ba49ce9a9437439a4d80042c61c0ade199abf8d16de1ac/ruff-0.16.5-py3-none-win_arm64.whl", hash = "sha256:a64abe90968719b851bb7cedffaa8753fbdbdadab483089682db623f3edc587e", size = 10391564, upload-time = "2026-08-27T16:34:16.064Z" },
+]
+
+[[package]]
+name = "scylla-driver"
+version = "3.29.13"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "geomet" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f2/a5/d9db0454fa23bd8f7ac82922d1bd5e833efd0aacb3ca85fce54af6ad49d7/scylla_driver-3.29.13.tar.gz", hash = "sha256:3da9f273175dce23bbb17452471398491984abf4d6a04e836ea50ae4f804e3ed", size = 409004, upload-time = "2026-11-02T15:06:28.117Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/41/4f/9b0b1aae2cba157ff618a717080280b6d1ec0345f16026491fd9505ff79d/scylla_driver-3.29.13-cp314-cp314-macosx_15_0_arm64.whl", hash = "sha256:02508723063e6ca80d7b6549f4f1dd147e6a1a90c2d05a96f8eed7b98b46d5da", size = 4234506, upload-time = "2026-11-02T15:06:05.261Z" },
+    { url = "https://files.pythonhosted.org/packages/48/ef/0dc8397b766b3e9d6727c6d33f99ffac2f4837bfc836ca711750a5d92f79/scylla_driver-3.29.13-cp314-cp314-macosx_15_0_x86_64.whl", hash = "sha256:9456df3dd5a7d3ebb219399c4ce99ecb0cb047fb778233eba11c0478e174e627", size = 4705509, upload-time = "2026-11-02T15:06:07.152Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/f2/7fd836241fa138cf5be57fee4ea2c1a98cd151d5f9a8692c82b503cc9d82/scylla_driver-3.29.13-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d392c6289a706c5df597dcc1e03b7e5d5a2d99d49d2e414d5a327c6a8529f7e1", size = 4642816, upload-time = "2026-11-02T15:06:08.975Z" },
+    { url = "https://files.pythonhosted.org/packages/90/70/1ac57f7f120beb04c44b159baaeaa01987faeffbeda440adf1107e5fa7e9/scylla_driver-3.29.13-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b592506783231c9a873607260da2cb697171d3d41a3eb4c153b87180d692968d", size = 4959996, upload-time = "2026-11-02T15:06:10.512Z" },
+    { url = "https://files.pythonhosted.org/packages/25/df/f71178bacd056491a9cb6081a4d20a63c2d6f86415177195466108a18d36/scylla_driver-3.29.13-cp314-cp314-win_amd64.whl", hash = "sha256:b352f668c56071eddcdceddd5d996e26b7345fe8e40fdac9ce04799003ab7afb", size = 3516759, upload-time = "2026-11-02T15:06:11.944Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/7b/e1e350a19ee81d52d746262c5f1ae3bf2c80b835cc92183983040c94eb5a/scylla_driver-3.29.13-cp315-cp315-macosx_15_0_arm64.whl", hash = "sha256:162e58793ae4a298d71aefd6ab1267345dd5cc12a400c76af031774b97b9837a", size = 4221191, upload-time = "2026-11-02T15:06:13.783Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/80/403eac994bd2bd316de14176990b2a645439cac9f08cf6d20111dc091dac/scylla_driver-3.29.13-cp315-cp315-macosx_15_0_x86_64.whl", hash = "sha256:3281ceddeca0cb90997f1c7bd66e7aa870eaaffc156af506865b2f13216fab63", size = 4689551, upload-time = "2026-11-02T15:06:15.673Z" },
+    { url = "https://files.pythonhosted.org/packages/64/77/06ef97e072b4fe6ead8a9a4191f09ed550b83dc49a47d39612372fbf52de/scylla_driver-3.29.13-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:bea92e2db8f3d799d4d175cef05cdf41535edcbada7a2e0cfb0dd6a39cf4032d", size = 4660392, upload-time = "2026-11-02T15:06:17.547Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/b9/a0769a562543e3aae8311b5addbebad32ef55b45d57981c9c88d12b81399/scylla_driver-3.29.13-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c4269a62654e1bdc9d78df0b8a4cc675537ddefaac282a4c0143653b831a4133", size = 4974499, upload-time = "2026-11-02T15:06:19.302Z" },
+    { url = "https://files.pythonhosted.org/packages/67/e0/8574fa4bc795fe8e8f79f651c560c5ea223a91900ca6c49797d422e82591/scylla_driver-3.29.13-cp315-cp315-win_amd64.whl", hash = "sha256:55f33dacf763251932ca3d4f38601aed121f069dbab1cf6148e1ad57f7fe1d42", size = 3515538, upload-time = "2026-11-02T15:06:20.965Z" },
 ]
 
 [[package]]

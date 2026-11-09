@@ -198,6 +198,7 @@ export const catalog = {
   nodes: {
     schemas: "Schemas",
     databases: "Databases",
+    keyspaces: "Keyspaces",
     groups: "Groups",
     not_counted: "N/A",
     estimate: "~{n} rows | ~{n} rows",

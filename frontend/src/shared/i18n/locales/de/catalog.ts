@@ -201,6 +201,7 @@ export const catalog: Messages["catalog"] = {
   nodes: {
     schemas: "Schemas",
     databases: "Datenbanken",
+    keyspaces: "Keyspaces",
     groups: "Gruppen",
     not_counted: "k. A.",
     estimate: "~{n} Zeile | ~{n} Zeilen",

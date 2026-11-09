@@ -1,0 +1,38 @@
+"""ما يكتبه Cassandra، بالعربية (D226). تتبع المصطلحات مسرد الشاشات."""
+
+MESSAGES: dict[str, str] = {
+    # The source and its connection form.
+    "Cassandra": "Cassandra",
+    "Apache Cassandra": "Apache Cassandra",
+    "ScyllaDB": "ScyllaDB",
+    "Apache Cassandra or ScyllaDB, over CQL. Browse keyspaces, tables and materialized views, and read rows a page at a time with filtering done by the server.": "Apache Cassandra أو ScyllaDB عبر CQL. تصفّح فضاءات المفاتيح والجداول والعروض المادية، واقرأ الصفوف صفحةً صفحة مع تصفية يجريها الخادم.",
+    "Keyspace": "فضاء المفاتيح",
+    "Where the catalog opens; every keyspace the role may see is in the catalog": "حيث يُفتح الكتالوج؛ كل فضاء مفاتيح يراه الدور موجود في الكتالوج",
+    "The native protocol's port, 9042 unless the server says otherwise": "منفذ البروتوكول الأصلي، 9042 ما لم يحدد الخادم غير ذلك",
+    "TLS, with the server's certificate verified": "TLS مع التحقق من شهادة الخادم",
+    "Consistency": "الاتساق",
+    "How many replicas answer a read and acknowledge a write": "كم نسخة متماثلة تجيب عن القراءة وتؤكد الكتابة",
+    "That is not a Cassandra connection string": "هذه ليست سلسلة اتصال Cassandra",
+    "{product} {version} is older than this source supports ({oldest})": "{product} {version} أقدم مما يدعمه هذا المصدر ({oldest})",
+    "Keyspace does not exist": "فضاء المفاتيح غير موجود",
+    'Keyspace "{name}" does not exist': "فضاء المفاتيح «{name}» غير موجود",
+    "Not enough replicas are up for the consistency level asked": "لا تعمل نسخ متماثلة كافية لمستوى الاتساق المطلوب",
+    # Relations and rows.
+    '"{node_id}" is not a relation: expected keyspace.table': "«{node_id}» ليس علاقة: المتوقع keyspace.table",
+    '"{keyspace}" belongs to the server': "«{keyspace}» يخص الخادم",
+    "Cassandra has no unique keys and no foreign keys": "لا توجد في Cassandra مفاتيح فريدة ولا مفاتيح خارجية",
+    "Partition key": "مفتاح القسم",
+    "Clustering column, {order}": "عمود التجميع، {order}",
+    "Static: one value for the whole partition": "ثابت: قيمة واحدة للقسم كله",
+    'This Cassandra source does not offer the "{representation}" content representation': "لا يقدم مصدر Cassandra هذا تمثيل المحتوى «{representation}»",
+    "This page is {rows} rows past the last one read; page forward from there": "هذه الصفحة بعد آخر صفحة مقروءة بـ {rows} صفًا؛ تقدّم صفحةً صفحة من هناك",
+    "ScyllaDB's LIKE cannot look for % or _ in a value": "لا يستطيع LIKE في ScyllaDB البحث عن % أو _ داخل قيمة",
+    # The console and cqlsh.
+    ":{name} is not a value of type {type}": ":{name} ليس قيمة من النوع {type}",
+    "Cassandra keeps a change the moment it is made and cannot undo it, so a change cannot share a run with other statements; run it on its own, or put the changes in one BATCH": "يحفظ Cassandra التغيير لحظة إجرائه ولا يستطيع التراجع عنه، لذا لا يمكن أن يشارك التغيير تشغيلًا مع عبارات أخرى؛ شغّله وحده أو اجمع التغييرات في BATCH واحد",
+    "No value was given for :{name}": "لم تُعطَ قيمة لـ :{name}",
+    "This connection has no keyspace called {name}": "لا يحتوي هذا الاتصال على فضاء مفاتيح باسم {name}",
+    "This is not a CQL statement this console runs": "هذه ليست عبارة CQL تشغّلها هذه الوحدة",
+    "cqlsh cannot read a user or a password that holds a line break": "لا يستطيع cqlsh قراءة مستخدم أو كلمة مرور تحتوي على فاصل أسطر",
+    "{command} is a cqlsh command, not CQL; run it in cqlsh in a terminal": "{command} أمر من أوامر cqlsh وليس CQL؛ شغّله في cqlsh داخل طرفية",
+}

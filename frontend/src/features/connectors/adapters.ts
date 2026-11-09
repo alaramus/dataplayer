@@ -13,6 +13,9 @@ const ICONS: Record<string, string> = {
   mysql: "img:/icons/services/mysql.svg",
   // A card of the `mysql` type rather than a type of its own (D264).
   mariadb: "img:/icons/services/mariadb.svg",
+  cassandra: "img:/icons/services/cassandra.svg",
+  // A card of the `cassandra` type (D340).
+  scylladb: "img:/icons/services/scylladb.svg",
   sqlite: "img:/icons/services/sqlite.svg",
   clickhouse: "img:/icons/services/clickhouse.svg",
   mongodb: "img:/icons/services/mongodb.svg",

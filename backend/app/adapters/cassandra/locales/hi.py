@@ -1,0 +1,38 @@
+"""Cassandra जो लिखता है, हिंदी में (D226)। शब्द स्क्रीन की शब्दावली के अनुसार हैं।"""
+
+MESSAGES: dict[str, str] = {
+    # The source and its connection form.
+    "Cassandra": "Cassandra",
+    "Apache Cassandra": "Apache Cassandra",
+    "ScyllaDB": "ScyllaDB",
+    "Apache Cassandra or ScyllaDB, over CQL. Browse keyspaces, tables and materialized views, and read rows a page at a time with filtering done by the server.": "CQL के ज़रिए Apache Cassandra या ScyllaDB। कीस्पेस, टेबल और मटीरियलाइज़्ड व्यू देखें, और सर्वर पर फ़िल्टर के साथ पंक्तियाँ एक-एक पेज पढ़ें।",
+    "Keyspace": "कीस्पेस",
+    "Where the catalog opens; every keyspace the role may see is in the catalog": "कैटलॉग कहाँ खुलता है; भूमिका जो भी कीस्पेस देख सकती है, वह कैटलॉग में है",
+    "The native protocol's port, 9042 unless the server says otherwise": "नेटिव प्रोटोकॉल का पोर्ट, 9042, जब तक सर्वर कुछ और न कहे",
+    "TLS, with the server's certificate verified": "TLS, सर्वर के प्रमाणपत्र की जाँच के साथ",
+    "Consistency": "संगति",
+    "How many replicas answer a read and acknowledge a write": "कितनी प्रतिकृतियाँ पढ़ने का जवाब देती हैं और लिखने की पुष्टि करती हैं",
+    "That is not a Cassandra connection string": "यह Cassandra कनेक्शन स्ट्रिंग नहीं है",
+    "{product} {version} is older than this source supports ({oldest})": "{product} {version} इस स्रोत द्वारा समर्थित संस्करण से पुराना है ({oldest})",
+    "Keyspace does not exist": "कीस्पेस मौजूद नहीं है",
+    'Keyspace "{name}" does not exist': 'कीस्पेस "{name}" मौजूद नहीं है',
+    "Not enough replicas are up for the consistency level asked": "माँगे गए संगति स्तर के लिए पर्याप्त प्रतिकृतियाँ चालू नहीं हैं",
+    # Relations and rows.
+    '"{node_id}" is not a relation: expected keyspace.table': '"{node_id}" संबंध नहीं है: keyspace.table अपेक्षित है',
+    '"{keyspace}" belongs to the server': '"{keyspace}" सर्वर का है',
+    "Cassandra has no unique keys and no foreign keys": "Cassandra में न अद्वितीय कुंजियाँ हैं, न विदेशी कुंजियाँ",
+    "Partition key": "पार्टीशन कुंजी",
+    "Clustering column, {order}": "क्लस्टरिंग कॉलम, {order}",
+    "Static: one value for the whole partition": "स्थिर: पूरे पार्टीशन के लिए एक मान",
+    'This Cassandra source does not offer the "{representation}" content representation': 'यह Cassandra स्रोत "{representation}" सामग्री प्रस्तुति नहीं देता',
+    "This page is {rows} rows past the last one read; page forward from there": "यह पेज आख़िरी पढ़े गए पेज से {rows} पंक्तियाँ आगे है; वहीं से आगे पेज बदलें",
+    "ScyllaDB's LIKE cannot look for % or _ in a value": "ScyllaDB का LIKE किसी मान में % या _ नहीं खोज सकता",
+    # The console and cqlsh.
+    ":{name} is not a value of type {type}": ":{name} प्रकार {type} का मान नहीं है",
+    "Cassandra keeps a change the moment it is made and cannot undo it, so a change cannot share a run with other statements; run it on its own, or put the changes in one BATCH": "Cassandra बदलाव होते ही उसे सहेज लेता है और उसे वापस नहीं ले सकता, इसलिए बदलाव दूसरे कथनों के साथ नहीं चल सकता; उसे अकेले चलाएँ या बदलावों को एक BATCH में रखें",
+    "No value was given for :{name}": ":{name} के लिए कोई मान नहीं दिया गया",
+    "This connection has no keyspace called {name}": "इस कनेक्शन में {name} नाम का कोई कीस्पेस नहीं है",
+    "This is not a CQL statement this console runs": "यह ऐसा CQL कथन नहीं है जिसे यह कंसोल चलाता है",
+    "cqlsh cannot read a user or a password that holds a line break": "cqlsh पंक्ति-विराम वाला उपयोगकर्ता या पासवर्ड नहीं पढ़ सकता",
+    "{command} is a cqlsh command, not CQL; run it in cqlsh in a terminal": "{command} cqlsh का कमांड है, CQL नहीं; इसे टर्मिनल में cqlsh में चलाएँ",
+}

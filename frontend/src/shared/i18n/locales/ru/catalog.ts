@@ -201,6 +201,7 @@ export const catalog: Messages["catalog"] = {
   nodes: {
     schemas: "Схемы",
     databases: "Базы данных",
+    keyspaces: "Пространства ключей",
     groups: "Группы",
     not_counted: "н/д",
     estimate: "~{n} строка | ~{n} строки | ~{n} строк | ~{n} строки",

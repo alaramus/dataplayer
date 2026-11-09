@@ -203,6 +203,7 @@ export const catalog: Messages["catalog"] = {
   nodes: {
     schemas: "المخططات",
     databases: "قواعد البيانات",
+    keyspaces: "فضاءات المفاتيح",
     groups: "المجموعات",
     not_counted: "لا ينطبق",
     estimate: "لا صفوف | نحو صف واحد | نحو صفين | نحو {n} صفوف | نحو {n} صفًا | نحو {n} صف",

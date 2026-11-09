@@ -47,8 +47,9 @@ class BaseNode(BaseModel):
 class SchemaNode(BaseNode):
     kind: Literal["schema"] = "schema"
     # What the source calls it, where that is not a schema: a MySQL database
-    # is a schema to everything else here (D229), and is named as a database.
-    term: Literal["schema", "database"] = "schema"
+    # is a schema to everything else here (D229), and is named as a database;
+    # a Cassandra keyspace is named as a keyspace (D341).
+    term: Literal["schema", "database", "keyspace"] = "schema"
     is_system: bool = False
     frameworks: list[DetectedFramework] = Field(default_factory=list)
 

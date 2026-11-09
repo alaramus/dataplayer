@@ -764,3 +764,82 @@ source_modules =
     app.adapters.mongodb
 forbidden_modules =
     websockets
+
+# The same rule for scylla-driver, whose module is `cassandra` (D340): a driver
+# upgrade has one place to change.
+[importlinter:contract:cassandra-sdk-is-contained]
+name = the cassandra driver is imported only by the cassandra adapter
+type = forbidden
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.pipelines
+    app.transfers
+    app.search
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.ai
+    app.terminals
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.fetch
+    app.adapters.routes
+    app.adapters.actions
+    app.adapters.operations
+    app.adapters.resources
+    app.adapters.file
+    app.adapters.explorer
+    app.adapters.postgres
+    app.adapters.mysql
+    app.adapters.sqlite
+    app.adapters.clickhouse
+    app.adapters.redis
+    app.adapters.ssh
+    app.adapters.mongodb
+    app.adapters.zookeeper
+    app.adapters.kafka
+    app.adapters.rabbitmq
+    app.adapters.binance
+forbidden_modules =
+    cassandra
+
+# And no other source's driver reaches the Cassandra adapter.
+[importlinter:contract:other-drivers-stay-out-of-cassandra]
+name = the cassandra adapter imports no other source's driver
+type = forbidden
+source_modules =
+    app.adapters.cassandra
+forbidden_modules =
+    psycopg
+    psycopg_pool
+    pglast
+    sqlglot
+    aiomysql
+    pymysql
+    sqlite3
+    redis
+    asyncssh
+    pymongo
+    bson
+    kazoo
+    confluent_kafka
+    aio_pika
+    aiormq
+    app.adapters.postgres
+    app.adapters.mysql
+    app.adapters.sqlite
+    app.adapters.clickhouse
+    app.adapters.mongodb
+    app.adapters.zookeeper
+    app.adapters.kafka
+    app.adapters.rabbitmq
+    app.adapters.binance

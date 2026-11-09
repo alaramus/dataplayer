@@ -181,6 +181,20 @@ describe("a key-value database", () => {
     expect(callsDatabases([shop])).toBe(true)
     expect(callsDatabases([{ ...shop, term: "schema" as const }])).toBe(false)
   })
+
+  it("is called a keyspace where the source calls its schema one (D341)", () => {
+    const shop = {
+      kind: "schema" as const,
+      id: "shop",
+      name: "shop",
+      term: "keyspace" as const,
+      has_children: true,
+      representations: [],
+    }
+
+    expect(groupTitle(toListNodes([shop]))).toBe("Keyspaces")
+    expect(toListNodes([shop])[0]?.term).toBe("keyspace")
+  })
 })
 
 describe("a Kafka topic and consumer group (D305)", () => {

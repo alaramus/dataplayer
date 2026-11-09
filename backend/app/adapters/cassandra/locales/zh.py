@@ -1,0 +1,38 @@
+"""Cassandra 写给人看的话，中文版 (D226)。术语遵循界面词汇表。"""
+
+MESSAGES: dict[str, str] = {
+    # The source and its connection form.
+    "Cassandra": "Cassandra",
+    "Apache Cassandra": "Apache Cassandra",
+    "ScyllaDB": "ScyllaDB",
+    "Apache Cassandra or ScyllaDB, over CQL. Browse keyspaces, tables and materialized views, and read rows a page at a time with filtering done by the server.": "通过 CQL 连接 Apache Cassandra 或 ScyllaDB。浏览键空间、表和物化视图，并按页读取行，由服务器完成筛选。",
+    "Keyspace": "键空间",
+    "Where the catalog opens; every keyspace the role may see is in the catalog": "目录从哪里打开；该角色可见的每个键空间都在目录中",
+    "The native protocol's port, 9042 unless the server says otherwise": "原生协议的端口，除非服务器另有设置，否则为 9042",
+    "TLS, with the server's certificate verified": "TLS，并验证服务器证书",
+    "Consistency": "一致性",
+    "How many replicas answer a read and acknowledge a write": "有多少副本响应读取并确认写入",
+    "That is not a Cassandra connection string": "这不是 Cassandra 连接字符串",
+    "{product} {version} is older than this source supports ({oldest})": "{product} {version} 比此数据源支持的版本旧（{oldest}）",
+    "Keyspace does not exist": "键空间不存在",
+    'Keyspace "{name}" does not exist': "键空间“{name}”不存在",
+    "Not enough replicas are up for the consistency level asked": "可用副本不足以满足所要求的一致性级别",
+    # Relations and rows.
+    '"{node_id}" is not a relation: expected keyspace.table': "“{node_id}”不是关系：应为 键空间.表",
+    '"{keyspace}" belongs to the server': "“{keyspace}”属于服务器",
+    "Cassandra has no unique keys and no foreign keys": "Cassandra 没有唯一键，也没有外键",
+    "Partition key": "分区键",
+    "Clustering column, {order}": "聚簇列，{order}",
+    "Static: one value for the whole partition": "静态：整个分区只有一个值",
+    'This Cassandra source does not offer the "{representation}" content representation': "此 Cassandra 数据源不提供“{representation}”内容表示",
+    "This page is {rows} rows past the last one read; page forward from there": "此页比最后读取的一页靠后 {rows} 行；请从那里向前翻页",
+    "ScyllaDB's LIKE cannot look for % or _ in a value": "ScyllaDB 的 LIKE 无法在值中查找 % 或 _",
+    # The console and cqlsh.
+    ":{name} is not a value of type {type}": ":{name} 不是 {type} 类型的值",
+    "Cassandra keeps a change the moment it is made and cannot undo it, so a change cannot share a run with other statements; run it on its own, or put the changes in one BATCH": "Cassandra 在更改发生时立即保存且无法撤销，因此更改不能与其他语句一起运行；请单独运行，或将更改放入一个 BATCH",
+    "No value was given for :{name}": "未给出 :{name} 的值",
+    "This connection has no keyspace called {name}": "此连接没有名为 {name} 的键空间",
+    "This is not a CQL statement this console runs": "这不是此控制台运行的 CQL 语句",
+    "cqlsh cannot read a user or a password that holds a line break": "cqlsh 无法读取包含换行符的用户名或密码",
+    "{command} is a cqlsh command, not CQL; run it in cqlsh in a terminal": "{command} 是 cqlsh 命令，不是 CQL；请在终端中的 cqlsh 里运行",
+}

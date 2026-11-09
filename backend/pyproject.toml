@@ -55,6 +55,7 @@ dependencies = [
     # Kafka's client on librdkafka, synchronous, called through the thread pool (D304).
     "confluent-kafka>=2.12,<3",
     "aio-pika>=10.2.3",
+    "scylla-driver>=3.29.13",
 ]
 
 [dependency-groups]
@@ -104,6 +105,13 @@ ignore_missing_imports = true
 # failure into this repository's own types before handing anything on.
 [[tool.mypy.overrides]]
 module = ["kazoo.*", "kazoo"]
+ignore_missing_imports = true
+
+# scylla-driver (the `cassandra` module) ships no type information and has no
+# stub package. The Cassandra session is the module that calls it, and it turns
+# every row, value and failure into this repository's own types (D340).
+[[tool.mypy.overrides]]
+module = ["cassandra.*", "cassandra"]
 ignore_missing_imports = true
 
 # confluent_kafka.admin re-exports its classes without an __all__, which is how
@@ -161,6 +169,8 @@ ignore = [
 "tests/adapters/mysql_fixture.py" = ["S608"]
 # The same, for the ClickHouse tests.
 "tests/adapters/clickhouse_fixture.py" = ["S608"]
+# The same, for the Cassandra tests.
+"tests/adapters/cassandra_fixture.py" = ["S608"]
 # The same for the rows the editing tests make and change behind the adapter.
 "tests/adapters/test_mysql_update.py" = ["S608"]
 "tests/adapters/test_mysql_structure.py" = ["S608"]

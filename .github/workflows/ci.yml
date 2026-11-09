@@ -203,6 +203,8 @@ jobs:
       TEST_ZOOKEEPER_URL: zookeeper://127.0.0.1:2182
       TEST_KAFKA_URL: kafka://127.0.0.1:9094
       TEST_RABBITMQ_URL: amqp://dataplayer:dataplayer@127.0.0.1:5673
+      TEST_CASSANDRA_URL: cassandra://cassandra:cassandra@127.0.0.1:9043
+      TEST_SCYLLA_URL: cassandra://cassandra:cassandra@127.0.0.1:9044
       # backend/scripts/test.sh runs the suite this way, and the private routes
       # exist only in development: without it their tests get a 404.
       FASTAPI_ENV: development
@@ -214,6 +216,25 @@ jobs:
       EMAILS_FROM_EMAIL: info@example.com
     steps:
       - uses: actions/checkout@v5
+      # The Cassandra and the ScyllaDB the Cassandra source tests read (D340).
+      # Not services: a service takes no command, and Cassandra's password
+      # check is switched on by editing its configuration before it starts,
+      # as compose.override.yml does. Started first, so they warm up while the
+      # rest of the job runs; the step before pytest waits for both.
+      - run: |
+          docker run -d --name cassandra -p 9043:9042 -e MAX_HEAP_SIZE=1G -e HEAP_NEWSIZE=256M \
+            --entrypoint bash cassandra:5.0 -c "sed -i \
+              -e 's/^authenticator: .*/authenticator: PasswordAuthenticator/' \
+              -e 's/^authorizer: .*/authorizer: CassandraAuthorizer/' \
+              -e 's/^materialized_views_enabled: .*/materialized_views_enabled: true/' \
+              -e 's/^user_defined_functions_enabled: .*/user_defined_functions_enabled: true/' \
+              -e 's/^sasi_indexes_enabled: .*/sasi_indexes_enabled: true/' \
+              /etc/cassandra/cassandra.yaml && exec docker-entrypoint.sh cassandra -f"
+          docker run -d --name scylla -p 9044:9042 scylladb/scylla:2026.3 \
+            --smp=1 --memory=750M --overprovisioned=1 --developer-mode=1 \
+            --authenticator=PasswordAuthenticator --authorizer=CassandraAuthorizer \
+            --auth-superuser-name=cassandra \
+            '--auth-superuser-salted-password=\$6\$dataplayer\$gGIHHoZqUhgE4YVKS2u4aliaE1CyijpZ3vqWELCqka5rzwM8hdpgdp.CcmtSttYfJ7Szziwsl8dbln7T9G5yS1'
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"
@@ -255,6 +276,18 @@ jobs:
           docker cp deploy/sshd/allow-forwarding.sh ${{ job.services.sshd.id }}:/tmp/allow-forwarding.sh
           docker exec ${{ job.services.sshd.id }} sh /tmp/allow-forwarding.sh
           docker exec ${{ job.services.sshd.id }} pkill -HUP -f 'sshd.pam -D'
+      # Both CQL servers take a minute or two to listen, and their password
+      # store a few seconds more; a sign-in answers only when both are ready.
+      - working-directory: backend
+        run: |
+          for port in 9043 9044; do
+            for attempt in $(seq 1 60); do
+              if uv run python -c "from cassandra.cluster import Cluster; from cassandra.auth import PlainTextAuthProvider as P; c = Cluster(['127.0.0.1'], port=$port, auth_provider=P('cassandra', 'cassandra'), connect_timeout=5); c.connect(); c.shutdown()" 2>/dev/null; then
+                break
+              fi
+              sleep 5
+            done
+          done
       # A failure prints one line per test rather than a full traceback, so
       # one broken fixture cannot bury the cause under pages of repeats.
       # --require-services: a developer's run skips the tests of a server that

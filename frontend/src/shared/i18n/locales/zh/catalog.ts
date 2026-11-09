@@ -200,6 +200,7 @@ export const catalog: Messages["catalog"] = {
   nodes: {
     schemas: "模式",
     databases: "数据库",
+    keyspaces: "键空间",
     groups: "分组",
     not_counted: "不适用",
     estimate: "约 {n} 行",

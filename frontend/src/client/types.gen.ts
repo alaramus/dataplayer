@@ -13114,7 +13114,7 @@ export type SchemaNode = {
   /**
    * Term
    */
-  term?: "schema" | "database"
+  term?: "schema" | "database" | "keyspace"
   /**
    * Is System
    */

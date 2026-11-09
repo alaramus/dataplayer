@@ -79,6 +79,9 @@ _PROTOCOLS = {
     # An AMQP 0-9-1 header is answered by Connection.Start, a method frame
     # whose type is 1.
     "amqp": _Protocol(5672, b"AMQP\x00\x00\x09\x01", (b"\x01",)),
+    # CQL's OPTIONS in protocol 4, which a node answers before authentication
+    # with SUPPORTED in a response frame of the same version.
+    "cassandra": _Protocol(9042, b"\x04\x00\x00\x00\x05\x00\x00\x00\x00", (b"\x84",)),
 }
 
 _required = False
@@ -231,6 +234,28 @@ RABBITMQ = Server(
     ),
 )
 
+# The development Cassandra and ScyllaDB (`cassandra` and `scylla` in
+# compose.override.yml), signing in as `cassandra`. Both, because the one
+# source type speaks to both (D340); on a machine short of memory one runs at
+# a time and the other's tests are skipped.
+CASSANDRA = Server(
+    name="Cassandra",
+    variable="TEST_CASSANDRA_URL",
+    start="docker compose up -d cassandra",
+    read=lambda: os.environ.get(
+        "TEST_CASSANDRA_URL", "cassandra://cassandra:cassandra@127.0.0.1:9043"
+    ),
+)
+
+SCYLLA = Server(
+    name="ScyllaDB",
+    variable="TEST_SCYLLA_URL",
+    start="docker compose up -d scylla",
+    read=lambda: os.environ.get(
+        "TEST_SCYLLA_URL", "cassandra://cassandra:cassandra@127.0.0.1:9044"
+    ),
+)
+
 SERVERS = (
     POSTGRES,
     REDIS,
@@ -243,6 +268,8 @@ SERVERS = (
     ZOOKEEPER,
     KAFKA,
     RABBITMQ,
+    CASSANDRA,
+    SCYLLA,
 )
 
 

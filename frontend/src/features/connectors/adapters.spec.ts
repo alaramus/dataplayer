@@ -17,6 +17,11 @@ describe("the icon of a source type", () => {
     expect(adapterIcon("mariadb")).not.toBe(adapterIcon("mysql"))
   })
 
+  it("draws ScyllaDB as itself, though it is a card of the cassandra type (D340)", () => {
+    expect(adapterIcon("scylladb")).toBe("img:/icons/services/scylladb.svg")
+    expect(adapterIcon("cassandra")).toBe("img:/icons/services/cassandra.svg")
+  })
+
   it("falls back for a type the backend gained since this build", () => {
     expect(adapterIcon("zeromq")).toBe(UNKNOWN_ADAPTER_ICON)
   })
