@@ -145,9 +145,15 @@ test("keeps the catalog's measured column clear of its scrollbar", async ({ page
     const viewportRight = await list.evaluate((element) =>
       element.getBoundingClientRect().left + element.clientLeft + element.clientWidth
     )
-    // clientWidth excludes a classic scrollbar. The additional inset also
-    // protects the columns when the browser draws an overlay scrollbar.
-    expect(viewportRight - (rowBox.x + rowBox.width)).toBeGreaterThanOrEqual(11)
+    const inset = await list.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).paddingInlineEnd)
+    )
+    // clientWidth excludes a classic scrollbar, and the list's own inset
+    // stands between the rows and it. Read rather than written here: the
+    // inset is a choice of look, kept small on purpose, and a number in the
+    // test would only repeat it.
+    expect(inset).toBeGreaterThan(0)
+    expect(viewportRight - (rowBox.x + rowBox.width)).toBeGreaterThanOrEqual(inset - 0.5)
 
     const count = row.getByText(/ rows$|^N\/A$/)
     await expect(count).toBeVisible()

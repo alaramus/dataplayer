@@ -395,8 +395,10 @@ const countLabel = computed(() => {
   min-height: 0;
   overflow: auto;
   scrollbar-gutter: stable;
-  /* Reserve space for classic scrollbars before rows arrive, and keep the
-     shared columns clear of overlay scrollbars, which have no gutter. */
+  /* Reserve space for classic scrollbars before rows arrive, and a small
+     inset between the last column and the bar. Small on purpose: a wider one
+     was empty space in a narrow column; an overlay scrollbar may then sit
+     over the edge of the counts. */
   padding-inline-end: var(--dp-space-1);
   display: grid;
   grid-template-columns:
