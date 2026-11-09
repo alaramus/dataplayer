@@ -32,6 +32,8 @@ are encrypted at rest and never leave the backend.
   as rows.
 - <img src="frontend/public/icons/services/kafka.svg" height="20" alt=""> **Kafka**: topics and consumer groups with their positions and lag, a
   topic's messages as rows, and new messages sent from the grid.
+- <img src="frontend/public/icons/services/rabbitmq.svg" height="20" alt=""> **RabbitMQ**: virtual hosts, queues, streams and exchanges with their counts
+  and bindings, a stream's messages as rows, a queue peeked into, and queues read and fed by pipelines.
 - <img src="frontend/public/icons/services/zookeeper.svg" height="20" alt=""> **ZooKeeper**: the znode tree, each znode's data, stat and ACL, and
   znodes made, re-ACLed and deleted from the catalog.
 - <img src="frontend/public/icons/services/binance.svg" height="20" alt=""> **Binance**: spot, USDⓈ-M and COIN-M market data as rows, a symbol's chart,
@@ -149,7 +151,7 @@ and its interactive docs at http://localhost:8000/docs. To fill the connections
 panel with examples — the bundled PostgreSQL under several names, file storage
 and Redis — run `bun run seed:connectors` from the repository root. Adminer,
 Mailcatcher and the servers the tests and examples point at — Redis, SSH,
-MySQL, MariaDB, ClickHouse, MongoDB, ZooKeeper and Kafka — start on request:
+MySQL, MariaDB, ClickHouse, MongoDB, ZooKeeper, Kafka and RabbitMQ — start on request:
 `docker compose --profile tools up -d`.
 
 The backend cannot run natively on Windows: psycopg 3 in async mode is
