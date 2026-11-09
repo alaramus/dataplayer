@@ -229,12 +229,16 @@ const emptyText = computed(() =>
     : t("catalog.keyspace.nothing_yet")
 )
 
+function collapseAll() {
+  expanded.value = []
+}
+
 function reload(): Promise<void> {
   reading = load(true)
   return reading
 }
 
-defineExpose({ reload, reveal, refreshLevels, expandedIds })
+defineExpose({ reload, reveal, refreshLevels, expandedIds, collapseAll })
 </script>
 
 <template>

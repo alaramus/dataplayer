@@ -131,6 +131,7 @@ export const workspace: Messages["workspace"] = {
     frameworks: "أطر العمل المكتشفة",
     clear_table_filter: "مسح مرشح الجداول",
     framework_hint: "مكتشفة من أسماء الجداول. تصفية الجداول المطابقة",
+    collapse_all: "طي الكل",
     back_to_tree: "العودة إلى الشجرة",
     back_to_folder: "العودة إلى المجلد",
   },

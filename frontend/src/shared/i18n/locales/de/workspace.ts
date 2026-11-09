@@ -130,6 +130,7 @@ export const workspace: Messages["workspace"] = {
     frameworks: "Erkannte Frameworks",
     clear_table_filter: "Den Tabellenfilter leeren",
     framework_hint: "Aus Tabellennamen erkannt. Passende Tabellen filtern",
+    collapse_all: "Alle zuklappen",
     back_to_tree: "Zurück zum Baum",
     back_to_folder: "Zurück zum Ordner",
   },

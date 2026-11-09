@@ -129,6 +129,7 @@ export const workspace: Messages["workspace"] = {
     frameworks: "检测到的框架",
     clear_table_filter: "清除表筛选器",
     framework_hint: "根据表名检测。筛选匹配的表",
+    collapse_all: "全部折叠",
     back_to_tree: "返回树",
     back_to_folder: "返回文件夹",
   },

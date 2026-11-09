@@ -130,6 +130,7 @@ export const workspace: Messages["workspace"] = {
     frameworks: "Обнаруженные фреймворки",
     clear_table_filter: "Сбросить фильтр таблиц",
     framework_hint: "Определено по именам таблиц. Показать подходящие таблицы",
+    collapse_all: "Свернуть всё",
     back_to_tree: "Назад к дереву",
     back_to_folder: "Назад к папке",
   },

@@ -127,6 +127,7 @@ export const workspace = {
     frameworks: "Detected frameworks",
     clear_table_filter: "Clear the table filter",
     framework_hint: "Detected from table names. Filter matching tables",
+    collapse_all: "Collapse all",
     back_to_tree: "Back to the tree",
     back_to_folder: "Back to the folder",
   },

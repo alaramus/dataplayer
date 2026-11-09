@@ -130,6 +130,7 @@ export const workspace: Messages["workspace"] = {
     frameworks: "Frameworks détectés",
     clear_table_filter: "Effacer le filtre de tables",
     framework_hint: "Détecté d'après les noms de tables. Filtrer les tables correspondantes",
+    collapse_all: "Tout replier",
     back_to_tree: "Retour à l'arborescence",
     back_to_folder: "Retour au dossier",
   },

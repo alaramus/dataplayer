@@ -129,6 +129,7 @@ export const workspace: Messages["workspace"] = {
     frameworks: "DreamWorks detectados",
     clear_table_filter: "Borrar el filtro de tablas",
     framework_hint: "Detectado a partir de los nombres de las tablas. Filtrar las tablas coincidentes",
+    collapse_all: "Contraer todo",
     back_to_tree: "Volver al árbol",
     back_to_folder: "Volver a la carpeta",
   },

@@ -1142,7 +1142,27 @@ async function afterAction(outcome: ActionOutcome) {
             @relationships="showTreeRelationships"
             @backups="showBackups"
             @search-index="showSearchIndex"
-          />
+          >
+            <!-- Beside the menu: only a tree has branches to close. -->
+            <template #lead>
+              <AppIconButton
+                :icon="appIcons.unfoldLess"
+                :tooltip="t('workspace.catalog.collapse_all')"
+                data-testid="catalog-collapse-all"
+                @click="tree?.collapseAll()"
+              />
+            </template>
+          </CatalogActions>
+          <!-- A paired catalog has no menu, and a tree in it still closes. -->
+          <template v-else-if="asTree">
+            <AppToolbarRule />
+            <AppIconButton
+              :icon="appIcons.unfoldLess"
+              :tooltip="t('workspace.catalog.collapse_all')"
+              data-testid="catalog-collapse-all"
+              @click="tree?.collapseAll()"
+            />
+          </template>
           <CatalogActions
             v-else-if="!paired"
             :connector-id="connectorId"
@@ -1424,6 +1444,16 @@ async function afterAction(outcome: ActionOutcome) {
    hides below that, not at the default width. */
 @container catalog-bar (max-width: 280px) {
   .catalog-panel__beside {
+    display: none;
+  }
+}
+/* A tree's commands leave its place too little for words, which squeezed to a
+   letter say less than the icon alone. */
+@container catalog-bar (max-width: 380px) {
+  .catalog-panel__place {
+    flex: none;
+  }
+  .catalog-panel__place-text {
     display: none;
   }
 }

@@ -491,13 +491,15 @@ async function pick(name: string) {
        actions or the client's own verbs: a source with no actions at all still
        describes its nodes. -->
   <span
-    v-if="items.length"
+    v-if="items.length || $slots.lead"
     class="catalog-actions"
   >
     <AppToolbarRule />
+    <!-- A command of the panel's own, kept in one group with the menu. -->
+    <slot name="lead" />
     <!-- A menu opens from its parent: a span of its own, so the line beside
          the button is not a place to press. -->
-    <span>
+    <span v-if="items.length">
       <AppIconButton
         :icon="appIcons.moreVert"
         :tooltip="t('catalog.catalog_actions.actions')"

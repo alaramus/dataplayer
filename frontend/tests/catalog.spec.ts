@@ -342,7 +342,7 @@ test("deleting a connection asks whether its open tabs go with it", async ({ pag
   await expect(catalogTabs).toHaveCount(0)
 })
 
-test("a tree with nothing to choose still says where it stands", async ({ page, request }) => {
+test("a tree says where it stands and shuts every branch at once", async ({ page, request }) => {
   const name = `e2e-tree-${Date.now()}`
   await login(page)
   const api = await signedApi(page)
@@ -363,6 +363,16 @@ test("a tree with nothing to choose still says where it stands", async ({ page, 
     await expect(place).toContainText("Whole tree")
     await expect(page.getByTestId("catalog-path")).toHaveCount(0)
     await page.getByTestId("catalog-panel").screenshot({ path: "test-results/catalog-tree-place.png" })
+
+    // Collapse all stands beside the menu and shuts every open branch.
+    const panel = page.getByTestId("catalog-panel")
+    const row = (name: string) =>
+      panel.getByRole("treeitem", { name: new RegExp(`^${name}( |$)`) })
+    // By its arrow: a znode holds data, so a click on its name opens that.
+    await row("zookeeper").locator(".q-tree__arrow").first().click()
+    await expect(row("quota")).toBeVisible()
+    await page.getByTestId("catalog-collapse-all").click()
+    await expect(row("quota")).toBeHidden()
   } finally {
     await request.delete(`${api.base}/connectors/${id}`, { headers: api.headers })
   }

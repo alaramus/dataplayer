@@ -129,6 +129,7 @@ export const workspace: Messages["workspace"] = {
     frameworks: "पहचाने गए फ़्रेमवर्क",
     clear_table_filter: "टेबल फ़िल्टर साफ़ करें",
     framework_hint: "टेबल नामों से पहचाना गया। मेल खाती टेबल फ़िल्टर करें",
+    collapse_all: "सब बंद करें",
     back_to_tree: "वृक्ष पर वापस",
     back_to_folder: "फ़ोल्डर पर वापस",
   },
