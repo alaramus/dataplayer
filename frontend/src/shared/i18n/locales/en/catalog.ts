@@ -45,6 +45,7 @@ export const catalog = {
     cut: "Cut {what} — paste it from the actions menu where it should go",
     copied_selection: "The copied selection",
     connector_failed: "The connector form could not be prepared",
+    open_failed: "The page could not be opened",
   },
   list: {
     copied: "Copied “{name}”",

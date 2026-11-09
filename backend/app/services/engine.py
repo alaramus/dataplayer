@@ -13,7 +13,8 @@ driver text.
 """
 
 import uuid
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Annotated, Literal, Protocol, runtime_checkable
 
 from fastapi import Depends, Request
@@ -77,6 +78,9 @@ class ContainerStatus:
     # Read off the container rather than asked for: the runtime picks a free
     # one, and this is where the answer comes back from.
     published_port: int | None = None
+    # Every published port, by the port inside the container it answers
+    # for: a service may publish more than one (D333).
+    published_ports: Mapping[int, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

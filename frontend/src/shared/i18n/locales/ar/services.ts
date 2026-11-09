@@ -50,6 +50,8 @@ export const services: Messages["services"] = {
     remove_failed: "تعذّرت إزالة {name}",
     empty: "هذا الخادم لا يشغّل شيئًا لك.",
     cancel_job: "إلغاء ما يجري",
+    extra_port: "{title}: {port}",
+    open_port: "فتح",
     stop: "إيقافها؛ وما هو مخزّن فيها يبقى",
     start: "تشغيلها",
     retry: "البدء من جديد - تُزال المحاولة السابقة وبياناتها",

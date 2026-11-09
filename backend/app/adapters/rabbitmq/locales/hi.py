@@ -158,4 +158,8 @@ MESSAGES: dict[str, str] = {
     "{user} on {vhost}, {client}, {channels} channels, {state}": "{user}, {vhost} पर, {client}, {channels} चैनल, {state}",
     "{user} on {vhost}, {consumers} consumers, prefetch {prefetch}, {unacked} unacknowledged": "{user}, {vhost} पर, {consumers} उपभोक्ता, प्रीफ़ेच {prefetch}, {unacked} अपुष्ट",
     "{count} messages in the lab's exchanges, queues and the stream {stream}": "लैब के एक्सचेंज, क्यू और स्ट्रीम {stream} में {count} संदेश",
+    "Address for the browser": "ब्राउज़र के लिए पता",
+    "Where Open management takes you; empty for the management address": "मैनेजमेंट खोलें कहाँ ले जाता है; खाली हो तो मैनेजमेंट पता",
+    "Open management": "मैनेजमेंट खोलें",
+    "The management page opens in a new tab": "मैनेजमेंट पेज नए टैब में खुलता है",
 }

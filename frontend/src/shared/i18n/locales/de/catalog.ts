@@ -48,6 +48,7 @@ export const catalog: Messages["catalog"] = {
     cut: "{what} ausgeschnitten — fügen Sie es über das Aktionsmenü dort ein, wo es hin soll",
     copied_selection: "Die kopierte Auswahl",
     connector_failed: "Das Verbindungsformular konnte nicht vorbereitet werden",
+    open_failed: "Die Seite konnte nicht geöffnet werden",
   },
   list: {
     copied: "„{name}“ kopiert",

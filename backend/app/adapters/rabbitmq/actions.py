@@ -41,6 +41,7 @@ from app.adapters.rabbitmq.catalog import (
 from app.adapters.rabbitmq.peeks import PEEK_CEILING, RabbitmqPeeks
 from app.adapters.rabbitmq.session import RabbitmqSession, segment
 from app.adapters.rabbitmq.writes import Outgoing, publish
+from app.core.access import Access
 from app.core.translation import N_, say
 
 # A stream's age, as RabbitMQ writes it: a number and Y, M, D, h, m or s.
@@ -873,6 +874,29 @@ class Peek(_RabbitmqAction, JsonAction[PeekParams]):
         )
 
 
+class OpenManagement(_RabbitmqAction, JsonAction[NoParams]):
+    """RabbitMQ's own management page, opened in the browser (D334)."""
+
+    name: ClassVar[str] = "open_management"
+    title: ClassVar[str] = N_("Open management")
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset(
+        {"directory", "report", "amqp_queue", "amqp_stream", "exchange"}
+    )
+    acts_on: ClassVar[ActsOn] = "level"
+    opens_address: ClassVar[bool] = True
+    # It changes nothing.
+    requires: ClassVar[Access] = "read"
+    params_model = NoParams
+
+    async def run(self, node_id: str | None, params: NoParams) -> ActionResult:
+        del node_id, params
+        return ActionResult(
+            message=say("The management page opens in a new tab"),
+            reload_node_ids=[],
+            open_url=self._session.options.browser(),
+        )
+
+
 RabbitmqActionType = type[
     NewQueue
     | NewStream
@@ -883,6 +907,7 @@ RabbitmqActionType = type[
     | Unbind
     | Publish
     | Peek
+    | OpenManagement
 ]
 
 # The order the menu shows them in.
@@ -896,6 +921,7 @@ RABBITMQ_ACTION_TYPES: tuple[RabbitmqActionType, ...] = (
     Unbind,
     Purge,
     DeleteNode,
+    OpenManagement,
 )
 
 _QUEUE = [Publish.name, Peek.name, Bind.name, Unbind.name, Purge.name, DeleteNode.name]
@@ -908,7 +934,12 @@ def build_actions(session: RabbitmqSession, peeks: RabbitmqPeeks) -> list[Action
 
 
 def offered(node_id: str | None) -> list[str]:
-    """The actions offered on a level or for a node of it, by name (D330)."""
+    """The actions offered on a level or for a node of it, by name (D330);
+    the management page everywhere (D334)."""
+    return [*_changes(node_id), OpenManagement.name]
+
+
+def _changes(node_id: str | None) -> list[str]:
     if node_id is None:
         return []
     try:

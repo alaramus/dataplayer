@@ -39,6 +39,9 @@ The **Connection** page of the window asks for:
   there only with its management plugin on; the official `-management` images
   have it;
 - **User** and **Password**: one RabbitMQ user for both;
+- **Address for the browser**: where **Open management** in the catalog's menu
+  takes you, when your browser reaches the management page at another address
+  than DataPlayer does; empty for the management address;
 - **Virtual host**: empty for every virtual host the user may see, or one
   name, such as `/`;
 - **TLS** and **CA certificate**: an encrypted connection, and the authority
@@ -234,7 +237,7 @@ Ask for sample data to get a lab:
 
 Nothing in the lab consumes, so every count stays where it was left.
 
-The broker is reached from this machine on its AMQP port, the one the service
-row shows. Its management API answers only inside DataPlayer: the catalog, the
-reports, the actions and the terminal use it there, and a tool on your own
-computer reaches AMQP only.
+The service row shows its AMQP port and the port of its management API, with
+a link to the management page. **Open management** in the connection's menu
+opens the same page. DataPlayer itself reaches the broker by the container's
+name, so both work from this machine.

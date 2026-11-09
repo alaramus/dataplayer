@@ -61,6 +61,8 @@ class FakeEngine:
         # any. The number is the runtime's answer everywhere, so a test that
         # wants one says it here rather than in a request.
         self.gives_port: int | None = None
+        # The extra ports it says the runtime gave, by container port (D333).
+        self.gives_ports: dict[int, int] = {}
         # What a program run in a container did, and where it wrote.
         self.ran: list[ToolRun] = []
         self.exit_code = 0
@@ -119,6 +121,7 @@ class FakeEngine:
             name=container,
             state="running" if state == "running" else "stopped",
             published_port=self.gives_port,
+            published_ports=dict(self.gives_ports),
         )
 
     async def managed(self) -> list[ContainerStatus]:

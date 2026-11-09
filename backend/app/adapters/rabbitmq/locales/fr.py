@@ -158,4 +158,8 @@ MESSAGES: dict[str, str] = {
     "{user} on {vhost}, {client}, {channels} channels, {state}": "{user} sur {vhost}, {client}, {channels} canaux, {state}",
     "{user} on {vhost}, {consumers} consumers, prefetch {prefetch}, {unacked} unacknowledged": "{user} sur {vhost}, {consumers} consommateurs, prefetch {prefetch}, {unacked} non acquittés",
     "{count} messages in the lab's exchanges, queues and the stream {stream}": "{count} messages dans les échanges, les files et le stream {stream} du lab",
+    "Address for the browser": "Adresse pour le navigateur",
+    "Where Open management takes you; empty for the management address": "Où mène Ouvrir la gestion ; vide pour l'adresse de gestion",
+    "Open management": "Ouvrir la gestion",
+    "The management page opens in a new tab": "La page de gestion s'ouvre dans un nouvel onglet",
 }

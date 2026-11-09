@@ -22,6 +22,7 @@ from app.services.templates import (
     Fixed,
     FromKey,
     Generated,
+    Published,
     ServiceTemplate,
     Shape,
     Value,
@@ -35,6 +36,10 @@ from app.services.templates import (
 # string, a YAML file somebody pastes — rather than to look strong.
 # 32 characters of it is about 190 bits.
 PASSWORD_ALPHABET = string.ascii_letters + string.digits
+
+# Where a published port answers: the loopback of the machine this server
+# runs on, the only address a service is published to (D86).
+PUBLISHED_HOST = "127.0.0.1"
 PASSWORD_LENGTH = 32
 
 # What marks a container as this application's. Names are for people to read
@@ -112,6 +117,9 @@ class ContainerSpec:
     volume: str
     data_path: str
     container_port: int
+    # The ports it listens on besides that one, published beside it on host
+    # ports the runtime picks (D333).
+    extra_ports: tuple[int, ...]
     # Whether to ask the runtime for a port on the host, and which one when
     # somebody named it. Without a number the runtime picks, and what it
     # picked is read off the container afterwards.
@@ -163,9 +171,7 @@ class ServicePlan:
 
 def generate_password() -> str:
     """A password for one service, from the system's own source of randomness."""
-    return "".join(
-        secrets.choice(PASSWORD_ALPHABET) for _ in range(PASSWORD_LENGTH)
-    )
+    return "".join(secrets.choice(PASSWORD_ALPHABET) for _ in range(PASSWORD_LENGTH))
 
 
 def settle_credentials(
@@ -293,6 +299,7 @@ def build_container(
         volume=volume_name(service_id, template),
         data_path=template.data_path,
         container_port=template.container_port,
+        extra_ports=tuple(port.container_port for port in template.extra_ports),
         publish=placement.publish,
         host_port=placement.host_port if placement.publish else None,
         network=placement.network,
@@ -304,7 +311,11 @@ def build_container(
     )
 
 
-def connector_options(plan: ServicePlan, endpoint: Endpoint) -> dict[str, str | int]:
+def connector_options(
+    plan: ServicePlan,
+    endpoint: Endpoint,
+    published: Mapping[str, int] | None = None,
+) -> dict[str, str | int]:
     """The options of the connector this service becomes.
 
     Field names and constants come from the template; the values come from
@@ -314,13 +325,16 @@ def connector_options(plan: ServicePlan, endpoint: Endpoint) -> dict[str, str | 
     does not have is refused there rather than stored.
     """
     return {
-        field: _value(value, plan.credentials, endpoint)
+        field: _value(value, plan.credentials, endpoint, published or {})
         for field, value in plan.shape.connector_options.items()
     }
 
 
 def described_options(
-    shape: Shape, known: Mapping[CredentialSlot, str], endpoint: Endpoint
+    shape: Shape,
+    known: Mapping[CredentialSlot, str],
+    endpoint: Endpoint,
+    published: Mapping[str, int] | None = None,
 ) -> dict[str, str | int]:
     """The connector's options as far as they are known, at another address.
 
@@ -335,6 +349,8 @@ def described_options(
             found[field] = value.value
         elif isinstance(value, Address):
             found[field] = f"{endpoint.host}:{endpoint.port}"
+        elif isinstance(value, Published):
+            found[field] = published_address(value, published or {})
         elif value == "host":
             found[field] = endpoint.host
         elif value == "port":
@@ -350,13 +366,24 @@ def _credential_value(value: CredentialValue, credentials: Credentials) -> str:
     return credentials[value]
 
 
+def published_address(value: Published, published: Mapping[str, int]) -> str:
+    """An extra port as its owner's browser opens it, or nothing (D333)."""
+    port = published.get(value.key)
+    return "" if port is None else f"{value.scheme}://{PUBLISHED_HOST}:{port}"
+
+
 def _value(
-    value: Value, credentials: Credentials, endpoint: Endpoint
+    value: Value,
+    credentials: Credentials,
+    endpoint: Endpoint,
+    published: Mapping[str, int],
 ) -> str | int:
     if isinstance(value, Fixed):
         return value.value
     if isinstance(value, Address):
         return f"{endpoint.host}:{endpoint.port}"
+    if isinstance(value, Published):
+        return published_address(value, published)
     if value == "host":
         return endpoint.host
     if value == "port":

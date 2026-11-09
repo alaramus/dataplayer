@@ -39,6 +39,9 @@ La página **Conexión** de la ventana pide:
   RabbitMQ solo responde ahí con su plugin de administración activo; las
   imágenes oficiales `-management` lo tienen;
 - **Usuario** y **Contraseña**: un solo usuario de RabbitMQ para ambos;
+- **Dirección para el navegador**: adónde lleva **Abrir administración** en el
+  menú del catálogo, cuando tu navegador llega a la página de administración por
+  otra dirección que DataPlayer; vacío para la dirección de administración;
 - **Host virtual**: vacío para todos los hosts virtuales que el usuario puede
   ver, o un nombre, como `/`;
 - **TLS** y **Certificado CA**: una conexión cifrada, y la autoridad que firmó
@@ -240,7 +243,8 @@ Pide datos de ejemplo para obtener un laboratorio:
 
 Nada en el laboratorio consume, así que cada cifra queda donde se dejó.
 
-Desde esta máquina, el broker se alcanza por su puerto AMQP, el que muestra la
-fila del servicio. Su API de administración solo responde dentro de DataPlayer:
-el catálogo, los informes, las acciones y la terminal la usan allí, y una
-herramienta en tu ordenador solo llega a AMQP.
+La fila del servicio muestra su puerto AMQP y el puerto de su API de
+administración, con un enlace a la página de administración. **Abrir
+administración** en el menú de la conexión abre la misma página. DataPlayer
+llega al broker por el nombre del contenedor, así que ambos funcionan desde esta
+máquina.

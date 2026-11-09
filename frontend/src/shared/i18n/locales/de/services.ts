@@ -50,6 +50,8 @@ export const services: Messages["services"] = {
     remove_failed: "„{name}“ konnte nicht entfernt werden",
     empty: "Dieser Server führt nichts für Sie aus.",
     cancel_job: "Abbrechen, was gerade geschieht",
+    extra_port: "{title}: {port}",
+    open_port: "öffnen",
     stop: "Stoppen; was darin gespeichert ist, bleibt erhalten",
     start: "Starten",
     retry: "Von vorn beginnen: der frühere Versuch und seine Daten werden entfernt",

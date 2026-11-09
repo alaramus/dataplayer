@@ -504,9 +504,7 @@ async def test_the_password_is_handed_over_once_and_then_refused(
     # And the one line most tools take, with the password in it: this is the
     # moment it is worth pasting, and the only answer that carries one. Written
     # by the source type that owns the grammar, never spliced in here.
-    assert body["url"] == (
-        f"postgresql://dataplayer:{made}@127.0.0.1:49218/dataplayer"
-    )
+    assert body["url"] == (f"postgresql://dataplayer:{made}@127.0.0.1:49218/dataplayer")
     assert again.status_code == 409
     # And the answer that has no end still carries nothing.
     listening = await client.get(
@@ -578,7 +576,9 @@ async def test_a_zookeeper_is_told_as_having_no_password_at_all(
     one is being handed over for the only time (D302)."""
     engine.gives_port = 49220
     accepted = await client.post(
-        f"{BASE}/", headers=normal_user_token_headers, json={"template_key": "zookeeper"}
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={"template_key": "zookeeper"},
     )
     assert accepted.status_code == 200, accepted.text
     await _wait(accepted.json()["job"]["id"])
@@ -662,7 +662,9 @@ async def test_where_it_listens_survives_the_connection_being_deleted(
     engine.gives_port = 49217
     accepted = await _start(client, normal_user_token_headers)
     service_id = accepted["service"]["id"]
-    service = await client.get(f"{BASE}/{service_id}", headers=normal_user_token_headers)
+    service = await client.get(
+        f"{BASE}/{service_id}", headers=normal_user_token_headers
+    )
     await client.delete(
         f"{CONNECTORS}/{service.json()['connector_id']}",
         headers=normal_user_token_headers,
@@ -744,7 +746,9 @@ async def _key(
     client: AsyncClient, headers: dict[str, str], **body: object
 ) -> dict[str, Any]:
     made = await client.post(
-        f"{KEYS}/generate", headers=headers, json={"name": f"k-{uuid.uuid4().hex[:6]}"} | body
+        f"{KEYS}/generate",
+        headers=headers,
+        json={"name": f"k-{uuid.uuid4().hex[:6]}"} | body,
     )
     assert made.status_code == 200, made.text
     key: dict[str, Any] = made.json()
@@ -824,7 +828,10 @@ async def test_a_locked_key_is_refused_before_anything_starts(
     """The job would sign in with it the moment the server answered, and fail a
     minute later; the refusal says now what to do (D147)."""
     key = await _key(
-        client, normal_user_token_headers, passphrase="held a while", passphrase_mode="ask"
+        client,
+        normal_user_token_headers,
+        passphrase="held a while",
+        passphrase_mode="ask",
     )
 
     refused = await _start_keyed(client, normal_user_token_headers, key["id"])
@@ -846,3 +853,48 @@ async def test_a_database_is_not_signed_into_with_a_key(
 
     assert refused.status_code == 422
     assert "not signed into with a key" in refused.text
+
+
+async def test_a_service_s_extra_ports_are_shown_and_opened_by_its_connection(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """The management API is published beside AMQP, its page linked on the row
+    and opened by the connection's own action; a port the runtime changes at a
+    restart is followed (D333, D334)."""
+    engine.gives_port = 49300
+    engine.gives_ports = {5672: 49300, 15672: 49301}
+    accepted = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={"template_key": "rabbitmq"}
+    )
+    assert accepted.status_code == 200, accepted.text
+    await _wait(accepted.json()["job"]["id"])
+    service_id = accepted.json()["service"]["id"]
+
+    service = (
+        await client.get(f"{BASE}/{service_id}", headers=normal_user_token_headers)
+    ).json()
+    assert service["published_port"] == 49300
+    [port] = service["extra_ports"]
+    assert (port["key"], port["port"], port["url"]) == (
+        "management",
+        49301,
+        "http://127.0.0.1:49301",
+    )
+
+    connector = await client.get(
+        f"{settings.API_V1_STR}/connectors/{service['connector_id']}",
+        headers=normal_user_token_headers,
+    )
+    assert connector.json()["config"]["browser_url"] == "http://127.0.0.1:49301"
+
+    engine.gives_ports = {5672: 49300, 15672: 49302}
+    restarted = await client.post(
+        f"{BASE}/{service_id}/restart", headers=normal_user_token_headers
+    )
+    assert restarted.status_code == 200, restarted.text
+    await _wait(restarted.json()["job"]["id"])
+    connector = await client.get(
+        f"{settings.API_V1_STR}/connectors/{service['connector_id']}",
+        headers=normal_user_token_headers,
+    )
+    assert connector.json()["config"]["browser_url"] == "http://127.0.0.1:49302"

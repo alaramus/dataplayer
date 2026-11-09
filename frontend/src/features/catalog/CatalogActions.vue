@@ -12,6 +12,7 @@ import {
   clientCommandOf,
   clientMenu,
   needsClipboard,
+  openableAddress,
   toMenu,
   withSubmenus,
 } from "@/features/catalog/actions"
@@ -408,6 +409,38 @@ function closeForm(key: string) {
   opened.value = opened.value.filter((entry) => entry.key !== key)
 }
 
+/**
+ * An action that opens a page of the source's own (D334). The tab is opened at
+ * the click and pointed at the address when the answer comes: a tab opened
+ * after a wait is one a browser takes for a pop-up and blocks.
+ */
+async function openAddress(command: { name: string; targets: (string | null)[] }) {
+  const tab = window.open("", "_blank")
+  try {
+    const result = (
+      await ConnectorsService.runAction({
+        path: { connector_id: props.connectorId, action_name: command.name },
+        body: { node_id: command.targets[0] ?? null, params: {} },
+      })
+    ).data
+    const address = openableAddress(result.open_url)
+    if (address === null) {
+      tab?.close()
+      toast.error(t("catalog.catalog_actions.open_failed"))
+      return
+    }
+    if (tab === null) {
+      window.open(address, "_blank", "noopener,noreferrer")
+      return
+    }
+    tab.opener = null
+    tab.location.href = address
+  } catch (cause) {
+    tab?.close()
+    toast.error(messageOf(cause, t("catalog.catalog_actions.open_failed")))
+  }
+}
+
 async function pick(name: string) {
   if (prepareConnector.isPending.value) return
   if (name === "client:cross-paste" || name === "client:cross-paste-into") {
@@ -442,6 +475,10 @@ async function pick(name: string) {
   // that nothing opens a form for what the server would refuse anyway.
   if (command === null || !command.enabled) return
   if (needsClipboard(command) && held.value === null) return
+  if (command.opensAddress === true) {
+    void openAddress(command)
+    return
+  }
   if (command.preparesConnector) {
     const nodeId = command.targets[0]
     if (command.targets.length !== 1 || nodeId === null || nodeId === undefined) return

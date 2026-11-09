@@ -173,10 +173,10 @@ def test_each_level_and_node_offers_its_own() -> None:
     assert "peek" in offered("queue:%2F/billing")
     assert "peek" not in offered("stream:%2F/log")
     assert "purge" not in offered("stream:%2F/log")
-    assert offered("exchange:%2F/") == ["publish"]
+    assert offered("exchange:%2F/") == ["publish", "open_management"]
     assert "delete" not in offered("exchange:%2F/amq.topic")
-    assert offered("vhost:%2F") == []
-    assert offered(None) == []
+    assert offered("vhost:%2F") == ["open_management"]
+    assert offered(None) == ["open_management"]
 
 
 async def test_a_queue_is_made_bound_published_to_and_deleted(vhost: str) -> None:
@@ -337,3 +337,17 @@ async def test_a_stream_is_not_peeked_or_purged(vhost: str) -> None:
             .perform(_id("stream", vhost, STREAM), {"count": 1})
         )
     assert ORDERS > 0
+
+
+async def test_the_management_page_is_opened_from_every_level(vhost: str) -> None:
+    """It changes nothing and needs no form (D334)."""
+    assert "open_management" in offered(None)
+    assert "open_management" in offered(f"queue:{_v(vhost)}/{QUEUE}")
+    assert "open_management" in offered("report:overview")
+    action = _adapter().action("open_management")
+    assert action.opens_address and action.requires == "read"
+    done = await action.perform(None, {})
+    assert done.open_url == options().management()
+    told = RabbitmqAdapter(options(browser_url="http://127.0.0.1:49301"))
+    done = await told.action("open_management").perform(None, {})
+    assert done.open_url == "http://127.0.0.1:49301"

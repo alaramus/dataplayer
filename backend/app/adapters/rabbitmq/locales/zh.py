@@ -158,4 +158,8 @@ MESSAGES: dict[str, str] = {
     "{user} on {vhost}, {client}, {channels} channels, {state}": "{user} 在 {vhost}，{client}，{channels} 个通道，{state}",
     "{user} on {vhost}, {consumers} consumers, prefetch {prefetch}, {unacked} unacknowledged": "{user} 在 {vhost}，{consumers} 个消费者，预取 {prefetch}，未确认 {unacked}",
     "{count} messages in the lab's exchanges, queues and the stream {stream}": "示例交换器、队列和流 {stream} 中共有 {count} 条消息",
+    "Address for the browser": "浏览器地址",
+    "Where Open management takes you; empty for the management address": "“打开管理页面”前往的地址；留空则为管理地址",
+    "Open management": "打开管理页面",
+    "The management page opens in a new tab": "管理页面将在新标签页中打开",
 }

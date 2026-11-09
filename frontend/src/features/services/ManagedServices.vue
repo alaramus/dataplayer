@@ -237,6 +237,27 @@ async function forget(service: ServicePublic) {
         <span class="starting__facts">
           {{ service.title }} · {{ service.container_name }} · {{ madeOn(service) }}
         </span>
+        <!-- Its other ports on this machine, a page linked where it is one
+             (D333): the browser opens it, as the connection's action does. -->
+        <span
+          v-if="(service.extra_ports ?? []).length > 0"
+          class="starting__facts starting__ports"
+        >
+          <template
+            v-for="(port, index) in service.extra_ports ?? []"
+            :key="port.key"
+          >
+            <span v-if="index > 0"> · </span>
+            {{ t("services.managed.extra_port", { title: port.title, port: port.port }) }}
+            <a
+              v-if="port.url"
+              :href="port.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              :data-testid="`open-port-${service.id}-${port.key}`"
+            >{{ t("services.managed.open_port") }}</a>
+          </template>
+        </span>
         <!-- The server's own words for where it has got to: a step out of a
              list it declared, never a percentage this side invented. -->
         <span class="starting__step">{{ saying(service) }}</span>
@@ -335,6 +356,14 @@ async function forget(service: ServicePublic) {
   flex-direction: column;
   min-width: 0;
   flex: 1;
+}
+.starting__ports a {
+  color: var(--dp-link);
+  text-decoration: none;
+  margin-inline-start: var(--dp-space-half);
+}
+.starting__ports a:hover {
+  text-decoration: underline;
 }
 .starting__name {
   font-size: var(--dp-font-size);

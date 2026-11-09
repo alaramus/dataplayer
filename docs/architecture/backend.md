@@ -118,6 +118,15 @@ what running needs rather than undoing anything. `FRONTEND_HOST` reaches every
 backend container, because e-mail links and the one CORS origin are made from
 it; the setup moves it to the Vite origin and back when the mode changes.
 
+## Changing the schema
+
+Every change to a table, a column or an index is a new Alembic revision whose
+`down_revision` is the latest one, with an upgrade and a downgrade. The
+squashed baseline `4ed1ecd15a39` is history and is not edited: installations
+other than the developer's exist, and they reach a new release by
+`alembic upgrade head`, which prestart runs, never by being made again from
+nothing. A model a revision touches is imported by `app/alembic/env.py`.
+
 ## API
 
 ```

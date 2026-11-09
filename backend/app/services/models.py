@@ -14,7 +14,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, SecretStr
 from pydantic import Field as PydanticField
-from sqlalchemy import JSON, Column, DateTime, LargeBinary
+from sqlalchemy import JSON, Column, DateTime, LargeBinary, text
 from sqlmodel import Field, SQLModel
 
 from app.core.schemas import get_datetime_utc
@@ -74,6 +74,12 @@ class ManagedService(SQLModel, table=True):
     # Where it ended up. The port is absent until the container is running and
     # has been asked what the runtime gave it.
     published_port: int | None = Field(default=None)
+    # The template's extra ports, by key, on the host ports the runtime gave
+    # them (D333). Empty for a template with none, and until it is running.
+    published_ports: dict[str, int] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON, nullable=False, server_default=text("'{}'")),
+    )
     network: str | None = Field(default=None, max_length=128)
     # Whether it was asked for with a port on the host at all. Kept because
     # every later attempt is planned from this row: a service made reachable
@@ -136,6 +142,16 @@ class ManagedService(SQLModel, table=True):
     )
 
 
+class PublishedPort(BaseModel):
+    """One of a service's extra ports on this machine (D333)."""
+
+    key: str
+    title: str
+    port: int
+    # What a browser opens, when the port is a page.
+    url: str | None = None
+
+
 class ServicePublic(BaseModel):
     """A service as its owner reads it.
 
@@ -158,6 +174,8 @@ class ServicePublic(BaseModel):
     # there. Shown so a person can tell a service they can reach themselves
     # from one only this application can.
     published_port: int | None
+    # Its other ports on this machine, each with what it is (D333).
+    extra_ports: list[PublishedPort] = []
     # The connection this service became. What a screen opens once the job has
     # succeeded, and empty until then.
     connector_id: uuid.UUID | None
@@ -320,7 +338,9 @@ class ChosenStart(BaseModel):
     sample_data: bool = False
 
 
-StartRequest = Annotated[AutomaticStart | ChosenStart, PydanticField(discriminator="mode")]
+StartRequest = Annotated[
+    AutomaticStart | ChosenStart, PydanticField(discriminator="mode")
+]
 """The two ways to ask for a service, as shapes rather than as optional fields.
 
 A bag of nullable fields would make "automatic" a thing a client assembles by

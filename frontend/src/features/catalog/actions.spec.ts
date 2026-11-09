@@ -10,6 +10,7 @@ import {
   clientMenu,
   groupingChoices,
   nodeSetOf,
+  openableAddress,
   openedBy,
   replacementsOf,
   reloadedBy,
@@ -133,6 +134,8 @@ describe("toCommands", () => {
     }
     expect(only([sourceAction]).preparesConnector).toBe(true)
     expect(only([remove]).preparesConnector).toBe(false)
+    expect(only([{ ...remove, opens_address: true }]).opensAddress).toBe(true)
+    expect(only([remove]).opensAddress).toBe(false)
     expect(first(toMenu([sourceAction], [], [], null, [null], [])).enabled).toBe(false)
     const picked = first(toMenu([sourceAction], [], [sourceAction], null, [null], ["folder"]))
     expect(picked.enabled).toBe(true)
@@ -446,6 +449,15 @@ describe("what became of a set", () => {
     }
 
     expect(reloadedBy(outcome)).toEqual(["reports", "archive", null])
+  })
+
+  it("opens only a page over http or https (D334)", () => {
+    expect(openableAddress("http://127.0.0.1:49301")).toBe("http://127.0.0.1:49301/")
+    expect(openableAddress("https://mq.example/")).toBe("https://mq.example/")
+    expect(openableAddress("javascript:alert(1)")).toBeNull()
+    expect(openableAddress("file:///etc/passwd")).toBeNull()
+    expect(openableAddress("not an address")).toBeNull()
+    expect(openableAddress(null)).toBeNull()
   })
 
   it("opens what one action read, and nothing for a set (D330)", () => {

@@ -46,6 +46,7 @@ export const catalog: Messages["catalog"] = {
     cut: "Вырезано: {what} — вставьте через меню действий там, где нужно",
     copied_selection: "Скопированное",
     connector_failed: "Не удалось подготовить форму подключения",
+    open_failed: "Не удалось открыть страницу",
   },
   list: {
     copied: "Скопировано: «{name}»",

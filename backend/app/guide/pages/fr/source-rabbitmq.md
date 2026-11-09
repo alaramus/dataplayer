@@ -40,6 +40,9 @@ La page **Connexion** de la fenêtre demande :
   `-management` l'ont ;
 - **Utilisateur** et **Mot de passe** : un seul utilisateur RabbitMQ pour les
   deux ;
+- **Adresse pour le navigateur** : où mène **Ouvrir la gestion** dans le menu
+  du catalogue, quand votre navigateur atteint la page de gestion à une autre
+  adresse que DataPlayer ; vide pour l'adresse de gestion ;
 - **Hôte virtuel** : vide pour tous les hôtes virtuels que l'utilisateur peut
   voir, ou un nom, comme `/` ;
 - **TLS** et **Certificat CA** : une connexion chiffrée, et l'autorité qui a
@@ -245,7 +248,7 @@ Demandez des données d'exemple pour obtenir un lab :
 
 Rien dans le lab ne consomme : chaque compteur reste où il a été laissé.
 
-Depuis cette machine, le broker est joignable sur son port AMQP, celui que
-montre la ligne du service. Son API de gestion ne répond qu'à l'intérieur de
-DataPlayer : le catalogue, les rapports, les actions et le terminal l'y
-utilisent, et un outil sur votre ordinateur n'atteint qu'AMQP.
+La ligne du service montre son port AMQP et le port de son API de gestion,
+avec un lien vers la page de gestion. **Ouvrir la gestion** dans le menu de la
+connexion ouvre la même page. DataPlayer joint lui-même le broker par le nom du
+conteneur : les deux fonctionnent depuis cette machine.

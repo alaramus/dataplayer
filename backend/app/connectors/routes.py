@@ -2901,6 +2901,8 @@ class ActionInfo(ActionAvailability):
     # download transport. Derived from the callable action capability.
     downloads: bool
     prepares_connector: bool = False
+    # Opens an address in the browser, at once and without a form (D334).
+    opens_address: bool = False
     # The selection subject, or a workflow's destination candidates (D118).
     acts_on: ActsOn
     # The kinds of node it is for. A menu enables it by these at once and the
@@ -2967,6 +2969,7 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         previews_set=isinstance(action, PreviewsSet),
         downloads=isinstance(action, ProducesDownload),
         prepares_connector=isinstance(action, PreparesConnector),
+        opens_address=action.opens_address,
         acts_on=action.acts_on,
         applies_to=sorted(action.applies_to),
         bulk=action.bulk,

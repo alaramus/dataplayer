@@ -91,4 +91,5 @@ MESSAGES: dict[str, str] = {
     'A ZooKeeper server of its own, started on this machine, with a lab of znodes to walk through.': 'Un serveur ZooKeeper à soi, démarré sur cette machine, avec un arbre de znodes de démonstration.',
     'A Kafka broker of its own, started on this machine, with a lab of topics and a consumer group to try the source on.': 'Un broker Kafka à vous, démarré sur cette machine, avec des topics de démonstration et un groupe de consommateurs pour essayer la source.',
     "A RabbitMQ broker of its own, started on this machine with a password nobody has to choose, and a lab of exchanges, queues and a stream.": "Un broker RabbitMQ à vous, lancé sur cette machine avec un mot de passe que personne n'a à choisir, et un lab d'échanges, de files et d'un stream.",
+    "Management API and its web page": "API de gestion et sa page web",
 }

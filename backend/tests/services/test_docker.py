@@ -35,7 +35,9 @@ def _engine(handler: Any) -> DockerEngine:
 
 
 @pytest.mark.parametrize("oversized", [False, True])
-async def test_full_tool_output_is_bounded_and_never_silently_tailed(oversized: bool) -> None:
+async def test_full_tool_output_is_bounded_and_never_silently_tailed(
+    oversized: bool,
+) -> None:
     from app.services.docker import MAX_TOOL_OUTPUT_BYTES
 
     seen: list[httpx.Request] = []
@@ -53,11 +55,19 @@ async def test_full_tool_output_is_bounded_and_never_silently_tailed(oversized: 
             return httpx.Response(200, content=body)
         return httpx.Response(204)
 
-    result = await _engine(handler).run_once(ToolRun(
-        name="inspect", image="postgres:17", argv=("pg_restore", "--list"),
-        environment={}, mounts=(), network=None, labels={},
-        full_output=True, timeout_seconds=30,
-    ))
+    result = await _engine(handler).run_once(
+        ToolRun(
+            name="inspect",
+            image="postgres:17",
+            argv=("pg_restore", "--list"),
+            environment={},
+            mounts=(),
+            network=None,
+            labels={},
+            full_output=True,
+            timeout_seconds=30,
+        )
+    )
     assert result.truncated == oversized
     assert len(result.output) == (0 if oversized else 100)
     assert seen[-1].method == "DELETE"
@@ -148,9 +158,7 @@ async def test_the_container_is_created_from_the_specification_and_nothing_else(
     assert sorted(body["Env"]) == sorted(
         f"{key}={value}" for key, value in spec.environment.items()
     )
-    assert body["NetworkingConfig"] == {
-        "EndpointsConfig": {"dataplayer_default": {}}
-    }
+    assert body["NetworkingConfig"] == {"EndpointsConfig": {"dataplayer_default": {}}}
     assert body["HostConfig"]["RestartPolicy"] == {"Name": RESTART_POLICY}
 
 
@@ -323,7 +331,9 @@ async def test_a_refusal_says_what_happened_and_not_where() -> None:
         await _engine(handler).start("x")
 
     assert "already in use" not in str(refused.value)
-    assert str(refused.value) == "It is busy, or something with that name already exists"
+    assert (
+        str(refused.value) == "It is busy, or something with that name already exists"
+    )
 
 
 async def test_a_daemon_that_goes_away_mid_command_is_unavailable() -> None:
@@ -362,3 +372,51 @@ async def test_a_pull_that_fails_inside_a_successful_answer_is_a_failure() -> No
 
     with pytest.raises(EngineError, match="could not be fetched"):
         await _engine(handler).pull("postgres:18")
+
+
+async def test_extra_ports_are_published_beside_the_main_one() -> None:
+    """Every port a template names is bound to the loopback, each on a port the
+    runtime picks (D333)."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(201, json={"Id": "abc"})
+
+    spec = build_plan(
+        template_for("rabbitmq"),
+        service_id=uuid4(),
+        owner_id=uuid4(),
+        placement=Placement(publish=True),
+    ).container
+    await _engine(handler).create(spec)
+
+    body = json.loads(seen[1].content)
+    assert body["HostConfig"]["PortBindings"] == {
+        "5672/tcp": [{"HostIp": "127.0.0.1", "HostPort": ""}],
+        "15672/tcp": [{"HostIp": "127.0.0.1", "HostPort": ""}],
+    }
+    assert set(body["ExposedPorts"]) == {"5672/tcp", "15672/tcp"}
+
+
+async def test_each_published_port_is_read_back_by_its_container_port() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(
+            200,
+            json={
+                "State": {"Running": True},
+                "Config": {"Labels": {}},
+                "NetworkSettings": {
+                    "Ports": {
+                        "5672/tcp": [{"HostIp": "127.0.0.1", "HostPort": "49300"}],
+                        "15672/tcp": [{"HostIp": "127.0.0.1", "HostPort": "49301"}],
+                        "4369/tcp": None,
+                    }
+                },
+            },
+        )
+
+    status = await _engine(handler).status("dataplayer-svc-rabbitmq-abc")
+
+    assert status.published_ports == {5672: 49300, 15672: 49301}

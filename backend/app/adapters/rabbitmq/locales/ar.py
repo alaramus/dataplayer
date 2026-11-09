@@ -158,4 +158,8 @@ MESSAGES: dict[str, str] = {
     "{user} on {vhost}, {client}, {channels} channels, {state}": "{user} على {vhost}، {client}، {channels} قنوات، {state}",
     "{user} on {vhost}, {consumers} consumers, prefetch {prefetch}, {unacked} unacknowledged": "{user} على {vhost}، {consumers} مستهلكين، جلب مسبق {prefetch}، {unacked} غير مؤكدة",
     "{count} messages in the lab's exchanges, queues and the stream {stream}": "{count} رسالة في المبادلات والطوابير والتدفق {stream} التجريبية",
+    "Address for the browser": "عنوان المتصفح",
+    "Where Open management takes you; empty for the management address": "إلى أين يأخذك فتح الإدارة؛ فارغ لعنوان الإدارة",
+    "Open management": "فتح الإدارة",
+    "The management page opens in a new tab": "تُفتح صفحة الإدارة في علامة تبويب جديدة",
 }

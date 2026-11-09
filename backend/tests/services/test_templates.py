@@ -10,6 +10,7 @@ from app.services.templates import (
     SERVICE_TEMPLATES,
     Fixed,
     Generated,
+    Published,
     UnknownServiceTemplate,
     all_templates,
     generated_slots,
@@ -262,9 +263,9 @@ def test_a_kafka_broker_asks_for_no_password_and_announces_where_it_is() -> None
     assert template.environment["KAFKA_LOG_DIRS"] == Fixed(template.data_path)
 
 
-def test_a_rabbitmq_broker_places_amqp_and_reaches_management_by_name() -> None:
-    """AMQP is the port a template places; the management API answers on the
-    service network, so the connector leaves its address empty (D332)."""
+def test_a_rabbitmq_broker_publishes_its_management_api_too() -> None:
+    """AMQP is the main port; the management API is published beside it for
+    the owner's browser, while the connector reaches it by name (D332, D333)."""
     template = template_for("rabbitmq")
 
     assert template.image.endswith("-management")
@@ -274,6 +275,8 @@ def test_a_rabbitmq_broker_places_amqp_and_reaches_management_by_name() -> None:
     assert template.choosable == frozenset({"password"})
     assert template.unprotected is None
     assert "management_url" not in template.connector_options
+    assert [port.container_port for port in template.extra_ports] == [15672]
+    assert template.connector_options["browser_url"] == Published("management")
     assert template.connector_options["password"] == "password"
     assert template.environment["RABBITMQ_DEFAULT_PASS"] == "password"
     # Its data is kept under a node name that does not change with the

@@ -48,6 +48,7 @@ export const catalog: Messages["catalog"] = {
     cut: "{what} काटा गया — जहाँ जाना चाहिए वहाँ क्रिया मेन्यू से चिपकाएँ",
     copied_selection: "कॉपी किया गया चयन",
     connector_failed: "कनेक्टर फ़ॉर्म तैयार नहीं किया जा सका",
+    open_failed: "पेज नहीं खुल सका",
   },
   list: {
     copied: "“{name}” कॉपी किया गया",

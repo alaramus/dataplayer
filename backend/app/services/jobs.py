@@ -20,6 +20,7 @@ from app.adapters.credentials import KeyAccess
 from app.adapters.registry import AdapterType
 from app.connectors import crud as connector_crud
 from app.connectors import ssh_keys
+from app.connectors.models import Connector
 from app.connectors.service import split_options
 from app.connectors.ssh_keys import OwnerKeys
 from app.core import crypto
@@ -34,6 +35,7 @@ from app.services.plan import (
     ServicePlan,
     build_plan,
     connector_options,
+    published_address,
 )
 from app.services.readiness import (
     ReadinessProbe,
@@ -47,6 +49,7 @@ from app.services.templates import (
     PASSWORD,
     PUBLIC_KEY,
     CredentialSlot,
+    Published,
     ServiceTemplate,
     UnknownServiceTemplate,
     template_for,
@@ -148,20 +151,23 @@ class CreateService(_ServiceJob):
             await self._engine.create(plan.container)
             await progress.reached("starting the container")
             await self._start_it(service, plan.container.name)
-            await self._record_published_port(session, service)
+            await record_published_ports(self._engine, session, service)
             await progress.reached("waiting for it to answer")
             # What it answered to, which is what the connector keeps: a server
             # that proves itself with a key is trusted by that key (D153).
             options = await self._probe(
                 template.adapter_type,
-                connector_options(plan, _endpoint_of(plan)),
+                connector_options(plan, _endpoint_of(plan), service.published_ports),
                 home_dir=storage.home_dir(service.owner_id),
                 timeout_seconds=template.startup_timeout_seconds,
                 keys=keys,
             )
             if options is None:
                 raise JobFailed(
-                    say("{service} started but did not answer in time", service=say(template.title))
+                    say(
+                        "{service} started but did not answer in time",
+                        service=say(template.title),
+                    )
                 )
             await self._fill_it(service, template, options, progress, keys)
             await progress.reached(self.steps[-1])
@@ -218,25 +224,6 @@ class CreateService(_ServiceJob):
                     port=service.requested_port,
                 )
             ) from None
-
-    async def _record_published_port(
-        self, session: AsyncSession, service: ManagedService
-    ) -> None:
-        """Ask what port the runtime gave it, and write that down.
-
-        Asked rather than chosen: this application would have to bind a socket
-        to find a free port and then race whoever took it in between, so the
-        runtime picks and this reads back. A container that was not published
-        answers with nothing, which is the same as not asking.
-        """
-        if not service.publish:
-            return
-        status = await self._engine.status(service.container_name)
-        if status.published_port is None:
-            return
-        service.published_port = status.published_port
-        session.add(service)
-        await session.commit()
 
     async def _fill_it(
         self,
@@ -325,6 +312,63 @@ class CreateService(_ServiceJob):
         return connector.id
 
 
+async def record_published_ports(
+    engine: ServiceEngine, session: AsyncSession, service: ManagedService
+) -> None:
+    """Ask what port the runtime gave it, and write that down.
+
+    Asked rather than chosen: this application would have to bind a socket
+    to find a free port and then race whoever took it in between, so the
+    runtime picks and this reads back. A container that was not published
+    answers with nothing, which is the same as not asking.
+    """
+    if not service.publish:
+        return
+    template = _template_of(service)
+    status = await engine.status(service.container_name)
+    # The main port by its container port where the runtime names each;
+    # one port published is the whole answer otherwise.
+    main = status.published_ports.get(template.container_port, status.published_port)
+    if main is None:
+        return
+    service.published_port = main
+    # The extra ports by their keys (D333); asked again at every start,
+    # since a port the runtime picks may change when it starts again.
+    service.published_ports = {
+        port.key: status.published_ports[port.container_port]
+        for port in template.extra_ports
+        if port.container_port in status.published_ports
+    }
+    session.add(service)
+    await session.commit()
+
+
+async def refresh_published_options(
+    session: AsyncSession, service: ManagedService
+) -> None:
+    """Point the connection's browser addresses at the ports it has now.
+
+    Only the options a template fills from an extra port (D333), and only
+    in the connection's configuration, which never holds a secret (D4).
+    """
+    template = _template_of(service)
+    wanted = {
+        field: published_address(value, service.published_ports)
+        for field, value in template.connector_options.items()
+        if isinstance(value, Published)
+    }
+    if not wanted or service.connector_id is None:
+        return
+    connector = await session.get(Connector, service.connector_id)
+    if connector is None or all(
+        connector.config.get(field) == value for field, value in wanted.items()
+    ):
+        return
+    connector.config = {**connector.config, **wanted}
+    session.add(connector)
+    await session.commit()
+
+
 def _chosen_of(service: ManagedService) -> dict[CredentialSlot, str]:
     """What the requester named, read back off the row.
 
@@ -406,6 +450,8 @@ class StartService(_ServiceJob):
         except JobFailed:
             await self._settle(session, service, "failed")
             raise
+        await record_published_ports(self._engine, session, service)
+        await refresh_published_options(session, service)
         await self._settle(session, service, "running")
         return say("{service} is running", service=say(_template_of(service).title))
 
@@ -440,6 +486,8 @@ class RestartService(_ServiceJob):
         except JobFailed:
             await self._settle(session, service, "failed")
             raise
+        await record_published_ports(self._engine, session, service)
+        await refresh_published_options(session, service)
         await self._settle(session, service, "running")
         return say("{service} was restarted", service=say(_template_of(service).title))
 

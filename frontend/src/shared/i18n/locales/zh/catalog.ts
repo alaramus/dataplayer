@@ -48,6 +48,7 @@ export const catalog: Messages["catalog"] = {
     cut: "已剪切{what} — 请从操作菜单粘贴到它应在的位置",
     copied_selection: "已复制的选择",
     connector_failed: "无法准备连接器表单",
+    open_failed: "无法打开该页面",
   },
   list: {
     copied: "已复制“{name}”",

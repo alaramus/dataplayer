@@ -64,6 +64,10 @@ class ActionResult(BaseModel):
     # the action read, such as a look inside a queue (D330), rather than
     # something it made. Apart from `created_node_id`, which is offered.
     open_node_id: str | None = None
+    # An address the client opens in a new browser tab: a page of the source's
+    # own, such as RabbitMQ's management (D334). Only ever an http(s) address
+    # the source composed from its options.
+    open_url: str | None = None
     # Nodes of a selection left as they were, each with its reason: a set is
     # carried out as far as it goes and says what it could not do.
     refused: list[NodeRefusal] = Field(default_factory=list)
@@ -235,6 +239,9 @@ class Action[P: BaseModel](ABC):
     # a table loaded from a CSV is one file, and a second would be a second
     # table.
     many_files: ClassVar[bool] = False
+    # Whether it opens an address rather than changing anything: the menu
+    # performs it without a form and opens its result's `open_url` (D334).
+    opens_address: ClassVar[bool] = False
 
     params_model: type[P]
 
@@ -412,7 +419,10 @@ class OffersFieldHints(Protocol):
 @runtime_checkable
 class RequiresReviewedPlan(Protocol):
     async def perform_reviewed(
-        self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
+        self,
+        node_id: str | None,
+        raw: Mapping[str, Any],
+        fingerprint: str,
     ) -> ActionResult: ...
 
 

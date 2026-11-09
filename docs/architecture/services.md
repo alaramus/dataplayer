@@ -4,7 +4,7 @@ A service this server starts on the machine it runs on, and the connector such
 a service becomes. Read this before adding a template, changing what a service
 is started with, or letting anything about a container come from a request.
 
-Decisions here: D80, D83, D84, D85, D88, D89, D90.
+Decisions here: D80, D83, D84, D85, D88, D89, D90, D333.
 
 Whether this server can start containers at all, and what giving it that
 power costs, are in [services-runtime.md](services-runtime.md). Copying a
@@ -464,3 +464,32 @@ Known deviations:
   starting a filled database is something the application does.
 
 Spec: [Two ways to start a service, and what comes back](../decisions/2026-09-03-service-start-modes-design.md)
+
+## D333. A template may place more ports than its main one
+
+A template keeps one main port — the connector's port and the only one a
+person may ask for by number (D89) — and may name extra ports, each with a
+key, its port inside the container and a title. A published service publishes
+every one on the loopback, the extra ones on host ports the runtime picks.
+What it picked is read back off the container by container port, at every
+start, restart and start again, and kept on the service row as a map from key
+to port (`published_ports`), shown on the service's row with a link where a
+connection option opens it.
+
+A connector option may be a `Published(key, scheme)` value:
+`scheme://127.0.0.1:<port>`, what a person's browser on this machine opens,
+or empty while the service is not published. Such options are written again
+into the connection's configuration — never its secrets — when a start gives
+a port another number.
+
+Rejected: a template per port, since a service is one container with one row,
+volume and life; and asking for the extra ports' numbers, since the runtime
+picks and the main port is there for a person who needs one number.
+
+Known deviations:
+
+- **Extra ports are published to the loopback of the machine DataPlayer runs
+  on**, as the main port is (D86): a browser elsewhere does not reach them.
+
+Spec: [A service with more than one port](../decisions/2026-11-09-service-ports-design.md)
+

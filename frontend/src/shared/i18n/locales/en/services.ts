@@ -48,6 +48,8 @@ export const services = {
     remove_failed: "{name} could not be removed",
     empty: "This server is not running anything for you.",
     cancel_job: "Cancel what is happening",
+    extra_port: "{title}: {port}",
+    open_port: "open",
     stop: "Stop it; what is stored in it stays",
     start: "Start it",
     retry: "Start over: the earlier attempt and its data are removed",

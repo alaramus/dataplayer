@@ -50,6 +50,8 @@ export const services: Messages["services"] = {
     remove_failed: "无法移除 {name}",
     empty: "此服务器没有为你运行任何内容。",
     cancel_job: "取消正在进行的操作",
+    extra_port: "{title}：{port}",
+    open_port: "打开",
     stop: "停止；其中存储的内容会保留",
     start: "启动",
     retry: "重新开始：先前的尝试及其数据将被删除",

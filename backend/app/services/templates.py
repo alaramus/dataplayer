@@ -83,11 +83,39 @@ class Address:
 
 ADDRESS = Address()
 
+
+@dataclass(frozen=True)
+class ServicePort:
+    """A port a service listens on besides its main one (D333).
+
+    Published with it on the loopback, on a host port the runtime picks, and
+    named by `key` on the service row and in a `Published` value.
+    """
+
+    key: str
+    container_port: int
+    # What a person reads beside the port on the service's row.
+    title: str
+
+
+@dataclass(frozen=True)
+class Published:
+    """An extra port as an address on this machine, `scheme://127.0.0.1:port`.
+
+    For what a person's own browser opens rather than what this application
+    reaches (D333); empty when the service was not published. A placement, so
+    the environment cannot ask for it.
+    """
+
+    key: str
+    scheme: str = "http"
+
+
 # Either the name of something decided for this service, or a constant.
 # Split the same way the slots are: an environment value cannot name a
 # placement, and the compiler is what says so.
 CredentialValue = CredentialSlot | Fixed
-Value = Slot | Fixed | Address
+Value = Slot | Fixed | Address | Published
 
 
 class UnknownServiceTemplate(Exception):
@@ -178,6 +206,9 @@ class ServiceTemplate:
     # owner's SSH keys rather than a password (D154). `None` for everything
     # that is not a server one signs into with a key.
     keyed: Shape | None = None
+    # The ports it listens on besides `container_port`, each published beside
+    # it (D333). Never asked for by number: the runtime picks.
+    extra_ports: tuple[ServicePort, ...] = ()
 
 
 POSTGRES = ServiceTemplate(
@@ -356,7 +387,6 @@ MARIADB = ServiceTemplate(
     },
     startup_timeout_seconds=180,
 )
-
 
 
 # The server's schedule pool is 512 threads, which alone is the ceiling on
@@ -540,9 +570,10 @@ KAFKA = ServiceTemplate(
     startup_timeout_seconds=90,
 )
 
-# AMQP is the one port a template places; the management API answers on the
-# service network, where the application reaches every port of a container,
-# and the connector leaves its address empty for `http://<host>:15672` (D332).
+# AMQP is the main port; the management API is published beside it for the
+# owner's browser (D333), while the application reaches it by the container's
+# name, the connector leaving its address empty for `http://<host>:15672`
+# (D332).
 RABBITMQ = ServiceTemplate(
     key="rabbitmq",
     title=N_("RabbitMQ"),
@@ -572,8 +603,12 @@ RABBITMQ = ServiceTemplate(
         "port": PORT,
         "user": USER,
         "password": PASSWORD,
+        "browser_url": Published("management"),
     },
     startup_timeout_seconds=90,
+    extra_ports=(
+        ServicePort("management", 15672, N_("Management API and its web page")),
+    ),
 )
 
 REDIS = ServiceTemplate(
@@ -732,7 +767,9 @@ def choosable_slots(template: ServiceTemplate) -> tuple[CredentialSlot, ...]:
     return tuple(slot for slot in CREDENTIAL_SLOTS if slot in template.choosable)
 
 
-def shape_of(template: ServiceTemplate, *, protected: bool, keyed: bool = False) -> Shape:
+def shape_of(
+    template: ServiceTemplate, *, protected: bool, keyed: bool = False
+) -> Shape:
     """What this template runs and becomes: with a password, without one, or
     signed into with one of its owner's keys.
 

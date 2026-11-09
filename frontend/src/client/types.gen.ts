@@ -141,6 +141,10 @@ export type ActionInfo = {
    */
   prepares_connector?: boolean
   /**
+   * Opens Address
+   */
+  opens_address?: boolean
+  /**
    * Acts On
    */
   acts_on: "node" | "children" | "level" | "group" | "destination"
@@ -279,6 +283,10 @@ export type ActionResult = {
    * Open Node Id
    */
   open_node_id?: string | null
+  /**
+   * Open Url
+   */
+  open_url?: string | null
   /**
    * Refused
    */
@@ -10837,6 +10845,30 @@ export type ProviderKeyWrite = {
 }
 
 /**
+ * PublishedPort
+ *
+ * One of a service's extra ports on this machine (D333).
+ */
+export type PublishedPort = {
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Port
+   */
+  port: number
+  /**
+   * Url
+   */
+  url?: string | null
+}
+
+/**
  * QueryDiagnostic
  *
  * Why a statement failed, reduced to what is safe to show.
@@ -13421,6 +13453,10 @@ export type ServicePublic = {
    * Published Port
    */
   published_port: number | null
+  /**
+   * Extra Ports
+   */
+  extra_ports?: Array<PublishedPort>
   /**
    * Connector Id
    */

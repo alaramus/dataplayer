@@ -1288,6 +1288,7 @@ export type {
   ProviderKeyTry,
   ProviderKeyTryWritable,
   ProviderKeyWrite,
+  PublishedPort,
   queriesCancelRunData,
   queriesCancelRunError,
   queriesCancelRunErrors,

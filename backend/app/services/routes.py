@@ -49,6 +49,7 @@ from app.services.models import (
     NoPassword,
     OwnKey,
     PasswordMode,
+    PublishedPort,
     RevealedCredentials,
     ServiceAccepted,
     ServiceCredentials,
@@ -58,7 +59,14 @@ from app.services.models import (
     StartRequest,
     password_survives_where_it_goes,
 )
-from app.services.plan import Endpoint, Placement, described_options, settled_names
+from app.services.plan import (
+    PUBLISHED_HOST,
+    Endpoint,
+    Placement,
+    described_options,
+    published_address,
+    settled_names,
+)
 from app.services.templates import (
     DATABASE,
     KEY_ID,
@@ -275,9 +283,7 @@ async def read_unclaimed(engine: ServiceEngineDep) -> Any:
     """
     known = await _known_container_names()
     return [
-        UnclaimedContainer(
-            name=one.name, state=one.state, service_id=one.service_id
-        )
+        UnclaimedContainer(name=one.name, state=one.state, service_id=one.service_id)
         for one in (await _managed(engine) or [])
         if one.name not in known
     ]
@@ -351,9 +357,7 @@ async def read_service_credentials(
     return _credentials_of(service)
 
 
-@router.post(
-    "/{service_id}/credentials/reveal", response_model=RevealedCredentials
-)
+@router.post("/{service_id}/credentials/reveal", response_model=RevealedCredentials)
 async def reveal_service_credentials(
     session: SessionDep, current_user: CurrentUser, service_id: uuid.UUID
 ) -> Any:
@@ -442,7 +446,9 @@ async def retry_service(
     _refuse_without_a_runtime(await service_offer(engine))
     await crud.set_state(session, service, "creating")
     job = await _accept(session, runner, topics, service, "service.create")
-    return ServiceAccepted(service=_public(service, job, "unknown"), job=job_public(job))
+    return ServiceAccepted(
+        service=_public(service, job, "unknown"), job=job_public(job)
+    )
 
 
 @router.post("/{service_id}/start", response_model=ServiceAccepted)
@@ -456,7 +462,9 @@ async def start_service(
     """
     Start a service that is not running.
     """
-    return await _command(session, runner, topics, service_id, current_user.id, "service.start")
+    return await _command(
+        session, runner, topics, service_id, current_user.id, "service.start"
+    )
 
 
 @router.post("/{service_id}/stop", response_model=ServiceAccepted)
@@ -470,7 +478,9 @@ async def stop_service(
     """
     Stop a running service, keeping its data.
     """
-    return await _command(session, runner, topics, service_id, current_user.id, "service.stop")
+    return await _command(
+        session, runner, topics, service_id, current_user.id, "service.stop"
+    )
 
 
 @router.post("/{service_id}/restart", response_model=ServiceAccepted)
@@ -604,8 +614,6 @@ async def _own_or_404(
     return service
 
 
-
-
 def _placement(start: StartRequest) -> Placement:
     """Where a service goes: the configured network, and a port on the machine.
 
@@ -649,7 +657,9 @@ def _chosen_credentials(
         if slot not in template.choosable:
             raise Problem(
                 422,
-                "services.no_user_to_name" if slot == "user" else "services.no_database_to_name",
+                "services.no_user_to_name"
+                if slot == "user"
+                else "services.no_database_to_name",
             )
         chosen[slot] = value
     return chosen
@@ -712,7 +722,9 @@ async def _key_to_sign_in_with(
     if key is None:
         raise Problem(422, "services.ssh_key_not_own")
     if ssh_keys.is_locked(key):
-        raise Problem(409, "services.ssh_key_locked", error_kind="locked", name=key.name)
+        raise Problem(
+            409, "services.ssh_key_locked", error_kind="locked", name=key.name
+        )
     return {KEY_ID: str(key.id)}
 
 
@@ -757,9 +769,7 @@ def _refuse_without_a_runtime(runtime: Availability) -> None:
         raise HTTPException(status_code=503, detail={"message": runtime.reason})
 
 
-async def _refuse_if_at_the_ceiling(
-    session: AsyncSession, owner_id: uuid.UUID
-) -> None:
+async def _refuse_if_at_the_ceiling(session: AsyncSession, owner_id: uuid.UUID) -> None:
     """One person may hold only so much of the machine at once (D86).
 
     Not a quota system: a number that turns "somebody left a loop running"
@@ -774,7 +784,8 @@ async def _refuse_if_at_the_ceiling(
 def _refuse_if_busy(service: ManagedService) -> None:
     if service.state in BUSY_STATES:
         raise Problem(
-            409, "services.creating" if service.state == "creating" else "services.removing"
+            409,
+            "services.creating" if service.state == "creating" else "services.removing",
         )
 
 
@@ -794,7 +805,9 @@ async def _already(session: AsyncSession, service: ManagedService) -> ServiceAcc
     job = await _latest_job(session, service)
     if job is None:
         raise Problem(409, "services.no_job")
-    return ServiceAccepted(service=_public(service, job, "unknown"), job=job_public(job))
+    return ServiceAccepted(
+        service=_public(service, job, "unknown"), job=job_public(job)
+    )
 
 
 async def _managed(engine: ServiceEngine) -> list[ContainerStatus] | None:
@@ -857,6 +870,7 @@ def _public(
         container_state=container_state,
         container_name=service.container_name,
         published_port=service.published_port,
+        extra_ports=_extra_ports(service),
         connector_id=service.connector_id,
         connector_name=service.connector_name,
         was_connected=service.connected_at is not None,
@@ -865,11 +879,39 @@ def _public(
     )
 
 
-# Where a service published on this machine answers. The container is bound to
-# the loopback address, so this is the only address that reaches it — and it is
-# the address as seen from the machine the server runs on, which is what a
-# person pasting it into their own tool needs.
-PUBLISHED_HOST = "127.0.0.1"
+def _extra_ports(service: ManagedService) -> list[PublishedPort]:
+    """The template's other ports where the runtime put them (D333).
+
+    A port some connection option opens in a browser carries that address,
+    so the row links to it as the connection's action does.
+    """
+    try:
+        template = templates.template_for(service.template_key)
+    except templates.UnknownServiceTemplate:
+        return []
+    schemes = {
+        value.key: value
+        for value in template.connector_options.values()
+        if isinstance(value, templates.Published)
+    }
+    found: list[PublishedPort] = []
+    for port in template.extra_ports:
+        number = service.published_ports.get(port.key)
+        if number is None:
+            continue
+        opened = schemes.get(port.key)
+        found.append(
+            PublishedPort(
+                key=port.key,
+                title=say(port.title),
+                port=number,
+                url=None
+                if opened is None
+                else published_address(opened, service.published_ports),
+            )
+        )
+    return found
+
 
 # Why there is nothing to paste, when there is nothing.
 NOT_PUBLISHED = N_(
@@ -930,12 +972,14 @@ def _parts_of(
     """
     template = templates.template_for(service.template_key)
     shape = shape_for(template, service.password_mode)
-    return dict(described_options(shape, known, Endpoint(PUBLISHED_HOST, port)))
+    return dict(
+        described_options(
+            shape, known, Endpoint(PUBLISHED_HOST, port), service.published_ports
+        )
+    )
 
 
-async def _password_of(
-    session: AsyncSession, service: ManagedService
-) -> str | None:
+async def _password_of(session: AsyncSession, service: ManagedService) -> str | None:
     """The password this service runs with, out of its one home.
 
     The connector, where the create job encrypted it (D4). Not the plan, which
@@ -976,15 +1020,19 @@ def _revealed(service: ManagedService, password: str | None) -> RevealedCredenti
     kind = registry.get(template.adapter_type)
     # A type whose address cannot carry a password — nothing takes one in an
     # `ssh://` line — keeps the address without it.
-    if password is None or shown.port is None or not issubclass(
-        kind.adapter_class, ComposesSecretUrl
+    if (
+        password is None
+        or shown.port is None
+        or not issubclass(kind.adapter_class, ComposesSecretUrl)
     ):
         return RevealedCredentials(**shown.model_dump(), password=password)
     names = settled_names(template, service.chosen_credentials)
     return RevealedCredentials(
         **shown.model_dump(exclude={"url"}),
         password=password,
-        url=_secret_url_of(kind, _parts_of(service, {**names, PASSWORD: password}, shown.port)),
+        url=_secret_url_of(
+            kind, _parts_of(service, {**names, PASSWORD: password}, shown.port)
+        ),
     )
 
 
@@ -1016,8 +1064,6 @@ def _url_of(kind: AdapterType, parts: Mapping[str, Any]) -> str | None:
     if not issubclass(driver, DescribesDraft):
         return None
     return driver.draft_connection_string(parts)
-
-
 
 
 def _title_of(template_key: str) -> str:

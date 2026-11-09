@@ -49,6 +49,8 @@ export const services: Messages["services"] = {
     remove_failed: "Не удалось удалить «{name}»",
     empty: "Этот сервер ничего для вас не запускает.",
     cancel_job: "Отменить то, что выполняется",
+    extra_port: "{title}: {port}",
+    open_port: "открыть",
     stop: "Остановить; данные в нём сохранятся",
     start: "Запустить",
     retry: "Начать заново: прежняя попытка и её данные будут удалены",

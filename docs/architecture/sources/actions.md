@@ -105,6 +105,9 @@ guard.
   action is done — a record of what the action read, such as a look inside a
   RabbitMQ queue (D330) — apart from `created_node_id`, which names something
   made and is only offered. A set of nodes opens nothing.
+- An action that declares `opens_address` changes nothing and has no form: the
+  menu performs it at once and opens its result's `open_url`, an http or https
+  address, in a new browser tab opened at the click (D334).
 - The generic action screen uses the shared form and chooses geometry from the
   form's capabilities. Ordinary questions fit their content. A preview keeps a
   stable compact form, and a staged file list keeps a stable medium form, so

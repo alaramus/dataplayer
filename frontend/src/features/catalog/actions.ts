@@ -43,6 +43,8 @@ export interface ActionCommand {
   downloads: boolean
   /** Opens the ordinary connector form with values prepared by the source. */
   preparesConnector?: boolean
+  /** Performed at once, without a form, and its result's address opened (D334). */
+  opensAddress?: boolean
   requiresPlanReview?: boolean
   /**
    * Whether the server carries it out as an owned job: the request is
@@ -95,6 +97,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       previewsSet: action.previews_set,
       downloads: action.downloads,
       preparesConnector: action.prepares_connector === true,
+      opensAddress: action.opens_address === true,
       requiresPlanReview: action.requires_plan_review === true,
       producesJob: action.produces_job === true,
       actsOn: action.acts_on,
@@ -545,6 +548,20 @@ export function reloadedBy(outcome: ActionOutcome): (string | null)[] {
 export function openedBy(outcome: ActionOutcome): string | undefined {
   if (outcome.done.length !== 1) return undefined
   return outcome.done[0]?.open_node_id ?? undefined
+}
+
+/**
+ * Whether an address an action answered with may be opened: a page over http
+ * or https, never a script or a file (D334).
+ */
+export function openableAddress(address: string | null | undefined): string | null {
+  if (address === null || address === undefined) return null
+  try {
+    const url = new URL(address)
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null
+  } catch {
+    return null
+  }
 }
 
 export function replacementsOf(outcome: ActionOutcome) {

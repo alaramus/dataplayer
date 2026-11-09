@@ -39,6 +39,9 @@ Die Seite **Verbindung** des Fensters fragt nach:
   antwortet dort nur mit eingeschaltetem Management-Plugin; die offiziellen
   `-management`-Images haben es;
 - **Benutzer** und **Passwort**: ein RabbitMQ-Benutzer für beides;
+- **Adresse für den Browser**: wohin **Management öffnen** im Menü des Katalogs
+  führt, wenn Ihr Browser die Management-Seite unter einer anderen Adresse
+  erreicht als DataPlayer; leer für die Management-Adresse;
 - **Virtueller Host**: leer für alle virtuellen Hosts, die der Benutzer sehen
   darf, oder ein Name wie `/`;
 - **TLS** und **CA-Zertifikat**: eine verschlüsselte Verbindung und die
@@ -247,7 +250,7 @@ Fordern Sie Beispieldaten an, um ein Lab zu bekommen:
 
 Im Lab holt niemand etwas ab, also bleibt jede Zahl, wo sie war.
 
-Von diesem Rechner aus ist der Broker über seinen AMQP-Port erreichbar, den die
-Zeile des Dienstes zeigt. Seine Management-API antwortet nur innerhalb von
-DataPlayer: Katalog, Berichte, Aktionen und Terminal nutzen sie dort, und ein
-Werkzeug auf Ihrem eigenen Rechner erreicht nur AMQP.
+Die Zeile des Dienstes zeigt seinen AMQP-Port und den Port seiner
+Management-API, mit einem Link zur Management-Seite. **Management öffnen** im Menü
+der Verbindung öffnet dieselbe Seite. DataPlayer selbst erreicht den Broker über
+den Namen des Containers, so dass beides von diesem Rechner aus funktioniert.

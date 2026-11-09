@@ -50,6 +50,8 @@ export const services: Messages["services"] = {
     remove_failed: "{name} हटाया नहीं जा सका",
     empty: "यह सर्वर आपके लिए कुछ नहीं चला रहा है।",
     cancel_job: "जो हो रहा है उसे रद्द करें",
+    extra_port: "{title}: {port}",
+    open_port: "खोलें",
     stop: "इसे रोकें; इसमें रखा सब कुछ रहेगा",
     start: "इसे शुरू करें",
     retry: "फिर से शुरू करें: पिछली कोशिश और उसका डेटा हटा दिया जाएगा",

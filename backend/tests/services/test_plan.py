@@ -142,9 +142,9 @@ def test_the_container_is_started_with_the_password_the_plan_holds() -> None:
     one password and a connector saved with another."""
     plan = _plan()
 
-    assert plan.container.environment["POSTGRES_PASSWORD"] == plan.credentials[
-        "password"
-    ]
+    assert (
+        plan.container.environment["POSTGRES_PASSWORD"] == plan.credentials["password"]
+    )
     assert plan.container.environment["POSTGRES_USER"] == plan.credentials["user"]
     assert plan.container.environment["POSTGRES_DB"] == plan.credentials["database"]
 
@@ -171,9 +171,7 @@ def test_the_connector_it_becomes_validates_as_that_adapter_would() -> None:
     assert filled["host"] == plan.container.name
     assert filled["port"] == 5432
     assert filled["user"] == "dataplayer"
-    assert validated.password.get_secret_value() == plan.credentials[
-        "password"
-    ]
+    assert validated.password.get_secret_value() == plan.credentials["password"]
 
 
 def test_the_secret_of_that_connector_is_a_secret_of_the_model() -> None:
@@ -308,7 +306,9 @@ def test_the_names_of_a_service_can_be_read_without_making_a_password() -> None:
     assert names == {"user": "dataplayer", "database": "sales"}
 
 
-def test_a_server_signed_into_with_a_key_is_told_its_public_half_and_no_password() -> None:
+def test_a_server_signed_into_with_a_key_is_told_its_public_half_and_no_password() -> (
+    None
+):
     """D154: the public half goes to the image, password sign-in is off, and
     the connector names the key rather than holding anything secret."""
     key_id = str(uuid4())
@@ -352,3 +352,17 @@ def test_a_server_to_be_signed_into_with_a_key_is_not_started_without_one() -> N
             placement=Placement(),
             keyed=True,
         )
+
+
+def test_an_extra_port_is_an_address_on_this_machine_or_nothing() -> None:
+    """What a person's browser opens (D333); empty while nothing is published."""
+    from app.services.plan import published_address
+    from app.services.templates import Published
+
+    assert published_address(Published("management"), {"management": 49301}) == (
+        "http://127.0.0.1:49301"
+    )
+    assert published_address(Published("management", "https"), {"management": 1}) == (
+        "https://127.0.0.1:1"
+    )
+    assert published_address(Published("management"), {}) == ""

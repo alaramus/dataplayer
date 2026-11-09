@@ -158,4 +158,8 @@ MESSAGES: dict[str, str] = {
     "{user} on {vhost}, {client}, {channels} channels, {state}": "{user} в {vhost}, {client}, каналов: {channels}, {state}",
     "{user} on {vhost}, {consumers} consumers, prefetch {prefetch}, {unacked} unacknowledged": "{user} в {vhost}, потребителей: {consumers}, prefetch {prefetch}, без подтверждения: {unacked}",
     "{count} messages in the lab's exchanges, queues and the stream {stream}": "{count} сообщений в демонстрационных exchange'ах, очередях и стриме {stream}",
+    "Address for the browser": "Адрес для браузера",
+    "Where Open management takes you; empty for the management address": "Куда ведёт «Открыть management»; пусто — адрес management API",
+    "Open management": "Открыть management",
+    "The management page opens in a new tab": "Страница management откроется в новой вкладке",
 }

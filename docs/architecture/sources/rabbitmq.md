@@ -6,11 +6,12 @@ stream's messages and the bindings are read as rows, and `rabbitmqadmin` in a
 terminal (D328, run as D286 says in [terminals.md](../terminals.md)), how
 messages are sent (D329) and queues, streams, exchanges and bindings changed,
 with a look inside a queue (D330), and the broker's reports, metrics and
-search (D331), and a RabbitMQ started here with its lab (D332). The contract every source
+search (D331), a RabbitMQ started here with its lab (D332), and its management page opened
+in the browser (D334). The contract every source
 type follows is in [contract.md](contract.md); the other queue is in
 [kafka.md](kafka.md). Read this before changing the `rabbitmq` adapter.
 
-Decisions here: D325, D326, D327, D328, D329, D330, D331, D332.
+Decisions here: D325, D326, D327, D328, D329, D330, D331, D332, D334.
 
 ## D325. A RabbitMQ source looks through the management API and moves messages over AMQP
 
@@ -245,10 +246,11 @@ unprotected shape. `RABBITMQ_NODENAME` is fixed to `rabbit@localhost`, since
 RabbitMQ keeps its data under the node's name and would otherwise take the
 container's hostname, new with every container.
 
-The template's one port is AMQP's, 5672: published on the loopback for the
+The template's main port is AMQP's, 5672: published on the loopback for the
 owner's tools and given to the connection as its host and port. The
-management API is not published. The application reaches a service by its
-container name on the service network, where every port answers, and the
+management API, 15672, is an extra port published beside it (D333) and fills
+the connection's browser address (D334). The application reaches a service by
+its container name on the service network, where every port answers, and the
 connection leaves its management address empty, so it is
 `http://<container>:15672` (D325); readiness waits for that API too.
 
@@ -262,11 +264,22 @@ few bodies that are bytes. Nothing consumes, so the counts stay as left.
 
 Known deviations:
 
-- **The management API is reached from inside DataPlayer only**: a tool on the
-  owner's machine reaches AMQP alone, as Kafka's published port reaches the
-  first broker only (D311).
 - **No copy to another connection and no backup**: RabbitMQ's own way is its
   definitions export and shovels, which `rabbitmqadmin` in the terminal offers
   (D328); messages are not something a backup here would carry.
 
 Spec: [A RabbitMQ started here, and its lab](../../decisions/2026-11-09-rabbitmq-service-design.md)
+
+## D334. Open management opens the broker's page in the browser
+
+**Open management** is offered on every level of the catalog and asks for read
+access only. It changes nothing: it is an action that opens an address
+(`opens_address`), performed without a form, whose result's `open_url` the
+client opens in a new tab. The address is the connection's **Address for the
+browser** (`browser_url`), or the management address when that is empty. The
+two differ for a broker started here: the application reaches its API by the
+container's name, and a person's browser by the published port, which the
+service fills in when it starts and again whenever the runtime gives it
+another (D333).
+
+Spec: [A service with more than one port](../../decisions/2026-11-09-service-ports-design.md)

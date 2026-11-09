@@ -231,9 +231,7 @@ class DockerEngine:
             expected=(204, 404),
         )
         if volume is not None:
-            await self._request(
-                "DELETE", f"/volumes/{volume}", expected=(204, 404)
-            )
+            await self._request("DELETE", f"/volumes/{volume}", expected=(204, 404))
 
     async def status(self, container: str) -> ContainerStatus:
         """What one container is doing, or that it is not there.
@@ -254,6 +252,7 @@ class DockerEngine:
             state=_state_of(body.get("State") or {}),
             service_id=labels.get(SERVICE_LABEL),
             published_port=_published_port(body),
+            published_ports=_published_ports(body),
         )
 
     async def managed(self) -> list[ContainerStatus]:
@@ -355,10 +354,14 @@ class DockerEngine:
         except EngineError as failure:
             raise ConsoleRefused(str(failure)) from None
         except OSError:
-            raise ConsoleRefused(say("This server cannot reach a container runtime")) from None
+            raise ConsoleRefused(
+                say("This server cannot reach a container runtime")
+            ) from None
 
     async def _has_image(self, image: str) -> bool:
-        answer = await self._request("GET", f"/images/{image}/json", expected=(200, 404))
+        answer = await self._request(
+            "GET", f"/images/{image}/json", expected=(200, 404)
+        )
         return answer.status == 200
 
     async def _full_output(self, container: str, exit_code: int) -> ToolResult:
@@ -366,14 +369,17 @@ class DockerEngine:
         try:
             async with self._client(COMMAND_TIMEOUT_SECONDS) as client:
                 async with client.stream(
-                    "GET", f"/containers/{container}/logs",
+                    "GET",
+                    f"/containers/{container}/logs",
                     params={"stdout": "true", "stderr": "true", "tail": "all"},
                 ) as response:
                     if response.status_code != 200:
                         raise _refusal(response.status_code)
                     async for chunk in response.aiter_bytes(chunk_size=64 * 1024):
                         if len(body) + len(chunk) > MAX_TOOL_OUTPUT_BYTES:
-                            return ToolResult(exit_code=exit_code, output=(), truncated=True)
+                            return ToolResult(
+                                exit_code=exit_code, output=(), truncated=True
+                            )
                         body.extend(chunk)
         except httpx.HTTPError as failure:
             raise _unreachable(failure) from None
@@ -402,9 +408,7 @@ class DockerEngine:
     ) -> _Answer:
         try:
             async with self._client(COMMAND_TIMEOUT_SECONDS) as client:
-                response = await client.request(
-                    method, path, params=params, json=json
-                )
+                response = await client.request(method, path, params=params, json=json)
         except httpx.HTTPError as failure:
             raise _unreachable(failure) from None
         if response.status_code not in expected:
@@ -459,13 +463,21 @@ def _creation_body(spec: ContainerSpec) -> dict[str, Any]:
         # still confirmed rather than assumed.
         wanted = "" if spec.host_port is None else str(spec.host_port)
         host_config["PortBindings"] = {
-            port: [{"HostIp": "127.0.0.1", "HostPort": wanted}]
+            port: [{"HostIp": "127.0.0.1", "HostPort": wanted}],
+            # The extra ports always on a port the runtime picks (D333).
+            **{
+                f"{extra}/tcp": [{"HostIp": "127.0.0.1", "HostPort": ""}]
+                for extra in spec.extra_ports
+            },
         }
     body: dict[str, Any] = {
         "Image": spec.image,
         "Env": [f"{key}={value}" for key, value in sorted(spec.environment.items())],
         "Labels": dict(spec.labels),
-        "ExposedPorts": {port: {}},
+        "ExposedPorts": {
+            port: {},
+            **{f"{extra}/tcp": {} for extra in spec.extra_ports},
+        },
         "HostConfig": host_config,
     }
     if spec.command:
@@ -473,6 +485,24 @@ def _creation_body(spec: ContainerSpec) -> dict[str, Any]:
     if spec.network is not None:
         body["NetworkingConfig"] = {"EndpointsConfig": {spec.network: {}}}
     return body
+
+
+def _published_ports(body: Mapping[str, Any]) -> dict[int, int]:
+    """Each published container port and the host port it answers on (D333).
+
+    The daemon writes `<port>/tcp` with a list of bindings, null when there
+    are none; the first binding that carries a number is the answer.
+    """
+    found: dict[int, int] = {}
+    ports = (body.get("NetworkSettings") or {}).get("Ports") or {}
+    for name, bindings in ports.items():
+        inside = str(name).split("/", 1)[0]
+        for binding in bindings or []:
+            written = (binding or {}).get("HostPort")
+            if written and inside.isdigit():
+                found[int(inside)] = int(written)
+                break
+    return found
 
 
 def _published_port(body: Mapping[str, Any]) -> int | None:

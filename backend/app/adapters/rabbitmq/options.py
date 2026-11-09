@@ -58,6 +58,17 @@ class RabbitmqOptions(BaseModel):
         ),
         json_schema_extra=layout(),
     )
+    # Where a person's browser opens the management page, when that is not
+    # where this application reaches the API: a broker started here is reached
+    # by its container's name and opened on a published port (D334).
+    browser_url: str = Field(
+        default="",
+        title=N_("Address for the browser"),
+        description=N_(
+            "Where Open management takes you; empty for the management address"
+        ),
+        json_schema_extra=layout(),
+    )
     user: str = Field(
         default="guest", title=N_("User"), min_length=1, json_schema_extra=layout()
     )
@@ -96,10 +107,14 @@ class RabbitmqOptions(BaseModel):
             raise ValueError(say("A host is a name or an address, nothing more"))
         return host
 
-    @field_validator("management_url")
+    @field_validator("management_url", "browser_url")
     @classmethod
     def _management(cls, text: str) -> str:
         return checked_management_url(text)
+
+    def browser(self) -> str:
+        """The management page as a person's browser opens it (D334)."""
+        return self.browser_url or self.management()
 
     def management(self) -> str:
         """The management API's root, the default filled in."""

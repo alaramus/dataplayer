@@ -47,6 +47,7 @@ export const catalog: Messages["catalog"] = {
     cut: "تم قص {what} — الصقه من قائمة الإجراءات حيث ينبغي أن يذهب",
     copied_selection: "التحديد المنسوخ",
     connector_failed: "تعذّر تجهيز نموذج الاتصال",
+    open_failed: "تعذّر فتح الصفحة",
   },
   list: {
     copied: "تم نسخ «{name}»",
