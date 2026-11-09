@@ -93,4 +93,8 @@ MESSAGES: dict[str, str] = {
     "yes": "हाँ",
     "Binance's clock and this server's differ too much": "Binance और इस सर्वर की घड़ियों में बहुत अंतर है",
     "Binance does not accept this API key here: check the key, its permissions and the addresses it is limited to": "Binance यहाँ यह API कुंजी स्वीकार नहीं करता: कुंजी, उसकी अनुमतियाँ और जिन पतों तक वह सीमित है, जाँचें",
+    "Only a symbol's market is watched live": "लाइव केवल किसी सिंबल का बाज़ार देखा जाता है",
+    "This market has no {interval} candles": "इस बाज़ार में {interval} कैंडल नहीं हैं",
+    "Market": "बाज़ार",
+    "View the market": "बाज़ार देखें",
 }

@@ -93,4 +93,8 @@ MESSAGES: dict[str, str] = {
     "yes": "是",
     "Binance's clock and this server's differ too much": "Binance 与此服务器的时钟相差太大",
     "Binance does not accept this API key here: check the key, its permissions and the addresses it is limited to": "Binance 在此不接受这个 API 密钥：请检查密钥、其权限以及它所限定的地址",
+    "Only a symbol's market is watched live": "只有交易对的行情可以实时查看",
+    "This market has no {interval} candles": "此市场没有 {interval} K线",
+    "Market": "行情",
+    "View the market": "查看行情",
 }

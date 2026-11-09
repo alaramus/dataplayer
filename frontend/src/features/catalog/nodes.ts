@@ -171,6 +171,7 @@ export const FEED_ICONS: Record<FeedNode["feed"], string> = {
   my_trades: "swap_horiz",
   deposits: "call_received",
   withdrawals: "call_made",
+  market: "show_chart",
 }
 
 /** A znode with no data of its own, and one this connection may not read. */
@@ -254,6 +255,7 @@ export const REPRESENTATION_ICONS: Record<NodeRepresentation["kind"], string> = 
   database: "storage",
   tree: "account_tree",
   documents: "data_object",
+  market: "show_chart",
 }
 
 /**

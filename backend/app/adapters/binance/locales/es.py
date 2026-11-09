@@ -93,4 +93,8 @@ MESSAGES: dict[str, str] = {
     "yes": "sí",
     "Binance's clock and this server's differ too much": "Los relojes de Binance y de este servidor difieren demasiado",
     "Binance does not accept this API key here: check the key, its permissions and the addresses it is limited to": "Binance no acepta esta clave API aquí: revisa la clave, sus permisos y las direcciones a las que está limitada",
+    "Only a symbol's market is watched live": "Solo el mercado de un símbolo se sigue en vivo",
+    "This market has no {interval} candles": "Este mercado no tiene velas de {interval}",
+    "Market": "Mercado",
+    "View the market": "Ver el mercado",
 }

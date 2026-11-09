@@ -16,6 +16,7 @@ page [Connexions](connections.md).
 - Les transactions d'un symbole, récentes d'abord, par id ou depuis une heure
 - Le carnet d'ordres d'un symbole, achats et ventes avec leurs cumuls
 - Avec une clé : soldes, positions, ordres, transactions, dépôts, retraits
+- Le marché d'un symbole en direct : graphique, carnet et transactions
 - Chacun d'eux téléchargé en fichier
 - L'état de Binance, son horloge et la part de la limite de requêtes utilisée
 - La limite de requêtes et les réponses de Binance sur un tableau de bord
@@ -54,6 +55,20 @@ point d'accès n'y changera rien.
   négocient maintenant.
 - Un symbole contient **Bougies**, avec une série par intervalle,
   **Transactions** et **Carnet d'ordres**.
+
+## Marché
+
+**Marché**, le premier nœud de chaque symbole, ouvre un onglet qui bouge
+avec le marché : la journée en haut, les bougies au-dessus de leur volume,
+le carnet d'ordres avec la profondeur de chaque niveau, et les
+transactions à mesure qu'elles ont lieu.
+
+- Choisissez l'intervalle des bougies en haut ; faites défiler ou glissez
+  le graphique pour remonter.
+- Il ne coûte presque rien de la limite de requêtes : après le premier
+  instant tout vient des flux de Binance. Plusieurs onglets d'un symbole
+  partagent un flux.
+- Si le réseau tombe, l'onglet le dit et revient de lui-même.
 
 ## Tables
 

@@ -6,7 +6,7 @@ read over REST through one client a connection.
 """
 
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 
 from app.adapters.binance.account import (
     account_feeds,
@@ -40,6 +40,7 @@ from app.adapters.binance.feeds import (
     tickers_page,
     trades_page,
 )
+from app.adapters.binance.live import DEFAULT_INTERVAL, BinanceLive
 from app.adapters.binance.markets import HOSTS, market_of
 from app.adapters.binance.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.binance.metrics import BinanceMetrics
@@ -60,6 +61,7 @@ from app.adapters.catalog import CatalogNode, FeedName
 from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import MAX_LIMIT, FetchRequest, FetchResult
+from app.adapters.live import LiveRows, LiveStart
 from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.reading_on import (
@@ -96,6 +98,7 @@ class BinanceAdapter:
         self._reports = BinanceReports(session)
         self._metrics = BinanceMetrics(session)
         self._search = BinanceSearch(session)
+        self._live = BinanceLive(session)
 
     def connection_string(self) -> str:
         """The spot host this connection speaks to; a key is never part of it."""
@@ -239,7 +242,7 @@ class BinanceAdapter:
             return path
         children = symbol_children(market, place.symbol, self._session.keyed)
         if place.what == "candles" or place.feed == "candles":
-            path.append(children[0])
+            path += [one for one in children if one.id.endswith(":candles")]
             if place.feed == "candles":
                 path += [
                     one
@@ -248,6 +251,32 @@ class BinanceAdapter:
                 ]
             return path
         return path + [one for one in children if one.id == node_id]
+
+    # --- a symbol watched live (D323) ----------------------------------------------
+
+    async def _watched(self, node_id: str, interval: str | None) -> tuple[Place, str]:
+        place = place_of(node_id)
+        if place.feed != "market" or place.symbol is None:
+            raise ValueError(say("Only a symbol's market is watched live"))
+        await self._known(place, node_id)
+        chosen = interval or DEFAULT_INTERVAL
+        if chosen not in place.market.intervals:
+            raise ValueError(
+                say("This market has no {interval} candles", interval=chosen)
+            )
+        return place, chosen
+
+    async def live_start(self, node_id: str, interval: str | None) -> LiveStart:
+        place, chosen = await self._watched(node_id, interval)
+        return LiveStart(intervals=list(place.market.intervals), interval=chosen)
+
+    async def live(
+        self, node_id: str, interval: str | None
+    ) -> AsyncGenerator[LiveRows]:
+        place, chosen = await self._watched(node_id, interval)
+        assert place.symbol is not None
+        async for rows in self._live.watch(place.market, place.symbol, chosen, node_id):
+            yield rows
 
     # --- the feeds as rows (D318) ------------------------------------------------
 

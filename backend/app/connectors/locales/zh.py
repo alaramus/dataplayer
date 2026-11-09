@@ -244,4 +244,10 @@ MESSAGES: dict[str, str] = {
     "{said}; {count} keys of another type left as they were": "{said}；{count} 个其他类型的键保持不变",
     "{said}; {count} rows without a key or a value skipped": "{said}；跳过了 {count} 行无键或无值的行",
     '{said}; the table was made with a key on {columns}, so each row is kept once': '{said}；已创建以 {columns} 为键的表，因此每行只保留一次',
+    'This connection is not shared with you': '此连接未与你共享',
+    'This kind of connection is not watched live': '这类连接不能实时查看',
+    'Watching stopped': '查看已停止',
+    'The first frame opens a watch': '第一帧应打开查看',
+    'Sign in again to watch this': '请重新登录以查看',
+    'No such node': '没有这样的节点',
 }

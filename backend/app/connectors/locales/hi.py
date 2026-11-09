@@ -245,4 +245,10 @@ MESSAGES: dict[str, str] = {
     "{said}; {count} keys of another type left as they were": "{said}; दूसरे प्रकार की {count} कुंजियाँ जैसी थीं वैसी छोड़ी गईं",
     "{said}; {count} rows without a key or a value skipped": "{said}; बिना कुंजी या मान की {count} पंक्तियाँ छोड़ी गईं",
     '{said}; the table was made with a key on {columns}, so each row is kept once': '{said}; तालिका {columns} पर कुंजी के साथ बनाई गई, इसलिए हर पंक्ति एक ही बार रखी जाती है',
+    'This connection is not shared with you': 'यह कनेक्शन आपके साथ साझा नहीं है',
+    'This kind of connection is not watched live': 'इस प्रकार का कनेक्शन लाइव नहीं देखा जाता',
+    'Watching stopped': 'देखना रुक गया',
+    'The first frame opens a watch': 'पहला फ़्रेम देखना शुरू करता है',
+    'Sign in again to watch this': 'इसे देखने के लिए फिर से साइन इन करें',
+    'No such node': 'ऐसा कोई नोड नहीं',
 }

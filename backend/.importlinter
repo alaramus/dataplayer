@@ -654,3 +654,36 @@ source_modules =
     app.adapters.zookeeper
 forbidden_modules =
     asyncssh
+
+# A client socket to a market's streams, by the rule every driver follows:
+# the Binance adapter owns it (D323).
+[importlinter:contract:websocket-client-is-contained]
+name = the websockets client is imported only by the binance adapter
+type = forbidden
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.pipelines
+    app.transfers
+    app.search
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.ai
+    app.api
+    app.terminals
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.fetch
+    app.adapters.kafka
+    app.adapters.zookeeper
+    app.adapters.mongodb
+forbidden_modules =
+    websockets

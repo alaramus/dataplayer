@@ -278,6 +278,8 @@ FeedName = Literal[
     "my_trades",
     "deposits",
     "withdrawals",
+    # A symbol watched live (D323).
+    "market",
 ]
 
 

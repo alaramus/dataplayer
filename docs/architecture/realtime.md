@@ -67,8 +67,10 @@ The client here is ours and makes its requests through vue-query, so a second wa
 to invoke the same routes would be a second surface with the same rights to
 defend.
 
-A terminal is the one exception: each has a socket of its own, authenticated the
-same way and never reconnected ([D148](terminals.md)).
+A terminal is one exception: each has a socket of its own, authenticated the
+same way and never reconnected ([D148](terminals.md)). A watch of one node is
+the other: a socket of its own because it is of one node at one interval, and
+opened again when lost ([D323](sources/binance.md)).
 
 Spec: [The socket, health and a switched-off connector](../decisions/2026-08-24-realtime-and-connector-health-design.md)
 

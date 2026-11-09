@@ -245,4 +245,10 @@ MESSAGES: dict[str, str] = {
     "{said}; {count} keys of another type left as they were": "{said} ; {count} clés d'un autre type laissées telles quelles",
     "{said}; {count} rows without a key or a value skipped": "{said} ; {count} lignes sans clé ou sans valeur ignorées",
     '{said}; the table was made with a key on {columns}, so each row is kept once': "{said} ; la table a été créée avec une clé sur {columns}, chaque ligne n'est donc gardée qu'une fois",
+    'This connection is not shared with you': 'Cette connexion ne vous est pas partagée',
+    'This kind of connection is not watched live': 'Ce type de connexion ne se suit pas en direct',
+    'Watching stopped': "Le suivi s'est arrêté",
+    'The first frame opens a watch': 'La première trame ouvre un suivi',
+    'Sign in again to watch this': 'Reconnectez-vous pour suivre ceci',
+    'No such node': 'Aucun nœud de ce nom',
 }

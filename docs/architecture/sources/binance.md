@@ -5,7 +5,7 @@ symbols and feeds, how a feed is read as rows, how a pipeline's link reads
 trades and candles on, or what the connection reports, measures and finds. The contract every source
 keeps is in [contract.md](contract.md).
 
-Decisions here: D316, D317, D318, D319, D320, D321, D322.
+Decisions here: D316, D317, D318, D319, D320, D321, D322, D323.
 
 ## D316. Binance's public market data over REST, one client a connection, under its rate limit
 
@@ -58,6 +58,7 @@ spot | usdm | coinm                 directory
   :tickers, :symbols                feed
   :quote:USDT …                     directory, fullest first
     :symbol:BTCUSDT                 symbol
+      :market                       feed, opened as `market` (D323)
       :candles                      directory
         :candles:1m … :candles:1M   feed, one per interval (no 1s on futures)
       :trades, :book                feed
@@ -238,3 +239,31 @@ Known deviations:
 - **Binance's per-account weight is not counted**, only the address's.
 
 Spec: [A Binance key and the account it reads](../../decisions/2026-11-09-binance-account-design.md)
+
+## D323. A symbol's market watched live, over a socket of its own, from one upstream stream
+
+- **Opened from a node**: a symbol's first child, **Market**, a `feed` whose
+  representation is `market` (D47); a symbol stays a container to walk into.
+- **Rows, part by part** (`app/adapters/live.py`, `SupportsLive`): `ticker`,
+  `candles` (keyed by `open_time`), `order_book`, `trades`, each batch
+  replacing, adding to or updating a part, in the grid's own columns.
+- **A socket of its own**, `/api/v1/watch` (`app/connectors/watch.py`): the
+  first frame says token, connection, node and interval; `ready` with the
+  intervals, then `rows`, or `refused` / `ended` in words. Read access is
+  enough. A topic takes no arguments (D18, D127); a terminal (D148) is the
+  precedent. The client opens a lost watch again; a refusal it does not.
+- **Binance**: the snapshot over REST; then `aggTrade`, `depth20`,
+  `kline_<interval>` and `ticker` streams, which cost no weight. One
+  `MarketStream` per address and connection, kept with the client (D316),
+  started by the first watcher and stopped by the last, each watcher with a
+  bounded queue. USDⓈ-M's book is on `/public/stream` and the rest on
+  `/market/stream`; spot and COIN-M take one socket. `websockets` is imported
+  by this adapter alone.
+
+Known deviations:
+
+- **The frames are written out twice**, Python and TypeScript, as D18's are.
+- **An upstream reconnect is not a fresh snapshot**: trades made while it was
+  down are not shown.
+
+Spec: [A symbol's market, watched live](../../decisions/2026-11-09-binance-market-view-design.md)

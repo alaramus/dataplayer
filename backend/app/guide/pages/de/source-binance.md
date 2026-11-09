@@ -15,6 +15,7 @@ funktionieren, steht auf der Seite [Verbindungen](connections.md).
 - Die Trades eines Symbols, die neuesten zuerst, nach ID oder ab einer Zeit
 - Das Orderbuch eines Symbols, Gebote und Angebote mit laufenden Summen
 - Mit Schlüssel: Guthaben, Positionen, Orders, eigene Trades, Ein-/Auszahlungen
+- Der Markt eines Symbols live: Chart, Orderbuch und Trades auf einem Blick
 - Jede davon als Datei heruntergeladen
 - Der Status von Binance, seine Uhr und wie viel vom Anfragelimit verbraucht ist
 - Das Anfragelimit und die Antworten von Binance auf einem Dashboard
@@ -51,6 +52,19 @@ Endpunkt hilft nicht.
 - Ein Quote-Asset enthält seine Symbole: nur die, die gerade gehandelt werden.
 - Ein Symbol enthält **Kerzen** mit einer Serie je Intervall, **Trades** und
   **Orderbuch**.
+
+## Markt
+
+**Markt**, der erste Knoten jedes Symbols, öffnet einen Tab, der sich mit
+dem Markt bewegt: oben der Tag, darunter Kerzen über ihrem Volumen, das
+Orderbuch mit der Tiefe jeder Stufe und die Trades, wie sie geschehen.
+
+- Das Kerzenintervall wird oben gewählt; scrollen oder ziehen Sie den
+  Chart, um zurückzublicken.
+- Er kostet fast nichts vom Anfragelimit: nach dem ersten Moment kommt
+  alles aus den Streams von Binance. Mehrere Tabs eines Symbols teilen
+  einen Stream.
+- Fällt das Netz aus, sagt der Tab es und kommt von selbst zurück.
 
 ## Tabellen
 

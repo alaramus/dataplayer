@@ -83,6 +83,36 @@ test("walks from a market to a symbol and reads its feeds as rows", async ({ pag
 })
 
 /**
+ * A symbol's market watched live (D323): its day, candles, book and trades
+ * arrive over a socket of their own, and keep arriving.
+ */
+test("watches a symbol's market live", async ({ page }) => {
+  const name = `e2e-binance-market-${Date.now()}`
+  await login(page)
+  const api = await signedApi(page)
+  await binanceConnection(page, api, name)
+
+  await page.reload()
+  await openConnector(page, name)
+  await openNode(page, "Spot")
+  await openNode(page, "USDT")
+  await openNode(page, "BTCUSDT")
+  await openNode(page, "Market")
+
+  const panel = page.getByTestId("market-panel")
+  await expect(panel.getByTestId("market-status")).toHaveText("Live", { timeout: 20_000 })
+  await expect(panel.getByTestId("market-price")).not.toHaveText("—")
+  await expect(panel.getByTestId("market-chart").locator("svg")).toBeVisible()
+  await expect(panel.getByTestId("market-bid")).toHaveCount(12)
+  await expect(panel.getByTestId("market-ask")).toHaveCount(12)
+  // A trade the snapshot did not hold arrives over the stream.
+  const first = await panel.getByTestId("market-trade").count()
+  await expect.poll(() => panel.getByTestId("market-trade").count(), { timeout: 20_000 }).toBeGreaterThan(first)
+
+  await deleteConnector(page, name)
+})
+
+/**
  * A symbol's trades read on by a pipeline's link into a table it makes, keyed
  * by the trade id, the bookmark kept by DataPlayer (D319).
  */

@@ -28,6 +28,8 @@ RepresentationKind = Literal[
     "tree",
     # A relation's rows read as whole documents, a page at a time (D295).
     "documents",
+    # A market's symbol watched live: price, chart, book and trades (D323).
+    "market",
 ]
 ContentRepresentationKind = Literal[
     "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf", "sql", "database", "tree"

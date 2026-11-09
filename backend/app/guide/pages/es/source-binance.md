@@ -15,6 +15,7 @@ general se explica en la página [Conexiones](connections.md).
 - Las operaciones de un símbolo, las más nuevas primero, por id o desde una hora
 - El libro de órdenes de un símbolo, compras y ventas con sus acumulados
 - Con clave: saldos, posiciones, órdenes, operaciones, depósitos y retiros
+- El mercado de un símbolo en vivo: gráfico, libro y operaciones juntos
 - Cualquiera de ellos descargado como archivo
 - El estado de Binance, su reloj y cuánto del límite de solicitudes se usa
 - El límite de solicitudes y las respuestas de Binance en un panel
@@ -52,6 +53,18 @@ acceso no servirá.
   ahora.
 - Un símbolo contiene **Velas**, con una serie por intervalo,
   **Operaciones** y **Libro de órdenes**.
+
+## Mercado
+
+**Mercado**, el primer nodo de cada símbolo, abre una pestaña que se mueve
+con el mercado: el día arriba, las velas sobre su volumen, el libro de
+órdenes con la profundidad de cada nivel y las operaciones según ocurren.
+
+- El intervalo de velas se elige arriba; desplaza o arrastra el gráfico
+  para ver atrás.
+- Casi no gasta el límite de solicitudes: tras el primer momento todo llega
+  de los flujos de Binance. Varias pestañas de un símbolo comparten uno.
+- Si la red cae, la pestaña lo dice y vuelve sola.
 
 ## Tablas
 

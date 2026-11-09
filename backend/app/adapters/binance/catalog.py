@@ -27,6 +27,7 @@ from app.adapters.words import worded_titles
 from app.core.translation import N_, say
 
 ROWS = NodeRepresentation(kind="table", title=N_("View as table"))
+MARKET = NodeRepresentation(kind="market", title=N_("View the market"))
 
 FEED_TITLES: dict[FeedName, str] = {
     "tickers": N_("Tickers"),
@@ -41,12 +42,14 @@ FEED_TITLES: dict[FeedName, str] = {
     "my_trades": N_("My trades"),
     "deposits": N_("Deposits"),
     "withdrawals": N_("Withdrawals"),
+    "market": N_("Market"),
 }
 
 ACCOUNT_TITLE = N_("Account")
 
 # A symbol's own feeds by the last part of their id.
 SYMBOL_FEEDS: dict[str, FeedName] = {
+    "market": "market",
     "trades": "trades",
     "book": "order_book",
     "orders": "orders",
@@ -200,6 +203,12 @@ def symbol_children(
         else []
     )
     return [
+        FeedNode(
+            id=f"{base}:market",
+            name=say(FEED_TITLES["market"]),
+            feed="market",
+            representations=worded_titles([MARKET]),
+        ),
         DirectoryNode(
             id=f"{base}:candles",
             name=say(FEED_TITLES["candles"]),

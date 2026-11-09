@@ -245,4 +245,10 @@ MESSAGES: dict[str, str] = {
     "{said}; {count} keys of another type left as they were": "{said}; ключей другого типа оставлено как было: {count}",
     "{said}; {count} rows without a key or a value skipped": "{said}; пропущено строк без ключа или значения: {count}",
     '{said}; the table was made with a key on {columns}, so each row is kept once': '{said}; таблица создана с ключом по {columns}, поэтому каждая строка сохраняется один раз',
+    'This connection is not shared with you': 'Это подключение вам не открыто',
+    'This kind of connection is not watched live': 'Подключения этого вида не смотрятся вживую',
+    'Watching stopped': 'Наблюдение остановлено',
+    'The first frame opens a watch': 'Первый кадр открывает наблюдение',
+    'Sign in again to watch this': 'Войдите снова, чтобы смотреть это',
+    'No such node': 'Такого узла нет',
 }

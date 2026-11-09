@@ -5170,6 +5170,7 @@ export type FeedNode = {
     | "my_trades"
     | "deposits"
     | "withdrawals"
+    | "market"
   /**
    * Interval
    */
@@ -8416,6 +8417,7 @@ export type NodeRepresentation = {
     | "database"
     | "tree"
     | "documents"
+    | "market"
   /**
    * Title
    */

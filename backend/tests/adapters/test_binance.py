@@ -172,7 +172,7 @@ async def test_futures_leave_out_a_contract_that_no_longer_trades(
     assert [node.name for node in nodes] == ["BTCUSDT", "BTCUSDT_261225"]
 
 
-async def test_a_symbol_holds_its_candles_trades_and_book(
+async def test_a_symbol_holds_its_market_candles_trades_and_book(
     fake_binance: FakeBinance,
 ) -> None:
     del fake_binance
@@ -182,6 +182,7 @@ async def test_a_symbol_holds_its_candles_trades_and_book(
     futures = await adapter.list_children("usdm:symbol:BTCUSDT:candles")
 
     assert [node.id for node in children] == [
+        "spot:symbol:BTCUSDT:market",
         "spot:symbol:BTCUSDT:candles",
         "spot:symbol:BTCUSDT:trades",
         "spot:symbol:BTCUSDT:book",

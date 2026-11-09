@@ -241,4 +241,10 @@ MESSAGES: dict[str, str] = {
     "{said}; {count} keys of another type left as they were": "{said}؛ تُركت {count} مفاتيح من نوع آخر كما كانت",
     "{said}; {count} rows without a key or a value skipped": "{said}؛ تخطي {count} صفوف بلا مفتاح أو قيمة",
     '{said}; the table was made with a key on {columns}, so each row is kept once': '{said}؛ أُنشئ الجدول بمفتاح على {columns}، لذا يُحفظ كل صف مرة واحدة',
+    'This connection is not shared with you': 'هذا الاتصال غير مشارك معك',
+    'This kind of connection is not watched live': 'هذا النوع من الاتصالات لا يُتابَع مباشرةً',
+    'Watching stopped': 'توقفت المتابعة',
+    'The first frame opens a watch': 'الإطار الأول يفتح متابعة',
+    'Sign in again to watch this': 'سجّل الدخول مجددًا لمتابعة هذا',
+    'No such node': 'لا توجد عقدة كهذه',
 }

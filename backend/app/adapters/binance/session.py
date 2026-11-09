@@ -19,13 +19,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, Protocol
 from urllib.parse import urlencode
 
 import httpx
 
 from app.adapters.binance.markets import BY_KEY, HOSTS, MARKETS, Market, MarketKey
-from app.adapters.binance.options import HOSTS_OF, BinanceOptions, key_of
+from app.adapters.binance.options import HOSTS_OF, BinanceOptions, Hosts, key_of
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.resources import Pooling
 from app.core.logs import record_failure, with_ref
@@ -99,9 +99,13 @@ class Pinged:
     failure: str | None
 
 
+class Closable(Protocol):
+    async def close(self) -> None: ...
+
+
 @dataclass
 class BinanceKept:
-    """What a connection keeps between requests."""
+    """What a connection keeps between requests, and its live streams (D323)."""
 
     client: httpx.AsyncClient
     markets: dict[MarketKey, MarketState] = field(
@@ -109,8 +113,18 @@ class BinanceKept:
             key: MarketState(limit=BY_KEY[key].weight_limit) for key in MARKETS
         }
     )
+    # By stream address; a stream is dropped here by its last watcher.
+    streams: dict[str, Closable] = field(default_factory=dict)
+
+    def forget_stream(self, stream: Closable) -> None:
+        for url, kept in list(self.streams.items()):
+            if kept is stream:
+                del self.streams[url]
 
     async def close(self) -> None:
+        for stream in list(self.streams.values()):
+            await stream.close()
+        self.streams.clear()
         await self.client.aclose()
 
 
@@ -150,6 +164,10 @@ class BinanceSession:
 
     def host(self, market: Market) -> str:
         return HOSTS[HOSTS_OF[self._options.endpoint]][market.key]
+
+    @property
+    def hosts(self) -> Hosts:
+        return HOSTS_OF[self._options.endpoint]
 
     @property
     def main_hosts(self) -> bool:

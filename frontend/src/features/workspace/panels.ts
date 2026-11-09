@@ -77,6 +77,7 @@ export const CONTENT_REPRESENTATIONS = [
   "database",
   "tree",
   "documents",
+  "market",
 ] as const
 export type ContentRepresentation = (typeof CONTENT_REPRESENTATIONS)[number]
 
@@ -345,6 +346,10 @@ const DatabasePanelView = defineAsyncComponent(
 )
 const PdfPanelView = defineAsyncComponent(
   () => import("@/features/content/PdfPanel.vue")
+)
+// A symbol watched live (D323): a chart, a book and a tape on a socket of its own.
+const MarketPanelView = defineAsyncComponent(
+  () => import("@/features/market/MarketPanel.vue")
 )
 // A source's own JSON, read only, and a collection's documents (D295): not a
 // file's text, so not the editor a file's JSON opens in.
@@ -794,6 +799,16 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
             title: panel.title,
             connectorName: panel.connectorName,
             adapterType: panel.adapterType,
+          })
+        )
+      }
+      if (representation === "market") {
+        return bind(key, () =>
+          h(MarketPanelView, {
+            panelId: panel.id,
+            connectorId: panel.connectorId,
+            nodeId: panel.nodeId,
+            title: panel.title,
           })
         )
       }

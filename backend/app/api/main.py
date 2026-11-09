@@ -9,6 +9,7 @@ from app.connectors.declared_routes import router as declared_references_router
 from app.connectors.paste.routes import router as paste_router
 from app.connectors.routes import router as connectors_router
 from app.connectors.ssh_key_routes import router as ssh_keys_router
+from app.connectors.watch import router as watch_router
 from app.core.config import settings
 from app.core.problems import ProblemResponse
 from app.guide.routes import router as guide_router
@@ -65,6 +66,7 @@ api_router.include_router(search_router)
 api_router.include_router(kept_names_router)
 api_router.include_router(realtime_router)
 api_router.include_router(terminals_router)
+api_router.include_router(watch_router)
 
 # Imported for its registration: the health topic is about connectors, so it
 # lives with them, and the socket learns of it here rather than knowing it.

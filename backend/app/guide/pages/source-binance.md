@@ -14,6 +14,7 @@ work in general is on the [Connections](connections.md) page.
 - A symbol's trades, newest first, by id or from a time
 - A symbol's order book, bids and asks, with running totals
 - With a key: balances, positions, orders, own trades, deposits, withdrawals
+- A symbol's market live: its chart, order book and trades on one screen
 - Any of them downloaded as a file
 - Binance's status, its clock, and how much of the rate limit is used
 - The rate limit and Binance's answers on a dashboard
@@ -49,6 +50,19 @@ not help.
 - A quote asset holds its symbols: only those trading now.
 - A symbol holds **Candles**, with a series per interval, **Trades** and
   **Order book**.
+
+## Market
+
+**Market**, the first node of every symbol, opens a tab that moves as the
+market does: the day across the top, candles over their volume, the order
+book with each level's depth, and the trades as they happen.
+
+- Choose the candle interval at the top; scroll or drag the chart to look
+  back.
+- It costs almost nothing of the rate limit: after the first moment
+  everything comes from Binance's streams. Several tabs on one symbol share
+  one stream.
+- If the network drops, the tab says so and comes back by itself.
 
 ## Tables
 
