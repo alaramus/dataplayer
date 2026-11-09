@@ -15,6 +15,7 @@ import { createFileConnector, createPostgresConnector } from "./utils/connectors
 import { login } from "./utils/login"
 import { toast } from "./utils/notices"
 import { signedApi } from "./utils/search"
+import { requireE2EService } from "./utils/services"
 import {
   catalogTabIcon,
   connectorRow,
@@ -343,6 +344,7 @@ test("deleting a connection asks whether its open tabs go with it", async ({ pag
 })
 
 test("a tree says where it stands and shuts every branch at once", async ({ page, request }) => {
+  await requireE2EService("zookeeper")
   const name = `e2e-tree-${Date.now()}`
   await login(page)
   const api = await signedApi(page)

@@ -275,7 +275,7 @@ Known deviations:
   dropped when the layout starts following them. The keys a layout was once
   kept under for everyone are removed.
 - **Deleting a connector asks whether its tabs go too**, ticked by default; one
-  guarded against closing stays (D66). A kept tab shows the server's error, since
+  guarded against closing stays (D66), and a console is not asked about (D63). A kept tab shows the server's error, since
   it cannot tell a deleted connector from a failed request.
 - **A closed panel's component definition is still held.** The map of bound
   components in `features/workspace/panels.ts` keeps definitions for the page's

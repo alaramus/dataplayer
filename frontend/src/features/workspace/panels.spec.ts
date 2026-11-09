@@ -624,6 +624,7 @@ describe("the tabs a watching source reads again (D303)", () => {
     expect(ids).toEqual(expect.arrayContaining([samples.catalog.id, samples.rows.id, samples.content.id]))
     expect(ids).not.toContain(elsewhere.id)
     expect(ids).not.toContain(samples.connectors.id)
+    expect(ids).not.toContain(samples.query.id)
     expect(panelsOn(panels, "c3")).toEqual([])
   })
 
