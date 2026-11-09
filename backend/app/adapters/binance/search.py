@@ -6,6 +6,7 @@ and ETHBTC by its quote asset; a name that matches itself outranks one that
 matches by an asset.
 """
 
+import asyncio
 from collections.abc import AsyncIterator, Sequence
 
 from app.adapters.binance.catalog import market_node, place_of, quote_node, symbol_node
@@ -80,9 +81,14 @@ class BinanceSearch:
         markets, quote = _scope(request.node_id)
         kept: Kept[tuple[int, int, Market, Symbol]] = Kept(request.limit)
         extent = 0
-        for key in markets:
+        # The markets' lists at once: read one after another they took longer
+        # than a search waits for a connection.
+        lists = await asyncio.gather(
+            *(self._session.symbols(BY_KEY[key]) for key in markets)
+        )
+        for key, symbols in zip(markets, lists, strict=True):
             market = BY_KEY[key]
-            for order, symbol in enumerate(await self._session.symbols(market)):
+            for order, symbol in enumerate(symbols):
                 if quote is not None and symbol.quote != quote:
                     continue
                 extent += 1

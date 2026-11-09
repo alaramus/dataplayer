@@ -11,6 +11,7 @@ would take a market past 80% of its limit is not sent. Nothing is retried by
 itself.
 """
 
+import asyncio
 import hashlib
 import hmac
 import logging
@@ -82,6 +83,9 @@ class MarketState:
     symbols_at: float = 0.0
     # When the list was read, by the wall clock, for a report to say.
     symbols_read_at: float | None = None
+    # The read under way, which every asker waits on rather than starting
+    # another.
+    symbols_reading: asyncio.Task[list[Symbol]] | None = None
     tickers: list[dict[str, Any]] | None = None
     tickers_at: float = 0.0
     # How far Binance's clock is ahead of this server's, for a signed
@@ -365,30 +369,45 @@ class BinanceSession:
         return AdapterError("network", say("Binance is not answering"))
 
     async def symbols(self, market: Market) -> list[Symbol]:
-        """The market's trading symbols, read at most once an hour."""
+        """The market's trading symbols, read at most once an hour.
+
+        The read is a task of its own that a caller only waits on: a search
+        is cut off after two seconds (D200), and a read cancelled with it
+        would leave the list unread, so the next search would start from
+        nothing and be cut off again.
+        """
         async with self.kept() as kept:
             state = kept.markets[market.key]
             now = time.monotonic()
             if state.symbols is not None and now - state.symbols_at < SYMBOLS_SECONDS:
                 return state.symbols
-            params = (
-                {"symbolStatus": "TRADING", "showPermissionSets": "false"}
-                if market.key == "spot"
-                else {}
-            )
-            info = await self._get(kept, market, "exchangeInfo", params, "")
-            state.symbols = symbols_of(info)
-            state.symbols_at = now
-            state.symbols_read_at = time.time()
-            for limit in info.get("rateLimits") or []:
-                if (
-                    limit.get("rateLimitType") == "REQUEST_WEIGHT"
-                    and limit.get("interval") == "MINUTE"
-                    and limit.get("intervalNum") == 1
-                    and isinstance(limit.get("limit"), int)
-                ):
-                    state.limit = limit["limit"]
-            return state.symbols
+            reading = state.symbols_reading
+            if reading is None or reading.done():
+                reading = asyncio.create_task(self._read_symbols(kept, market))
+                reading.add_done_callback(_forget_failure)
+                state.symbols_reading = reading
+            return await asyncio.shield(reading)
+
+    async def _read_symbols(self, kept: BinanceKept, market: Market) -> list[Symbol]:
+        state = kept.markets[market.key]
+        params = (
+            {"symbolStatus": "TRADING", "showPermissionSets": "false"}
+            if market.key == "spot"
+            else {}
+        )
+        info = await self._get(kept, market, "exchangeInfo", params, "")
+        state.symbols = symbols_of(info)
+        state.symbols_at = time.monotonic()
+        state.symbols_read_at = time.time()
+        for limit in info.get("rateLimits") or []:
+            if (
+                limit.get("rateLimitType") == "REQUEST_WEIGHT"
+                and limit.get("interval") == "MINUTE"
+                and limit.get("intervalNum") == 1
+                and isinstance(limit.get("limit"), int)
+            ):
+                state.limit = limit["limit"]
+        return state.symbols
 
     async def symbol(self, market: Market, name: str, node_id: str) -> Symbol:
         """A symbol named by a client, found among the market's or not at all."""
@@ -474,6 +493,12 @@ class BinanceSession:
         return ConnectionCheckResult(
             ok=True, message=say("Connection successful"), latency_ms=elapsed
         )
+
+
+def _forget_failure(task: asyncio.Task[list[Symbol]]) -> None:
+    """A read nobody waited for to the end fails quietly; the next asks again."""
+    if not task.cancelled():
+        task.exception()
 
 
 class StaleTimestamp(Exception):

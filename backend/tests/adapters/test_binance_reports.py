@@ -1,7 +1,12 @@
 """Binance's reports, metrics and search, against a fake Binance (D320)."""
 
+import asyncio
+import uuid
+
+import httpx
 import pytest
 
+from app.adapters.binance import session as binance_session
 from app.adapters.binance.adapter import BinanceAdapter
 from app.adapters.binance.options import BinanceMain, BinanceMarketData
 from app.adapters.binance.session import BinanceSession
@@ -9,6 +14,7 @@ from app.adapters.fetch import FetchRequest
 from app.adapters.protocol import NodeNotFound
 from app.adapters.registry import capabilities_of
 from app.adapters.registry import get as get_adapter_type
+from app.adapters.resources import Pooling, ResourceStore
 from app.adapters.search import NodeSearchRequest, SearchBounds
 from tests.adapters.binance_fixture import FakeBinance, install
 
@@ -194,3 +200,41 @@ def test_the_type_says_it_searches() -> None:
     }
 
     assert "search" in codes
+
+
+async def test_a_search_cut_off_while_the_lists_are_read_still_reads_them(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A search waits two seconds (D200); the lists it started reading are
+    read to the end all the same, so the next search finds them kept."""
+    fake = install(monkeypatch)
+
+    async def slowly(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(0.2)
+        return fake.answer(request)
+
+    monkeypatch.setattr(
+        binance_session,
+        "make_client",
+        lambda: httpx.AsyncClient(transport=httpx.MockTransport(slowly)),
+    )
+    store = ResourceStore(max_entries=4, max_idle_seconds=60)
+    pooling = Pooling(store=store, connector_id=uuid.uuid4())
+    adapter = BinanceAdapter(BinanceSession(BinanceMain(), pooling))
+    request = NodeSearchRequest(query="btc", limit=10)
+    try:
+        with pytest.raises(TimeoutError):
+            async with asyncio.timeout(0.05):
+                await adapter.search_nodes(request, SearchBounds.within(10))
+        await asyncio.sleep(0.4)
+        asked = len(fake.asked)
+
+        async with asyncio.timeout(0.1):
+            found = await adapter.search_nodes(request, SearchBounds.within(10))
+    finally:
+        await store.aclose()
+
+    assert found.matches
+    # The three markets' lists were read once, in the search that was cut off.
+    assert asked == 3
+    assert len(fake.asked) == 3
