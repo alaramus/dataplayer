@@ -175,10 +175,11 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   await page.getByTestId("action-submit").click()
 
   // 10. A server shown that could be started here. The last chapter offers
-  // Finish alone, and pressing the start button itself ends the tour rather
-  // than sending the hint back to the chapter's first step.
+  // Finish and the list of tours, and pressing the start button itself ends
+  // the tour rather than sending the hint back to the chapter's first step.
   await expect(page.getByTestId("tour-position")).toHaveText("Step 10 of 10")
   await expect(page.getByTestId("tour-end")).toHaveCount(0)
+  await expect(page.getByTestId("tour-more")).toHaveText("See more tours")
   await page.getByTestId("add-connector").click()
   await expectRingOn(page, "adapter-redis")
   await page.getByTestId("adapter-redis").click()

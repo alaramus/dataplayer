@@ -16,6 +16,7 @@ export const onboarding: Messages["onboarding"] = {
   close_confirm: "टूर समाप्त करें",
   keep_going: "जारी रखें",
   end_tour: "टूर समाप्त करें",
+  more_tours: "और टूर देखें",
   tour: {
     make: {
       title: "एक डेटाबेस बनाएँ",

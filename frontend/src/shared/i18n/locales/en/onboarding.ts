@@ -15,6 +15,7 @@ export const onboarding = {
   close_confirm: "End tour",
   keep_going: "Keep going",
   end_tour: "End tour",
+  more_tours: "See more tours",
   tour: {
     make: {
       title: "Make a database",

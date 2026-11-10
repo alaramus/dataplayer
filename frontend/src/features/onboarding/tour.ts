@@ -91,6 +91,8 @@ export interface TourDefinition {
   cleanup?: (kit: TourKit, memory: TourMemory) => Promise<void>
   /** A closing card after the last chapter; without one the tour ends there. */
   closing?: { title: () => string; text: () => string }
+  /** Its last chapter offers the list of tours in Preferences beside Finish. */
+  moreTours?: boolean
 }
 
 /**

@@ -17,6 +17,7 @@ export const onboarding: Messages["onboarding"] = {
   close_confirm: "إنهاء الجولة",
   keep_going: "متابعة",
   end_tour: "إنهاء الجولة",
+  more_tours: "عرض جولات أخرى",
   tour: {
     make: {
       title: "أنشئ قاعدة بيانات",

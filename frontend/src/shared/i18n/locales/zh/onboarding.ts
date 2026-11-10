@@ -16,6 +16,7 @@ export const onboarding: Messages["onboarding"] = {
   close_confirm: "结束导览",
   keep_going: "继续",
   end_tour: "结束导览",
+  more_tours: "查看更多导览",
   tour: {
     make: {
       title: "创建数据库",

@@ -52,8 +52,9 @@ complete when what it asks has happened.
   with that window open, for the person to go on alone, and so does pressing
   Start itself, whose window would otherwise cover the ringed control and send
   the hint back to the chapter's first step (`pressCompletes`). On a last
-  chapter that only shows, Finish is the hint's only button: ending the tour
-  there is finishing it. A chapter that only shows is completed by the hint's
+  chapter that only shows, Finish replaces End tour: ending the tour there is
+  finishing it. Beside it, See more tours finishes the tour too and opens the
+  Tours section of Preferences (`moreTours`). A chapter that only shows is completed by the hint's
   Next, offered on its last target, on one marked `enough`, or when none of its
   targets is on screen.
 

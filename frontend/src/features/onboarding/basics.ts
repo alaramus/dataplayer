@@ -230,4 +230,5 @@ export const BASICS_TOUR: TourDefinition = {
   title: () => t("onboarding.tours.basics.title"),
   summary: () => t("onboarding.tours.basics.summary"),
   chapters: [made, opened, filtered, edited, queried, disconnected, connected, found, removed, served],
+  moreTours: true,
 }

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue"
+import { useRouter } from "vue-router"
 
+import type { PreferenceSectionId } from "@/features/preferences/sections"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
 import { AppButton, useConfirm, useToast } from "@/shared/ui"
@@ -193,6 +195,7 @@ const canNext = computed(() => {
 })
 /** On a last chapter only shown, ending and finishing are the same: Finish alone. */
 const finishOnly = computed(() => isLast.value && currentChapter.value?.done.kind === "next")
+const offersMoreTours = computed(() => isLast.value && runningTour.value?.moreTours === true)
 
 /** With nothing to ring, the chapter's first step says where to begin. */
 const hint = computed(() => {
@@ -268,6 +271,14 @@ watch(tourFinished, (finished) => {
 function next() {
   nextChapter()
 }
+
+const router = useRouter()
+
+/** Finished all the same, then the list of tours in Preferences. */
+function moreTours() {
+  close()
+  void router.push({ name: "preferences", params: { section: "tours" satisfies PreferenceSectionId } })
+}
 </script>
 
 <template>
@@ -317,6 +328,13 @@ function next() {
               :label="t('onboarding.end_tour')"
               data-testid="tour-end"
               @click="stop"
+            />
+            <AppButton
+              v-if="offersMoreTours"
+              variant="quiet"
+              :label="t('onboarding.more_tours')"
+              data-testid="tour-more"
+              @click="moreTours"
             />
             <AppButton
               v-if="canNext || finishOnly"
@@ -393,6 +411,7 @@ function next() {
 }
 .tour-card__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--dp-space-2);
 }
