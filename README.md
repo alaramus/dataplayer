@@ -24,6 +24,8 @@ are encrypted at rest and never leave the backend.
   and continuous aggregates.
 - <img src="frontend/public/icons/services/mysql.svg" height="20" alt=""> **MySQL** and <img src="frontend/public/icons/services/mariadb.svg" height="20" alt=""> **MariaDB**: connect to databases and work with their catalogs
   and tables.
+- <img src="frontend/public/icons/services/cassandra.svg" height="20" alt=""> **Cassandra** and <img src="frontend/public/icons/services/scylladb.svg" height="20" alt=""> **ScyllaDB**: connect to databases and work with their catalogs
+  and tables.
 - <img src="frontend/public/icons/services/sqlite.svg" height="20" alt=""> **SQLite**: open a database file and browse and edit its tables.
 - <img src="frontend/public/icons/services/clickhouse.svg" height="20" alt=""> **ClickHouse**: A ClickHouse server, over its HTTP interface.
 - <img src="frontend/public/icons/services/mongodb.svg" height="20" alt=""> **MongoDB**: databases and collections, documents read and changed as
