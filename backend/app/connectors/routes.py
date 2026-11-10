@@ -604,9 +604,10 @@ async def create_connector(
     Create a new connector.
     """
     adapter_type = adapter_type_or_422(connector_in.adapter_type)
-    if connector_in.face is not None and connector_in.face not in {
-        face.key for face in adapter_type.faces
-    }:
+    # A type without faces is its own card, keyed by its name (D264); that card
+    # is the type itself, so nothing is kept.
+    face = None if connector_in.face == adapter_type.name and not adapter_type.faces else connector_in.face
+    if face is not None and face not in {known.key for known in adapter_type.faces}:
         raise HTTPException(
             status_code=422,
             detail=[{"loc": ["body", "face"], "msg": "Unknown card", "type": "value_error"}],
@@ -623,7 +624,7 @@ async def create_connector(
         tab_color=connector_in.tab_color,
         cache_ttl_seconds=connector_in.cache_ttl_seconds,
         allow_third_party_transfer=connector_in.allow_third_party_transfer,
-        face=connector_in.face,
+        face=face,
     )
     return await _public(session, connector, "own")
 

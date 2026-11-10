@@ -120,7 +120,8 @@ types matches a card's title as a name. A type without faces is its own card.
 
 A connection keeps the card it was made from as its `face`: the card the
 connection window was opened from, or the card whose template a service was
-started from; one its type does not have is refused. Lists, tabs and windows
+started from; one its type does not have is refused. A type without faces is
+its own card, so its name is accepted and nothing is kept. Lists, tabs and windows
 draw the connection as that card, MariaDB rather than MySQL, ScyllaDB rather
 than Cassandra. A connection made before the column, by hand, has none and is
 drawn as its type; one a service made was given its card by the migration.

@@ -356,3 +356,15 @@ async def test_a_card_its_type_does_not_have_is_refused(
     )
 
     assert response.status_code == 422
+
+
+async def test_a_type_of_one_card_is_made_from_its_own_name(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The window sends the card it was opened from; for postgres that is `postgres` (D264)."""
+    response = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={**_payload("pg"), "face": "postgres"}
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["face"] is None
