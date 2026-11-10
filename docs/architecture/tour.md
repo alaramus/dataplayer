@@ -48,10 +48,14 @@ complete when what it asks has happened.
   its file are deleted by the person; the folder connection made on the way
   stays.
 - **It ends on a server that could be started here.** The last chapter rings
-  Redis's Start in the catalog of types and starts nothing; Next ends the tour
-  with that window open, for the person to go on alone. A chapter that only
-  shows is completed by the hint's Next, offered on its last target, on one
-  marked `enough`, or when none of its targets is on screen.
+  Redis's Start in the catalog of types and starts nothing; Finish ends the tour
+  with that window open, for the person to go on alone, and so does pressing
+  Start itself, whose window would otherwise cover the ringed control and send
+  the hint back to the chapter's first step (`pressCompletes`). On a last
+  chapter that only shows, Finish is the hint's only button: ending the tour
+  there is finishing it. A chapter that only shows is completed by the hint's
+  Next, offered on its last target, on one marked `enough`, or when none of its
+  targets is on screen.
 
 Known deviations:
 

@@ -33,6 +33,11 @@ export interface TourTarget {
   ready?: (memory: TourMemory, find: Finder) => boolean
   /** In a chapter only shown, ringed here is far enough for Next. */
   enough?: boolean
+  /**
+   * In a chapter only shown, pressing the control completes it: what it opens
+   * covers the chapter's own targets, and the hint would fall back to the first.
+   */
+  pressCompletes?: boolean
 }
 
 /** A successful mutation, as the mutation cache tells it. */

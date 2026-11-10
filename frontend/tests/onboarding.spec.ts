@@ -174,18 +174,23 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   await expectRingOn(page, "action-submit")
   await page.getByTestId("action-submit").click()
 
-  // 10. A server shown that could be started here; nothing is started, and
-  // the catalog stays open when the tour ends.
+  // 10. A server shown that could be started here. The last chapter offers
+  // Finish alone, and pressing the start button itself ends the tour rather
+  // than sending the hint back to the chapter's first step.
   await expect(page.getByTestId("tour-position")).toHaveText("Step 10 of 10")
+  await expect(page.getByTestId("tour-end")).toHaveCount(0)
   await page.getByTestId("add-connector").click()
   await expectRingOn(page, "adapter-redis")
   await page.getByTestId("adapter-redis").click()
   await expectRingOn(page, "start-service-redis")
+  await expect(page.getByTestId("tour-next")).toHaveText("Finish")
   await page.screenshot({ path: testInfo.outputPath("10-service.png") })
-  await page.getByTestId("tour-next").click()
+  await page.getByTestId("start-service-redis").click()
   await expect(hint(page)).toHaveCount(0)
-  await expect(page.getByTestId("adapter-catalog")).toBeVisible()
-  await page.keyboard.press("Escape")
+  const start = page.getByRole("dialog").filter({ has: page.getByTestId("start-service-dialog") })
+  await start.getByRole("button", { name: "Cancel", exact: true }).click()
+  await expect(page.getByTestId("start-service-dialog")).toHaveCount(0)
+  await expect(hint(page)).toHaveCount(0)
   await page.reload()
   await expect(page.getByTestId("onboarding-dialog")).toHaveCount(0)
 

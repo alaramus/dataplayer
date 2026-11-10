@@ -143,8 +143,20 @@ watch(
   },
   { immediate: true }
 )
+/**
+ * Capture phase, so the chapter completes before what the press opens can
+ * hide the control and send the hint back to the chapter's first target.
+ */
+function pressed(event: MouseEvent) {
+  const chapter = currentChapter.value
+  if (chapter === null || lastElement === null || !(event.target instanceof Node)) return
+  if (chapter.targets[targetIndex.value]?.pressCompletes !== true) return
+  if (lastElement.contains(event.target)) nextChapter()
+}
+
 let unsubscribe = () => {}
 onMounted(() => {
+  document.addEventListener("click", pressed, true)
   unsubscribe = queryClient.getMutationCache().subscribe((event) => {
     if (event.type !== "updated" || event.action.type !== "success") return
     offerMutation({
@@ -155,6 +167,7 @@ onMounted(() => {
   })
 })
 onBeforeUnmount(() => {
+  document.removeEventListener("click", pressed, true)
   unsubscribe()
   cancelAnimationFrame(handle)
 })
@@ -178,6 +191,8 @@ const canNext = computed(() => {
   const chapter = currentChapter.value
   return chapter !== null && offersNext(chapter, targetIndex.value)
 })
+/** On a last chapter only shown, ending and finishing are the same: Finish alone. */
+const finishOnly = computed(() => isLast.value && currentChapter.value?.done.kind === "next")
 
 /** With nothing to ring, the chapter's first step says where to begin. */
 const hint = computed(() => {
@@ -297,13 +312,14 @@ function next() {
         <div class="tour-card__actions">
           <template v-if="!tourFinished">
             <AppButton
+              v-if="!finishOnly"
               variant="quiet"
               :label="t('onboarding.end_tour')"
               data-testid="tour-end"
               @click="stop"
             />
             <AppButton
-              v-if="canNext"
+              v-if="canNext || finishOnly"
               :label="isLast ? t('onboarding.finish') : t('onboarding.next')"
               data-testid="tour-next"
               @click="next"

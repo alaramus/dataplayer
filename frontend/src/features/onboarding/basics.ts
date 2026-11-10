@@ -206,8 +206,8 @@ const removed: TourChapter = {
 
 /**
  * The last chapter only shows: a server this application starts in Docker,
- * Redis because nothing before looked like it. Nothing is started; the tour
- * ends with the catalog open, for the person to go on alone.
+ * Redis because nothing before looked like it. The tour starts nothing: it
+ * ends on Finish, or on the person pressing the start button themselves.
  */
 const served: TourChapter = {
   id: "service",
@@ -219,6 +219,7 @@ const served: TourChapter = {
       locate: () => testId(`start-service-${SERVICE_SHOWN}`),
       hint: say("onboarding.tour.service.start"),
       ready: (_, find) => find(`${testId(`adapter-${SERVICE_SHOWN}`)}[aria-pressed="true"]`) !== null,
+      pressCompletes: true,
     },
   ],
   done: { kind: "next" },
