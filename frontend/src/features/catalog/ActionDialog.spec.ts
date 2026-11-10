@@ -771,6 +771,8 @@ describe("uploading files", () => {
 describe("a file too large for one request", () => {
   it("is loaded by a job instead, and the window closes", async () => {
     vi.spyOn(ConnectorsService, "runActionWithFile").mockRejectedValue(refused(413))
+    // The form reads the schemas when it opens; unanswered, jsdom sends it for real.
+    vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({ data: [] } as never)
     const job = vi.spyOn(ConnectorsService, "loadCsvJob").mockResolvedValue({
       data: { outcome: "started", job: { id: "job-9" } },
     } as never)
