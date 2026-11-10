@@ -59,6 +59,8 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "connectors.no_live_changes": "هذا المصدر لا يُبلغ عن التغييرات",
   "connectors.no_connection_string": "هذا المصدر لا يُعنون بسلسلة اتصال",
   "connectors.not_made_here": "لا يمكن إنشاء مصدر من هذا النوع على هذا الخادم",
+  "connectors.no_file_to_remove": "لا يحمل هذا الاتصال أي ملف من تخزينك لحذفه",
+  "connectors.file_shared": "{names} تفتح هذا الملف أيضًا؛ احذفها أولًا أو أبقِ الملف",
   "connectors.no_server_key": "هذا المصدر لا يثبّت مفتاح خادم",
   "connectors.no_reading_rows": "هذا المصدر لا يدعم قراءة الصفوف",
   "connectors.no_content_viewers": "هذا المصدر لا يدعم عارضات المحتوى",

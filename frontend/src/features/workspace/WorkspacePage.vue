@@ -41,6 +41,7 @@ import { gainedPanels } from "@/features/workspace/gainedPanels"
 import { searchFromOf } from "@/features/workspace/catalogSides"
 import SearchField from "@/features/search/SearchField.vue"
 import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
+import TourHost from "@/features/onboarding/TourHost.vue"
 import { usePreferences } from "@/features/preferences/api"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiSpace from "@/features/ai/AiSpace.vue"
@@ -1401,6 +1402,7 @@ onBeforeUnmount(unregisterSearch)
     </div>
 
     <OnboardingDialog v-model="onboardingOpen" />
+    <TourHost />
 
     <AdapterCatalogDialog
       v-model="catalogOpen"

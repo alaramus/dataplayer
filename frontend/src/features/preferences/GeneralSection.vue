@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed } from "vue"
 
-import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
 import { useMyStorage } from "@/features/preferences/api"
 import { useLanguageChoice } from "@/features/preferences/languageChoice"
 import { storageWording } from "@/features/preferences/storage"
 import VoiceSelect from "@/features/speech/VoiceSelect.vue"
 import { speechSupported } from "@/features/speech/voices"
 import { t } from "@/shared/i18n"
-import { AppButton, AppForm, AppProgress, AppSelect, AppSettingRow } from "@/shared/ui"
+import { AppForm, AppProgress, AppSelect, AppSettingRow } from "@/shared/ui"
 import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
@@ -20,9 +19,6 @@ import type { ThemeMode } from "@/stores/theme"
 const theme = useThemeStore()
 const speechOk = speechSupported()
 
-// The welcome tour, on demand: finished or skipped long ago, it opens here
-// again from its first clip rather than from the theme choice above.
-const tourOpen = ref(false)
 
 const language = useLanguageChoice()
 
@@ -90,21 +86,7 @@ const storageShown = computed(() => storage.data.value ? storageWording(storage.
         />
       </div>
     </AppSettingRow>
-    <AppSettingRow
-      :title="t('preferences.tour')"
-      :summary="t('preferences.tour_summary')"
-    >
-      <AppButton
-        :label="t('preferences.replay_tour')"
-        data-testid="preference-replay-tour"
-        @click="tourOpen = true"
-      />
-    </AppSettingRow>
   </div>
-  <OnboardingDialog
-    v-model="tourOpen"
-    start-phase="tour"
-  />
 </template>
 
 <style scoped>

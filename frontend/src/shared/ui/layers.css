@@ -63,6 +63,12 @@
      the list of what was found opens. */
   --dp-layer-search: 5500;
 
+  /* The tour's dim, ring and hint (D355): over everything of ours, a window
+     and the search included, because what it points at may be in either; and
+     under Quasar's menus and dialogs, because a ringed control often opens
+     one and the person must be able to use it. */
+  --dp-layer-tour: 5800;
+
   /* A message that has just been said: above everything, ours and Quasar's
      alike, which is where Quasar's own notifications were drawn. Most of the
      application's messages are raised from inside a floating window — a

@@ -59,6 +59,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_live_changes": "Esta fuente no avisa de los cambios",
   "connectors.no_connection_string": "Esta fuente no tiene cadena de conexión",
   "connectors.not_made_here": "Una fuente de este tipo no se puede crear en este servidor",
+  "connectors.no_file_to_remove": "Esta conexión no tiene ningún archivo de tu almacenamiento que eliminar",
+  "connectors.file_shared": "{names} también abren este archivo; elimínalas primero o conserva el archivo",
   "connectors.no_server_key": "Esta fuente no tiene clave de servidor",
   "connectors.no_reading_rows": "Esta fuente no admite la lectura de filas",
   "connectors.no_content_viewers": "Esta fuente no admite visores de contenido",

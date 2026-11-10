@@ -23,6 +23,12 @@ export const PREFERENCE_SECTIONS = [
     get summary() { return t("preferences.sections.ssh_keys_summary") },
     icon: appIcons.sshKey,
   },
+  {
+    id: "tours",
+    get title() { return t("preferences.sections.tours") },
+    get summary() { return t("preferences.sections.tours_summary") },
+    icon: appIcons.lightbulb,
+  },
 ] as const satisfies readonly [PageSection, ...PageSection[]]
 
 /** A section's address, so a link into one is checked against the list. */

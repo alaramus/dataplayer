@@ -4,11 +4,13 @@ export const preferences = {
   not_saved: "The preference could not be saved",
   sections: {
     general: "General",
-    general_summary: "Language, theme, reading voice and the welcome tour",
+    general_summary: "Language, theme and reading voice",
     connections: "Connections",
     connections_summary: "How often connections are checked while a workspace is open",
     ssh_keys: "SSH keys",
     ssh_keys_summary: "The keys this account uses for SSH connections",
+    tours: "Tours",
+    tours_summary: "The welcome tour and short tours of each part, taken whenever you want",
   },
   language_summary:
     "The language of the whole interface. Kept with the account, so it follows it to any browser; until one is chosen, the browser's own is used.",
@@ -18,10 +20,6 @@ export const preferences = {
   voice: "Reading voice",
   voice_summary:
     "The voice reading messages aloud, anywhere they are read. Voices are this browser's own. Kept in this browser.",
-  tour: "Welcome tour",
-  tour_summary:
-    "The short clips from the first visit, one for each main part of the application. Opens here again whenever it is wanted.",
-  replay_tour: "Replay tour",
   storage: "Personal storage",
   storage_summary: "Your own files on this server, against the limit an administrator set",
   storage_used: "{used} of {limit} in use",

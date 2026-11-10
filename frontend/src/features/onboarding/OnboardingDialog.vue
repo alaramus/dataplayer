@@ -1,122 +1,55 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
-
-import { usePreferences, useUpdatePreferences } from "@/features/preferences/api"
 import { useLanguageChoice } from "@/features/preferences/languageChoice"
-import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
-import { AppButton, AppForm, AppRadioGroup, AppSelect, useConfirm, useToast } from "@/shared/ui"
+import { AppButton, AppForm, AppRadioGroup, AppSelect, useConfirm } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
-import { ONBOARDING_STEPS } from "./onboarding"
+import { useTourDone } from "./done"
+import { BASICS_TOUR } from "./basics"
+import { startTour } from "./runner"
 
 /**
- * The first-visit welcome: the language and a theme, then a short video tour.
+ * The first-visit welcome: the language and a theme, then the tour or not.
  *
  * A window of its own rather than a page: it opens over the workspace the
- * person has just arrived at and goes away whole. Finishing or skipping
- * records the tour as done, so later visits open straight into the work.
+ * person has just arrived at and goes away whole. The tour itself runs over
+ * the workspace (D355), so taking it closes this window; turning it down
+ * records the welcome as done, so later visits open straight into the work.
  */
-type Phase = "theme" | "tour"
-
-const props = withDefaults(
-  defineProps<{
-    modelValue: boolean
-    /**
-     * Where the welcome starts. The workspace starts at the theme choice;
-     * replaying it from Preferences starts at the tour itself.
-     */
-    startPhase?: Phase
-  }>(),
-  { startPhase: "theme" }
-)
+const props = defineProps<{ modelValue: boolean }>()
 
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 
 const theme = useThemeStore()
 const language = useLanguageChoice()
+const { done, markDone } = useTourDone()
 
-const phase = ref<Phase>(props.startPhase)
-const stepIndex = ref(0)
-
-const step = computed(() => ONBOARDING_STEPS[stepIndex.value] ?? ONBOARDING_STEPS[0])
-const isFirstStep = computed(() => stepIndex.value === 0)
-const isLastStep = computed(() => stepIndex.value === ONBOARDING_STEPS.length - 1)
-const position = computed(() =>
-  t("onboarding.position", { n: stepIndex.value + 1, total: ONBOARDING_STEPS.length })
-)
-const primaryLabel = computed(() =>
-  phase.value === "theme"
-    ? t("onboarding.start")
-    : isLastStep.value
-      ? t("onboarding.finish")
-      : t("onboarding.next")
-)
-
-function reset() {
-  phase.value = props.startPhase
-  stepIndex.value = 0
+/** Done once the tour ends or is ended, not now: a reload brings the welcome back. */
+function takeTour() {
+  emit("update:modelValue", false)
+  startTour(BASICS_TOUR)
 }
 
-const preferences = usePreferences()
-const savePreferences = useUpdatePreferences()
-const toast = useToast()
-const tourDone = computed(() => preferences.data.value?.welcome_tour_done === true)
-
-/** Kept on the account, so no other browser of this person opens it again. */
-async function markDone() {
-  if (tourDone.value) return
-  try {
-    await savePreferences.mutateAsync({ welcome_tour_done: true })
-  } catch (cause) {
-    toast.error(messageOf(cause, t("onboarding.mark_failed")))
-  }
-}
-
-/** Done, whether watched to the end or skipped halfway: never show again. */
-function finish() {
+function lookAround() {
   void markDone()
   emit("update:modelValue", false)
 }
 
-// Whatever closed it — a button, the frame's cross — the next opening
-// starts over rather than mid-sentence.
-watch(
-  () => props.modelValue,
-  (open) => {
-    if (!open) reset()
-  }
-)
-
 const confirm = useConfirm()
 
-/**
- * The cross counts as skipping: ask first, and say where the tour is kept.
- * Replaying it from Preferences, it is already done — nothing to ask.
- */
+/** The cross counts as turning the tour down: ask first, and say where it is kept. */
 async function confirmClose(): Promise<boolean> {
-  if (tourDone.value) return true
+  if (done.value) return true
   const close = await confirm({
     title: t("onboarding.close_title"),
     message: t("onboarding.close_message"),
     confirmLabel: t("onboarding.close_confirm"),
-    cancelLabel: t("onboarding.keep_watching"),
+    cancelLabel: t("onboarding.keep_going"),
   })
   if (close) void markDone()
   return close
-}
-
-function primary() {
-  if (phase.value === "theme") phase.value = "tour"
-  else if (isLastStep.value) finish()
-  else stepIndex.value += 1
-}
-
-function back() {
-  if (phase.value === "tour" && isFirstStep.value) phase.value = "theme"
-  else stepIndex.value -= 1
 }
 
 function chooseTheme(value: string) {
@@ -134,10 +67,7 @@ function chooseTheme(value: string) {
     data-testid="onboarding-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <div
-      v-if="phase === 'theme'"
-      class="onboarding"
-    >
+    <div class="onboarding">
       <p class="onboarding__intro">
         {{ t('onboarding.intro') }}
       </p>
@@ -167,52 +97,22 @@ function chooseTheme(value: string) {
           @update:model-value="chooseTheme"
         />
       </AppForm>
-    </div>
-
-    <!-- `step` guards the indexing: the index only ever names a shown step,
-         but the type cannot know that (noUncheckedIndexedAccess). -->
-    <div
-      v-else-if="step"
-      class="onboarding"
-    >
-      <div class="onboarding__head">
-        <span
-          class="onboarding__position"
-          data-testid="onboarding-position"
-        >{{ position }}</span>
-        <span class="onboarding__title">{{ step.title }}</span>
-      </div>
-      <!-- :key restarts the player when the step changes: without it the
-           previous clip keeps its last frame under the new title. -->
-      <video
-        :key="step.id"
-        class="onboarding__video"
-        :src="step.src"
-        controls
-        preload="metadata"
-        playsinline
-        data-testid="onboarding-video"
-      />
+      <p class="onboarding__intro">
+        {{ t('onboarding.tour_offer') }}
+      </p>
     </div>
 
     <template #actions>
       <AppButton
         variant="quiet"
-        :label="phase === 'theme' ? t('onboarding.skip_tour') : t('onboarding.skip')"
+        :label="t('onboarding.look_around')"
         data-testid="onboarding-skip"
-        @click="finish"
+        @click="lookAround"
       />
       <AppButton
-        v-if="phase === 'tour'"
-        variant="quiet"
-        :label="t('catalog.common.back')"
-        data-testid="onboarding-back"
-        @click="back"
-      />
-      <AppButton
-        :label="primaryLabel"
+        :label="t('onboarding.take_tour')"
         data-testid="onboarding-primary"
-        @click="primary"
+        @click="takeTour"
       />
     </template>
   </WindowDialog>
@@ -236,34 +136,5 @@ function chooseTheme(value: string) {
 }
 .onboarding__language {
   max-width: var(--dp-width-popover);
-}
-.onboarding__head {
-  display: flex;
-  align-items: baseline;
-  gap: var(--dp-space-3);
-  min-width: 0;
-}
-.onboarding__position {
-  flex: none;
-  font-size: var(--dp-font-size-sm);
-  line-height: var(--dp-line-height-sm);
-  color: var(--dp-text-muted);
-}
-.onboarding__title {
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* A dark ground behind the clip, so a narrow recording stands on something
-   deliberate rather than on the window's surface while it loads. */
-.onboarding__video {
-  flex: 1;
-  width: 100%;
-  max-height: 100%;
-  min-height: 0;
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius-panel);
-  background: var(--dp-chrome);
 }
 </style>

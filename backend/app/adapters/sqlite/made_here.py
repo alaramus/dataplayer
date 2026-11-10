@@ -8,7 +8,9 @@ the name, the lab or not, and the journal a person asked for.
 
 import re
 import sqlite3
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import MadeSource, MakeChoice
@@ -85,6 +87,30 @@ def make(home_dir: Path, choice: MakeChoice) -> MadeSource:
         # Named as asked, or after the file when the server chose.
         name=named or PurePosixPath(filename).stem,
     )
+
+
+# What SQLite keeps beside a database while it is open or was left mid-write.
+SIDECARS = ("-wal", "-shm", "-journal")
+
+
+def file_of(options: Mapping[str, Any]) -> str | None:
+    """The file a connection holds: every SQLite connection's path is below
+    its owner's home (D247)."""
+    path = options.get("path")
+    if not isinstance(path, str):
+        return None
+    below_home = path.strip().strip("/")
+    return below_home or None
+
+
+def remove(home_dir: Path, path: str) -> None:
+    """The database and its sidecars, each judged by the storage's rule (D8)."""
+    storage = LocalStorage(home_dir)
+    for suffix in ("", *SIDECARS):
+        place = storage.place(f"{path}{suffix}")
+        found = storage.entry(place)
+        if found is not None and not found.is_directory:
+            storage.remove(place)
 
 
 def unmake(home_dir: Path, made: MadeSource) -> None:

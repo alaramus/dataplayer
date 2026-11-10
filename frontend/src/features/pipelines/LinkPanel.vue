@@ -325,6 +325,7 @@ const columnsWord = computed(() => {
     <p
       class="link-panel__result"
       :class="{ 'link-panel__result--failed': closed !== null || linkRun?.outcome === 'failed' }"
+      :data-outcome="linkRun?.outcome"
       data-testid="link-panel-result"
     >
       {{ closed ?? runWords(linkRun, run, now, past) }}

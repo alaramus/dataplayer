@@ -6,11 +6,13 @@ export const preferences: Messages["preferences"] = {
   not_saved: "No se pudo guardar la preferencia",
   sections: {
     general: "General",
-    general_summary: "Idioma, tema, voz de lectura y recorrido de bienvenida",
+    general_summary: "Idioma, tema y voz de lectura",
     connections: "Conexiones",
     connections_summary: "Con qué frecuencia se comprueban las conexiones mientras hay un espacio de trabajo abierto",
     ssh_keys: "Claves SSH",
     ssh_keys_summary: "Las claves que esta cuenta usa para las conexiones SSH",
+    tours: "Recorridos",
+    tours_summary: "El recorrido de bienvenida y recorridos breves por cada parte, cuando quieras",
   },
   language_summary:
     "El idioma de toda la interfaz. Se guarda con la cuenta, así que la acompaña a cualquier navegador; hasta que se elija uno, se usa el del navegador.",
@@ -20,10 +22,6 @@ export const preferences: Messages["preferences"] = {
   voice: "Voz de lectura",
   voice_summary:
     "La voz que lee los mensajes en voz alta, allí donde se lean. Las voces son propias de este navegador. Se guarda en este navegador.",
-  tour: "Recorrido de bienvenida",
-  tour_summary:
-    "Los breves clips de la primera visita, uno por cada parte principal de la aplicación. Se abre aquí de nuevo siempre que se quiera.",
-  replay_tour: "Repetir el recorrido",
   storage: "Almacenamiento personal",
   storage_summary: "Sus propios archivos en este servidor y el límite que fijó un administrador",
   storage_used: "{used} de {limit} en uso",

@@ -7,11 +7,13 @@ export const preferences: Messages["preferences"] = {
   not_saved: "تعذّر حفظ التفضيل",
   sections: {
     general: "عام",
-    general_summary: "اللغة، والسمة، وصوت القراءة، وجولة الترحيب",
+    general_summary: "اللغة والسمة وصوت القراءة",
     connections: "الاتصالات",
     connections_summary: "عدد مرات فحص الاتصالات أثناء فتح مساحة عمل",
     ssh_keys: "مفاتيح SSH",
     ssh_keys_summary: "المفاتيح التي يستخدمها هذا الحساب لاتصالات SSH",
+    tours: "الجولات",
+    tours_summary: "جولة الترحيب وجولات قصيرة في كل جزء، متى شئت",
   },
   language_summary:
     "لغة الواجهة بأكملها. تُحفظ مع الحساب، فتتبعه إلى أي متصفح؛ وإلى أن تُختار لغة، تُستخدم لغة المتصفح.",
@@ -21,10 +23,6 @@ export const preferences: Messages["preferences"] = {
   voice: "صوت القراءة",
   voice_summary:
     "الصوت الذي يقرأ الرسائل بصوت عالٍ، أينما قُرئت. الأصوات خاصة بهذا المتصفح. تُحفظ في هذا المتصفح.",
-  tour: "جولة الترحيب",
-  tour_summary:
-    "المقاطع القصيرة من الزيارة الأولى، مقطع واحد لكل جزء رئيسي من التطبيق. تُفتح هنا من جديد متى شئت.",
-  replay_tour: "إعادة الجولة",
   storage: "التخزين الشخصي",
   storage_summary: "ملفاتك على هذا الخادم والحد الذي وضعه المسؤول",
   storage_used: "{used} مستخدمة من {limit}",

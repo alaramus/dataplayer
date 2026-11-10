@@ -332,5 +332,7 @@ numbered, never overwritten; a file whose connection could not be saved is
 removed; a folder outside the storage is refused (D8). It is not a managed
 service: there is nothing to stop, and the file lives in **Files**. The driver
 says it can through `MakesSourceHere`, and the types list carries `makes_here`.
+Through it too a connection is deleted with its file on request, the `-wal`,
+`-shm` and `-journal` beside it included ([D356](../tour.md)).
 
 Spec: [A SQLite database made here](../../decisions/2026-10-24-sqlite-made-here-design.md)

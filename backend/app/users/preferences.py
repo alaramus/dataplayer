@@ -10,6 +10,8 @@ import uuid
 from typing import Literal, get_args
 
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import Column
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -42,6 +44,19 @@ DEFAULT_CHECK_INTERVAL: CheckInterval = "15s"
 # is a choice of its own, as for the language: follow the operating system.
 Theme = Literal["light", "paper-light", "dark", "paper", "midnight", "dark-blue", "dark-purple"]
 THEMES: tuple[Theme, ...] = get_args(Theme)
+
+
+# The short tours a person can take after the welcome (D356), as the frontend
+# names them. The welcome's own tour stays `welcome_tour_done`.
+TourId = Literal["views", "pipeline", "dashboards", "agent"]
+TOURS: tuple[TourId, ...] = get_args(TourId)
+
+
+def as_tours(values: list[str] | None) -> list[TourId]:
+    """Stored tours read back, in the order they are offered: one this version
+    no longer has is dropped rather than refused."""
+    taken = set(values or [])
+    return [tour for tour in TOURS if tour in taken]
 
 
 def as_theme(value: str | None) -> Theme | None:
@@ -82,6 +97,9 @@ class UserPreferences(SQLModel, table=True):
     # The welcome tour was finished or skipped. On the account rather than in
     # a browser, so it opens once for each person, on whatever machine.
     welcome_tour_done: bool = Field(default=False)
+    tours_done: list[str] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False, server_default="[]")
+    )
     language: str | None = Field(default=None, max_length=8)
     theme: str | None = Field(default=None, max_length=16)
 
@@ -91,6 +109,7 @@ class PreferencesPublic(BaseModel):
 
     connector_checks: CheckInterval
     welcome_tour_done: bool
+    tours_done: list[TourId]
     language: Language | None
     theme: Theme | None
 
@@ -107,6 +126,9 @@ class PreferencesUpdate(BaseModel):
 
     connector_checks: CheckInterval | None = None
     welcome_tour_done: bool | None = None
+    # One tour taken, added to those already taken: a list sent whole would let
+    # two tabs undo each other's.
+    tour_done: TourId | None = None
     # Absent leaves it alone; null says "the browser's" and is a value to store.
     language: Language | None = None
     # Absent leaves it alone; null says "the system's".
@@ -118,12 +140,14 @@ def _public(stored: UserPreferences | None) -> PreferencesPublic:
         return PreferencesPublic(
             connector_checks=DEFAULT_CHECK_INTERVAL,
             welcome_tour_done=False,
+            tours_done=[],
             language=None,
             theme=None,
         )
     return PreferencesPublic(
         connector_checks=as_interval(stored.connector_checks),
         welcome_tour_done=stored.welcome_tour_done,
+        tours_done=as_tours(stored.tours_done),
         language=as_language(stored.language),
         theme=as_theme(stored.theme),
     )
@@ -151,6 +175,9 @@ async def set_for(
         stored.connector_checks = update.connector_checks
     if update.welcome_tour_done is not None:
         stored.welcome_tour_done = update.welcome_tour_done
+    if update.tour_done is not None and update.tour_done not in stored.tours_done:
+        # A new list, so the JSON column is seen as changed.
+        stored.tours_done = [*stored.tours_done, update.tour_done]
     if "language" in update.model_fields_set:
         stored.language = update.language
     if "theme" in update.model_fields_set:

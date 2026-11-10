@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 from typing import Any
@@ -163,6 +163,14 @@ class SqliteAdapter:
     @classmethod
     def unmake_source_here(cls, home_dir: Path, made: MadeSource) -> None:
         made_here.unmake(home_dir, made)
+
+    @classmethod
+    def source_file_here(cls, options: Mapping[str, Any]) -> str | None:
+        return made_here.file_of(options)
+
+    @classmethod
+    def remove_source_here(cls, home_dir: Path, path: str) -> None:
+        made_here.remove(home_dir, path)
 
     async def backup_availability(self) -> BackupAvailability:
         return await self._backup.backup_availability()

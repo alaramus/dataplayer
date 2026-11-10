@@ -59,6 +59,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_live_changes": "此数据源不会通知变化",
   "connectors.no_connection_string": "此数据源没有连接字符串",
   "connectors.not_made_here": "无法在此服务器上创建此类数据源",
+  "connectors.no_file_to_remove": "此连接没有占用你存储中可删除的文件",
+  "connectors.file_shared": "{names} 也打开了此文件；请先删除它们，或保留该文件",
   "connectors.no_server_key": "此数据源不记录服务器密钥",
   "connectors.no_reading_rows": "此数据源不支持读取行",
   "connectors.no_content_viewers": "此数据源不支持内容查看器",

@@ -10274,6 +10274,10 @@ export type PreferencesPublic = {
    */
   welcome_tour_done: boolean
   /**
+   * Tours Done
+   */
+  tours_done: Array<"views" | "pipeline" | "dashboards" | "agent">
+  /**
    * Language
    */
   language: "en" | "ru" | "de" | "fr" | "zh" | "hi" | "es" | "ar" | null
@@ -10309,6 +10313,10 @@ export type PreferencesUpdate = {
    * Welcome Tour Done
    */
   welcome_tour_done?: boolean | null
+  /**
+   * Tour Done
+   */
+  tour_done?: "views" | "pipeline" | "dashboards" | "agent" | null
   /**
    * Language
    */
@@ -10528,6 +10536,8 @@ export type ProblemDetail = {
     | "connectors.no_live_changes"
     | "connectors.no_connection_string"
     | "connectors.not_made_here"
+    | "connectors.no_file_to_remove"
+    | "connectors.file_shared"
     | "connectors.no_server_key"
     | "connectors.no_reading_rows"
     | "connectors.no_content_viewers"
@@ -17267,7 +17277,12 @@ export type connectorsDeleteConnectorData = {
      */
     connector_id: string
   }
-  query?: never
+  query?: {
+    /**
+     * With File
+     */
+    with_file?: boolean
+  }
   url: "/api/v1/connectors/{connector_id}"
 }
 

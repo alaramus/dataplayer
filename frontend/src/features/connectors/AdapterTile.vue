@@ -18,6 +18,7 @@ const emit = defineEmits<{ pick: []; open: [] }>()
   <div
     role="button"
     tabindex="0"
+    :aria-pressed="selected"
     class="adapter-tile"
     :class="{ 'adapter-tile--selected': selected }"
     :data-testid="`adapter-${card.key}`"

@@ -284,11 +284,15 @@ async function performOne(
  * four of five and saying which survived beats stopping at the first. Files
  * are the same statement on the other axis — one request per node and file.
  */
+/** Waited for by the tour (D355). */
+export const runActionKey = ["catalog", "run-action"] as const
+
 export function useRunAction() {
   const queryClient = useQueryClient()
   const operations = useOperations()
 
   return useMutation({
+    mutationKey: runActionKey,
     mutationFn: async (input: ActionInput): Promise<ActionOutcome> => {
       const together = togetherIn(input)
       const carried: (File | null)[] = input.files?.length ? input.files : [null]
