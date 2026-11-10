@@ -6,7 +6,6 @@ the handle MySQL's is (`app.adapters.row_handles`).
 """
 
 from app.adapters.cassandra.inspection import ColumnFacts, RelationFacts
-from app.adapters.cassandra.types import type_name
 from app.adapters.row_handles import encode_handle, version_of
 from app.core.translation import say
 
@@ -29,10 +28,9 @@ def change_reason(facts: RelationFacts) -> str | None:
 def writable(column: ColumnFacts) -> bool:
     """Whether a value of this column can be written from its text.
 
-    A key column decides where the row is kept and is never changed; a
-    duration has no spelling that is read back.
+    A key column decides where the row is kept and is never changed.
     """
-    return not column.in_key and type_name(column.type_text) != "duration"
+    return not column.in_key
 
 
 def key_positions(facts: RelationFacts) -> list[int]:

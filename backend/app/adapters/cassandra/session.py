@@ -549,6 +549,8 @@ class CassandraSession:
         self._tunnels = tunnels
         self._profile: ServerProfile | None = None
         self._pages = PageStates()
+        # The cluster every statement goes to while `held` is open.
+        self._held: KeptCluster | None = None
 
     @property
     def options(self) -> CassandraOptions:
@@ -580,8 +582,28 @@ class CassandraSession:
         )
 
     @asynccontextmanager
+    async def held(self) -> AsyncIterator[None]:
+        """One cluster for every statement until this closes.
+
+        For a burst of statements — a lab, a block of rows — from a session
+        with no kept cluster, which would otherwise connect once a statement.
+        """
+        if self._held is not None:
+            yield
+            return
+        async with self.cluster() as kept:
+            self._held = kept
+            try:
+                yield
+            finally:
+                self._held = None
+
+    @asynccontextmanager
     async def cluster(self) -> AsyncIterator[KeptCluster]:
         """The connector's kept cluster, or one for this request alone."""
+        if self._held is not None:
+            yield self._held
+            return
         address = await self._address()
         if self._pooling is not None:
             options = self._options

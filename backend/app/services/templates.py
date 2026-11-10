@@ -111,10 +111,26 @@ class Published:
     scheme: str = "http"
 
 
-# Either the name of something decided for this service, or a constant.
-# Split the same way the slots are: an environment value cannot name a
-# placement, and the compiler is what says so.
-CredentialValue = CredentialSlot | Fixed
+@dataclass(frozen=True)
+class SaltedHash:
+    """A credential as its SHA-512 crypt, after a fixed prefix (D351).
+
+    For a server told its first password only as a hash, as ScyllaDB is by
+    `--auth-superuser-salted-password=`. The salt is new each time the
+    container is made; the server reads the hash only when it makes the
+    role, on its first start.
+    """
+
+    slot: CredentialSlot
+    prefix: str = ""
+    # `\$` for each `$`, for an image that passes its arguments through a shell.
+    escape_dollars: bool = False
+
+
+# Either the name of something decided for this service, a constant, or a
+# hash of a credential. Split the same way the slots are: an environment
+# value cannot name a placement, and the compiler is what says so.
+CredentialValue = CredentialSlot | Fixed | SaltedHash
 Value = Slot | Fixed | Address | Published
 
 
@@ -724,6 +740,129 @@ SSH = ServiceTemplate(
 )
 
 
+# Cassandra's image has no setting for a password check and makes its first
+# superuser with the password `cassandra`. So the command switches the check on
+# in the configuration, starts the server through the image's own entrypoint,
+# and, once CQL answers, gives that superuser the service's password: on the
+# first start with the old one, and never again once the new one signs in.
+# The new password reaches cqlsh through a credentials file, never an argument,
+# and a quote in a chosen one is doubled for CQL. The heap is held under the
+# memory every service is given (D86); the loop ends if the server dies.
+# (D351)
+_CASSANDRA_START = (
+    "sed -i"
+    " -e 's/^authenticator: .*/authenticator: PasswordAuthenticator/'"
+    " -e 's/^authorizer: .*/authorizer: CassandraAuthorizer/'"
+    " -e 's/^materialized_views_enabled: .*/materialized_views_enabled: true/'"
+    " /etc/cassandra/cassandra.yaml;"
+    " grep -q '^file_cache_size:' /etc/cassandra/cassandra.yaml ||"
+    " printf 'file_cache_size: 32MiB\\nnetworking_cache_size: 16MiB\\n' >> /etc/cassandra/cassandra.yaml;"
+    " docker-entrypoint.sh cassandra -f & server=$!;"
+    " trap 'kill -TERM $server; wait $server; exit 0' TERM INT;"
+    " umask 077;"
+    " printf '[plain_text_auth]\\nusername = cassandra\\npassword = %s\\n' \"$DP_PASSWORD\" > /tmp/new;"
+    " printf '[plain_text_auth]\\nusername = cassandra\\npassword = cassandra\\n' > /tmp/first;"
+    " quoted=$(printf '%s' \"$DP_PASSWORD\" | sed \"s/'/''/g\");"
+    ' printf "ALTER ROLE cassandra WITH PASSWORD = \'%s\';" "$quoted" > /tmp/alter.cql;'
+    " until cqlsh --credentials /tmp/new -e 'SELECT key FROM system.local' >/dev/null 2>&1; do"
+    " kill -0 $server 2>/dev/null || exit 1;"
+    " cqlsh --credentials /tmp/first -f /tmp/alter.cql >/dev/null 2>&1; sleep 5; done;"
+    " rm -f /tmp/first /tmp/alter.cql; unset DP_PASSWORD quoted;"
+    " wait $server"
+)
+
+CASSANDRA = ServiceTemplate(
+    key="cassandra",
+    title=N_("Apache Cassandra"),
+    description=N_(
+        "An Apache Cassandra node of its own, started on this machine with a "
+        "password nobody has to choose."
+    ),
+    # The release the source type is tested against.
+    image="cassandra:5.0",
+    container_port=9042,
+    data_path="/var/lib/cassandra",
+    credentials={
+        # The image's own first superuser, which is the whole node's (D351).
+        USER: Fixed("cassandra"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({PASSWORD}),
+    environment={
+        "MAX_HEAP_SIZE": Fixed("384M"),
+        "HEAP_NEWSIZE": Fixed("96M"),
+        # What the JVM takes beside its heap, held too: a container over its
+        # memory is killed without a word.
+        # One G1 thread per core of the host otherwise, which on a large
+        # machine is hundreds of megabytes beside the heap.
+        "JVM_EXTRA_OPTS": Fixed(
+            "-XX:MaxDirectMemorySize=64M -XX:ReservedCodeCacheSize=48M "
+            "-XX:ParallelGCThreads=2 -XX:ConcGCThreads=1 -XX:CICompilerCount=2 "
+            "-XX:-AlwaysPreTouch"
+        ),
+        "DP_PASSWORD": PASSWORD,
+    },
+    command=(Fixed("bash"), Fixed("-c"), Fixed(_CASSANDRA_START)),
+    adapter_type="cassandra",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    # A JVM, a commit log and a gossip round before CQL answers, then the
+    # password changed.
+    startup_timeout_seconds=300,
+)
+
+
+SCYLLA = ServiceTemplate(
+    key="scylladb",
+    title=N_("ScyllaDB"),
+    description=N_(
+        "A ScyllaDB node of its own, started on this machine with a password "
+        "nobody has to choose."
+    ),
+    image="scylladb/scylla:2026.3",
+    container_port=9042,
+    data_path="/var/lib/scylla",
+    credentials={
+        # ScyllaDB makes no first superuser by itself since 2025; this one is
+        # named on its command line, with the service's password as a hash.
+        USER: Fixed("cassandra"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({PASSWORD}),
+    environment={},
+    command=(
+        # One shard and a memory under what every service is given (D86).
+        Fixed("--smp=1"),
+        Fixed("--memory=450M"),
+        Fixed("--overprovisioned=1"),
+        Fixed("--developer-mode=1"),
+        Fixed("--authenticator=PasswordAuthenticator"),
+        Fixed("--authorizer=CassandraAuthorizer"),
+        Fixed("--auth-superuser-name=cassandra"),
+        # The image hands its arguments on through a shell, which would read
+        # the `$` of the hash (D351).
+        SaltedHash(
+            PASSWORD, prefix="--auth-superuser-salted-password=", escape_dollars=True
+        ),
+    ),
+    # One source type for both servers, which reads which it is (D340).
+    adapter_type="cassandra",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=240,
+)
+
+
 SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
     POSTGRES,
     TIMESCALE,
@@ -735,6 +874,8 @@ SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
     ZOOKEEPER,
     KAFKA,
     RABBITMQ,
+    CASSANDRA,
+    SCYLLA,
     SSH,
 )
 
@@ -821,7 +962,9 @@ def slots_of(shape: Shape) -> frozenset[CredentialSlot]:
     """
     named: set[CredentialSlot] = set()
     for given in (*shape.command, *shape.environment.values()):
-        if not isinstance(given, Fixed):
+        if isinstance(given, SaltedHash):
+            named.add(given.slot)
+        elif not isinstance(given, Fixed):
             named.add(given)
     for filled in shape.connector_options.values():
         # A placement is settled when the service is put somewhere; only

@@ -15,6 +15,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from uuid import UUID
 
+from app.core.sha512_crypt import sha512_crypt
 from app.services.templates import (
     Address,
     CredentialSlot,
@@ -23,6 +24,7 @@ from app.services.templates import (
     FromKey,
     Generated,
     Published,
+    SaltedHash,
     ServiceTemplate,
     Shape,
     Value,
@@ -363,6 +365,11 @@ def described_options(
 def _credential_value(value: CredentialValue, credentials: Credentials) -> str:
     if isinstance(value, Fixed):
         return value.value
+    if isinstance(value, SaltedHash):
+        hashed = sha512_crypt(credentials[value.slot])
+        if value.escape_dollars:
+            hashed = hashed.replace("$", "\\$")
+        return value.prefix + hashed
     return credentials[value]
 
 

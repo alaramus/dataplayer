@@ -172,6 +172,7 @@ ignore = [
 # The same, for the Cassandra tests.
 "tests/adapters/cassandra_fixture.py" = ["S608"]
 "tests/adapters/test_cassandra_actions.py" = ["S608"]
+"tests/adapters/test_cassandra_table_copy.py" = ["S608"]
 # The same for the rows the editing tests make and change behind the adapter.
 "tests/adapters/test_mysql_update.py" = ["S608"]
 "tests/adapters/test_mysql_structure.py" = ["S608"]

@@ -71,7 +71,7 @@ async def test_a_table_offers_edits_and_a_view_does_not(target: Target) -> None:
     assert table.update_supported and len(table.row_handles) == len(table.rows)
     editable = {column.name: column.editable for column in table.columns}
     assert not editable["shop"] and not editable["id"] and not editable["at"]
-    assert editable["label"] and editable["tags"] and not editable["span"]
+    assert editable["label"] and editable["tags"] and editable["span"]
     required = {column.name for column in table.columns if column.insert_required}
     assert required == {"shop", "id", "at"}
     assert not view.update_supported and view.update_reason

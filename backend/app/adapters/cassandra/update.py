@@ -297,7 +297,8 @@ class CassandraUpdate:
             async with gate:
                 await self._session.page(statement, values)
 
-        await asyncio.gather(*(write(values) for values in parsed))
+        async with self._session.held():
+            await asyncio.gather(*(write(values) for values in parsed))
         return RowsInserted(inserted=len(parsed))
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:

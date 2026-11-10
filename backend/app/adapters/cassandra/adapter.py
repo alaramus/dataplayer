@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Mapping
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
@@ -18,9 +19,12 @@ from app.adapters.cassandra.features import CassandraFeatures
 from app.adapters.cassandra.fetch import CassandraFetch
 from app.adapters.cassandra.inspection import Inspector
 from app.adapters.cassandra.metadata import CassandraGeneration, CassandraMetadata
+from app.adapters.cassandra.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.cassandra.metrics import CassandraMetrics
 from app.adapters.cassandra.options import CassandraOptions
 from app.adapters.cassandra.query import CassandraExecution, CassandraQuery
 from app.adapters.cassandra.relation import CassandraRelation
+from app.adapters.cassandra.samples import CassandraSamples
 from app.adapters.cassandra.search import CassandraSearch
 from app.adapters.cassandra.session import (
     CassandraSession,
@@ -30,6 +34,7 @@ from app.adapters.cassandra.session import (
 )
 from app.adapters.cassandra.structure import CassandraStructure
 from app.adapters.cassandra.summary import CassandraSummaries
+from app.adapters.cassandra.table_copy import DIALECT, CassandraTableCopy
 from app.adapters.cassandra.update import CassandraUpdate
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
@@ -49,6 +54,7 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.query import (
     GeneratedQuery,
@@ -72,6 +78,14 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.summary import NodeSummary
+from app.adapters.table_copy import (
+    Arrived,
+    CopiedTable,
+    RowsOf,
+    TableCopyPlan,
+    TableCopyRequest,
+    TableRows,
+)
 from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
@@ -146,6 +160,9 @@ class CassandraAdapter:
         self._metadata = CassandraMetadata(self._session, self._inspector)
         self._search = CassandraSearch(self._session, self._inspector)
         self._export = CassandraExport(self._session, self._fetch)
+        self._samples = CassandraSamples(self._session)
+        self._metrics = CassandraMetrics(self._session)
+        self._table_copy = CassandraTableCopy(self._session, self._inspector)
         self._generation = CassandraGeneration(self._inspector)
 
     @classmethod
@@ -252,6 +269,44 @@ class CassandraAdapter:
     async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
         return await self._structure.drop_index(request)
 
+    table_copy_dialect = DIALECT
+
+    @property
+    def table_copy_database(self) -> str:
+        return self._table_copy.table_copy_database
+
+    async def describe_for_copy(self, node_ids: list[str]) -> list[CopiedTable]:
+        return await self._table_copy.describe_for_copy(node_ids)
+
+    async def free_table_names(
+        self, place_node_id: str, wanted: list[str]
+    ) -> list[str]:
+        return await self._table_copy.free_table_names(place_node_id, wanted)
+
+    async def plan_table_copy(self, request: TableCopyRequest) -> TableCopyPlan:
+        return await self._table_copy.plan_table_copy(request)
+
+    def reading_tables(self) -> AbstractAsyncContextManager[TableRows]:
+        return self._table_copy.reading_tables()
+
+    async def carry_table_copy(
+        self, request: TableCopyRequest, rows_of: RowsOf, arrived: Arrived
+    ) -> None:
+        """Types and tables made, rows written, indexes built; undone on failure (D354)."""
+        await self._table_copy.carry_table_copy(request, rows_of, arrived)
+
+    async def metric_samples(self) -> list[MetricSample]:
+        """Clients, size and, on Cassandra, its thread pools, per poll (D353)."""
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    async def install_sample_data(self) -> str:
+        """The lab, in a keyspace of its own, for a node started here (D352)."""
+        return await self._samples.install_sample_data()
+
     def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
         return self._export.export_rows(request)
 
@@ -341,8 +396,10 @@ class CassandraAdapter:
     # Two products, one type (D340): a card each, so ScyllaDB is found as
     # itself.
     faces=(
-        CatalogFace(key="cassandra", title=N_("Apache Cassandra")),
-        CatalogFace(key="scylladb", title=N_("ScyllaDB")),
+        CatalogFace(
+            key="cassandra", title=N_("Apache Cassandra"), templates=("cassandra",)
+        ),
+        CatalogFace(key="scylladb", title=N_("ScyllaDB"), templates=("scylladb",)),
     ),
 )
 def _build(options: CassandraOptions, context: AdapterContext) -> CassandraAdapter:

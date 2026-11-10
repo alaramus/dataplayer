@@ -17,6 +17,7 @@ How connections work in general is on the [Connections](connections.md) page.
 - The results of CQL you write, in the console or in cqlsh
 - The cluster's nodes, clients, table sizes, settings and roles
 - Every matching row, downloaded as a file
+- The node's clients, requests and size, on a dashboard
 
 ## What you can change
 
@@ -24,6 +25,7 @@ How connections work in general is on the [Connections](connections.md) page.
 - Columns and secondary indexes of a table
 - New tables, designed with their partition and clustering key
 - Keyspaces: create and drop them; tables: truncate and drop
+- Tables copied with their structure into another Cassandra connection
 - Data and structure, through CQL in the console, one change at a time
 
 ## Connecting
@@ -125,7 +127,7 @@ server can reach, and a connection through an SSH tunnel has no terminal yet.
   same instant as yours is not caught: Cassandra has no transaction to hold the
   row.
 - Lists, sets, maps, tuples and user-defined types are written as the JSON
-  they are shown as. A duration is not edited.
+  they are shown as; a duration in CQL's own units, such as `1mo2d3h`.
 - A static column holds one value for the whole partition, so editing it on
   one row changes it on every row of that partition.
 - Adding one row refuses a key that is already there. Rows pasted or loaded as
@@ -189,3 +191,47 @@ server can reach, and a connection through an SSH tunnel has no terminal yet.
   **Drop**; on a materialized view, **Drop**. A table is dropped together with
   the materialized views that read it, and the preview names them.
 - Tables and keyspaces cannot be renamed: CQL has no way to.
+
+## Copying tables
+
+**Copy** tables in the catalog and **Paste** them into a keyspace of another
+Cassandra or ScyllaDB connection, or of this one. They arrive with their
+columns, their partition and clustering key and its order, their comment,
+their secondary indexes and the user-defined types they use; the window shows
+every statement and runs nothing before **Copy**.
+
+- The types a table uses are made first where the keyspace lacks them, then
+  the table, then its rows, and only then its indexes.
+- A counter table is not copied: a counter cannot be written by `INSERT`.
+  Materialized views are not copied; one that reads a copied table is named in
+  the window.
+- If the copy fails or is stopped, the tables it made are dropped again.
+- Nothing holds the tables still while they are read: rows written meanwhile
+  may or may not arrive.
+
+Rows pasted into another kind of connection go the way rows of any table do.
+
+## Backups
+
+Not offered yet for Cassandra and ScyllaDB.
+
+## Dashboards
+
+A Cassandra connection can report to dashboards. The layout is **Cassandra
+node**: clients, the size and partitions of the connection's keyspace as the
+node estimates them, and on Cassandra requests, reads, writes and compactions
+per second and the work waiting. ScyllaDB keeps those counters in its own
+monitoring endpoint, which this connection does not read.
+
+## A server of your own
+
+**New connection** offers **Start Apache Cassandra here** on the Cassandra
+card and **Start ScyllaDB here** on the ScyllaDB one: a node started on this
+machine, saved as a connection signed into as its `cassandra` superuser with a
+password made up for it. A Cassandra node takes a minute or two to answer, and
+it sets its own password once it does. With sample data, it opens on
+`demo_lab` — organizations and their people, projects and their tasks, twenty
+thousand page views over thirty days, and a counter table of views per page —
+with something on it for every screen: a static column, a user-defined type,
+collections, a duration, a secondary index, a materialized view and a
+clustering order newest first.

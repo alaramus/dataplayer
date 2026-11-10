@@ -215,6 +215,47 @@ def duration_text(value: Duration) -> str:
     return ("-" if negative else "") + "".join(parts)
 
 
+_DURATION_PART = re.compile(r"(\d+)(mo|ms|us|µs|ns|y|w|d|h|m|s)", re.IGNORECASE)
+_NANOS = {
+    "h": 3_600_000_000_000,
+    "m": 60_000_000_000,
+    "s": 1_000_000_000,
+    "ms": 1_000_000,
+    "us": 1_000,
+    "µs": 1_000,
+    "ns": 1,
+}
+
+
+def parse_duration(text: str) -> Duration:
+    """CQL's `1mo2d3h4m5s6ms7us8ns`, the spelling `duration_text` writes."""
+    negative = text.startswith("-")
+    body = text[1:] if negative else text
+    if not body:
+        raise ValueError
+    months = days = nanoseconds = 0
+    position = 0
+    for found in _DURATION_PART.finditer(body):
+        if found.start() != position:
+            raise ValueError
+        position = found.end()
+        amount, unit = int(found.group(1)), found.group(2).lower()
+        if unit == "y":
+            months += 12 * amount
+        elif unit == "mo":
+            months += amount
+        elif unit == "w":
+            days += 7 * amount
+        elif unit == "d":
+            days += amount
+        else:
+            nanoseconds += amount * _NANOS[unit]
+    if position != len(body):
+        raise ValueError
+    sign = -1 if negative else 1
+    return Duration(sign * months, sign * days, sign * nanoseconds)
+
+
 def time_text(value: Time) -> str:
     nanoseconds = int(value.nanosecond_time)
     seconds, fraction = divmod(nanoseconds, 1_000_000_000)
@@ -366,7 +407,7 @@ def parse_value(text: str, type_text: str) -> Any:
             hexadecimal = hexadecimal[2:]
         return bytes.fromhex(hexadecimal)
     if name == "duration":
-        raise ValueError
+        return parse_duration(text.strip())
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:

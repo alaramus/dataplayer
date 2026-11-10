@@ -6,7 +6,7 @@ every source type follows is in [contract.md](contract.md); reading a relation
 in general is in [relations.md](relations.md). Read this before changing the
 `cassandra` adapter.
 
-Decisions here: D340, D341, D342, D343, D344, D345, D346, D347, D348, D349, D350.
+Decisions here: D340, D341, D342, D343, D344, D345, D346, D347, D348, D349, D350, D351, D352, D353, D354.
 
 ## D340. One type for Cassandra and ScyllaDB, through the address given
 
@@ -143,7 +143,7 @@ A row's handle is its primary key as the page showed it and a digest of the
 row (`app.adapters.row_handles`). A change reads the row again by the key and
 goes on only when it digests the same, then writes a plain `UPDATE`, `INSERT`
 or `DELETE` by the key; no lightweight transaction. Key columns are never
-edited and an insert needs all of them; a duration is not written; a
+edited and an insert needs all of them; a duration is written in CQL's units; a
 collection, a tuple and a user-defined type are written as their JSON, shaped
 by the types the server gives for the prepared statement. A counter table, a
 materialized view, a virtual table and the server's own keyspaces are read
@@ -217,3 +217,58 @@ statement. A kept list reads every name once. An export reads the page's
 statement on from paging state to paging state; a report is not exported.
 
 Spec: [Cassandra's designer, catalog actions, reports, search and export](../../decisions/2026-11-10-cassandra-actions-design.md)
+
+## D351. A node started here, its password set by the template
+
+Each card's template starts its own product, user `cassandra`, a password made
+up per service. Cassandra's command switches the password check on, starts the
+server through the image's entrypoint and, once CQL answers, changes the first
+superuser's password from `cassandra` to the service's through a credentials
+file; it ends if the server dies. Its JVM and caches are held under the
+service memory ceiling (two G1 threads, no pre-touch, 384 MB heap, small
+direct, code, file and networking caches). ScyllaDB is told its superuser on
+the command line with a `SaltedHash`, the password's SHA-512 crypt
+(`app.core.sha512_crypt`), each `$` escaped for the shell its image runs
+arguments through, and 450 MB of memory.
+
+Known deviations:
+
+- A Cassandra service under heavy load may need more than 1 GB; the ceiling is
+  the server's setting (D86).
+
+Spec: [Cassandra and ScyllaDB started here, their lab, metrics and copies](../../decisions/2026-11-10-cassandra-services-design.md)
+
+## D352. A lab made from a seed
+
+`demo_lab` — organizations, people, tasks with a view by status, twenty
+thousand page views by day and a counter table — written from rows made in
+Python from a fixed seed, through one held connection; on ScyllaDB out of
+tablets.
+
+Spec: [Cassandra and ScyllaDB started here, their lab, metrics and copies](../../decisions/2026-11-10-cassandra-services-design.md)
+
+## D353. Metrics from what CQL answers
+
+Clients and the keyspace's estimated partitions and bytes on both products;
+Cassandra's thread pools as rates and waiting work. Preset **Cassandra node**.
+
+Known deviations:
+
+- ScyllaDB's own counters are in its Prometheus endpoint, not read.
+
+Spec: [Cassandra and ScyllaDB started here, their lab, metrics and copies](../../decisions/2026-11-10-cassandra-services-design.md)
+
+## D354. Tables copied with their types, key and indexes
+
+A table is described from `system_schema` and made again at the destination:
+missing user-defined types first, the table with its key and clustering order,
+its rows as JSON lines read back by type, then its indexes. Fragments are
+checked against narrow patterns. Counter tables and views are not copied; a
+view over a copied table is named as left behind.
+
+Known deviations:
+
+- No backup and restore: cqlsh's `COPY` does not round-trip every type, and
+  is left for a decision of its own.
+
+Spec: [Cassandra and ScyllaDB started here, their lab, metrics and copies](../../decisions/2026-11-10-cassandra-services-design.md)
