@@ -1072,6 +1072,19 @@ class MakesSourceHere(Protocol):
     @classmethod
     def unmake_source_here(cls, home_dir: Path, made: MadeSource) -> None: ...
 
+    @classmethod
+    def source_file_here(cls, options: Mapping[str, Any]) -> str | None:
+        """The file in the owner's storage a connection with these options
+        holds, as a path below the home; None when it holds none."""
+        ...
+
+    @classmethod
+    def remove_source_here(cls, home_dir: Path, path: str) -> None:
+        """Delete that file and whatever the source keeps beside it, when a
+        connection is deleted with its file (D356). Already gone is not an
+        error: the goal is a state."""
+        ...
+
 
 @runtime_checkable
 class DescribesDraft(Protocol):

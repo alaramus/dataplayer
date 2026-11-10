@@ -6,11 +6,13 @@ export const preferences: Messages["preferences"] = {
   not_saved: "无法保存偏好设置",
   sections: {
     general: "常规",
-    general_summary: "语言、主题、朗读语音和新手引导",
+    general_summary: "语言、主题和朗读语音",
     connections: "连接",
     connections_summary: "工作区打开时检查连接的频率",
     ssh_keys: "SSH 密钥",
     ssh_keys_summary: "此账户用于 SSH 连接的密钥",
+    tours: "导览",
+    tours_summary: "欢迎导览以及各部分的简短导览，随时可进行",
   },
   language_summary:
     "整个界面的语言。该设置保存在账户中，因此会随账户在任何浏览器中生效；在未选择之前，使用浏览器自身的语言。",
@@ -20,10 +22,6 @@ export const preferences: Messages["preferences"] = {
   voice: "朗读语音",
   voice_summary:
     "在所有朗读消息的地方用于朗读的语音。语音来自此浏览器本身。该设置保存在此浏览器中。",
-  tour: "新手引导",
-  tour_summary:
-    "一个亲手完成的简短导览：创建数据库、使用它并将其清理。随时可在此重新开始。",
-  replay_tour: "重播引导",
   storage: "个人存储",
   storage_summary: "您在此服务器上的文件，以及管理员设定的上限",
   storage_used: "已使用 {used}，共 {limit}",

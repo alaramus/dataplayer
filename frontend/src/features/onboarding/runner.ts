@@ -1,47 +1,59 @@
 import { computed, reactive, readonly } from "vue"
 
-import { BASICS } from "./basics"
 import { settleMutation, settledByShown } from "./tour"
-import type { Finder, MutationSuccess, TourChapter, TourMemory } from "./tour"
+import type { Counter, Finder, MutationSuccess, TourChapter, TourDefinition, TourMemory } from "./tour"
 
 /**
  * The tour that is running, if any (D355).
  *
- * One per page and held in memory: the welcome starts it, Preferences starts
- * it again, and the host over the workspace draws it. A reload ends it.
+ * One per page and held in memory: the welcome, Preferences and a part of the
+ * application opened for the first time start one, and the host over the
+ * workspace draws it. A reload ends it.
  */
 interface TourState {
-  running: boolean
-  chapters: readonly TourChapter[]
+  tour: TourDefinition | null
+  /** The host is making what the tour needs before its first chapter. */
+  preparing: boolean
   chapter: number
   memory: TourMemory
 }
 
 const state = reactive<TourState>({
-  running: false,
-  chapters: BASICS,
+  tour: null,
+  preparing: false,
   chapter: 0,
   memory: {},
 })
 
 export const tourState = readonly(state)
 
-export const currentChapter = computed<TourChapter | null>(
-  () => (state.running ? (state.chapters[state.chapter] ?? null) : null)
+export const runningTour = computed<TourDefinition | null>(() => state.tour)
+
+export const currentChapter = computed<TourChapter | null>(() =>
+  state.tour !== null && !state.preparing ? (state.tour.chapters[state.chapter] ?? null) : null
 )
 
-/** Every chapter done: the closing card is shown. */
-export const tourFinished = computed(() => state.running && state.chapter >= state.chapters.length)
+/** Every chapter done. */
+export const tourFinished = computed(
+  () => state.tour !== null && !state.preparing && state.chapter >= state.tour.chapters.length
+)
 
-export function startTour(chapters: readonly TourChapter[] = BASICS) {
-  state.chapters = chapters
+export function startTour(tour: TourDefinition) {
+  state.tour = tour
   state.chapter = 0
   state.memory = {}
-  state.running = true
+  state.preparing = tour.setup !== undefined
+}
+
+/** What the tour made for itself is in place; the first chapter begins. */
+export function prepared(memory: TourMemory) {
+  state.memory = memory
+  state.preparing = false
 }
 
 export function endTour() {
-  state.running = false
+  state.tour = null
+  state.preparing = false
 }
 
 function advance(memory: TourMemory) {
@@ -58,8 +70,14 @@ export function offerMutation(success: MutationSuccess) {
 }
 
 /** Read every frame: a chapter completed by a control appearing. */
-export function checkShown(find: Finder) {
+export function checkShown(find: Finder, count?: Counter) {
   const chapter = currentChapter.value
   if (chapter === null) return
-  if (settledByShown(chapter, state.memory, find)) advance(state.memory)
+  if (settledByShown(chapter, state.memory, find, count)) advance(state.memory)
+}
+
+/** The hint's button, on a chapter that is only shown. */
+export function nextChapter() {
+  const chapter = currentChapter.value
+  if (chapter?.done.kind === "next") advance(state.memory)
 }

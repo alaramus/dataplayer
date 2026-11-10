@@ -6,11 +6,13 @@ export const preferences: Messages["preferences"] = {
   not_saved: "Die Einstellung konnte nicht gespeichert werden",
   sections: {
     general: "Allgemein",
-    general_summary: "Sprache, Design, Lesestimme und die Willkommenstour",
+    general_summary: "Sprache, Design und Lesestimme",
     connections: "Verbindungen",
     connections_summary: "Wie oft Verbindungen geprüft werden, solange ein Arbeitsbereich geöffnet ist",
     ssh_keys: "SSH-Schlüssel",
     ssh_keys_summary: "Die Schlüssel, die dieses Konto für SSH-Verbindungen verwendet",
+    tours: "Touren",
+    tours_summary: "Die Willkommenstour und kurze Touren durch jeden Teil, wann immer Sie möchten",
   },
   language_summary:
     "Die Sprache der gesamten Oberfläche. Sie wird im Konto gespeichert und folgt ihm in jeden Browser; bis eine gewählt ist, wird die des Browsers verwendet.",
@@ -20,10 +22,6 @@ export const preferences: Messages["preferences"] = {
   voice: "Lesestimme",
   voice_summary:
     "Die Stimme, die Nachrichten überall vorliest, wo sie gelesen werden. Stimmen gehören diesem Browser. Wird in diesem Browser gespeichert.",
-  tour: "Willkommenstour",
-  tour_summary:
-    "Eine kurze Tour, die man selbst macht: eine Datenbank anlegen, mit ihr arbeiten und sie wieder wegräumen. Lässt sich hier jederzeit neu starten.",
-  replay_tour: "Tour wiederholen",
   storage: "Persönlicher Speicher",
   storage_summary: "Ihre eigenen Dateien auf diesem Server und das vom Administrator gesetzte Limit",
   storage_used: "{used} von {limit} belegt",

@@ -59,6 +59,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_live_changes": "Этот источник не сообщает об изменениях",
   "connectors.no_connection_string": "У источника нет строки подключения",
   "connectors.not_made_here": "Источник этого вида нельзя создать на этом сервере",
+  "connectors.no_file_to_remove": "Это подключение не держит файла в вашем хранилище, удалять нечего",
+  "connectors.file_shared": "Этот файл открывают ещё {names}; сначала удалите их или оставьте файл",
   "connectors.no_server_key": "Источник не закрепляет ключ сервера",
   "connectors.no_reading_rows": "Источник не поддерживает чтение строк",
   "connectors.no_content_viewers": "Источник не поддерживает просмотрщики содержимого",

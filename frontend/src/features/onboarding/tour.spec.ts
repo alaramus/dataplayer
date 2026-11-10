@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { furthestTarget, sameKey, settleMutation, settledByShown, splitPath, testId } from "./tour"
+import { furthestTarget, offersNext, sameKey, settleMutation, settledByShown, splitPath, testId } from "./tour"
 import type { TourChapter } from "./tour"
 
 const chapter: TourChapter = {
@@ -60,6 +60,24 @@ describe("completion", () => {
     expect(settledByShown(shown, {}, finder([]))).toBe(false)
     expect(settledByShown(shown, {}, finder(["#count"]))).toBe(true)
     expect(settledByShown(chapter, {}, finder(["#count"]))).toBe(false)
+  })
+})
+
+describe("a chapter only shown", () => {
+  const shown: TourChapter = { ...chapter, done: { kind: "next" } }
+
+  it("offers Next on its last target, or when nothing of it is on screen", () => {
+    expect(offersNext(shown, 2)).toBe(true)
+    expect(offersNext(shown, -1)).toBe(true)
+    expect(offersNext(shown, 1)).toBe(false)
+    expect(offersNext(chapter, 2)).toBe(false)
+  })
+
+  it("can wait for several controls", () => {
+    const two: TourChapter = { ...chapter, done: { kind: "shown", locate: () => "#card", atLeast: 2 } }
+    const finder1 = finder(["#card"])
+    expect(settledByShown(two, {}, finder1, () => 1)).toBe(false)
+    expect(settledByShown(two, {}, finder1, () => 2)).toBe(true)
   })
 })
 

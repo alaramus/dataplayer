@@ -7,11 +7,12 @@ export const onboarding: Messages["onboarding"] = {
   tour_offer: "然后进行三分钟的导览：你将创建一个小数据库、使用它，再把它清理掉，每个需要点击的按钮旁都有提示。",
   position: "第 {n} 步，共 {total} 步",
   finish: "完成",
+  next: "下一步",
   take_tour: "开始导览",
   look_around: "我自己看看",
   mark_failed: "无法将导览标记为已看过",
   close_title: "结束导览？",
-  close_message: "导览不会再自动打开。你可以随时在偏好设置的“欢迎导览”中再次进行。",
+  close_message: "导览不会再自动打开。你可以随时在偏好设置的“导览”中再次进行。",
   close_confirm: "结束导览",
   keep_going: "继续",
   end_tour: "结束导览",
@@ -68,9 +69,140 @@ export const onboarding: Messages["onboarding"] = {
       delete: "选择“删除”。",
       confirm: "确认。演示内容全部清除，文件夹连接仍归你所有。",
     },
-    finished: {
-      title: "你已掌握基础",
-      text: "连接、表、筛选、编辑、查询以及你自己的存储。管道、仪表板和 AI 代理在左侧栏中。随时可在偏好设置中再次进行导览。",
+    service: {
+      title: "在这里启动的服务器",
+      add: "再按一次 +。",
+      pick: "选择 Redis：之前没有类似的东西。",
+      start: "这个按钮会直接在这里用 Docker 启动 Redis，并附带试用数据，还会为你创建连接。此目录中带有这种按钮的任何服务器都能这样启动。导览到此结束：窗口交给你了。",
+    },
+  },
+  tours: {
+    basics: {
+      title: "基础",
+      summary: "创建数据库、使用它并将其清理。",
+    },
+    practice_name: "practice",
+    folder_name: "我的文件",
+    preparing: "正在为本导览创建练习数据库…",
+    setup_failed: "导览无法准备练习数据库",
+    cleanup_failed: "导览无法移除练习数据库",
+    list: {
+      take: "开始",
+      again: "再来一次",
+    },
+    views: {
+      title: "换种方式看表",
+      summary: "同一张表以图表、结构和文档的形式呈现。",
+      back: "回到 {table} 标签页。",
+      open: {
+        title: "打开练习表",
+        connection: "这个练习数据库是导览创建的。打开它。",
+        table: "打开 {table}。",
+      },
+      chart: {
+        title: "作为图表",
+        hint: "把这一页画成图表。",
+      },
+      structure: {
+        title: "作为结构",
+        hint: "查看表的列、键和索引。",
+      },
+      document: {
+        title: "作为文档",
+        hint: "以文档而不是表格的形式阅读行。",
+      },
+      closing: {
+        title: "完成",
+        text: "关闭此处后，练习数据库将被移除。",
+      },
+    },
+    pipeline: {
+      title: "管道",
+      summary: "表中的行以 CSV 文件保存到你的文件夹。",
+      new: {
+        title: "新管道",
+        space: "打开管道。",
+        create: "创建一个新管道。",
+      },
+      source: {
+        title: "行从哪里来",
+        connection: "按练习数据库：它的表会在画布旁打开。",
+        schema: "打开 main，SQLite 唯一的模式。",
+        tick: "勾选 {table}。",
+        done: "把它放到画布上。",
+      },
+      target: {
+        title: "行到哪里去",
+        connection: "现在按你的文件夹。",
+        top: "勾选文件夹本身。",
+        done: "把它放到画布上。",
+      },
+      link: {
+        title: "连接它们",
+        hint: "提示会画出所有可建立的连接。也可以把一行拖到另一行上。",
+        press: "按从表到文件夹的虚线连接。",
+      },
+      run: {
+        title: "运行",
+        hint: "运行管道。连接会把表保存为 CSV 文件。",
+        taken: "文件夹中已有同名文件：在“如果名称已被占用”中选择“两者都保留”，然后再次运行。",
+      },
+      seen: {
+        title: "文件",
+        space: "回到“数据”。",
+        folder: "打开你的文件夹。",
+        file: "这就是管道生成的 CSV。结束时练习数据库会被移除，文件会保留。",
+      },
+    },
+    dashboards: {
+      title: "仪表板",
+      summary: "仪表板在哪里创建，指标从哪里来。",
+      space: {
+        title: "仪表板",
+        hint: "打开仪表板。",
+      },
+      new: {
+        title: "一个仪表板",
+        hint: "仪表板从这里开始：网格上的指标图表和磁贴。",
+        store: "仪表板把指标保存在管理员在此处启动一次的存储中。",
+      },
+      agent: {
+        title: "来自代理的指标",
+        open: "打开指标来源。",
+        view: "代理会上报其所在机器的指标。",
+        register: "在这里注册代理：你会得到它的密钥和一个 Docker Compose 文件，用它在要监控的机器上启动代理。",
+      },
+      connections: {
+        title: "你的连接的指标",
+        view: "你的连接也可以上报自身的情况。",
+        switch: "选择一个连接并打开：PostgreSQL、MySQL 和 Redis 会上报自身指标。",
+      },
+    },
+    agent: {
+      title: "AI 代理",
+      summary: "在哪里选择代理的密钥、模型和上下文。",
+      space: {
+        title: "代理",
+        hint: "打开 AI 空间。",
+      },
+      chat: {
+        title: "聊天",
+        hint: "开始新的聊天。",
+        close: "关闭设置以返回聊天。",
+      },
+      key: {
+        title: "密钥",
+        open: "打开 AI 设置。",
+        hint: "默认模型在这里选择，旁边是密钥按钮：代理使用你在某个提供商的密钥，例如 Anthropic、OpenAI 等。",
+      },
+      model: {
+        title: "模型",
+        hint: "选择聊天使用的模型。",
+      },
+      attach: {
+        title: "它知道什么",
+        hint: "附加一张表、一个标签页或一个节点：代理会读取你所指的内容，而不是猜测。",
+      },
     },
   },
   guide: {

@@ -353,8 +353,8 @@ server's closed set, as a complete record, so a new choice is a type error.
 Both pages are a list of sections beside the current one (`AppSectionsLayout`),
 and a preference is an `AppSettingRow`. Whether the welcome tour was finished
 or skipped is a preference of the account, not of a browser: the tour opens
-once per person, on any machine, and is replayed from Preferences
-([tour.md](tour.md)).
+once per person, on any machine, and is replayed from Preferences → Tours
+with the short ones ([tour.md](tour.md)).
 
 **Forms.** A field is drawn from what its schema says: `x-ui-multiline` asks for a
 box, `description` is the sentence under it, and `examples` is shown inside the

@@ -2,21 +2,26 @@
 import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue"
 
+import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
-import { AppButton, useConfirm } from "@/shared/ui"
+import { AppButton, useConfirm, useToast } from "@/shared/ui"
 
 import { useTourDone } from "./done"
+import { tourKit } from "./kit"
 import { placeHint } from "./placement"
 import type { Box, Size } from "./placement"
 import {
   checkShown,
   currentChapter,
   endTour,
+  nextChapter,
   offerMutation,
+  prepared,
+  runningTour,
   tourFinished,
   tourState,
 } from "./runner"
-import { furthestTarget } from "./tour"
+import { furthestTarget, offersNext } from "./tour"
 
 /**
  * The running tour, drawn over the workspace (D355): a dim with a hole, a
@@ -35,6 +40,15 @@ function find(selector: string): Element | null {
     if (box.width > 0 && box.height > 0) return element
   }
   return null
+}
+
+function count(selector: string): number {
+  let laidOut = 0
+  for (const element of document.querySelectorAll(selector)) {
+    const box = element.getBoundingClientRect()
+    if (box.width > 0 && box.height > 0) laidOut += 1
+  }
+  return laidOut
 }
 
 /** Room between a control and its ring, so the ring does not cover its edge. */
@@ -59,7 +73,7 @@ function differs(a: Box | null, b: Box | null): boolean {
 let lastElement: Element | null = null
 
 function frame() {
-  checkShown(find)
+  checkShown(find, count)
   const chapter = currentChapter.value
   let next: Box | null = null
   let index = -1
@@ -96,19 +110,39 @@ function loop() {
   handle = requestAnimationFrame(loop)
 }
 
+const running = computed(() => runningTour.value !== null)
+
 watch(
-  () => tourState.running,
-  (running) => {
+  running,
+  (now) => {
     cancelAnimationFrame(handle)
     lastElement = null
     ring.value = null
-    if (running) loop()
+    if (now) loop()
   },
   { immediate: true }
 )
 
 // Completion is read off the mutation cache, so no feature imports the tour.
 const queryClient = useQueryClient()
+const kit = tourKit(queryClient)
+const toast = useToast()
+
+// What a short tour makes for itself, before its first chapter (D356).
+watch(
+  () => tourState.preparing,
+  async (preparing) => {
+    const tour = runningTour.value
+    if (!preparing || tour?.setup === undefined) return
+    try {
+      prepared(await tour.setup(kit))
+    } catch (cause) {
+      toast.error(messageOf(cause, t("onboarding.tours.setup_failed")))
+      endTour()
+    }
+  },
+  { immediate: true }
+)
 let unsubscribe = () => {}
 onMounted(() => {
   unsubscribe = queryClient.getMutationCache().subscribe((event) => {
@@ -126,13 +160,29 @@ onBeforeUnmount(() => {
 })
 
 const position = computed(() =>
-  t("onboarding.position", { n: tourState.chapter + 1, total: tourState.chapters.length })
+  t("onboarding.position", {
+    n: tourState.chapter + 1,
+    total: runningTour.value?.chapters.length ?? 0,
+  })
 )
-const title = computed(() => (tourFinished.value ? t("onboarding.tour.finished.title") : (currentChapter.value?.title() ?? "")))
+const closing = computed(() => runningTour.value?.closing ?? null)
+const title = computed(() => {
+  if (tourState.preparing) return runningTour.value?.title() ?? ""
+  if (tourFinished.value) return closing.value?.title() ?? ""
+  return currentChapter.value?.title() ?? ""
+})
+const isLast = computed(
+  () => tourState.chapter === (runningTour.value?.chapters.length ?? 0) - 1
+)
+const canNext = computed(() => {
+  const chapter = currentChapter.value
+  return chapter !== null && offersNext(chapter, targetIndex.value)
+})
 
 /** With nothing to ring, the chapter's first step says where to begin. */
 const hint = computed(() => {
-  if (tourFinished.value) return t("onboarding.tour.finished.text")
+  if (tourState.preparing) return t("onboarding.tours.preparing")
+  if (tourFinished.value) return closing.value?.text() ?? ""
   const chapter = currentChapter.value
   if (chapter === null) return ""
   const target = chapter.targets[Math.max(targetIndex.value, 0)]
@@ -141,7 +191,7 @@ const hint = computed(() => {
 
 const cardPlace = computed(() => {
   const size = cardSize.value
-  if (tourFinished.value) {
+  if (tourFinished.value || tourState.preparing) {
     return {
       top: Math.max(0, (viewport.value.height - size.height) / 2),
       left: Math.max(0, (viewport.value.width - size.width) / 2),
@@ -161,27 +211,53 @@ const cardStyle = computed(() => ({ top: `${cardPlace.value.top}px`, left: `${ca
 const confirm = useConfirm()
 const { markDone } = useTourDone()
 
+/** Done either way, and what the tour made for itself taken back. */
+function close() {
+  const tour = runningTour.value
+  if (tour === null) return
+  const memory = tourState.memory
+  void markDone(tour.id)
+  endTour()
+  if (tour.cleanup !== undefined) {
+    tour.cleanup(kit, memory).catch((cause: unknown) => {
+      toast.error(messageOf(cause, t("onboarding.tours.cleanup_failed")))
+    })
+  }
+}
+
+/**
+ * The confirmation is a window of ours, under the tour's layer: while it is
+ * asked the tour steps aside, or its dim would cover the question.
+ */
+const confirming = ref(false)
+
 async function stop() {
-  const close = await confirm({
+  confirming.value = true
+  const accepted = await confirm({
     title: t("onboarding.close_title"),
     message: t("onboarding.close_message"),
     confirmLabel: t("onboarding.close_confirm"),
     cancelLabel: t("onboarding.keep_going"),
+  }).finally(() => {
+    confirming.value = false
   })
-  if (!close) return
-  void markDone()
-  endTour()
+  if (accepted) close()
 }
 
-function finish() {
-  void markDone()
-  endTour()
+// A tour without a closing card ends on its last chapter, leaving the screen
+// as the person has it: the welcome's ends with the catalog open (D355).
+watch(tourFinished, (finished) => {
+  if (finished && closing.value === null) close()
+})
+
+function next() {
+  nextChapter()
 }
 </script>
 
 <template>
   <Teleport to="body">
-    <template v-if="tourState.running">
+    <template v-if="running && !confirming">
       <div
         v-if="ring"
         class="tour-ring"
@@ -189,7 +265,7 @@ function finish() {
         data-testid="tour-ring"
       />
       <div
-        v-else-if="tourFinished"
+        v-else-if="tourFinished || tourState.preparing"
         class="tour-dim"
       />
       <section
@@ -203,7 +279,7 @@ function finish() {
       >
         <header class="tour-card__head">
           <span
-            v-if="!tourFinished"
+            v-if="!tourFinished && !tourState.preparing"
             class="tour-card__position"
             data-testid="tour-position"
           >{{ position }}</span>
@@ -219,18 +295,25 @@ function finish() {
           {{ hint }}
         </p>
         <div class="tour-card__actions">
-          <AppButton
-            v-if="!tourFinished"
-            variant="quiet"
-            :label="t('onboarding.end_tour')"
-            data-testid="tour-end"
-            @click="stop"
-          />
+          <template v-if="!tourFinished">
+            <AppButton
+              variant="quiet"
+              :label="t('onboarding.end_tour')"
+              data-testid="tour-end"
+              @click="stop"
+            />
+            <AppButton
+              v-if="canNext"
+              :label="isLast ? t('onboarding.finish') : t('onboarding.next')"
+              data-testid="tour-next"
+              @click="next"
+            />
+          </template>
           <AppButton
             v-else
             :label="t('onboarding.finish')"
             data-testid="tour-finish"
-            @click="finish"
+            @click="close"
           />
         </div>
       </section>
@@ -295,5 +378,6 @@ function finish() {
 .tour-card__actions {
   display: flex;
   justify-content: flex-end;
+  gap: var(--dp-space-2);
 }
 </style>

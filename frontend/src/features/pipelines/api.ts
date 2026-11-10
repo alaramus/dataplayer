@@ -47,9 +47,13 @@ function listed(queryClient: ReturnType<typeof useQueryClient>, pipeline: Pipeli
   })
 }
 
+/** Waited for by the tour (D355). */
+export const createPipelineKey = ["pipelines", "create"] as const
+
 export function useCreatePipeline() {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: createPipelineKey,
     mutationFn: async (name: string) => (await PipelinesService.createPipeline({ body: { name } })).data,
     onSuccess: (pipeline) => {
       listed(queryClient, pipeline)

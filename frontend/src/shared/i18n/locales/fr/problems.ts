@@ -59,6 +59,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_live_changes": "Cette source ne signale pas les changements",
   "connectors.no_connection_string": "Cette source n'a pas de chaîne de connexion",
   "connectors.not_made_here": "Une source de ce type ne peut pas être créée sur ce serveur",
+  "connectors.no_file_to_remove": "Cette connexion ne tient aucun fichier de votre stockage à supprimer",
+  "connectors.file_shared": "{names} ouvrent aussi ce fichier ; supprimez-les d'abord ou gardez le fichier",
   "connectors.no_server_key": "Cette source ne mémorise pas de clé du serveur",
   "connectors.no_reading_rows": "Cette source ne prend pas en charge la lecture des lignes",
   "connectors.no_content_viewers": "Cette source ne prend pas en charge les visionneuses de contenu",

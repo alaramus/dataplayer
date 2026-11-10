@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue"
-import { useRouter } from "vue-router"
 
-import { startTour } from "@/features/onboarding/runner"
 import { useMyStorage } from "@/features/preferences/api"
 import { useLanguageChoice } from "@/features/preferences/languageChoice"
 import { storageWording } from "@/features/preferences/storage"
 import VoiceSelect from "@/features/speech/VoiceSelect.vue"
 import { speechSupported } from "@/features/speech/voices"
 import { t } from "@/shared/i18n"
-import { AppButton, AppForm, AppProgress, AppSelect, AppSettingRow } from "@/shared/ui"
+import { AppForm, AppProgress, AppSelect, AppSettingRow } from "@/shared/ui"
 import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
@@ -21,12 +19,6 @@ import type { ThemeMode } from "@/stores/theme"
 const theme = useThemeStore()
 const speechOk = speechSupported()
 
-// The tour, on demand: it runs over the workspace, so it starts there (D355).
-const router = useRouter()
-function replayTour() {
-  startTour()
-  void router.push("/")
-}
 
 const language = useLanguageChoice()
 
@@ -93,16 +85,6 @@ const storageShown = computed(() => storage.data.value ? storageWording(storage.
           :label="t('preferences.storage')"
         />
       </div>
-    </AppSettingRow>
-    <AppSettingRow
-      :title="t('preferences.tour')"
-      :summary="t('preferences.tour_summary')"
-    >
-      <AppButton
-        :label="t('preferences.replay_tour')"
-        data-testid="preference-replay-tour"
-        @click="replayTour"
-      />
     </AppSettingRow>
   </div>
 </template>

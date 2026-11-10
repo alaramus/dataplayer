@@ -17,6 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.users import crud, storage
 from tests.adapters.sqlite_fixture import FILE, build
+from tests.utils.database import working_postgres_options
 
 BASE = f"{settings.API_V1_STR}/connectors"
 
@@ -242,3 +243,80 @@ async def test_a_type_that_needs_a_server_is_not_made_here(
     )
 
     assert response.status_code == 501, response.text
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_connection_is_deleted_with_its_file_when_asked(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], home: Path
+) -> None:
+    """D356: the file and what SQLite keeps beside it; without the flag, it stays."""
+    headers = normal_user_token_headers
+    kept = (
+        await client.post(f"{BASE}/made-here", headers=headers, json={"adapter_type": "sqlite"})
+    ).json()
+    gone = (
+        await client.post(
+            f"{BASE}/made-here",
+            headers=headers,
+            json={"adapter_type": "sqlite", "choice": {"wal": True}},
+        )
+    ).json()
+    (home / f"{gone['config']['path']}-shm").write_bytes(b"")
+
+    plain = await client.delete(f"{BASE}/{kept['id']}", headers=headers)
+    with_file = await client.delete(
+        f"{BASE}/{gone['id']}", headers=headers, params={"with_file": "true"}
+    )
+
+    assert plain.status_code == 200, plain.text
+    assert (home / kept["config"]["path"]).is_file()
+    assert with_file.status_code == 200, with_file.text
+    assert not (home / gone["config"]["path"]).exists()
+    assert not (home / f"{gone['config']['path']}-shm").exists()
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_file_another_connection_opens_is_kept_and_both_stay(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], home: Path
+) -> None:
+    headers = normal_user_token_headers
+    made = (
+        await client.post(f"{BASE}/made-here", headers=headers, json={"adapter_type": "sqlite"})
+    ).json()
+    other = await _connector(client, headers, {"path": made["config"]["path"]})
+
+    refused = await client.delete(
+        f"{BASE}/{made['id']}", headers=headers, params={"with_file": "true"}
+    )
+
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["detail"]["code"] == "connectors.file_shared"
+    assert (home / made["config"]["path"]).is_file()
+    assert (await client.get(f"{BASE}/{made['id']}", headers=headers)).status_code == 200
+    await client.delete(f"{BASE}/{other}", headers=headers)
+    await client.delete(f"{BASE}/{made['id']}", headers=headers, params={"with_file": "true"})
+
+
+async def test_a_connection_that_holds_no_file_refuses_to_take_one(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    created = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={
+            "name": f"pg {uuid.uuid4()}",
+            "adapter_type": "postgres",
+            "options": working_postgres_options(),
+        },
+    )
+    assert created.status_code == 200, created.text
+    connector_id = created.json()["id"]
+
+    refused = await client.delete(
+        f"{BASE}/{connector_id}", headers=headers, params={"with_file": "true"}
+    )
+
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["code"] == "connectors.no_file_to_remove"
+    assert (await client.delete(f"{BASE}/{connector_id}", headers=headers)).status_code == 200

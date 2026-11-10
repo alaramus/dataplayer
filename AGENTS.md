@@ -60,7 +60,7 @@ documentation.
 | Long work the server owns, its progress, its recovery | [jobs.md](docs/architecture/jobs.md) |
 | Backend modules, routes, migrations, secrets, database, the server's log | [backend.md](docs/architecture/backend.md) |
 | Screens, where state lives, Markdown rendering | [frontend.md](docs/architecture/frontend.md) |
-| The first-visit welcome, the tour, a control or a mutation the tour waits for | [tour.md](docs/architecture/tour.md) |
+| The first-visit welcome, the tours, a control or a mutation a tour waits for | [tour.md](docs/architecture/tour.md) |
 | Any text a person reads, a language, the way it reads, a refusal a route sends | [localization.md](docs/architecture/localization.md) |
 | The component kit, colours, layers, a size of text, a weight, a height, an icon size, a theme | [design-system.md](docs/architecture/design-system.md) |
 | A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
@@ -135,7 +135,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/binance](docs/architecture/sources/binance.md) | D316–D323 |
 | [sources/rabbitmq](docs/architecture/sources/rabbitmq.md) | D325–D332, D334, D335, D337–D339 |
 | [sources/cassandra](docs/architecture/sources/cassandra.md) | D340–D354 |
-| [tour](docs/architecture/tour.md) | D355 |
+| [tour](docs/architecture/tour.md) | D355, D356 |
 
 ## Working rules
 

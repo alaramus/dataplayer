@@ -7,6 +7,7 @@ import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
 import { useTourDone } from "./done"
+import { BASICS_TOUR } from "./basics"
 import { startTour } from "./runner"
 
 /**
@@ -28,7 +29,7 @@ const { done, markDone } = useTourDone()
 /** Done once the tour ends or is ended, not now: a reload brings the welcome back. */
 function takeTour() {
   emit("update:modelValue", false)
-  startTour()
+  startTour(BASICS_TOUR)
 }
 
 function lookAround() {

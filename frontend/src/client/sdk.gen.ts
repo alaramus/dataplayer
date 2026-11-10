@@ -1504,7 +1504,8 @@ export class ConnectorsService {
   /**
    * Delete Connector
    *
-   * Delete a connector.
+   * Delete a connector, and with `with_file` the file in the owner's storage
+   * it holds (D356).
    */
   public static deleteConnector<ThrowOnError extends boolean = true>(
     options: Options<connectorsDeleteConnectorData, ThrowOnError>

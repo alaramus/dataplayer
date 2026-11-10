@@ -6,11 +6,13 @@ export const preferences: Messages["preferences"] = {
   not_saved: "La préférence n'a pas pu être enregistrée",
   sections: {
     general: "Général",
-    general_summary: "Langue, thème, voix de lecture et visite de bienvenue",
+    general_summary: "Langue, thème et voix de lecture",
     connections: "Connexions",
     connections_summary: "Fréquence de vérification des connexions pendant qu'un espace de travail est ouvert",
     ssh_keys: "Clés SSH",
     ssh_keys_summary: "Les clés que ce compte utilise pour les connexions SSH",
+    tours: "Visites",
+    tours_summary: "La visite de bienvenue et de courtes visites de chaque partie, quand vous voulez",
   },
   language_summary:
     "La langue de toute l'interface. Elle est conservée avec le compte et le suit dans chaque navigateur ; tant qu'aucune n'est choisie, celle du navigateur est utilisée.",
@@ -20,10 +22,6 @@ export const preferences: Messages["preferences"] = {
   voice: "Voix de lecture",
   voice_summary:
     "La voix qui lit les messages à voix haute, partout où ils sont lus. Les voix appartiennent à ce navigateur. Conservée dans ce navigateur.",
-  tour: "Visite de bienvenue",
-  tour_summary:
-    "Une courte visite que l'on fait de ses propres mains : créer une base de données, travailler avec elle et la retirer. Elle recommence ici à tout moment.",
-  replay_tour: "Rejouer la visite",
   storage: "Stockage personnel",
   storage_summary: "Vos propres fichiers sur ce serveur et la limite fixée par un administrateur",
   storage_used: "{used} sur {limit} utilisés",

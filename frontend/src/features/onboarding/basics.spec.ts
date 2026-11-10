@@ -5,13 +5,22 @@ import { runActionKey } from "@/features/catalog/api"
 import { updateCellKey } from "@/features/grid/api"
 import { startRunKey } from "@/features/queries/runs"
 
-import { BASICS } from "./basics"
-import { checkShown, currentChapter, endTour, offerMutation, startTour, tourFinished, tourState } from "./runner"
+import { BASICS_TOUR } from "./basics"
+import {
+  checkShown,
+  currentChapter,
+  endTour,
+  nextChapter,
+  offerMutation,
+  startTour,
+  tourFinished,
+  tourState,
+} from "./runner"
 
 const made = {
   key: makeConnectorHereKey,
   variables: { adapter_type: "sqlite", choice: {} },
-  data: { id: "c1", name: "dataplayer", config: { path: "/databases/dataplayer (1).db" } },
+  data: { id: "c1", name: "dataplayer-2", config: { path: "databases/dataplayer-2.db" } },
 }
 
 function chapterId() {
@@ -21,18 +30,20 @@ function chapterId() {
 describe("the first tour", () => {
   beforeEach(() => {
     endTour()
-    startTour()
+    startTour(BASICS_TOUR)
   })
 
-  it("is nine chapters, each with a hint for every target", () => {
-    expect(BASICS.map((chapter) => chapter.id)).toEqual([
-      "make", "open", "filter", "edit", "query", "disconnect", "folder", "find", "remove",
+  it("is ten chapters, each with a hint for every target, and ends without a card", () => {
+    expect(BASICS_TOUR.chapters.map((chapter) => chapter.id)).toEqual([
+      "make", "open", "filter", "edit", "query", "disconnect", "folder", "find", "remove", "service",
     ])
-    for (const chapter of BASICS) {
+    for (const chapter of BASICS_TOUR.chapters) {
       expect(chapter.targets.length).toBeGreaterThan(0)
       expect(chapter.title()).not.toBe("")
       for (const target of chapter.targets) expect(target.hint({})).not.toBe("")
     }
+    expect(BASICS_TOUR.closing).toBeUndefined()
+    expect(BASICS_TOUR.setup).toBeUndefined()
   })
 
   it("remembers the database it made, under the name the server gave", () => {
@@ -40,9 +51,9 @@ describe("the first tour", () => {
     expect(chapterId()).toBe("open")
     expect(tourState.memory.database).toEqual({
       id: "c1",
-      name: "dataplayer",
+      name: "dataplayer-2",
       folder: "databases",
-      file: "dataplayer (1).db",
+      file: "dataplayer-2.db",
     })
   })
 
@@ -74,19 +85,24 @@ describe("the first tour", () => {
     expect(tourState.memory.folder).toEqual({ id: "f1", name: "Files" })
     checkShown(shown)
     expect(chapterId()).toBe("remove")
-    // Another file deleted, or this one refused, does not end the tour.
+    // Another file deleted, or this one refused, does not end the chapter.
     offerMutation({ key: runActionKey, variables: { name: "delete", nodeIds: ["databases/other.db"] }, data: { failures: [] } })
     offerMutation({
       key: runActionKey,
-      variables: { name: "delete", nodeIds: ["databases/dataplayer (1).db"] },
+      variables: { name: "delete", nodeIds: ["databases/dataplayer-2.db"] },
       data: { failures: [{}] },
     })
-    expect(tourFinished.value).toBe(false)
+    expect(chapterId()).toBe("remove")
     offerMutation({
       key: runActionKey,
-      variables: { name: "delete", nodeIds: ["databases/dataplayer (1).db"] },
+      variables: { name: "delete", nodeIds: ["databases/dataplayer-2.db"] },
       data: { failures: [] },
     })
+    // The last chapter only shows a server that could be started: Next ends it.
+    expect(chapterId()).toBe("service")
+    checkShown(shown)
+    expect(chapterId()).toBe("service")
+    nextChapter()
     expect(tourFinished.value).toBe(true)
   })
 

@@ -98,6 +98,7 @@ async def test_the_welcome_tour_is_seen_once_per_account(
     assert done.json() == {
         "connector_checks": "5m",
         "welcome_tour_done": True,
+        "tours_done": [],
         "language": None,
         "theme": None,
     }
@@ -188,3 +189,23 @@ def test_a_stored_theme_this_version_no_longer_draws_reads_as_the_systems() -> N
     assert as_theme("sepia") is None
     assert as_theme(None) is None
 
+
+
+async def test_a_short_tour_taken_is_added_to_those_taken(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """D356: one at a time and in the order they are offered, each once."""
+    headers = await authentication_token_from_email(
+        client=client, email=random_email(), db=db
+    )
+    assert (await client.get(PREFERENCES, headers=headers)).json()["tours_done"] == []
+
+    await client.patch(PREFERENCES, headers=headers, json={"tour_done": "dashboards"})
+    await client.patch(PREFERENCES, headers=headers, json={"tour_done": "views"})
+    again = await client.patch(PREFERENCES, headers=headers, json={"tour_done": "dashboards"})
+    unknown = await client.patch(PREFERENCES, headers=headers, json={"tour_done": "nope"})
+
+    assert again.json()["tours_done"] == ["views", "dashboards"]
+    assert unknown.status_code == 422
+    read_back = await client.get(PREFERENCES, headers=headers)
+    assert read_back.json()["tours_done"] == ["views", "dashboards"]

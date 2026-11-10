@@ -93,7 +93,7 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   await expect(page.getByTestId("onboarding-dialog")).toHaveCount(0)
 
   // 1. A database made here: + → SQLite → Create here → Make.
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 1 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 1 of 10")
   await expectRingOn(page, "add-connector")
   await page.screenshot({ path: testInfo.outputPath("1-add.png") })
   await page.getByTestId("add-connector").click()
@@ -112,18 +112,18 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   const file = connector.config.path.split("/").pop() ?? ""
 
   // 2. Its table.
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 2 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 2 of 10")
   await expectRingOn(page, "catalog-node-tasks")
   await page.getByTestId("catalog-node-tasks").click()
 
   // 3. Filtered: the chapter ends when the count is on the button.
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 3 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 3 of 10")
   await expectRingOn(page, "grid-filter")
   await page.screenshot({ path: testInfo.outputPath("3-filter.png") })
   await addFilter(page, "status", "equals", "blocked")
 
   // 4. A cell changed.
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 4 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 4 of 10")
   await expectRingOn(page, "grid-cell-0-title")
   await page.getByTestId("grid-cell-0-title").dblclick()
   await expectRingOn(page, "grid-cell-editor")
@@ -131,7 +131,7 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   await page.getByTestId("grid-edit-save").click()
 
   // 5. The table as a query, run.
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 5 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 5 of 10")
   await expectRingOn(page, "grid-query")
   await page.getByTestId("grid-query").click()
   await expectRingOn(page, "query-run")
@@ -139,7 +139,7 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   await page.getByTestId("query-run").click()
 
   // 6. The connection deleted; its file stays.
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 6 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 6 of 10")
   await expectRingOn(page, `connector-edit-${connector.name}`)
   await page.getByTestId(`connector-edit-${connector.name}`).click()
   await page.locator('[data-testid="delete-connector"][tabindex="0"]').click()
@@ -148,7 +148,7 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   await page.getByTestId("confirm-accept").click()
 
   // 7. A connection to the person's own storage.
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 7 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 7 of 10")
   await page.getByTestId("add-connector").click()
   await expectRingOn(page, "adapter-file")
   await page.getByTestId("adapter-file").click()
@@ -159,13 +159,13 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   await page.getByTestId("save-connector").click()
 
   // 8. The database file found in it.
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 8 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 8 of 10")
   await page.getByTestId(`connector-${folder}`).click()
   await expectRingOn(page, "catalog-node-databases")
   await page.getByTestId("catalog-node-databases").click()
 
   // 9. And deleted, from the actions of the catalog.
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 9 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 9 of 10")
   await expectRingOn(page, `catalog-check-${file}`)
   await page.getByTestId(`catalog-check-${file}`).click()
   await expectRingOn(page, "catalog-actions")
@@ -174,10 +174,18 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   await expectRingOn(page, "action-submit")
   await page.getByTestId("action-submit").click()
 
-  await expect(page.getByTestId("tour-finish")).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath("finished.png") })
-  await page.getByTestId("tour-finish").click()
+  // 10. A server shown that could be started here; nothing is started, and
+  // the catalog stays open when the tour ends.
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 10 of 10")
+  await page.getByTestId("add-connector").click()
+  await expectRingOn(page, "adapter-redis")
+  await page.getByTestId("adapter-redis").click()
+  await expectRingOn(page, "start-service-redis")
+  await page.screenshot({ path: testInfo.outputPath("10-service.png") })
+  await page.getByTestId("tour-next").click()
   await expect(hint(page)).toHaveCount(0)
+  await expect(page.getByTestId("adapter-catalog")).toBeVisible()
+  await page.keyboard.press("Escape")
   await page.reload()
   await expect(page.getByTestId("onboarding-dialog")).toHaveCount(0)
 
@@ -189,17 +197,26 @@ test("the tour can be ended, and Preferences starts it again from its first chap
 }) => {
   await loginFresh(page)
   await page.getByTestId("onboarding-primary").click()
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 1 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 1 of 10")
+  // The question is a window under the tour's layer: the dim steps aside for
+  // it, and comes back when the tour goes on.
+  await page.getByTestId("tour-end").click()
+  await expect(page.getByTestId("confirm-accept")).toBeVisible()
+  await expect(page.getByTestId("tour-ring")).toHaveCount(0)
+  await expect(hint(page)).toHaveCount(0)
+  await page.screenshot({ path: test.info().outputPath("end-question.png") })
+  await page.getByTestId("confirm-cancel").click()
+  await expect(page.getByTestId("tour-ring")).toBeVisible()
   await page.getByTestId("tour-end").click()
   await page.getByTestId("confirm-accept").click()
   await expect(hint(page)).toHaveCount(0)
   await page.reload()
   await expect(page.getByTestId("onboarding-dialog")).toHaveCount(0)
 
-  await page.goto("/preferences")
-  await page.getByTestId("preference-replay-tour").click()
+  await page.goto("/preferences/tours")
+  await page.getByTestId("preference-tour-basics").click()
   await page.waitForURL("/")
-  await expect(page.getByTestId("tour-position")).toHaveText("Step 1 of 9")
+  await expect(page.getByTestId("tour-position")).toHaveText("Step 1 of 10")
   await expectRingOn(page, "add-connector")
   await page.getByTestId("tour-end").click()
   await page.getByTestId("confirm-accept").click()

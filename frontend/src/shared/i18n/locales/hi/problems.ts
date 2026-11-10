@@ -59,6 +59,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_live_changes": "यह स्रोत बदलावों की सूचना नहीं देता",
   "connectors.no_connection_string": "इस स्रोत के पास कनेक्शन स्ट्रिंग नहीं है",
   "connectors.not_made_here": "इस प्रकार का स्रोत इस सर्वर पर नहीं बनाया जा सकता",
+  "connectors.no_file_to_remove": "यह कनेक्शन आपके स्टोरेज की कोई फ़ाइल नहीं रखता जिसे हटाया जाए",
+  "connectors.file_shared": "{names} भी यह फ़ाइल खोलते हैं; पहले उन्हें हटाएँ या फ़ाइल रखें",
   "connectors.no_server_key": "यह स्रोत सर्वर कुंजी नहीं रखता",
   "connectors.no_reading_rows": "यह स्रोत पंक्तियाँ पढ़ने का समर्थन नहीं करता",
   "connectors.no_content_viewers": "यह स्रोत सामग्री व्यूअर का समर्थन नहीं करता",

@@ -59,6 +59,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_live_changes": "Diese Quelle meldet keine Änderungen",
   "connectors.no_connection_string": "Die Quelle hat keine Verbindungszeichenfolge",
   "connectors.not_made_here": "Eine Quelle dieser Art kann auf diesem Server nicht erstellt werden",
+  "connectors.no_file_to_remove": "Diese Verbindung hält keine Datei Ihres Speichers, die gelöscht werden könnte",
+  "connectors.file_shared": "{names} öffnen diese Datei ebenfalls; löschen Sie sie zuerst oder behalten Sie die Datei",
   "connectors.no_server_key": "Die Quelle merkt sich keinen Serverschlüssel",
   "connectors.no_reading_rows": "Die Quelle unterstützt das Lesen von Zeilen nicht",
   "connectors.no_content_viewers": "Die Quelle unterstützt keine Betrachter für Inhalte",

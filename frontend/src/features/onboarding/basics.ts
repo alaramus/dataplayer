@@ -3,14 +3,13 @@ import { runActionKey } from "@/features/catalog/api"
 import { updateCellKey } from "@/features/grid/api"
 import { startRunKey } from "@/features/queries/runs"
 import { t } from "@/shared/i18n"
-import type { MessageKey } from "@/shared/i18n"
 
-import { isRecord, splitPath, testId, testIdPrefix } from "./tour"
-import type { TourChapter, TourMemory } from "./tour"
+import { isRecord, say, splitPath, testId, testIdPrefix } from "./tour"
+import type { TourChapter, TourDefinition, TourMemory } from "./tour"
 
 /**
- * The first tour: a SQLite database made, worked with and cleaned away, nine
- * chapters (D355). Every target is a `data-testid` the Playwright scenarios
+ * The first tour: a SQLite database made, worked with and cleaned away, then
+ * a server shown that could be started here (D355). Every target is a `data-testid` the Playwright scenarios
  * hold on to as well; `tests/onboarding.spec.ts` walks this whole list.
  */
 
@@ -18,8 +17,8 @@ import type { TourChapter, TourMemory } from "./tour"
 export const TOUR_TABLE = "tasks"
 /** The column whose cell is changed. */
 export const TOUR_COLUMN = "title"
-
-const say = (key: MessageKey, params?: Record<string, string>) => () => t(key, params)
+/** The service the last chapter shows and does not start. */
+export const SERVICE_SHOWN = "redis"
 
 const database = (memory: TourMemory) => memory.database ?? null
 
@@ -205,14 +204,29 @@ const removed: TourChapter = {
   },
 }
 
-export const BASICS: readonly TourChapter[] = [
-  made,
-  opened,
-  filtered,
-  edited,
-  queried,
-  disconnected,
-  connected,
-  found,
-  removed,
-]
+/**
+ * The last chapter only shows: a server this application starts in Docker,
+ * Redis because nothing before looked like it. Nothing is started; the tour
+ * ends with the catalog open, for the person to go on alone.
+ */
+const served: TourChapter = {
+  id: "service",
+  title: say("onboarding.tour.service.title"),
+  targets: [
+    { locate: () => testId("add-connector"), hint: say("onboarding.tour.service.add") },
+    { locate: () => testId("adapter-redis"), hint: say("onboarding.tour.service.pick") },
+    {
+      locate: () => testId(`start-service-${SERVICE_SHOWN}`),
+      hint: say("onboarding.tour.service.start"),
+      ready: (_, find) => find(`${testId(`adapter-${SERVICE_SHOWN}`)}[aria-pressed="true"]`) !== null,
+    },
+  ],
+  done: { kind: "next" },
+}
+
+export const BASICS_TOUR: TourDefinition = {
+  id: "basics",
+  title: () => t("onboarding.tours.basics.title"),
+  summary: () => t("onboarding.tours.basics.summary"),
+  chapters: [made, opened, filtered, edited, queried, disconnected, connected, found, removed, served],
+}

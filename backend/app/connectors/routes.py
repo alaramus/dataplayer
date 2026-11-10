@@ -774,9 +774,11 @@ async def delete_connector(
     current_user: CurrentUser,
     data_cache: DataCacheDep,
     connector_id: uuid.UUID,
+    with_file: bool = False,
 ) -> Message:
     """
-    Delete a connector.
+    Delete a connector, and with `with_file` the file in the owner's storage
+    it holds (D356).
     """
     connector = await get_or_404(
         session, connector_id, current_user, requires="own"
@@ -785,9 +787,42 @@ async def delete_connector(
     if carried:
         names = ", ".join(use.name for use in carried)
         raise Problem(409, "connectors.tunnel_in_use", names=names)
+    if with_file:
+        await _remove_held_file(session, current_user, connector)
     await crud.delete(session, connector=connector)
     await data_cache.invalidate_connector(connector_id)
     return Message(message=say("Connector deleted successfully"))
+
+
+async def _remove_held_file(
+    session: AsyncSession, current_user: User, connector: Connector
+) -> None:
+    """The file goes first, so a refusal leaves both where they were. Another
+    connection of the owner's on the same file is a reason to keep it."""
+    driver = adapter_type_or_422(connector.adapter_type).adapter_class
+    if not issubclass(driver, MakesSourceHere):
+        raise Problem(422, "connectors.no_file_to_remove", error_kind="config")
+    path = driver.source_file_here(connector.config)
+    if path is None:
+        raise Problem(422, "connectors.no_file_to_remove", error_kind="config")
+    others = [
+        other.name
+        for other in await crud.visible_of(session, user_id=current_user.id)
+        if other.id != connector.id
+        and other.owner_id == current_user.id
+        and other.adapter_type == connector.adapter_type
+        and driver.source_file_here(other.config) == path
+    ]
+    if others:
+        raise Problem(409, "connectors.file_shared", names=", ".join(others))
+    home_dir = context_for(current_user.id).home_dir
+    try:
+        await to_thread.run_sync(partial(driver.remove_source_here, home_dir, path))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["query", "with_file"], "msg": str(exc), "type": "value_error"}],
+        ) from None
 
 
 class ConnectionCheckRequest(BaseModel):
