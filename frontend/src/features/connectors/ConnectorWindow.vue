@@ -82,6 +82,8 @@ const props = defineProps<{
   draft?: ConnectorDraft
   /** The name a new connection starts with: the card it was picked by, MariaDB rather than MySQL (D264). */
   initialName?: string
+  /** The card it was picked by, kept on the connection it becomes (D264). */
+  card?: string
   /**
    * The page to open on, when the window is opened for something in
    * particular: answering a request for access arrives at the page where
@@ -587,6 +589,7 @@ async function apply(): Promise<boolean> {
         execution_policy: executionPolicy.value,
         allow_third_party_transfer: thirdPartyTransfer.value,
         cache_ttl_seconds: cacheWindow.value,
+        face: props.card ?? null,
       })
       // From here on this is that connection's window, so a second Apply
       // updates it rather than creating a second one. See O7.
@@ -771,6 +774,7 @@ async function parseTyped(text: string) {
           <template #field-ssh-host-key="{ value, update, disable }">
             <ServerKeyField
               :adapter-type="typeName ?? ''"
+              :face="saved?.face ?? card ?? null"
               :options="optionValues"
               :model-value="typeof value === 'string' ? value : ''"
               :disable="disable"

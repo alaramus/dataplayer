@@ -21,11 +21,13 @@ const props = withDefaults(
     connectorId: string
     name: string
     adapterType: string
+    /** The card it was made from, drawn instead of its type (D264). */
+    face?: string | null
     tooltip: string
     testid: string
     enabled?: boolean
   }>(),
-  { enabled: true }
+  { enabled: true, face: null }
 )
 
 const emit = defineEmits<{ click: [] }>()
@@ -44,7 +46,7 @@ const explained = computed(
     :class="{ 'connector-icon--off': !enabled }"
   >
     <AppIconButton
-      :icon="adapterIcon(adapterType)"
+      :icon="adapterIcon(face ?? adapterType)"
       :tooltip="explained"
       :data-testid="testid"
       @click="emit('click')"

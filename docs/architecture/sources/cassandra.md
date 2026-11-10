@@ -44,8 +44,6 @@ Known deviations:
 - A read goes to the node named, not to a replica of its partition.
 - ScyllaDB is not reached through its shard-aware port.
 - A self-signed certificate cannot be trusted; TLS is verified or off.
-- A connection of ScyllaDB shows Cassandra's picture in lists, as MariaDB's
-  shows MySQL's: a connection keeps its type, not the card it was made from.
 
 Spec: [A Cassandra and ScyllaDB source](../../decisions/2026-11-10-cassandra-source-design.md)
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { adapterIcon, categoryIcon, UNKNOWN_CATEGORY_ICON, UNKNOWN_ADAPTER_ICON } from "./adapters"
+import { adapterIcon, categoryIcon, connectorIcon, UNKNOWN_CATEGORY_ICON, UNKNOWN_ADAPTER_ICON } from "./adapters"
 
 describe("the icon of a source type", () => {
   it("tells the types apart", () => {
@@ -35,5 +35,14 @@ describe("the glyph of a category", () => {
 
   it("falls back for a group the backend gained since this build", () => {
     expect(categoryIcon("timeseries")).toBe(UNKNOWN_CATEGORY_ICON)
+  })
+})
+
+describe("connectorIcon", () => {
+  it("draws a connection as the card it was made from, and its type when it names none (D264)", () => {
+    expect(connectorIcon({ adapter_type: "cassandra", face: "scylladb" })).toBe("img:/icons/services/scylladb.svg")
+    expect(connectorIcon({ adapter_type: "mysql", face: "mariadb" })).toBe("img:/icons/services/mariadb.svg")
+    expect(connectorIcon({ adapter_type: "mysql", face: null })).toBe("img:/icons/services/mysql.svg")
+    expect(connectorIcon({ adapter_type: "postgres" })).toBe("img:/icons/services/postgresql.svg")
   })
 })

@@ -81,7 +81,7 @@ const options = useTableDesignOptions(connectorId, destination)
 const planTable = usePlanTable()
 
 const draft = reactive<Draft>(emptyDraft("text"))
-draft.name = "new table"
+draft.name = "new_table"
 const step = ref<"definition" | "review">("definition")
 const section = ref<DraftSection>("columns")
 const selected = ref(draft.columns[0]?.id ?? "")

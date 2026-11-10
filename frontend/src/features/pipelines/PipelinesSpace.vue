@@ -179,6 +179,7 @@ defineExpose({
                 :connector-id="connector.id"
                 :name="connector.name"
                 :adapter-type="connector.adapter_type"
+                :face="connector.face"
                 :enabled="connector.enabled"
                 :tooltip="connector.name"
                 :testid="`pipelines-rail-${connector.name}`"

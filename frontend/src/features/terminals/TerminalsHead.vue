@@ -2,7 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
-import { adapterIcon } from "@/features/connectors/adapters"
+import { connectorIcon } from "@/features/connectors/adapters"
 import { connectorColorOf, connectorNameOf, useConnectors } from "@/features/connectors/api"
 import { t } from "@/shared/i18n"
 import { AppIconButton, AppMenu, AppTaskbar, AppTaskbarItem } from "@/shared/ui"
@@ -39,7 +39,7 @@ const menu = computed<MenuItem[]>(() =>
     : candidates.value.map((connector) => ({
         name: connector.id,
         label: connector.name,
-        icon: adapterIcon(connector.adapter_type),
+        icon: connectorIcon(connector),
       }))
 )
 

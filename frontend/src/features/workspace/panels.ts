@@ -102,6 +102,8 @@ export const panelSchema = z.discriminatedUnion("kind", [
     // Carried on the panel so a catalog restored from storage can draw the
     // icon of its source before the list of connections has been read.
     adapterType: z.string(),
+    // The card the connection was made from, drawn instead (D264).
+    face: z.string().optional(),
   }),
   z.object({
     id: z.string(),
@@ -585,7 +587,7 @@ function baseLookOf(panel: Panel): PanelLook {
       // catalog is not a thing the catalog's own row of commands reaches.
       return {
         title: panel.title,
-        icon: adapterIcon(panel.adapterType),
+        icon: adapterIcon(panel.face ?? panel.adapterType),
         iconTooltip: t("workspace.look.edit_connection"),
         iconCommand: true,
         reloadTooltip: t("workspace.look.reread_level"),
@@ -736,6 +738,7 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
           title: panel.title,
           startAt: panel.startAt,
           adapterType: panel.adapterType,
+          face: panel.face,
         })
       )
     case "rows":

@@ -325,3 +325,34 @@ async def test_unauthenticated_request_is_rejected(client: AsyncClient) -> None:
     response = await client.get(f"{BASE}/")
 
     assert response.status_code == 401
+
+
+async def test_a_connection_keeps_the_card_it_was_made_from(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """MariaDB is a card of `mysql`: the connection is drawn as MariaDB (D264)."""
+    payload = {
+        "name": "maria",
+        "adapter_type": "mysql",
+        "face": "mariadb",
+        "options": {"auth_method": "user_password", "host": "localhost", "user": "root", "password": "x"},
+    }
+
+    made = await client.post(f"{BASE}/", headers=normal_user_token_headers, json=payload)
+    listed = await client.get(f"{BASE}/", headers=normal_user_token_headers)
+    plain = await client.post(f"{BASE}/", headers=normal_user_token_headers, json=_payload("plain"))
+
+    assert made.status_code == 200, made.text
+    assert made.json()["face"] == "mariadb"
+    assert any(item["face"] == "mariadb" for item in listed.json()["data"])
+    assert plain.json()["face"] is None
+
+
+async def test_a_card_its_type_does_not_have_is_refused(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={**_payload("x"), "face": "scylladb"}
+    )
+
+    assert response.status_code == 422

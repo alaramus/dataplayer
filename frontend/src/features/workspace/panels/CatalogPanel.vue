@@ -68,6 +68,8 @@ const props = defineProps<{
   connectorId: string
   title: string
   adapterType: string
+  /** The card the connection was made from (D264). */
+  face?: string
   startAt?: string
 }>()
 
@@ -1349,7 +1351,7 @@ async function afterAction(outcome: ActionOutcome) {
       :checked="level.checked.value"
       :tickable="tickable"
       :no-ticks="!ticks"
-      :source-icon="adapterIcon(adapterType)"
+      :source-icon="adapterIcon(face ?? adapterType)"
       :loading="level.loading.value"
       :show-group="level.selectedGroups.value.length > 1"
       :has-parent="level.path.value.length > 1"

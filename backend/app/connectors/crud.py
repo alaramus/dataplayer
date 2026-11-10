@@ -39,10 +39,12 @@ async def create(
     tab_color: str | None = None,
     cache_ttl_seconds: int | None = None,
     allow_third_party_transfer: bool = False,
+    face: str | None = None,
 ) -> Connector:
     connector = Connector(
         name=name,
         adapter_type=adapter_type,
+        face=face,
         config=config,
         secrets=secrets,
         owner_id=owner_id,
@@ -97,9 +99,7 @@ def visible_to(user_id: uuid.UUID) -> ColumnElement[bool]:
     return or_(
         col(Connector.owner_id) == user_id,
         col(Connector.id).in_(
-            select(ConnectorGrant.connector_id).where(
-                ConnectorGrant.user_id == user_id
-            )
+            select(ConnectorGrant.connector_id).where(ConnectorGrant.user_id == user_id)
         ),
     )
 
@@ -224,7 +224,8 @@ async def list_grants(
         .order_by(col(User.email))
     )
     return [
-        (user, _granted(access)) for user, access in (await session.exec(statement)).all()
+        (user, _granted(access))
+        for user, access in (await session.exec(statement)).all()
     ]
 
 

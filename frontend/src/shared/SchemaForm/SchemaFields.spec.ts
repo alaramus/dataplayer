@@ -172,3 +172,28 @@ describe("SchemaFields", () => {
     expect(wrapper.emitted("update:modelValue")?.[0]).toEqual([{ host_key: "ssh-ed25519 AAAA" }])
   })
 })
+
+describe("SchemaFields on a shared line", () => {
+  const SHARED: JsonSchema = {
+    type: "object",
+    properties: {
+      host: { type: "string", title: "Host", row: "address" },
+      port: { type: "integer", title: "Port", description: "The native port, 9042", row: "address" },
+      user: { type: "string", title: "User", description: "Who signs in" },
+    },
+  } as JsonSchema
+
+  it("puts the description of a field beside another behind an icon", () => {
+    const wrapper = mount(SchemaFields, {
+      global: { plugins: [Quasar] },
+      props: { fields: schemaToFields(SHARED), modelValue: { host: "h", port: 9042, user: "u" }, errors: {} },
+    })
+
+    const tip = wrapper.get("[data-testid='field-port-tip']")
+    expect(tip.attributes("aria-label")).toBe("The native port, 9042")
+    expect(wrapper.text()).not.toContain("The native port, 9042")
+    // A field alone on its line keeps its sentence under it.
+    expect(wrapper.text()).toContain("Who signs in")
+    expect(wrapper.find("[data-testid='field-user-tip']").exists()).toBe(false)
+  })
+})

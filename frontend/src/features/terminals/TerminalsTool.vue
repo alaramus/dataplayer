@@ -2,7 +2,7 @@
 import { computed, ref } from "vue"
 
 import type { SshKeyPublic } from "@/client"
-import { adapterIcon } from "@/features/connectors/adapters"
+import { connectorIcon } from "@/features/connectors/adapters"
 import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
 import { useLockedKey } from "@/features/sshKeys/api"
 import { t } from "@/shared/i18n"
@@ -112,7 +112,7 @@ function unlocked() {
           :key="connector.id"
           variant="secondary"
           size="sm"
-          :icon="adapterIcon(connector.adapter_type)"
+          :icon="connectorIcon(connector)"
           :label="connector.name"
           :data-testid="`terminal-open-${connector.name}`"
           @click="terminals.openOn(connector.id)"

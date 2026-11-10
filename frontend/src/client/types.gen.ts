@@ -2791,6 +2791,10 @@ export type ConnectorCreate = {
    */
   adapter_type: string
   /**
+   * Face
+   */
+  face?: string | null
+  /**
    * Options
    */
   options: {
@@ -2852,6 +2856,10 @@ export type ConnectorPublic = {
    * Adapter Type
    */
   adapter_type: string
+  /**
+   * Face
+   */
+  face?: string | null
   /**
    * Config
    */

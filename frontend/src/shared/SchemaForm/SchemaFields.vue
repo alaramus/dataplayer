@@ -9,6 +9,7 @@ import AppInput from "@/shared/ui/AppInput.vue"
 import AppNumberInput from "@/shared/ui/AppNumberInput.vue"
 import AppSelect from "@/shared/ui/AppSelect.vue"
 import AppToggle from "@/shared/ui/AppToggle.vue"
+import AppTooltip from "@/shared/ui/AppTooltip.vue"
 import { appIcons } from "@/shared/ui/icons"
 
 import { autofillOf, fieldRows } from "./jsonSchema"
@@ -148,6 +149,23 @@ watch(
     visiblePasswords.value = new Set()
   }
 )
+/**
+ * Whether a field shares its line with another, as a port shares the host's.
+ *
+ * Its description then goes behind an icon beside it: a sentence under a
+ * narrow field wraps into four lines and opens a gap under the whole row.
+ */
+function sharesLine(row: FieldSpec[]): boolean {
+  return row.filter((field) => field.kind !== "hidden").length > 1
+}
+
+function hintOf(field: FieldSpec, row: FieldSpec[]): string | undefined {
+  return sharesLine(row) ? undefined : field.description
+}
+
+function tipOf(field: FieldSpec, row: FieldSpec[]): string | undefined {
+  return sharesLine(row) && field.description ? field.description : undefined
+}
 </script>
 
 <template>
@@ -195,11 +213,26 @@ watch(
           :model-value="modelValue[field.name]"
           :options="field.choices ?? []"
           :label="field.label"
-          :hint="field.description"
+          :hint="hintOf(field, row)"
           :error="errors[field.name]"
           :disable="disable"
           @update:model-value="update(field.name, $event)"
-        />
+        >
+          <template
+            v-if="tipOf(field, row)"
+            #after
+          >
+            <q-icon
+              :name="appIcons.info"
+              class="schema-fields__tip"
+              tabindex="0"
+              :aria-label="tipOf(field, row)"
+              :data-testid="`field-${field.name}-tip`"
+            >
+              <AppTooltip>{{ tipOf(field, row) }}</AppTooltip>
+            </q-icon>
+          </template>
+        </AppSelect>
 
         <!-- A number reports a number and an emptied field reports null, so no
            screen has to coerce what the control gives back. -->
@@ -209,12 +242,27 @@ watch(
           :autocomplete="autofillOf(field)"
           :model-value="numberValue(field.name)"
           :label="field.label"
-          :hint="field.description"
+          :hint="hintOf(field, row)"
           :placeholder="field.example"
           :error="errors[field.name]"
           :disable="disable"
           @update:model-value="update(field.name, $event)"
-        />
+        >
+          <template
+            v-if="tipOf(field, row)"
+            #after
+          >
+            <q-icon
+              :name="appIcons.info"
+              class="schema-fields__tip"
+              tabindex="0"
+              :aria-label="tipOf(field, row)"
+              :data-testid="`field-${field.name}-tip`"
+            >
+              <AppTooltip>{{ tipOf(field, row) }}</AppTooltip>
+            </q-icon>
+          </template>
+        </AppNumberInput>
 
         <AppDateTimeInput
           v-else-if="field.kind === 'datetime'"
@@ -239,7 +287,7 @@ watch(
           :autocomplete="autofillOf(field)"
           :model-value="isHidden(field) ? hidden : textValue(field.name)"
           :label="field.label"
-          :hint="field.description"
+          :hint="hintOf(field, row)"
           :placeholder="field.example"
           :type="inputType(field)"
           :error="errors[field.name]"
@@ -249,10 +297,21 @@ watch(
           @update:model-value="update(field.name, $event)"
         >
           <template
-            v-if="field.kind === 'password'"
+            v-if="field.kind === 'password' || tipOf(field, row)"
             #after
           >
+            <q-icon
+              v-if="tipOf(field, row)"
+              :name="appIcons.info"
+              class="schema-fields__tip"
+              tabindex="0"
+              :aria-label="tipOf(field, row)"
+              :data-testid="`field-${field.name}-tip`"
+            >
+              <AppTooltip>{{ tipOf(field, row) }}</AppTooltip>
+            </q-icon>
             <AppIconButton
+              v-if="field.kind === 'password'"
               :icon="
                 visiblePasswords.has(field.name) ? appIcons.visibilityOff : appIcons.visibility
               "
@@ -294,6 +353,11 @@ watch(
 }
 .schema-fields--form .schema-fields__row > * + * {
   --dp-form-label-width: auto;
+}
+.schema-fields__tip {
+  font-size: var(--dp-icon-sm);
+  color: var(--dp-text-muted);
+  cursor: help;
 }
 @container app-form (max-width: 480px) {
   .schema-fields--form .schema-fields__row {

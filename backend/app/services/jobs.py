@@ -301,6 +301,11 @@ class CreateService(_ServiceJob):
         """
         kind: AdapterType = registry.get(plan.template.adapter_type)
         config, secrets = split_options(kind, dict(options))
+        # The card that offers this template is the product it starts (D264).
+        face = next(
+            (card.key for card in kind.faces if plan.template.key in card.templates),
+            None,
+        )
         connector = await connector_crud.create(
             session,
             name=service.connector_name,
@@ -308,6 +313,7 @@ class CreateService(_ServiceJob):
             config=config,
             secrets=secrets,
             owner_id=service.owner_id,
+            face=face,
         )
         return connector.id
 

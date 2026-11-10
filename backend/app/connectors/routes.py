@@ -604,6 +604,13 @@ async def create_connector(
     Create a new connector.
     """
     adapter_type = adapter_type_or_422(connector_in.adapter_type)
+    if connector_in.face is not None and connector_in.face not in {
+        face.key for face in adapter_type.faces
+    }:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body", "face"], "msg": "Unknown card", "type": "value_error"}],
+        )
     config, secrets = _split_or_422(adapter_type, connector_in.options)
     connector = await crud.create(
         session,
@@ -616,6 +623,7 @@ async def create_connector(
         tab_color=connector_in.tab_color,
         cache_ttl_seconds=connector_in.cache_ttl_seconds,
         allow_third_party_transfer=connector_in.allow_third_party_transfer,
+        face=connector_in.face,
     )
     return await _public(session, connector, "own")
 

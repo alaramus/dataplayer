@@ -35,6 +35,14 @@ export function adapterIcon(adapterType: string): string {
 }
 
 /**
+ * A connection drawn as the product it was made for: the card it was picked
+ * by, MariaDB rather than MySQL, and its type when it names none (D264).
+ */
+export function connectorIcon(connector: { adapter_type: string; face?: string | null }): string {
+  return adapterIcon(connector.face ?? connector.adapter_type)
+}
+
+/**
  * The glyph beside a category in the catalog's sidebar.
  *
  * A glyph and not a logo: a category is a heading, not a product, so this is

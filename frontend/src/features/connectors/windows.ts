@@ -54,6 +54,7 @@ export function connectorWindow(options: {
         adapterType: options.adapterType,
         draft: options.draft,
         initialName: options.card?.title,
+        card: options.card?.key,
         startOn: options.startOn,
         openTabsOf: options.openTabsOf,
         closeTabsOf: options.closeTabsOf,

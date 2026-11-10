@@ -10,7 +10,7 @@ import { appIcons } from "@/shared/ui/icons"
  */
 
 import type { MetricsCatalog } from "@/client"
-import { adapterIcon } from "@/features/connectors/adapters"
+import { connectorIcon } from "@/features/connectors/adapters"
 import type { TreeNodes } from "@/shared/ui"
 
 export interface SeriesEntry {
@@ -138,7 +138,7 @@ export function catalogTree(catalog: MetricsCatalog | undefined): TreeNodes {
   const connectors = (catalog?.connectors ?? []).map((connector) => ({
     key: `${CONNECTOR_PREFIX}${connector.connector_id}`,
     label: connector.name,
-    icon: adapterIcon(connector.adapter_type),
+    icon: connectorIcon(connector),
     children: connector.metrics.map((metric) => ({
       key: `metric:${connector.connector_id}:${metric.metric}`,
       label: metric.metric,

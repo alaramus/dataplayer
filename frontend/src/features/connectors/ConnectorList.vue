@@ -95,6 +95,7 @@ function startDrag(event: DragEvent, connector: ConnectorPublic) {
           :connector-id="connector.id"
           :name="connector.name"
           :adapter-type="connector.adapter_type"
+          :face="connector.face"
           :enabled="connector.enabled"
           :tooltip="t('connectors.list.edit')"
           :testid="`connector-edit-${connector.name}`"

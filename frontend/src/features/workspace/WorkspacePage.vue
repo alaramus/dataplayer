@@ -16,7 +16,7 @@ import type {
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
 import MakeHereDialog from "@/features/connectors/MakeHereDialog.vue"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
-import { adapterIcon } from "@/features/connectors/adapters"
+import { connectorIcon } from "@/features/connectors/adapters"
 import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/connectors/windows"
 import { connectorsKey, useConnectors, useMakeConnectorHere } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
@@ -451,7 +451,7 @@ function openConnectorWindow(
         markDirty(handle.id, false)
         windows.rename(handle.id, renamed, {
           title: created.name,
-          icon: adapterIcon(created.adapter_type),
+          icon: connectorIcon(created),
         })
         handle.id = renamed
       },
@@ -641,6 +641,7 @@ function openCatalog(connector: ConnectorPublic) {
     connectorId: connector.id,
     title: connector.name,
     adapterType: connector.adapter_type,
+    ...(connector.face ? { face: connector.face } : {}),
   })
 }
 

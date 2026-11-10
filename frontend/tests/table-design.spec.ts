@@ -33,7 +33,7 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   const frame = page.getByRole("dialog").filter({ has: designer })
   await expect(designer).toContainText("demo_lab")
   await expect(page.getByTestId("table-schema")).toContainText("demo_lab")
-  await expect(page.getByTestId("table-name")).toHaveValue("new table")
+  await expect(page.getByTestId("table-name")).toHaveValue("new_table")
   await expect(page.getByTestId("design-identity")).toContainText("Schema")
 
   // Where the table goes is a choice, not the accident of which schema was

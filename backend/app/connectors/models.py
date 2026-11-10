@@ -12,9 +12,7 @@ from app.adapters.cache import MAX_CACHE_TTL_SECONDS
 from app.core.access import Access, ExecutionPolicy, Grant
 from app.core.schemas import get_datetime_utc
 
-TabColor = Annotated[
-    str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$", max_length=7)
-]
+TabColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$", max_length=7)]
 
 # How long this connection's answers may be kept, decided by its owner. None
 # is the source's own window, and zero is no caching at all (D105).
@@ -28,6 +26,10 @@ class Connector(SQLModel, table=True):
     # A key into the adapter type registry, not a foreign key: the registry
     # lives in code, so a new source type needs no migration.
     adapter_type: str = Field(max_length=64)
+    # Which card of its type it was made from, for a type that speaks to
+    # several products (D264): MariaDB of `mysql`, ScyllaDB of `cassandra`.
+    # Drawn as that product; None is the type's own picture.
+    face: str | None = Field(default=None, max_length=32)
     config: dict[str, Any] = Field(
         default_factory=dict, sa_column=Column(JSONB, nullable=False)
     )
@@ -45,9 +47,7 @@ class Connector(SQLModel, table=True):
     # answer is the one nobody had to choose (D66).
     execution_policy: ExecutionPolicy = Field(
         default="confirm_writes",
-        sa_column=Column(
-            String(16), nullable=False, server_default="confirm_writes"
-        ),
+        sa_column=Column(String(16), nullable=False, server_default="confirm_writes"),
     )
     # How long an answer read through this connection may be reused, in
     # seconds. Null is the window the source chooses for itself, which is what
@@ -74,6 +74,8 @@ class ConnectorCreate(SQLModel):
     name: str = Field(min_length=1, max_length=255)
     tab_color: TabColor | None = None
     adapter_type: str = Field(max_length=64)
+    # The card it was made from; one the type does not have is refused.
+    face: str | None = Field(default=None, max_length=32)
     options: dict[str, Any]
     # Decided with the connection rather than after it: whoever is registering
     # a source is the person who knows whether anybody should be able to write
@@ -136,6 +138,7 @@ class ConnectorPublic(SQLModel):
     name: str
     tab_color: TabColor | None = None
     adapter_type: str
+    face: str | None = None
     config: dict[str, Any]
     enabled: bool
     # What the caller may do with this connection. Sent rather than derived on

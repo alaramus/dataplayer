@@ -485,3 +485,26 @@ async def test_without_a_network_a_service_is_not_offered(
     assert listed.json()[0]["available"] is False
     assert listed.json()[0]["unavailable_reason"] == NO_NETWORK_MESSAGE
     assert asked.status_code == 503
+
+
+@pytest.mark.usefixtures("engine")
+async def test_a_service_of_a_card_makes_a_connection_drawn_as_that_card(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """MariaDB is started by the `mysql` type's MariaDB card, and drawn so (D264)."""
+    accepted = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={"template_key": "mariadb", "start": {"mode": "chosen", "name": "Maria"}},
+    )
+    assert accepted.status_code == 200, accepted.text
+    await _wait(accepted.json()["job"]["id"])
+    service = await client.get(
+        f"{BASE}/{accepted.json()['service']['id']}", headers=normal_user_token_headers
+    )
+    connector = await client.get(
+        f"{CONNECTORS}/{service.json()['connector_id']}", headers=normal_user_token_headers
+    )
+
+    assert connector.json()["adapter_type"] == "mysql"
+    assert connector.json()["face"] == "mariadb"

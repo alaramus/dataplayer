@@ -3,7 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed, nextTick, ref, useTemplateRef, watch } from "vue"
 
 import type { AgentHost, AgentKey, AgentPublic, ConnectorReporting } from "@/client"
-import { adapterIcon } from "@/features/connectors/adapters"
+import { connectorIcon } from "@/features/connectors/adapters"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import { t } from "@/shared/i18n"
@@ -443,7 +443,7 @@ async function copy(text: string, what: string) {
         <template #body-cell-name="cellProps">
           <q-td :props="cellProps">
             <q-icon
-              :name="adapterIcon(cellProps.row.adapter_type)"
+              :name="connectorIcon(cellProps.row)"
               size="var(--dp-icon-sm)"
             />
             {{ cellProps.row.name }}
