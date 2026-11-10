@@ -22,7 +22,7 @@ export const preferences: Messages["preferences"] = {
     "La voix qui lit les messages à voix haute, partout où ils sont lus. Les voix appartiennent à ce navigateur. Conservée dans ce navigateur.",
   tour: "Visite de bienvenue",
   tour_summary:
-    "Les courts clips de la première visite, un pour chaque partie principale de l'application. Elle peut être rouverte ici à tout moment.",
+    "Une courte visite que l'on fait de ses propres mains : créer une base de données, travailler avec elle et la retirer. Elle recommence ici à tout moment.",
   replay_tour: "Rejouer la visite",
   storage: "Stockage personnel",
   storage_summary: "Vos propres fichiers sur ce serveur et la limite fixée par un administrateur",

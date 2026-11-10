@@ -22,7 +22,7 @@ export const preferences: Messages["preferences"] = {
     "Die Stimme, die Nachrichten überall vorliest, wo sie gelesen werden. Stimmen gehören diesem Browser. Wird in diesem Browser gespeichert.",
   tour: "Willkommenstour",
   tour_summary:
-    "Die kurzen Clips vom ersten Besuch, einer für jeden Hauptteil der Anwendung. Lässt sich hier jederzeit erneut öffnen.",
+    "Eine kurze Tour, die man selbst macht: eine Datenbank anlegen, mit ihr arbeiten und sie wieder wegräumen. Lässt sich hier jederzeit neu starten.",
   replay_tour: "Tour wiederholen",
   storage: "Persönlicher Speicher",
   storage_summary: "Ihre eigenen Dateien auf diesem Server und das vom Administrator gesetzte Limit",

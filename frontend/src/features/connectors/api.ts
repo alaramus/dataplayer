@@ -126,9 +126,18 @@ export function useAdapterTypes() {
   })
 }
 
+/**
+ * Names of the mutations the tour waits for (D355): it reads them off the
+ * mutation cache, so nothing here imports the tour.
+ */
+export const createConnectorKey = ["connectors", "create"] as const
+export const makeConnectorHereKey = ["connectors", "make-here"] as const
+export const deleteConnectorKey = ["connectors", "delete"] as const
+
 export function useCreateConnector() {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: createConnectorKey,
     mutationFn: async (body: ConnectorCreate) =>
       (await ConnectorsService.createConnector({ body })).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: connectorsKey }),
@@ -139,6 +148,7 @@ export function useCreateConnector() {
 export function useMakeConnectorHere() {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: makeConnectorHereKey,
     mutationFn: async (body: MadeHereRequest) =>
       (await ConnectorsService.makeConnectorHere({ body })).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: connectorsKey }),
@@ -162,6 +172,7 @@ export function useUpdateConnector() {
 export function useDeleteConnector() {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: deleteConnectorKey,
     mutationFn: async (connectorId: string) =>
       (
         await ConnectorsService.deleteConnector({

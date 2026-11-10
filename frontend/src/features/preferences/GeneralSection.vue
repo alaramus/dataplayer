@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed } from "vue"
+import { useRouter } from "vue-router"
 
-import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
+import { startTour } from "@/features/onboarding/runner"
 import { useMyStorage } from "@/features/preferences/api"
 import { useLanguageChoice } from "@/features/preferences/languageChoice"
 import { storageWording } from "@/features/preferences/storage"
@@ -20,9 +21,12 @@ import type { ThemeMode } from "@/stores/theme"
 const theme = useThemeStore()
 const speechOk = speechSupported()
 
-// The welcome tour, on demand: finished or skipped long ago, it opens here
-// again from its first clip rather than from the theme choice above.
-const tourOpen = ref(false)
+// The tour, on demand: it runs over the workspace, so it starts there (D355).
+const router = useRouter()
+function replayTour() {
+  startTour()
+  void router.push("/")
+}
 
 const language = useLanguageChoice()
 
@@ -97,14 +101,10 @@ const storageShown = computed(() => storage.data.value ? storageWording(storage.
       <AppButton
         :label="t('preferences.replay_tour')"
         data-testid="preference-replay-tour"
-        @click="tourOpen = true"
+        @click="replayTour"
       />
     </AppSettingRow>
   </div>
-  <OnboardingDialog
-    v-model="tourOpen"
-    start-phase="tour"
-  />
 </template>
 
 <style scoped>

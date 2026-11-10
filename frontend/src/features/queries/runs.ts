@@ -66,9 +66,13 @@ export function useQueryProfile(connectorId: MaybeRefOrGetter<string | null>) {
   })
 }
 
+/** Waited for by the tour (D355). */
+export const startRunKey = ["queries", "start-run"] as const
+
 export function useStartRun() {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: startRunKey,
     mutationFn: async (body: RunStart) =>
       (await QueriesService.startRun({ body })).data,
     onSuccess: async (run) => {

@@ -22,7 +22,7 @@ export const preferences: Messages["preferences"] = {
     "在所有朗读消息的地方用于朗读的语音。语音来自此浏览器本身。该设置保存在此浏览器中。",
   tour: "新手引导",
   tour_summary:
-    "首次访问时的短片，应用的每个主要部分各一段。随时可在此重新打开。",
+    "一个亲手完成的简短导览：创建数据库、使用它并将其清理。随时可在此重新开始。",
   replay_tour: "重播引导",
   storage: "个人存储",
   storage_summary: "您在此服务器上的文件，以及管理员设定的上限",

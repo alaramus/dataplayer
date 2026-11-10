@@ -22,7 +22,7 @@ export const preferences: Messages["preferences"] = {
     "La voz que lee los mensajes en voz alta, allí donde se lean. Las voces son propias de este navegador. Se guarda en este navegador.",
   tour: "Recorrido de bienvenida",
   tour_summary:
-    "Los breves clips de la primera visita, uno por cada parte principal de la aplicación. Se abre aquí de nuevo siempre que se quiera.",
+    "Un recorrido breve que se hace con las propias manos: crear una base de datos, trabajar con ella y quitarla. Se vuelve a empezar aquí cuando se quiera.",
   replay_tour: "Repetir el recorrido",
   storage: "Almacenamiento personal",
   storage_summary: "Sus propios archivos en este servidor y el límite que fijó un administrador",

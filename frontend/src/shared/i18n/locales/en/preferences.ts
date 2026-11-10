@@ -20,7 +20,7 @@ export const preferences = {
     "The voice reading messages aloud, anywhere they are read. Voices are this browser's own. Kept in this browser.",
   tour: "Welcome tour",
   tour_summary:
-    "The short clips from the first visit, one for each main part of the application. Opens here again whenever it is wanted.",
+    "A short tour you take with your own hands: make a database, work with it and clean it away. Starts again here whenever it is wanted.",
   replay_tour: "Replay tour",
   storage: "Personal storage",
   storage_summary: "Your own files on this server, against the limit an administrator set",

@@ -104,9 +104,13 @@ export function useUpdateCells(connectorId: Ref<string>) {
   })
 }
 
+/** Waited for by the tour (D355). */
+export const updateCellKey = ["rows", "update-cell"] as const
+
 export function useUpdateCell(connectorId: Ref<string>) {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: updateCellKey,
     mutationFn: async (body: UpdateCellRequest) =>
       (
         await ConnectorsService.updateCell({
