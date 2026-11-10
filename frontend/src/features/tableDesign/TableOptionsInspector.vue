@@ -67,8 +67,11 @@ const strategies = computed(() => [
     class="inspector"
     data-testid="table-options"
   >
-    <template v-if="engines.length > 1 && design.engine.value">
-      <div class="inspector__row">
+    <template v-if="design.engine.value">
+      <div
+        v-if="engines.length > 1"
+        class="inspector__row"
+      >
         <AppSelect
           :model-value="design.engine.value.code"
           :options="engines"

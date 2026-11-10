@@ -1,10 +1,19 @@
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
+from app.adapters.actions import Action, ActionType
 from app.adapters.cache import CacheArea
+from app.adapters.cassandra.actions import (
+    CASSANDRA_ACTION_TYPES,
+    CassandraActions,
+    DropRelation,
+    create_keyspace,
+)
 from app.adapters.cassandra.catalog import CassandraCatalog
 from app.adapters.cassandra.console import console_program
 from app.adapters.cassandra.content import CassandraContent
+from app.adapters.cassandra.design import CassandraTableDesign
+from app.adapters.cassandra.export import CassandraExport
 from app.adapters.cassandra.features import CassandraFeatures
 from app.adapters.cassandra.fetch import CassandraFetch
 from app.adapters.cassandra.inspection import Inspector
@@ -12,6 +21,7 @@ from app.adapters.cassandra.metadata import CassandraGeneration, CassandraMetada
 from app.adapters.cassandra.options import CassandraOptions
 from app.adapters.cassandra.query import CassandraExecution, CassandraQuery
 from app.adapters.cassandra.relation import CassandraRelation
+from app.adapters.cassandra.search import CassandraSearch
 from app.adapters.cassandra.session import (
     CassandraSession,
     compose_url,
@@ -29,6 +39,8 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.database_ids import database_id
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
@@ -50,7 +62,17 @@ from app.adapters.query import (
 from app.adapters.registry import AdapterContext, CatalogFace, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.resources import Pooling
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
+from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.tunnels import TunnelAccess
 from app.adapters.update import (
@@ -117,7 +139,13 @@ class CassandraAdapter:
         self._structure = CassandraStructure(
             self._session, self._relation, self._inspector
         )
+        self._actions = CassandraActions(self._session, self._catalog, self._inspector)
+        self._design = CassandraTableDesign(
+            self._session, self._catalog, self._inspector
+        )
         self._metadata = CassandraMetadata(self._session, self._inspector)
+        self._search = CassandraSearch(self._session, self._inspector)
+        self._export = CassandraExport(self._session, self._fetch)
         self._generation = CassandraGeneration(self._inspector)
 
     @classmethod
@@ -223,6 +251,60 @@ class CassandraAdapter:
 
     async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
         return await self._structure.drop_index(request)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        return self._export.export_rows(request)
+
+    def enumerate_names(
+        self, limit: int, bounds: SearchBounds
+    ) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    async def search_columns(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_columns(request, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names and columns alike read all of `system_schema` (D350)."""
+        return "cheap" if field == "names" else "costly"
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return CASSANDRA_ACTION_TYPES
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return await self._actions.available(node_id)
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.action(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return await self._actions.all_actions()
+
+    async def create_grouping(self, name: str) -> str:
+        """A keyspace of one replica, for what a copy or a load makes (D348)."""
+        await create_keyspace(self._session, self._inspector, name)
+        return database_id(name)
+
+    async def drop_created(self, node_id: str) -> None:
+        drop = self._actions.action(DropRelation.name)
+        if not isinstance(drop, DropRelation):
+            raise TypeError("drop_relation is not the drop this adapter registers")
+        await drop.perform_on_set([node_id], {})
+
+    async def table_design_options(self, node_id: str) -> TableDesignOptions:
+        """What a keyspace will accept a designed table with (D117, D347)."""
+        return await self._design.table_design_options(node_id)
+
+    async def plan_table(self, request: TablePlanRequest) -> TablePlan:
+        return await self._design.plan_table(request)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62, D343)."""

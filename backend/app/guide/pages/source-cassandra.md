@@ -15,11 +15,15 @@ How connections work in general is on the [Connections](connections.md) page.
 - A relation's DDL, as the server writes it
 - Cassandra's virtual tables, such as `system_views`
 - The results of CQL you write, in the console or in cqlsh
+- The cluster's nodes, clients, table sizes, settings and roles
+- Every matching row, downloaded as a file
 
 ## What you can change
 
 - Table data: edit cells, paste blocks, insert and delete rows
 - Columns and secondary indexes of a table
+- New tables, designed with their partition and clustering key
+- Keyspaces: create and drop them; tables: truncate and drop
 - Data and structure, through CQL in the console, one change at a time
 
 ## Connecting
@@ -142,3 +146,46 @@ server can reach, and a connection through an SSH tunnel has no terminal yet.
   None is unique.
 - Materialized views, virtual tables and the server's own keyspaces are not
   changed.
+
+## Creating a table
+
+- **Create table** on a keyspace opens the table designer. The plan is one
+  `CREATE TABLE` and a `CREATE INDEX` for each index, shown before it runs.
+- A primary key is required. On the table's options page, **Partition key**
+  names the leading columns of the primary key that decide on which node a row
+  is kept; left empty, it is the first column. The rest of the primary key
+  orders the rows inside a partition.
+- A table's name is letters, digits and underscores; a column's may be
+  anything. A column may be a list of its type, but a list and a duration
+  cannot be in the key.
+- Unique keys, foreign keys, checks, defaults, computed columns, collations,
+  partitions by range, list or hash, and a column outside the key that must
+  have a value are not in CQL; the designer says so on the object that asks
+  for one.
+
+## The Cluster section
+
+- After the keyspaces, **Cluster** holds what the node says about the
+  cluster: **Nodes**, **Clients**, **Table sizes**, **Settings** and
+  **Roles**. They page like a table; Clients reads itself again every few
+  seconds. Table sizes are the node's own estimate.
+- The `system` keyspaces are in the catalog too, for anything these reports
+  leave out.
+
+## Search and download
+
+- The search field finds keyspaces and tables by name, and tables by a
+  column's name or their comment.
+- Download takes every row that matches a page's filters, not just the page.
+
+## Catalog actions
+
+- **New keyspace** at the top of the connection, kept in the node's own data
+  centre with the number of replicas you choose.
+- On a keyspace: **Create table** and **Drop keyspace**. A keyspace is
+  dropped only once you have seen what it holds and ticked to drop everything
+  in it.
+- On a table: **Truncate**, which deletes every row and keeps the table, and
+  **Drop**; on a materialized view, **Drop**. A table is dropped together with
+  the materialized views that read it, and the preview names them.
+- Tables and keyspaces cannot be renamed: CQL has no way to.

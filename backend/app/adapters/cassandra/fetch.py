@@ -15,10 +15,12 @@ from typing import Any, assert_never
 from app.adapters.cassandra.cql import SQL, Composable, Identifier
 from app.adapters.cassandra.inspection import ColumnFacts, RelationFacts
 from app.adapters.cassandra.relation import CassandraRelation
+from app.adapters.cassandra.reports import ClusterReport, in_section, report_for
 from app.adapters.cassandra.rows import change_reason, handles_of, writable
 from app.adapters.cassandra.session import CassandraSession, PageStates
 from app.adapters.cassandra.types import TEXTS, parse_value, read_cell, type_name
 from app.adapters.fetch import (
+    PAGE_COMMANDS,
     FetchColumn,
     FetchRequest,
     FetchResult,
@@ -209,7 +211,48 @@ class CassandraFetch:
             filtered=bool(conditions),
         )
 
+    async def _report(
+        self, report: ClusterReport, request: FetchRequest
+    ) -> FetchResult:
+        """A report read whole and cut into the page asked; nothing is written through it."""
+        if request.filters or request.sort:
+            raise ValueError(say("A report is neither filtered nor sorted"))
+        answer = await report.read(self._session, await self._session.profile())
+        refused = say(
+            '"{title}" is a report and holds no rows of its own',
+            title=say(report.title),
+        )
+        end = request.offset + request.limit
+        return FetchResult(
+            columns=[
+                FetchColumn(name=column.name, type=column.type)
+                for column in answer.columns
+            ],
+            rows=answer.rows[request.offset : end],
+            has_more=len(answer.rows) > end,
+            update_reason=refused,
+            insert_reason=refused,
+            delete_reason=refused,
+            # A row of a report is a line of an answer, not a thing (D111).
+            record_supported=False,
+            record_reason=refused,
+            refresh_seconds=report.refresh_seconds,
+            page_commands=[
+                command for command in PAGE_COMMANDS if command != "create_relation"
+            ],
+        )
+
     async def fetch(self, request: FetchRequest) -> FetchResult:
+        report = report_for(request.node_id)
+        if report is not None:
+            return await self._report(report, request)
+        if in_section(request.node_id):
+            raise ValueError(
+                say(
+                    '"{node_id}" is not a report of this source',
+                    node_id=request.node_id,
+                )
+            )
         prepared = await self.prepare(request)
         states = await self._session.page_states()
         rows, more = await self._page(prepared, states, request.offset, request.limit)

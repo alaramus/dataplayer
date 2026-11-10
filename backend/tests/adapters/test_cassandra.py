@@ -257,10 +257,11 @@ async def test_keyspaces_are_listed_with_the_servers_own_last(target: Target) ->
 
     names = [node.name for node in roots]
     assert KEYSPACE in names
-    assert all(
-        isinstance(node, SchemaNode) and node.term == "keyspace" for node in roots
-    )
-    system = [node.is_system for node in roots if isinstance(node, SchemaNode)]
+    keyspaces = [node for node in roots if isinstance(node, SchemaNode)]
+    assert keyspaces and all(node.term == "keyspace" for node in keyspaces)
+    # The Cluster section of reports comes after them (D349).
+    assert roots[-1].id == "\\cluster"
+    system = [node.is_system for node in keyspaces]
     assert system == sorted(system)
     assert next(node for node in roots if node.name == "system_schema").is_system
     if target.scylla:

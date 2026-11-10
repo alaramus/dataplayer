@@ -6,7 +6,7 @@ every source type follows is in [contract.md](contract.md); reading a relation
 in general is in [relations.md](relations.md). Read this before changing the
 `cassandra` adapter.
 
-Decisions here: D340, D341, D342, D343, D344, D345, D346.
+Decisions here: D340, D341, D342, D343, D344, D345, D346, D347, D348, D349, D350.
 
 ## D340. One type for Cassandra and ScyllaDB, through the address given
 
@@ -173,3 +173,47 @@ the server gives, such as a column a view reads, is passed on in its words. A
 view, a virtual table and the server's own keyspaces change nothing.
 
 Spec: [Changing a Cassandra table's structure](../../decisions/2026-11-10-cassandra-structure-design.md)
+
+## D347. The designer's partition key rides on its one engine
+
+A designed table is one `CREATE TABLE` and a `CREATE INDEX` per secondary
+index. The source offers one engine, "Table", whose parameter **Partition
+key** names the leading columns of the primary key that form the partition;
+empty, it is the first column. The rest of the primary key clusters. The
+designer shows a lone engine's page when it takes columns. A primary key is
+required; CQL's scalars and lists are the types, a duration or a list never in
+the key; uniqueness, foreign keys, checks, defaults, computed columns,
+collations, `NOT NULL` outside the key and other partitioning are problems
+beside what asks for them. A table from a page's rows is not offered.
+
+Spec: [Cassandra's designer, catalog actions, reports, search and export](../../decisions/2026-11-10-cassandra-actions-design.md)
+
+## D348. Keyspaces, truncation and drops from the catalog
+
+New keyspace (`NetworkTopologyStrategy` in the node's data centre, one to
+nine replicas; one replica when a copy or a load asks for a grouping), Drop
+keyspace (previewed, cascade required when it holds anything), Truncate, Drop
+for tables and views (the views over a table named and dropped first), and
+Create table. No rename or move: CQL has neither. The server's keyspaces offer
+nothing.
+
+Spec: [Cassandra's designer, catalog actions, reports, search and export](../../decisions/2026-11-10-cassandra-actions-design.md)
+
+## D349. A Cluster section of reports read whole
+
+After the keyspaces, **Cluster**: nodes, clients, table sizes, settings and
+roles, each read whole from its system tables — Cassandra's `system_views`,
+ScyllaDB's `system` where they differ — shaped here, cut into pages, neither
+filtered nor sorted. Its statement view shows the statements it reads.
+
+Spec: [Cassandra's designer, catalog actions, reports, search and export](../../decisions/2026-11-10-cassandra-actions-design.md)
+
+## D350. Search reads `system_schema` whole; export pages on
+
+A search reads the names of `system_schema` whole, under fifty thousand, and
+classes them by the shared word rule: keyspaces and relations by name,
+relations by a column's name or their comment; nothing typed reaches a
+statement. A kept list reads every name once. An export reads the page's
+statement on from paging state to paging state; a report is not exported.
+
+Spec: [Cassandra's designer, catalog actions, reports, search and export](../../decisions/2026-11-10-cassandra-actions-design.md)

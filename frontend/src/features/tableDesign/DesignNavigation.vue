@@ -22,6 +22,9 @@ const storageOffered = computed(
     (options.value?.persistence_options?.length ?? 0) > 1 ||
     (options.value?.partition_strategies?.length ?? 0) > 0 ||
     (options.value?.engines?.length ?? 0) > 1 ||
+    // One engine still asks something when it takes columns: Cassandra's
+    // partition key (D347).
+    (options.value?.engines ?? []).some((engine) => (engine.parameters?.length ?? 0) > 0) ||
     abilities.value.tablespaces === true
 )
 const troubled = computed(() => new Set(props.problems.map((problem) => problem.object_id)))

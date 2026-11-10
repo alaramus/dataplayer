@@ -5,8 +5,24 @@ from app.adapters.cassandra.inspection import (
     RelationFacts,
     is_system_keyspace,
 )
+from app.adapters.cassandra.reports import (
+    REPORTS,
+    SECTION_DESCRIPTION,
+    SECTION_ID,
+    SECTION_TITLE,
+    ClusterReport,
+    in_section,
+    is_section,
+    report_for,
+)
 from app.adapters.cassandra.session import CassandraSession
-from app.adapters.catalog import CatalogNode, SchemaNode, TableNode, ViewNode
+from app.adapters.catalog import (
+    CatalogNode,
+    ReportNode,
+    SchemaNode,
+    TableNode,
+    ViewNode,
+)
 from app.adapters.content import NodeRepresentation
 from app.adapters.database_ids import database_id, parse, relation_id
 from app.adapters.frameworks import detect_frameworks
@@ -16,6 +32,34 @@ from app.core.translation import N_, say
 
 TABLE_REPRESENTATION = NodeRepresentation(kind="table", title=N_("View as table"))
 DDL_REPRESENTATION = NodeRepresentation(kind="sql", title=N_("View DDL"))
+# A report has no DDL, but the statements it reads answer the same question:
+# what is this, really (D55).
+REPORT_SQL_REPRESENTATION = NodeRepresentation(
+    kind="sql", title=N_("View the statement")
+)
+
+
+def section_node() -> ReportNode:
+    """The cluster's own section of reports, listed after the keyspaces (D349)."""
+    return ReportNode(
+        id=SECTION_ID,
+        name=say(SECTION_TITLE),
+        description=say(SECTION_DESCRIPTION),
+        has_children=True,
+        representations=[],
+    )
+
+
+def report_node(report: ClusterReport) -> ReportNode:
+    return ReportNode(
+        id=report.node_id,
+        name=say(report.title),
+        description=say(report.description),
+        has_children=False,
+        representations=worded_titles(
+            [TABLE_REPRESENTATION, REPORT_SQL_REPRESENTATION]
+        ),
+    )
 
 
 def keyspace_node(name: str, tables: list[str], *, system: bool) -> SchemaNode:
@@ -64,7 +108,12 @@ class CassandraCatalog:
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
-            return await self._keyspaces()
+            return [*await self._keyspaces(), section_node()]
+        if is_section(node_id):
+            return [report_node(report) for report in REPORTS]
+        if in_section(node_id):
+            await self.path_to(node_id)
+            return []
         keyspace, relation = parse(node_id)
         if relation is not None:
             await self.path_to(node_id)
@@ -101,6 +150,13 @@ class CassandraCatalog:
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         """Every node from the root down to node_id, each confirmed on the server."""
+        if is_section(node_id):
+            return [section_node()]
+        if in_section(node_id):
+            report = report_for(node_id)
+            if report is None:
+                raise NodeNotFound(node_id)
+            return [section_node(), report_node(report)]
         keyspace, relation = parse(node_id)
         place = await self._inspector.keyspace(keyspace)
         if place is None:

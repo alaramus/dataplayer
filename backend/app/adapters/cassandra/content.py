@@ -8,6 +8,7 @@ into another cluster.
 
 from app.adapters.cassandra.cql import SQL, Identifier
 from app.adapters.cassandra.relation import CassandraRelation
+from app.adapters.cassandra.reports import report_for
 from app.adapters.cassandra.session import CassandraSession
 from app.adapters.content import ContentRequest, ContentResult, SqlContent
 from app.core.translation import say
@@ -28,6 +29,11 @@ class CassandraContent:
                     representation=request.representation,
                 )
             )
+        report = report_for(request.node_id)
+        if report is not None:
+            # What the report reads, as it is written here.
+            profile = await self._session.profile()
+            return SqlContent(text=";\n".join(report.statements(profile)) + ";")
         # Confirms the relation is there, and says so as a missing node.
         facts = await self._relation.facts(request.node_id)
         describe = SQL(
