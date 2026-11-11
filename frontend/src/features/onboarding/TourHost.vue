@@ -24,6 +24,7 @@ import {
   tourState,
 } from "./runner"
 import { furthestTarget, offersNext } from "./tour"
+import type { TourChapter } from "./tour"
 
 /**
  * The running tour, drawn over the workspace (D355): a dim with a hole, a
@@ -74,12 +75,28 @@ function differs(a: Box | null, b: Box | null): boolean {
 
 let lastElement: Element | null = null
 
+// Above the loop, which starts while this component is still being set up.
+const queryClient = useQueryClient()
+
+/**
+ * Whether what the chapter asks for has been asked and is not answered yet.
+ * The window it was asked from closes first, and re-reading the page then
+ * would ring an earlier step — the + of a database already being made.
+ */
+function answering(chapter: TourChapter): boolean {
+  return chapter.done.kind === "mutation" && queryClient.isMutating({ mutationKey: [...chapter.done.key] }) > 0
+}
+
 function frame() {
   checkShown(find, count)
   const chapter = currentChapter.value
   let next: Box | null = null
   let index = -1
-  if (chapter !== null) {
+  if (chapter !== null && answering(chapter)) {
+    // Held where it was until the answer moves the tour on.
+    next = ring.value
+    index = targetIndex.value
+  } else if (chapter !== null) {
     index = furthestTarget(chapter, tourState.memory, find)
     const selector = index >= 0 ? chapter.targets[index]?.locate(tourState.memory) : null
     const element = selector ? find(selector) : null
@@ -126,7 +143,6 @@ watch(
 )
 
 // Completion is read off the mutation cache, so no feature imports the tour.
-const queryClient = useQueryClient()
 const kit = tourKit(queryClient)
 const toast = useToast()
 

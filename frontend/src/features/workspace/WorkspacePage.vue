@@ -512,8 +512,8 @@ function askToMake(type: AdapterTypeInfo) {
 }
 
 /**
- * Made at once — there is nothing to pull or wait for — and opened, as a
- * started service is once it is ready (D263).
+ * Made at once — there is nothing to pull or wait for. Not opened: a new
+ * connection waits in the list however it was made (D263).
  */
 async function makeHere(payload: { adapterType: string; choice: MakeChoice }) {
   try {
@@ -523,7 +523,6 @@ async function makeHere(payload: { adapterType: string; choice: MakeChoice }) {
     })
     const where = typeof connector.config.path === "string" ? connector.config.path : ""
     toast.success(t("connectors.make_here.made", { name: connector.name, where }))
-    openCatalog(connector)
   } catch (cause) {
     toast.error(messageOf(cause, t("connectors.make_here.failed")))
   }

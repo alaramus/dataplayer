@@ -4,7 +4,7 @@ import { updateCellKey } from "@/features/grid/api"
 import { startRunKey } from "@/features/queries/runs"
 import { t } from "@/shared/i18n"
 
-import { isRecord, say, splitPath, testId, testIdPrefix } from "./tour"
+import { inCatalog, isRecord, say, splitPath, testId, testIdPrefix } from "./tour"
 import type { TourChapter, TourDefinition, TourMemory } from "./tour"
 
 /**
@@ -56,7 +56,13 @@ const opened: TourChapter = {
       locate: (memory) => (database(memory) ? testId(`connector-${database(memory)?.name}`) : null),
       hint: say("onboarding.tour.open.connection"),
     },
-    { locate: () => testId(`catalog-node-${TOUR_TABLE}`), hint: say("onboarding.tour.open.table", { table: TOUR_TABLE }) },
+    {
+      locate: (memory) => {
+        const made = database(memory)
+        return made ? inCatalog(made.id, `catalog-node-${TOUR_TABLE}`) : null
+      },
+      hint: say("onboarding.tour.open.table", { table: TOUR_TABLE }),
+    },
   ],
   done: {
     kind: "shown",

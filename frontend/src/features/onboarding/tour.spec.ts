@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { furthestTarget, offersNext, sameKey, settleMutation, settledByShown, splitPath, testId } from "./tour"
+import { furthestTarget, inCatalog, offersNext, sameKey, settleMutation, settledByShown, splitPath, testId } from "./tour"
 import type { TourChapter } from "./tour"
 
 const chapter: TourChapter = {
@@ -84,6 +84,12 @@ describe("a chapter only shown", () => {
 describe("helpers", () => {
   it("escapes a name that came from the server", () => {
     expect(testId('connector-a"b')).toBe('[data-testid="connector-a\\"b"]')
+  })
+
+  it("finds a control inside one connection's catalog only", () => {
+    expect(inCatalog("c1", "catalog-node-tasks")).toBe(
+      '[data-testid="catalog-panel"][data-connector-id="c1"] [data-testid="catalog-node-tasks"]'
+    )
   })
 
   it("compares keys part by part", () => {

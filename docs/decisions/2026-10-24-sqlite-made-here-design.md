@@ -17,8 +17,9 @@ beside the guide, where a server type offers to start one. Its window asks
   it with the lab, and whether to use SQLite's write-ahead log. Whatever is left
   empty is still the server's to decide.
 
-Creating makes the file and saves the connection in one request, then opens
-the new connection's catalog and says where the file went.
+Creating makes the file and saves the connection in one request and says
+where the file went. The connection is not opened: like one saved from the
+form, it waits in the list for the person to press it.
 
 - **Where.** A folder of the person's own storage, `databases` unless chosen,
   made level by level where it is missing. The file name is the connection's

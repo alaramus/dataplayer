@@ -988,6 +988,7 @@ async function afterAction(outcome: ActionOutcome) {
   <div
     class="catalog-panel"
     data-testid="catalog-panel"
+    :data-connector-id="connectorId"
   >
     <div class="catalog-panel__head">
       <div class="catalog-panel__bar">

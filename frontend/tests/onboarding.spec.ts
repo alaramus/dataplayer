@@ -111,8 +111,10 @@ test("the tour is taken by hand, from a new SQLite database to its file deleted"
   // A numbered name when an earlier run left `dataplayer.db` behind (D263).
   const file = connector.config.path.split("/").pop() ?? ""
 
-  // 2. Its table.
+  // 2. Its table: the new connection is not opened for the person (D263).
   await expect(page.getByTestId("tour-position")).toHaveText("Step 2 of 10")
+  await expectRingOn(page, `connector-${connector.name}`)
+  await page.getByTestId(`connector-${connector.name}`).click()
   await expectRingOn(page, "catalog-node-tasks")
   await page.getByTestId("catalog-node-tasks").click()
 

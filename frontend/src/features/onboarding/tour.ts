@@ -120,6 +120,14 @@ export function testId(name: string): string {
   return `[data-testid="${name.replace(/["\\]/g, "\\$&")}"]`
 }
 
+/**
+ * A control inside one connection's catalog. Another catalog left open may
+ * hold a table of the same name — the lab of an earlier tour.
+ */
+export function inCatalog(connectorId: string, name: string): string {
+  return `${testId("catalog-panel")}[data-connector-id="${connectorId.replace(/["\\]/g, "\\$&")}"] ${testId(name)}`
+}
+
 export function testIdPrefix(prefix: string): string {
   return `[data-testid^="${prefix.replace(/["\\]/g, "\\$&")}"]`
 }

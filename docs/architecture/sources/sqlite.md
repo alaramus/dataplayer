@@ -329,7 +329,8 @@ names the connection after the file; chosen, it takes the folder (made where
 missing), the name, the lab or an empty file with SQLite's header, and WAL. The
 file and its connection are made in one request, no job. A taken name is
 numbered, never overwritten; a file whose connection could not be saved is
-removed; a folder outside the storage is refused (D8). It is not a managed
+removed; a folder outside the storage is refused (D8). The connection is not
+opened on its own, the same as one saved from the form. It is not a managed
 service: there is nothing to stop, and the file lives in **Files**. The driver
 says it can through `MakesSourceHere`, and the types list carries `makes_here`.
 Through it too a connection is deleted with its file on request, the `-wal`,

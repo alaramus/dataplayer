@@ -1,7 +1,7 @@
 import { createPipelineKey } from "@/features/pipelines/api"
 
 import { TOUR_TABLE } from "./basics"
-import { isRecord, rememberDatabase, say, testId, testIdPrefix } from "./tour"
+import { inCatalog, isRecord, rememberDatabase, say, testId, testIdPrefix } from "./tour"
 import type { TourChapter, TourDefinition, TourMemory } from "./tour"
 
 /**
@@ -40,7 +40,13 @@ const viewsOpen: TourChapter = {
   title: say("onboarding.tours.views.open.title"),
   targets: [
     { locate: practiceRow, hint: say("onboarding.tours.views.open.connection") },
-    { locate: () => testId(`catalog-node-${TOUR_TABLE}`), hint: say("onboarding.tours.views.open.table", { table: TOUR_TABLE }) },
+    {
+      locate: (memory) => {
+        const made = database(memory)
+        return made ? inCatalog(made.id, `catalog-node-${TOUR_TABLE}`) : null
+      },
+      hint: say("onboarding.tours.views.open.table", { table: TOUR_TABLE }),
+    },
   ],
   done: {
     kind: "shown",
