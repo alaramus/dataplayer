@@ -11,12 +11,13 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from mcp.server.fastmcp import FastMCP
-from mcp.server.lowlevel.server import request_ctx
+from mcp.server.context import CallNext, HandlerResult, ServerRequestContext
+from mcp.server.mcpserver import MCPServer
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
@@ -54,8 +55,10 @@ logger = logging.getLogger(__name__)
 PATH = "/mcp"
 # Where the request's verified caller travels: the tool runs in a task of the
 # session manager, started from the lifespan, so a context variable set while
-# the request is checked never reaches it. The request itself does.
+# the request is checked never reaches it. The request itself does, and
+# `with_caller` lifts the caller off it around each message.
 CALLER_KEY = "dataplayer.mcp_caller"
+_caller: ContextVar[Caller | None] = ContextVar("mcp_caller", default=None)
 
 READ_ONLY_TOKEN = "This token may only read. Make a token that may change data to do this."
 FAILED = "The operation failed. Nothing about why can be said here; try it in DataPlayer."
@@ -80,12 +83,21 @@ READ_TOOLS = frozenset(
 
 
 def current_caller() -> Caller:
-    request = request_ctx.get().request
-    caller = request.scope.get(CALLER_KEY) if request is not None else None
-    if not isinstance(caller, Caller):
+    caller = _caller.get()
+    if caller is None:
         # The endpoint refuses a request without one before MCP reads it.
         raise RuntimeError("An MCP tool ran without a verified caller")
     return caller
+
+
+async def with_caller(ctx: ServerRequestContext[Any, Any], call_next: CallNext) -> HandlerResult:
+    scope = getattr(ctx.request, "scope", None)
+    caller = scope.get(CALLER_KEY) if isinstance(scope, dict) else None
+    held = _caller.set(caller if isinstance(caller, Caller) else None)
+    try:
+        return await call_next(ctx)
+    finally:
+        _caller.reset(held)
 
 
 @dataclass
@@ -147,15 +159,9 @@ class McpHost:
         return connector_id
 
 
-def build_server(host: McpHost) -> FastMCP:
-    server = FastMCP(
-        name="DataPlayer",
-        instructions=INSTRUCTIONS,
-        stateless_http=True,
-        json_response=True,
-        # A bearer token is what a rebinding page cannot send, and the
-        # default protection admits only localhost as the Host.
-        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+def build_server(host: McpHost) -> MCPServer:
+    server: MCPServer = MCPServer(
+        name="DataPlayer", instructions=INSTRUCTIONS, middleware=[with_caller]
     )
     for fn, name, description in shared_tools(
         host, change_note="A change is refused when the token may only read."
@@ -165,7 +171,7 @@ def build_server(host: McpHost) -> FastMCP:
             name=name,
             description=description,
             annotations=ToolAnnotations(
-                readOnlyHint=name in READ_TOOLS, openWorldHint=False
+                read_only_hint=name in READ_TOOLS, open_world_hint=False
             ),
             structured_output=False,
         )
@@ -190,7 +196,13 @@ async def serving(
     server = build_server(
         McpHost(resources=resources, data_cache=data_cache, search_engine=search_engine)
     )
-    server.streamable_http_app()
+    server.streamable_http_app(
+        stateless_http=True,
+        json_response=True,
+        # A bearer token is what a rebinding page cannot send, and the
+        # default protection admits only localhost as the Host.
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
     manager = server.session_manager
     started, stop = asyncio.Event(), asyncio.Event()
 

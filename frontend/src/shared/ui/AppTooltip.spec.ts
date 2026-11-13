@@ -43,7 +43,7 @@ function tooltip(): Element | null {
 async function hover(): Promise<void> {
   document.body
     .querySelector('[data-testid="follow"]')
-    ?.dispatchEvent(new MouseEvent("mouseenter"))
+    ?.dispatchEvent(new PointerEvent("pointerenter"))
   await vi.advanceTimersByTimeAsync(500)
   await flushPromises()
 }
@@ -112,7 +112,7 @@ describe("a tooltip that is never put away", () => {
 
     document.body
       .querySelector('[data-testid="follow"]')
-      ?.dispatchEvent(new MouseEvent("mouseleave"))
+      ?.dispatchEvent(new PointerEvent("pointerleave"))
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
 

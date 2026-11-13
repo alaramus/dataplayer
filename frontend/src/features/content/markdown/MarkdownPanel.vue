@@ -406,7 +406,7 @@ async function onDocumentClick(event: MouseEvent): Promise<void> {
   const href = link.getAttribute("href")
   if (href?.startsWith("#")) {
     event.preventDefault()
-    let fragment = ""
+    let fragment: string
     try {
       fragment = decodeURIComponent(href.slice(1))
     } catch {

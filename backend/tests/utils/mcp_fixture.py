@@ -13,7 +13,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 import uvicorn
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -29,14 +29,9 @@ class Fixture:
 
 
 def _app(fixture: Fixture) -> ASGIApp:
-    server = FastMCP(
-        name="Fixture",
-        stateless_http=True,
-        json_response=True,
-        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
-    )
+    server: MCPServer = MCPServer(name="Fixture")
 
-    @server.tool(annotations=ToolAnnotations(readOnlyHint=True), description="Say a word back.")
+    @server.tool(annotations=ToolAnnotations(read_only_hint=True), description="Say a word back.")
     def echo(word: str) -> str:
         return f"echo: {word}"
 
@@ -45,7 +40,11 @@ def _app(fixture: Fixture) -> ASGIApp:
         fixture.notes.append(text)
         return "kept"
 
-    inner = server.streamable_http_app()
+    inner = server.streamable_http_app(
+        stateless_http=True,
+        json_response=True,
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
 
     async def guarded(scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":

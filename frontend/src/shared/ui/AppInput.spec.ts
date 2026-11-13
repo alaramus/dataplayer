@@ -84,9 +84,9 @@ describe("AppInput", () => {
   it("links a compact field to its error until corrected", async () => {
     const wrapper = mountInput({ compact: true, error: "Enter a value" })
     const input = wrapper.get("input")
-    const message = wrapper.get('[role="alert"]')
-    expect(input.attributes("aria-describedby")).toBe(message.attributes("id"))
-    expect(message.text()).toBe("Enter a value")
+    expect(wrapper.get(`[id="${input.attributes("aria-describedby")}"]`).text()).toBe(
+      "Enter a value"
+    )
 
     await wrapper.setProps({ error: "" })
     expect(input.attributes("aria-describedby")).toBeUndefined()
@@ -100,9 +100,9 @@ describe("AppInput", () => {
       props: { modelValue: "", error: "Required" },
       attrs: { "aria-describedby": "value-help" },
     })
-    expect(wrapper.get("input").attributes("aria-describedby")).toBe(
-      `value-help ${wrapper.get('[role="alert"]').attributes("id")}`
-    )
+    const [help, message] = wrapper.get("input").attributes("aria-describedby")!.split(" ")
+    expect(help).toBe("value-help")
+    expect(wrapper.get(`[id="${message}"]`).text()).toBe("Required")
     wrapper.unmount()
   })
 

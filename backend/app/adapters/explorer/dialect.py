@@ -287,20 +287,37 @@ def _parameters(body: str, statement: Any) -> list[str]:
 def _spans(text: str, statements: list[Any]) -> list[tuple[int, int]]:
     """Where each statement sits in the text it was found in.
 
-    The engine hands back the slice it read, so the slice is looked for. One
-    form does not come back as a slice — a `PRAGMA` is rewritten into the
-    query it stands for — and rather than losing every offset after it, an
-    unfound statement takes the gap between the two around it.
+    The engine hands back the slice it read, so the slice is looked for. A
+    statement it hands back rewritten rather than as a slice is not found, and
+    rather than losing every offset after it, it takes the gap between the two
+    around it.
+
+    A slice runs on past its own `;` up to the next statement, taking the
+    comment between them with it. That comment introduces the next statement,
+    so each statement but the last ends at its `;` and the rest goes forward.
     """
-    located: list[tuple[int, int] | None] = []
+    found: list[tuple[int, int] | None] = []
     cursor = 0
     for statement in statements:
         at = text.find(statement.query, cursor)
         if at < 0:
-            located.append(None)
+            found.append(None)
             continue
-        located.append((at, at + len(statement.query)))
+        found.append((at, at + len(statement.query)))
         cursor = at + len(statement.query)
+
+    located = list(found)
+    for index, span in enumerate(found[:-1]):
+        current = located[index]
+        if span is None or current is None:
+            continue
+        stop = _terminator(text[span[0] : span[1]])
+        if stop is None:
+            continue
+        located[index] = (current[0], span[0] + stop)
+        following = found[index + 1]
+        if following is not None:
+            located[index + 1] = (span[0] + stop + 1, following[1])
 
     spans: list[tuple[int, int]] = []
     for index, span in enumerate(located):
@@ -315,3 +332,19 @@ def _spans(text: str, statements: list[Any]) -> list[tuple[int, int]]:
         )
         spans.append((before, max(before, after)))
     return spans
+
+
+def _terminator(fragment: str) -> int | None:
+    """Where the `;` ending the statement at the head of this fragment sits."""
+    try:
+        tokens = duckdb.tokenize(fragment)
+    except duckdb.Error:
+        return None
+    return next(
+        (
+            position
+            for position, kind in tokens
+            if kind == duckdb.token_type.operator and fragment.startswith(";", position)
+        ),
+        None,
+    )

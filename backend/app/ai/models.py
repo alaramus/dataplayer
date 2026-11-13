@@ -65,7 +65,7 @@ class ProviderKey(SQLModel, table=True):
     secret: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
     updated_at: datetime | None = Field(
         default_factory=_timestamp,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_type=DateTime(timezone=True),
     )
 
 
@@ -104,7 +104,7 @@ class ChatProject(SQLModel, table=True):
     name: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
     created_at: datetime | None = Field(
         default_factory=_timestamp,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_type=DateTime(timezone=True),
     )
 
 
@@ -156,11 +156,11 @@ class Conversation(SQLModel, table=True):
     )
     created_at: datetime | None = Field(
         default_factory=_timestamp,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_type=DateTime(timezone=True),
     )
     updated_at: datetime | None = Field(
         default_factory=_timestamp,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_type=DateTime(timezone=True),
     )
 
 
@@ -182,11 +182,11 @@ class AgentRun(SQLModel, table=True):
     output_tokens: int = Field(default=0)
     created_at: datetime | None = Field(
         default_factory=_timestamp,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_type=DateTime(timezone=True),
     )
     finished_at: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_type=DateTime(timezone=True),
     )
 
 
@@ -207,7 +207,7 @@ class ConversationMessage(SQLModel, table=True):
     content: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
     created_at: datetime | None = Field(
         default_factory=_timestamp,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_type=DateTime(timezone=True),
     )
 
 
@@ -250,11 +250,11 @@ class AgentStep(SQLModel, table=True):
     )
     started_at: datetime | None = Field(
         default_factory=_timestamp,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_type=DateTime(timezone=True),
     )
     finished_at: datetime | None = Field(
         default=None,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+        sa_type=DateTime(timezone=True),
     )
 
 

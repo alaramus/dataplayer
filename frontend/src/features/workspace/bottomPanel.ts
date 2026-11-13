@@ -26,7 +26,7 @@ export function defaultBottomPanel(): BottomPanelState {
  * default.
  */
 export function readBottomPanel(raw: string | null, tools: readonly string[]): BottomPanelState {
-  let parsed: unknown = null
+  let parsed: unknown
   try {
     parsed = raw === null ? null : JSON.parse(raw)
   } catch {

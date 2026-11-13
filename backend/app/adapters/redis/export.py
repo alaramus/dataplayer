@@ -33,6 +33,7 @@ from app.adapters.redis.shapes import (
     KEY_SHAPES,
     LISTING,
     Shape,
+    scored,
     stream_fields,
 )
 from app.core.translation import N_, say
@@ -114,7 +115,7 @@ class RedisExport:
                 cursor, found = await resolved(
                     client.hscan(ref.name, cursor=cursor, count=EXPORT_BATCH_SIZE)
                 )
-                if found:
+                if isinstance(found, dict) and found:
                     yield [[text(field), text(value)] for field, value in found.items()]
                 if cursor == 0:
                     return
@@ -156,7 +157,7 @@ class RedisExport:
                 )
                 if not found:
                     return
-                yield [[text(member), str(score)] for member, score in found]
+                yield [[text(member), str(score)] for member, score in scored(found)]
                 if len(found) < EXPORT_BATCH_SIZE:
                     return
                 start += EXPORT_BATCH_SIZE

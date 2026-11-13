@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, useAttrs, useId } from "vue"
+import { computed, inject, useAttrs } from "vue"
 
 import { formLayoutKey } from "./formLayout"
 import { fieldLook } from "./tokens"
@@ -8,7 +8,6 @@ const formLayout = inject(formLayoutKey, false)
 
 defineOptions({ inheritAttrs: false })
 
-const errorId = `${useId()}-error`
 const attrs = useAttrs()
 
 const props = withDefaults(
@@ -129,11 +128,6 @@ function report(value: string | number | null) {
     :clearable="clearable"
     :error="Boolean(error)"
     :no-error-icon="toolbar"
-    :aria-invalid="error ? 'true' : undefined"
-    :aria-describedby="
-      [attrs['aria-describedby'], error ? errorId : undefined].filter(Boolean).join(' ') ||
-        undefined
-    "
     @update:model-value="report"
     @focus="emit('focus')"
     @blur="emit('blur')"
@@ -144,11 +138,10 @@ function report(value: string | number | null) {
     >
       <span>{{ label }}</span>
     </template>
+    <!-- Quasar marks the input invalid and names the message as what
+         describes it; the alert is what announces a new one. -->
     <template #error>
-      <span
-        :id="errorId"
-        role="alert"
-      >{{ error }}</span>
+      <span role="alert">{{ error }}</span>
     </template>
     <!-- Popups belong to the whole field, not to its trailing action area. -->
     <slot />

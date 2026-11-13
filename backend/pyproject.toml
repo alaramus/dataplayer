@@ -5,7 +5,7 @@ description = ""
 license = "Apache-2.0"
 requires-python = ">=3.14,<4.0"
 dependencies = [
-    "fastapi[standard]>=0.141.1,<1.0.0",
+    "fastapi[standard]>=0.162.7,<1.0.0",
     "python-multipart<1.0.0,>=0.0.27",
     "email-validator<3.0.0.0,>=2.1.0.post1",
     "tenacity<10.0.0,>=8.2.3",
@@ -14,21 +14,25 @@ dependencies = [
     "jinja2<4.0.0,>=3.1.4",
     "alembic<2.0.0,>=1.12.1",
     "httpx<1.0.0,>=0.25.1",
+    # The MCP SDK's HTTP client (D360), handed to it by app.ai.mcp_client.
+    "httpx2>=2.16,<3",
     # Binance's market streams (D323); already installed by uvicorn's extras.
-    "websockets>=15.0,<17.0",
+    "websockets>=17.4,<18",
     "psycopg[binary]>=3.3.4,<4.0.0",
-    "sqlmodel>=0.0.39,<1.0.0",
+    "sqlmodel>=0.0.50,<1.0.0",
+    # SQLAlchemy 2.1 no longer installs greenlet, which its asyncio layer needs.
+    "sqlalchemy[asyncio]>=2.1.8,<2.2",
     "pydantic-settings<3.0.0,>=2.2.1",
     "pyjwt<3.0.0,>=2.13.0",
     "pwdlib[argon2,bcrypt]>=0.3.0",
     "cryptography>=50.0.1",
     "psycopg-pool>=3.3.1",
-    "pillow>=11.3.0,<13.0.0",
-    "pyarrow>=21.0.0,<26.0.0",
+    "pillow>=13.0.0,<14",
+    "pyarrow>=26.0.1,<27",
     "openpyxl>=3.1.5,<4.0.0",
     "sqlglot>=30.17.0",
-    "duckdb>=1.5.5",
-    "redis>=5.0,<7.0",
+    "duckdb>=2.0.0,<3",
+    "redis>=8.1,<9",
     # The agent's framework, held to one minor version each: LangChain changes
     # its infrastructure often, and a checkpoint written by one version must be
     # readable by the next, so an upgrade is a commit of its own (D139).
@@ -39,7 +43,7 @@ dependencies = [
     "langchain-anthropic>=1.7.6,<1.8.0",
     "langchain-google-genai>=4.4.2,<4.5.0",
     "langchain-deepseek>=1.1.1,<1.2.0",
-    "pycryptodome>=3.23.0,<4.0.0",
+    "pycryptodome>=4.4.0,<5",
     "asyncssh>=2.21.0,<3.0.0",
     "langchain-typesafe==0.0.1a3",
     # Time zones for pipeline schedules (D179) where the system keeps none:
@@ -57,7 +61,7 @@ dependencies = [
     "aio-pika>=10.2.3",
     "scylla-driver>=3.29.13",
     # The MCP server at /mcp (D357), imported by app.ai.mcp_server alone.
-    "mcp>=1.30,<2",
+    "mcp>=2.3,<3",
 ]
 
 [dependency-groups]

@@ -46,7 +46,7 @@ export function defaultArrangement(blocks: readonly BlockSeat[]): Arrangement {
  * takes the seat it would have had. Anything unreadable is the default.
  */
 export function readArrangement(raw: string | null, blocks: readonly BlockSeat[]): Arrangement {
-  let parsed: unknown = null
+  let parsed: unknown
   try {
     parsed = raw === null ? null : JSON.parse(raw)
   } catch {

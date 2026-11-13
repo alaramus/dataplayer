@@ -366,8 +366,7 @@ class ExplorerExecution:
         """Execute and read one statement. Blocking, and on a worker thread."""
         try:
             values = _values_for(self._request, statement)
-            cursor = self._engine.connection.execute(statement.text, values)
-            result = _materialise(cursor, state)
+            result = _materialise(self._bound(statement.text, values), state)
             return StatementFinished(
                 ordinal=statement.ordinal,
                 status="succeeded",
@@ -399,6 +398,24 @@ class ExplorerExecution:
                 duration_ms=_since(began),
                 diagnostic=diagnostic,
             )
+
+    def _bound(
+        self, text: str, values: dict[str, str | None]
+    ) -> duckdb.DuckDBPyRelation | None:
+        """The statement bound and not yet read. Blocking.
+
+        A relation's refusal leaves out the line and caret that place it in
+        the text. A statement refused while binding has run nothing, so it is
+        bound once more the other way, which says where.
+        """
+        connection = self._engine.connection
+        try:
+            return connection.sql(text, params=values)
+        except duckdb.InterruptException:
+            raise
+        except duckdb.Error:
+            connection.execute(text, values)
+            raise
 
     def _diagnostic(self, exc: duckdb.Error) -> QueryDiagnostic:
         return diagnostic_of(
@@ -566,7 +583,7 @@ def _values_for(
 
 
 def _materialise(
-    cursor: duckdb.DuckDBPyConnection, state: _Bounds
+    relation: duckdb.DuckDBPyRelation | None, state: _Bounds
 ) -> MaterialisedResult:
     """Read the whole result once, within every ceiling D64 states.
 
@@ -575,8 +592,14 @@ def _materialise(
     already renders Arrow values one way for Parquet (D23).
     """
     limits = state.limits
-    described = cursor.description or []
-    reader = cursor.to_arrow_reader(BATCH_ROWS)
+    if relation is None:
+        # The engine already ran a statement that has no rows to give.
+        state.results += 1
+        return MaterialisedResult(columns=[], rows=[], truncated=False, bytes_used=0)
+    # A relation rather than the connection's own result: from DuckDB 2 Arrow
+    # read off an executed result copies every row first, past the ceiling.
+    described = relation.description or []
+    reader = relation.to_arrow_reader(BATCH_ROWS)
     schema = reader.schema
     spellings = [str(item[1]) for item in described]
     names = [str(item[0]) for item in described]

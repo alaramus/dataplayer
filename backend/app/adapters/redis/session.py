@@ -10,7 +10,6 @@ A driver's own message names the host, the port and sometimes the password of
 the connection it failed on, so none of it crosses this boundary.
 """
 
-import inspect
 import logging
 import time
 from collections.abc import AsyncIterator, Awaitable
@@ -203,14 +202,6 @@ def text(raw: Any) -> str:
     return str(raw)
 
 
-async def resolved[T](value: Awaitable[T] | T) -> T:
-    """The answer to one command, whichever way the driver typed it.
-
-    redis-py shares its command definitions between its synchronous and its
-    asynchronous client, so every one of them is annotated as "an answer or an
-    awaitable answer". On the async client it is always the latter; this is
-    where that is said once instead of at each call.
-    """
-    if inspect.isawaitable(value):
-        return await value
-    return value
+async def resolved[T](value: Awaitable[T]) -> T:
+    """The answer to one command."""
+    return await value

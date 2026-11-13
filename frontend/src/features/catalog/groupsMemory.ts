@@ -27,7 +27,7 @@ function keyOf(connectorId: string): string {
 
 /** What was ticked last time, or nothing when nobody has said. */
 export function rememberedGroups(connectorId: string): string[] | undefined {
-  let raw: string | null = null
+  let raw: string | null
   try {
     raw = localStorage.getItem(keyOf(connectorId))
   } catch {

@@ -30,7 +30,13 @@ from app.adapters.redis.keyspace import (
     place_of,
 )
 from app.adapters.redis.session import RedisSession, resolved, text
-from app.adapters.redis.shapes import KEY_SHAPES, LISTING, fetch_columns, stream_fields
+from app.adapters.redis.shapes import (
+    KEY_SHAPES,
+    LISTING,
+    fetch_columns,
+    scored,
+    stream_fields,
+)
 from app.adapters.redis.update import (
     NO_DELETE,
     NO_INSERT,
@@ -155,10 +161,10 @@ class RedisFetch:
         stop = request.offset + request.limit
         async with self._session.connection(ref.database) as client:
             found = await client.zrange(ref.name, start, stop, withscores=True)
-        scored = [(text(member), str(score)) for member, score in found]
+        pairs = [(text(member), str(score)) for member, score in scored(found)]
         return (
-            [[member, score] for member, score in scored[: request.limit]],
-            len(scored) > request.limit,
+            [[member, score] for member, score in pairs[: request.limit]],
+            len(pairs) > request.limit,
         )
 
     async def _stream(
@@ -167,7 +173,7 @@ class RedisFetch:
         """Entries of a stream, each as its id and its fields written out."""
         async with self._session.connection(ref.database) as client:
             found = await client.xrange(ref.name, count=request.offset + request.limit + 1)
-        entries = [(text(entry_id), stream_fields(fields)) for entry_id, fields in found]
+        entries = [(text(entry_id), stream_fields(fields)) for entry_id, fields in found or []]
         return (
             [[entry_id, fields] for entry_id, fields in _page(entries, request)],
             _has_more(entries, request),
