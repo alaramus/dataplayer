@@ -27,6 +27,9 @@ import type {
   aiCreateConversationData,
   aiCreateConversationErrors,
   aiCreateConversationResponses,
+  aiCreateMcpServerData,
+  aiCreateMcpServerErrors,
+  aiCreateMcpServerResponses,
   aiCreateMcpTokenData,
   aiCreateMcpTokenErrors,
   aiCreateMcpTokenResponses,
@@ -45,6 +48,9 @@ import type {
   aiDeleteConversationData,
   aiDeleteConversationErrors,
   aiDeleteConversationResponses,
+  aiDeleteMcpServerData,
+  aiDeleteMcpServerErrors,
+  aiDeleteMcpServerResponses,
   aiDeleteMcpTokenData,
   aiDeleteMcpTokenErrors,
   aiDeleteMcpTokenResponses,
@@ -69,6 +75,12 @@ import type {
   aiReadConversationsData,
   aiReadConversationsErrors,
   aiReadConversationsResponses,
+  aiReadMcpServersData,
+  aiReadMcpServersErrors,
+  aiReadMcpServersResponses,
+  aiReadMcpServerToolsData,
+  aiReadMcpServerToolsErrors,
+  aiReadMcpServerToolsResponses,
   aiReadMcpTokensData,
   aiReadMcpTokensErrors,
   aiReadMcpTokensResponses,
@@ -105,6 +117,9 @@ import type {
   aiUpdateConversationData,
   aiUpdateConversationErrors,
   aiUpdateConversationResponses,
+  aiUpdateMcpServerData,
+  aiUpdateMcpServerErrors,
+  aiUpdateMcpServerResponses,
   aiUpdateQuickChatData,
   aiUpdateQuickChatErrors,
   aiUpdateQuickChatResponses,
@@ -6883,6 +6898,108 @@ export class AiService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/mcp-tokens/{token_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Mcp Servers
+   *
+   * Every outside MCP server of this person; never a token or a header's value.
+   */
+  public static readMcpServers<ThrowOnError extends boolean = true>(
+    options?: Options<aiReadMcpServersData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      aiReadMcpServersResponses,
+      aiReadMcpServersErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/mcp-servers/",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Mcp Server
+   */
+  public static createMcpServer<ThrowOnError extends boolean = true>(
+    options: Options<aiCreateMcpServerData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      aiCreateMcpServerResponses,
+      aiCreateMcpServerErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/mcp-servers/",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Mcp Server
+   */
+  public static deleteMcpServer<ThrowOnError extends boolean = true>(
+    options: Options<aiDeleteMcpServerData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      aiDeleteMcpServerResponses,
+      aiDeleteMcpServerErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/mcp-servers/{server_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Update Mcp Server
+   */
+  public static updateMcpServer<ThrowOnError extends boolean = true>(
+    options: Options<aiUpdateMcpServerData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      aiUpdateMcpServerResponses,
+      aiUpdateMcpServerErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/mcp-servers/{server_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Mcp Server Tools
+   *
+   * Ask the server what it offers now, which also says whether it answers.
+   */
+  public static readMcpServerTools<ThrowOnError extends boolean = true>(
+    options: Options<aiReadMcpServerToolsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      aiReadMcpServerToolsResponses,
+      aiReadMcpServerToolsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/mcp-servers/{server_id}/tools",
       ...options,
     })
   }

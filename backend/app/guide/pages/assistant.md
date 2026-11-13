@@ -94,6 +94,31 @@ anything in DataPlayer. In Chrome on a desktop computer it can be answered by
 Gemini Nano, which runs on your own computer once Chrome has downloaded it, so
 nothing leaves it. Quick chats appear in the same history as the agent's chats.
 
+## Tools of outside MCP servers
+
+The agent can also call the tools of MCP servers you add: an issue tracker, a
+wiki, a service of your own.
+
+1. Open the AI space and **Settings**, then **Add server** under
+   **Outside MCP servers**.
+2. Give it a name and its Streamable HTTP address, such as
+   `https://mcp.example.com/mcp`. A **Bearer token** and **Other headers** are
+   sent with every request; once saved they are never shown again, and an
+   empty field keeps what is set.
+3. **Tools** asks the server what it offers. Each tool says **Reads** or
+   **Asks first**, and can be switched off.
+
+- A tool that does not say it only reads is treated as a change: it asks
+  first with the arguments it would send, a **Read only** chat refuses it, and
+  **Allow changes** lets it run.
+- The server icon in the composer turns each server on or off for that chat.
+- A server that does not answer is left out of that answer; the rest of the
+  chat goes on.
+- The list is yours alone. What the agent passes to a tool leaves DataPlayer,
+  data read from your connections included.
+- An address on this machine or its private network is refused unless the
+  installation allows it.
+
 ## An outside AI agent
 
 An agent outside DataPlayer — Claude Code, Cursor, Codex and others — can

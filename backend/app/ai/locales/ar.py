@@ -20,6 +20,9 @@ MESSAGES: dict[str, str] = {
     'Running action "{action}" on "{connection}"': "تنفيذ الإجراء «{action}» على «{connection}»",
     'Listing actions for "{name}"': "إدراج إجراءات «{name}»",
     'Searching for "{words}"': "البحث عن «{words}»",
+    "Run \"{tool}\" on the MCP server \"{server}\"?": "تشغيل «{tool}» على خادم MCP «{server}»؟",
+    "With these arguments:": "بهذه الوسائط:",
+    "Calling \"{tool}\" on \"{server}\"": "استدعاء «{tool}» على «{server}»",
     "Reading the guide": "قراءة الدليل",
     'Reading "{page}" in the guide': "قراءة «{page}» في الدليل",
     "Waiting for your answer": "بانتظار إجابتك",
@@ -114,4 +117,5 @@ MESSAGES: dict[str, str] = {
     "Stopped before every title was read": "توقف قبل قراءة كل العناوين",
     "Only the newest {count} chats of each kind are searched": "لا يُبحث إلا في أحدث {count} دردشة من كل نوع",
     "Token revoked": "أُلغي الرمز",
+    "MCP server removed": "أُزيل خادم MCP",
 }

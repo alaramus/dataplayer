@@ -845,10 +845,10 @@ forbidden_modules =
     app.adapters.binance
 
 # MCP's SDK, by the rule every driver follows: the module that serves /mcp
-# owns it, and the tools it offers know nothing of it (D357). Direct imports
-# only: the application assembly reaches it through that module.
+# and the one that calls outside servers own it, and the tools know nothing of
+# it (D357, D360). Direct imports only: the rest reaches it through those two.
 [importlinter:contract:mcp-sdk-is-contained]
-name = the mcp SDK is imported only by app.ai.mcp_server
+name = the mcp SDK is imported only by app.ai.mcp_server and app.ai.mcp_client
 type = forbidden
 allow_indirect_imports = True
 source_modules =
@@ -872,6 +872,9 @@ source_modules =
     app.ai.tools
     app.ai.mcp_tokens
     app.ai.mcp_routes
+    app.ai.mcp_servers
+    app.ai.mcp_tools
+    app.ai.mcp_client_routes
     app.ai.runner
     app.ai.routes
 forbidden_modules =

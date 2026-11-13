@@ -43,6 +43,8 @@ x-backend-environment: &backend-environment
   # The local model the search finds meaning with (D220). Empty switches it
   # off; the `full` preset points it at the embedder below.
   EMBEDDINGS_URL: ${EMBEDDINGS_URL:-}
+  # Whether the agent may call an outside MCP server on a private address (D360).
+  MCP_CLIENT_ALLOW_PRIVATE: ${MCP_CLIENT_ALLOW_PRIVATE:-false}
 
 services:
 

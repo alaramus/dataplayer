@@ -20,6 +20,9 @@ MESSAGES: dict[str, str] = {
     'Running action "{action}" on "{connection}"': "Ejecutando la acción «{action}» en «{connection}»",
     'Listing actions for "{name}"': "Listando acciones para «{name}»",
     'Searching for "{words}"': "Buscando «{words}»",
+    "Run \"{tool}\" on the MCP server \"{server}\"?": "¿Ejecutar «{tool}» en el servidor MCP «{server}»?",
+    "With these arguments:": "Con estos argumentos:",
+    "Calling \"{tool}\" on \"{server}\"": "Llamando a «{tool}» en «{server}»",
     "Reading the guide": "Leyendo la guía",
     'Reading "{page}" in the guide': "Leyendo «{page}» en la guía",
     "Waiting for your answer": "Esperando tu respuesta",
@@ -114,4 +117,5 @@ MESSAGES: dict[str, str] = {
     "Stopped before every title was read": "Se detuvo antes de leer todos los títulos",
     "Only the newest {count} chats of each kind are searched": "Solo se buscan los {count} chats más recientes de cada tipo",
     "Token revoked": "Token revocado",
+    "MCP server removed": "Servidor MCP eliminado",
 }

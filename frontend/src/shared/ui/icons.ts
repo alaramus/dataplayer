@@ -24,6 +24,8 @@ export const appIcons = {
   cancel: "cancel",
   centerFocusStrong: "center_focus_strong",
   check: "check",
+  checkBox: "check_box",
+  checkBoxBlank: "check_box_outline_blank",
   chevronLeft: "chevron_left",
   chevronRight: "chevron_right",
   clearAll: "clear_all",

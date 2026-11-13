@@ -3,7 +3,15 @@ import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
 import { AiService } from "@/client"
-import type { AgentSettingsUpdate, ConversationUpdate, QuickChatSummary, QuickChatUpdate, ScreenContext } from "@/client"
+import type {
+  AgentSettingsUpdate,
+  ConversationUpdate,
+  McpServerCreateWritable,
+  McpServerUpdateWritable,
+  QuickChatSummary,
+  QuickChatUpdate,
+  ScreenContext,
+} from "@/client"
 
 import type { Provider } from "./modelOptions"
 import { forgetQuickChat } from "./quickChatLauncher"
@@ -324,4 +332,59 @@ export async function checkAiKey(
   key: string | null = null
 ) {
   return (await AiService.checkKey({ path: { provider }, body: { key } })).data
+}
+
+/** The person's outside MCP servers the agent may call (D360); never a secret. */
+export const mcpServersKey = ["ai", "mcp-servers"] as const
+
+export function useMcpServers() {
+  return useQuery({
+    queryKey: mcpServersKey,
+    queryFn: async () => (await AiService.readMcpServers()).data,
+  })
+}
+
+function useServerMutation<T, R>(run: (input: T) => Promise<R>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: run,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: mcpServersKey })
+    },
+  })
+}
+
+export function useCreateMcpServer() {
+  return useServerMutation(
+    async (body: McpServerCreateWritable) => (await AiService.createMcpServer({ body })).data
+  )
+}
+
+export function useUpdateMcpServer() {
+  return useServerMutation(
+    async ({ id, body }: { id: string; body: McpServerUpdateWritable }) =>
+      (await AiService.updateMcpServer({ path: { server_id: id }, body })).data
+  )
+}
+
+export function useDeleteMcpServer() {
+  return useServerMutation(
+    async (id: string) => (await AiService.deleteMcpServer({ path: { server_id: id } })).data
+  )
+}
+
+/** What a server offers now. Asking it is also how a person learns it answers,
+    so it is read when asked for rather than kept fresh in the background. */
+export function useMcpServerTools(serverId: () => string | null) {
+  return useQuery({
+    queryKey: [...mcpServersKey, "tools", serverId] as const,
+    queryFn: async () => {
+      const id = serverId()
+      if (id === null) return null
+      return (await AiService.readMcpServerTools({ path: { server_id: id } })).data
+    },
+    enabled: () => serverId() !== null,
+    retry: false,
+    staleTime: 60_000,
+  })
 }

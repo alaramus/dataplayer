@@ -16,7 +16,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, RootModel, SecretStr
 from pydantic import Field as PydanticField
-from sqlalchemy import Column, DateTime, Index, LargeBinary
+from sqlalchemy import JSON, Column, DateTime, Index, LargeBinary
 from sqlmodel import Field, SQLModel
 
 from app.adapters.catalog import NodeView
@@ -130,6 +130,10 @@ class Conversation(SQLModel, table=True):
     # later is a release, not a migration of the column's type.
     change_policy: str = Field(
         default="ask", max_length=16, sa_column_kwargs={"server_default": "ask"}
+    )
+    # The person's outside MCP servers switched off in this chat, by id (D361).
+    mcp_servers_off: list[str] = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]")
     )
     # Above the rest of the history, whatever it was last said in (D141).
     pinned: bool = Field(
@@ -352,6 +356,7 @@ class ConversationSummary(BaseModel):
     auto_provider: AutoProvider | None = None
     change_policy: ChangePolicy = "ask"
     project_id: uuid.UUID | None = None
+    mcp_servers_off: list[uuid.UUID] = PydanticField(default_factory=list)
 
 
 class ChatProjectPublic(BaseModel):
@@ -399,6 +404,8 @@ class ConversationUpdate(BaseModel):
     model_key: str | None = PydanticField(default=None, max_length=160)
     auto_provider: AutoProvider | None = None
     change_policy: ChangePolicy | None = None
+    # The outside MCP servers switched off in this chat, all of them (D361).
+    mcp_servers_off: list[uuid.UUID] | None = PydanticField(default=None, max_length=100)
     # The folder, or `null` for none. Unlike the fields above it, this one is
     # read as sent rather than as set: taking a conversation out of a folder is
     # a change like any other, and `null` has to be able to say it.
@@ -541,6 +548,7 @@ class ConversationPublic(BaseModel):
     model_key: str | None = None
     auto_provider: AutoProvider | None = None
     change_policy: ChangePolicy = "ask"
+    mcp_servers_off: list[uuid.UUID] = PydanticField(default_factory=list)
     created_at: datetime | None
     updated_at: datetime | None
     messages: list[ConversationMessagePublic]

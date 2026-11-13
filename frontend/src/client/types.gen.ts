@@ -3349,6 +3349,10 @@ export type ConversationPublic = {
    */
   change_policy?: "read_only" | "ask" | "allow" | "jev"
   /**
+   * Mcp Servers Off
+   */
+  mcp_servers_off?: Array<string>
+  /**
    * Created At
    */
   created_at: string | null
@@ -3418,6 +3422,10 @@ export type ConversationSummary = {
    * Project Id
    */
   project_id?: string | null
+  /**
+   * Mcp Servers Off
+   */
+  mcp_servers_off?: Array<string>
 }
 
 /**
@@ -3453,6 +3461,10 @@ export type ConversationUpdate = {
    * Change Policy
    */
   change_policy?: "read_only" | "ask" | "allow" | "jev" | null
+  /**
+   * Mcp Servers Off
+   */
+  mcp_servers_off?: Array<string> | null
   /**
    * Project Id
    */
@@ -8321,6 +8333,109 @@ export type Match = {
 }
 
 /**
+ * McpServerCreate
+ */
+export type McpServerCreate = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Url
+   */
+  url: string
+  /**
+   * Token
+   */
+  token?: null
+  /**
+   * Enabled
+   */
+  enabled?: boolean
+}
+
+/**
+ * McpServerPublic
+ */
+export type McpServerPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Url
+   */
+  url: string
+  /**
+   * Has Token
+   */
+  has_token: boolean
+  /**
+   * Header Names
+   */
+  header_names: Array<string>
+  /**
+   * Enabled
+   */
+  enabled: boolean
+  /**
+   * Tools Off
+   */
+  tools_off: Array<string>
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Updated At
+   */
+  updated_at: string
+}
+
+/**
+ * McpServerUpdate
+ *
+ * What changes; a field left out stays. A header sent with `null` keeps
+ * the value it had, so the list can be edited without typing them again.
+ */
+export type McpServerUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Url
+   */
+  url?: string | null
+  /**
+   * Token
+   */
+  token?: null
+  /**
+   * Clear Token
+   */
+  clear_token?: boolean
+  /**
+   * Headers
+   */
+  headers?: {
+    [key: string]: null
+  } | null
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null
+  /**
+   * Tools Off
+   */
+  tools_off?: Array<string> | null
+}
+
+/**
  * McpTokenCreate
  */
 export type McpTokenCreate = {
@@ -8410,6 +8525,46 @@ export type McpTokenPublic = {
    * Last Used At
    */
   last_used_at: string | null
+}
+
+/**
+ * McpToolPublic
+ */
+export type McpToolPublic = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Title
+   */
+  title: string | null
+  /**
+   * Description
+   */
+  description: string | null
+  /**
+   * Read Only
+   */
+  read_only: boolean
+  /**
+   * Enabled
+   */
+  enabled: boolean
+}
+
+/**
+ * McpToolsPublic
+ */
+export type McpToolsPublic = {
+  /**
+   * Server Id
+   */
+  server_id: string
+  /**
+   * Tools
+   */
+  tools: Array<McpToolPublic>
 }
 
 /**
@@ -10705,6 +10860,15 @@ export type ProblemDetail = {
     | "ai.answer_not_found"
     | "ai.answer_elsewhere"
     | "ai.mcp_token_not_found"
+    | "ai.mcp_server_not_found"
+    | "ai.mcp_server_name_taken"
+    | "ai.mcp_server_limit"
+    | "ai.mcp_header_value_required"
+    | "ai.mcp_address_private"
+    | "ai.mcp_address_unresolved"
+    | "ai.mcp_server_unreachable"
+    | "ai.mcp_server_refused"
+    | "ai.mcp_server_failed"
     | "metrics.no_metrics"
     | "metrics.agent_not_found"
     | "metrics.agent_or_connection_required"
@@ -16301,6 +16465,73 @@ export type ChosenStartWritable = {
    * Sample Data
    */
   sample_data?: boolean
+}
+
+/**
+ * McpServerCreate
+ */
+export type McpServerCreateWritable = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Url
+   */
+  url: string
+  /**
+   * Token
+   */
+  token?: string | null
+  /**
+   * Headers
+   */
+  headers?: {
+    [key: string]: string
+  }
+  /**
+   * Enabled
+   */
+  enabled?: boolean
+}
+
+/**
+ * McpServerUpdate
+ *
+ * What changes; a field left out stays. A header sent with `null` keeps
+ * the value it had, so the list can be edited without typing them again.
+ */
+export type McpServerUpdateWritable = {
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Url
+   */
+  url?: string | null
+  /**
+   * Token
+   */
+  token?: string | null
+  /**
+   * Clear Token
+   */
+  clear_token?: boolean
+  /**
+   * Headers
+   */
+  headers?: {
+    [key: string]: string | null
+  } | null
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null
+  /**
+   * Tools Off
+   */
+  tools_off?: Array<string> | null
 }
 
 /**
@@ -24558,6 +24789,149 @@ export type aiDeleteMcpTokenResponses = {
 }
 
 export type aiDeleteMcpTokenResponse = aiDeleteMcpTokenResponses[keyof aiDeleteMcpTokenResponses]
+
+export type aiReadMcpServersData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/mcp-servers/"
+}
+
+export type aiReadMcpServersErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiReadMcpServersError = aiReadMcpServersErrors[keyof aiReadMcpServersErrors]
+
+export type aiReadMcpServersResponses = {
+  /**
+   * Response Ai-Read Mcp Servers
+   *
+   * Successful Response
+   */
+  200: Array<McpServerPublic>
+}
+
+export type aiReadMcpServersResponse = aiReadMcpServersResponses[keyof aiReadMcpServersResponses]
+
+export type aiCreateMcpServerData = {
+  body: McpServerCreateWritable
+  path?: never
+  query?: never
+  url: "/api/v1/ai/mcp-servers/"
+}
+
+export type aiCreateMcpServerErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiCreateMcpServerError = aiCreateMcpServerErrors[keyof aiCreateMcpServerErrors]
+
+export type aiCreateMcpServerResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpServerPublic
+}
+
+export type aiCreateMcpServerResponse = aiCreateMcpServerResponses[keyof aiCreateMcpServerResponses]
+
+export type aiDeleteMcpServerData = {
+  body?: never
+  path: {
+    /**
+     * Server Id
+     */
+    server_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/mcp-servers/{server_id}"
+}
+
+export type aiDeleteMcpServerErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiDeleteMcpServerError = aiDeleteMcpServerErrors[keyof aiDeleteMcpServerErrors]
+
+export type aiDeleteMcpServerResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type aiDeleteMcpServerResponse = aiDeleteMcpServerResponses[keyof aiDeleteMcpServerResponses]
+
+export type aiUpdateMcpServerData = {
+  body: McpServerUpdateWritable
+  path: {
+    /**
+     * Server Id
+     */
+    server_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/mcp-servers/{server_id}"
+}
+
+export type aiUpdateMcpServerErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiUpdateMcpServerError = aiUpdateMcpServerErrors[keyof aiUpdateMcpServerErrors]
+
+export type aiUpdateMcpServerResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpServerPublic
+}
+
+export type aiUpdateMcpServerResponse = aiUpdateMcpServerResponses[keyof aiUpdateMcpServerResponses]
+
+export type aiReadMcpServerToolsData = {
+  body?: never
+  path: {
+    /**
+     * Server Id
+     */
+    server_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/mcp-servers/{server_id}/tools"
+}
+
+export type aiReadMcpServerToolsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiReadMcpServerToolsError = aiReadMcpServerToolsErrors[keyof aiReadMcpServerToolsErrors]
+
+export type aiReadMcpServerToolsResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpToolsPublic
+}
+
+export type aiReadMcpServerToolsResponse =
+  aiReadMcpServerToolsResponses[keyof aiReadMcpServerToolsResponses]
 
 export type searchSearchData = {
   body: SearchRequest

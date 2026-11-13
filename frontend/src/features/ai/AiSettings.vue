@@ -9,6 +9,7 @@ import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
 
 import AiModelSelect from "./AiModelSelect.vue"
+import McpServersSection from "./McpServersSection.vue"
 import AiKeyDialog from "./AiKeyDialog.vue"
 import VoiceSelect from "@/features/speech/VoiceSelect.vue"
 import { speechSupported } from "@/features/speech/voices"
@@ -159,6 +160,9 @@ async function removeAll() {
             @click="jevDialogOpen = true"
           />
         </AppForm>
+      </section>
+      <section class="ai-settings__group">
+        <McpServersSection />
       </section>
       <AiKeyDialog
         v-model="jevDialogOpen"
