@@ -20,6 +20,8 @@ MESSAGES: dict[str, str] = {
     'Running action "{action}" on "{connection}"': "Ejecutando la acción «{action}» en «{connection}»",
     'Listing actions for "{name}"': "Listando acciones para «{name}»",
     'Searching for "{words}"': "Buscando «{words}»",
+    "Reading the guide": "Leyendo la guía",
+    'Reading "{page}" in the guide': "Leyendo «{page}» en la guía",
     "Waiting for your answer": "Esperando tu respuesta",
     "Statement {at} · {status}": "Instrucción {at} · {status}",
     "Statement {at} · {status} · {count} affected": "Instrucción {at} · {status} · {count} afectadas",

@@ -6,7 +6,7 @@ uses, whose key pays and Jev are in [ai-models.md](ai-models.md). Read this
 before adding a tool, before sending a connection's data to a model provider,
 and before changing the chat window.
 
-Decisions here: D133, D134, D135, D136, D137, D138, D139, D141, D142, D158, D159, D223.
+Decisions here: D133, D134, D135, D136, D137, D138, D139, D141, D142, D158, D159, D223, D359.
 
 ## What exists today
 
@@ -24,8 +24,8 @@ people as well (D133). What goes into the file is written by in-place editing
 
 The agent answers in the AI application space, reading through the tools of
 D134: `list_connections`, `search`, `browse_catalog`, `describe_node`, `read_rows`,
-`run_query`, `list_actions`, `run_action`, `open_in_workspace` and `ask_user`;
-all but the last two are offered to an agent outside DataPlayer at `/mcp` too
+`run_query`, `list_actions`, `run_action`, `read_guide`, `open_in_workspace` and
+`ask_user`; all but the last two are offered to an agent outside DataPlayer at `/mcp` too
 ([mcp.md](mcp.md)).
 Every tool call goes through the connection access funnel as the person who
 owns the conversation, and the transfer flag is checked before every call: a
@@ -84,6 +84,7 @@ backend/app/ai/
 ├── checkpoints.py   LangGraph's saver: encrypted, strict, kept to its latest state
 ├── prompts.py       the system prompt and the title prompt
 ├── tools.py         the tools, the transfer policy, the change gate and the call limit
+├── guide_tool.py    `read_guide`: the guide's outline, a page, a section (D359)
 ├── providers/       one module per provider SDK, and what its errors mean
 ├── topic.py         `ai.runs`
 └── routes.py        /ai
@@ -470,3 +471,26 @@ remembered there (D140); the browser remembers that the quick chat was last on
 it.
 
 Spec: [Quick chat with the browser's model](../decisions/2026-10-11-quick-chat-browser-model.md)
+
+## D359. The agent reads the user's guide through a tool
+
+`read_guide` (`app/ai/guide_tool.py`) answers the outline of the guide (D183)
+without a key — each page's key, title and `## ` headings — the whole page with
+a key, and one section with a key and a heading. `search` finds guide pages by
+their words already (D199), so the agent goes from the words of a question to
+the section it needs. The page is read in the person's language where it has a
+translation (D227), so it names the buttons on their screen; `/mcp` reads
+English. The guide is the application's own text, so D135's flag does not stand
+in front of it, and it is offered at `/mcp` as a read (D357). The system prompt
+sends questions about DataPlayer there.
+
+The guide covers the application, not only sources: an overview, the
+workspace, pipelines, dashboards, the agent, search, services and terminals,
+and preferences, each written for the person at the screen.
+
+Rejected: the guide in the system prompt, an index of embedded passages, and
+the architecture documents as the agent's source.
+
+Known deviation: those application pages are English only for now.
+
+Spec: [The agent reads the user's guide](../decisions/2026-11-13-agent-reads-the-guide-design.md)

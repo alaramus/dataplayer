@@ -44,6 +44,8 @@ from app.adapters.query import (
 )
 from app.adapters.resources import ResourceStore
 from app.ai import conversations, preferences
+from app.ai.guide_tool import DESCRIPTION as GUIDE_DESCRIPTION
+from app.ai.guide_tool import read_guide as guide_answer
 from app.ai.models import (
     AgentPreferences,
     AgentQuestion,
@@ -881,6 +883,16 @@ def shared_tools(host: ToolHost, *, change_note: str) -> list[ToolDefinition]:
             )
         return await host.invoke(say('Searching for "{words}"', words=words.strip()[:80]), find)
 
+    async def read_guide(key: str | None = None, section: str | None = None) -> str:
+        async def read(_session: AsyncSession, _user: User) -> Any:
+            return await guide_answer(_PERSON.get(), key, section)
+        title = (
+            say('Reading "{page}" in the guide', page=key)
+            if key is not None
+            else say("Reading the guide")
+        )
+        return await host.invoke(title, read)
+
     return [
         (list_connections, "list_connections", "List every connection visible to the current person, including transfer policy."),
         (search, "search", f"Find tables, files, keys and other nodes by name, plus connections, guide pages and source types. Searches inside the connections named in connector_ids and, in the chat, those of attached tabs (at most {MAX_CONTEXT}); at most {MAX_SEARCH_HITS} hits."),
@@ -890,6 +902,7 @@ def shared_tools(host: ToolHost, *, change_note: str) -> list[ToolDefinition]:
         (run_query, "run_query", "Run a query in the connection's own language: SQL, or mongosh's syntax for MongoDB. Reads are free; statements that change data run as one committed transaction. " + change_note),
         (list_actions, "list_actions", "List source-declared actions and their parameter schemas without running them."),
         (run_action, "run_action", "Run one source-declared action with validated parameters. " + change_note),
+        (read_guide, "read_guide", GUIDE_DESCRIPTION),
     ]
 
 

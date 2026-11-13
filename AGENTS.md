@@ -71,7 +71,7 @@ documentation.
 | A pipeline, its cards, links, run, schedule and history, what connections can give each other, a link reading a topic on, a node's columns when rows move | [pipelines.md](docs/architecture/pipelines.md) |
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
-| The agent, its tools, sending data to a third party, quick chat | [ai.md](docs/architecture/ai.md) |
+| The agent, its tools, sending data to a third party, quick chat, the agent reading the user's guide | [ai.md](docs/architecture/ai.md) |
 | An agent outside DataPlayer working through `/mcp`, its access tokens | [mcp.md](docs/architecture/mcp.md) |
 | Models, provider keys, Jev | [ai-models.md](docs/architecture/ai-models.md) |
 | One search over everything, its providers, the field in the header | [search.md](docs/architecture/search.md) |
@@ -118,7 +118,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/timescale](docs/architecture/sources/timescale.md) | D119–D122, D207, D208, D211 |
 | [sources/operations](docs/architecture/sources/operations.md) | D123 |
 | [dashboards](docs/architecture/dashboards.md) | D125–D130 |
-| [ai](docs/architecture/ai.md) | D133–D139, D141, D142, D158, D159, D223 |
+| [ai](docs/architecture/ai.md) | D133–D139, D141, D142, D158, D159, D223, D359 |
 | [ai-models](docs/architecture/ai-models.md) | D140, D156, D157 |
 | [sources/ssh](docs/architecture/sources/ssh.md) | D144–D147, D153, D154, D266, D282 |
 | [terminals](docs/architecture/terminals.md) | D148, D149, D286 |

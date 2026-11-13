@@ -20,6 +20,8 @@ MESSAGES: dict[str, str] = {
     'Running action "{action}" on "{connection}"': "正在“{connection}”上运行操作“{action}”",
     'Listing actions for "{name}"': "列出“{name}”的操作",
     'Searching for "{words}"': "正在搜索“{words}”",
+    "Reading the guide": "正在阅读指南",
+    'Reading "{page}" in the guide': "正在阅读指南中的“{page}”",
     "Waiting for your answer": "正在等待你的回答",
     "Statement {at} · {status}": "语句 {at} · {status}",
     "Statement {at} · {status} · {count} affected": "语句 {at} · {status} · 影响行数：{count}",

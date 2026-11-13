@@ -20,6 +20,8 @@ MESSAGES: dict[str, str] = {
     'Running action "{action}" on "{connection}"': "Выполнение действия «{action}» в «{connection}»",
     'Listing actions for "{name}"': "Список действий для «{name}»",
     'Searching for "{words}"': "Поиск «{words}»",
+    "Reading the guide": "Чтение руководства",
+    'Reading "{page}" in the guide': "Чтение «{page}» в руководстве",
     "Waiting for your answer": "Ожидание вашего ответа",
     "Statement {at} · {status}": "Инструкция {at} · {status}",
     "Statement {at} · {status} · {count} affected": "Инструкция {at} · {status} · затронуто: {count}",

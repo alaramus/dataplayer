@@ -34,7 +34,7 @@ claude mcp add --transport http dataplayer https://dataplayer.example/mcp \
 and answering in JSON, so it lives in the one process of D124 and needs no
 second server. Its tools are the application agent's — `list_connections`,
 `search`, `browse_catalog`, `describe_node`, `read_rows`, `run_query`,
-`list_actions`, `run_action` — defined once in `app/ai/tools.py` over a
+`list_actions`, `run_action`, `read_guide` (D359) — defined once in `app/ai/tools.py` over a
 `ToolHost` the caller supplies: the chat's run records steps and asks with
 cards, an MCP request does neither. `open_in_workspace` and `ask_user` are
 the chat's only. The bounds of D134 hold.

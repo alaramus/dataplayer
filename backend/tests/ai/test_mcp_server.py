@@ -30,6 +30,7 @@ SHARED = {
     "run_query",
     "list_actions",
     "run_action",
+    "read_guide",
 }
 
 
@@ -130,6 +131,10 @@ async def test_the_shared_tools_are_offered_and_the_chat_only_ones_are_not(
     assert tools["read_rows"]["annotations"]["readOnlyHint"] is True
     assert tools["run_query"]["annotations"]["readOnlyHint"] is False
     assert "connector_id" in tools["run_query"]["inputSchema"]["properties"]
+    assert tools["read_guide"]["annotations"]["readOnlyHint"] is True
+
+    guide = await call(client, token, "read_guide", key="connections")
+    assert guide["title"] == "Connections"
 
 
 async def test_reads_go_through_the_owner_and_the_transfer_flag(

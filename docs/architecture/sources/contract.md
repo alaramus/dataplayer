@@ -73,7 +73,8 @@ is what they will be able to see and change, in their words.
 - The user's guide is Markdown pages in `backend/app/guide/pages/`, about how
   the application works for the person using it, not about the code. One page
   per source type, `source-<type>.md`, and pages about the application,
-  `connections.md` first. The agent is meant to read the same pages later.
+  `connections.md` first. The agent reads the same pages through `read_guide`
+  ([D359](../ai.md#d359-the-agent-reads-the-users-guide-through-a-tool)).
 - A source page opens with `## What you can see` and `## What you can change`.
   Their top-level bullets, one line each, are `can_see` and `can_change` on
   `GET /adapter-types`, read by the server from the page: the catalog and the

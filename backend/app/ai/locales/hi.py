@@ -21,6 +21,8 @@ MESSAGES: dict[str, str] = {
     'Running action "{action}" on "{connection}"': '"{connection}" पर क्रिया "{action}" चला रहा है',
     'Listing actions for "{name}"': '"{name}" के लिए क्रियाएँ सूचीबद्ध कर रहा है',
     'Searching for "{words}"': '"{words}" खोज रहा है',
+    "Reading the guide": "गाइड पढ़ रहा है",
+    'Reading "{page}" in the guide': "गाइड में \"{page}\" पढ़ रहा है",
     "Waiting for your answer": "आपके उत्तर की प्रतीक्षा है",
     "Statement {at} · {status}": "कथन {at} · {status}",
     "Statement {at} · {status} · {count} affected": "कथन {at} · {status} · {count} प्रभावित",

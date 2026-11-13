@@ -63,10 +63,19 @@ INSTRUCTIONS = (
     "DataPlayer connects databases, files, queues and other sources. Start with "
     "list_connections, then browse_catalog and describe_node; use ids exactly as "
     "returned. A connection marked transfer_not_allowed cannot be read until its "
-    "owner allows third-party transfer in DataPlayer."
+    "owner allows third-party transfer in DataPlayer. For how DataPlayer itself "
+    "works, read its user guide with read_guide."
 )
 READ_TOOLS = frozenset(
-    {"list_connections", "search", "browse_catalog", "describe_node", "read_rows", "list_actions"}
+    {
+        "list_connections",
+        "search",
+        "browse_catalog",
+        "describe_node",
+        "read_rows",
+        "list_actions",
+        "read_guide",
+    }
 )
 
 
