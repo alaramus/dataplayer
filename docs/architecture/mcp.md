@@ -18,8 +18,10 @@ backend/app/ai/
 frontend/src/features/preferences/McpSection.vue   Preferences → MCP access
 ```
 
-A client is configured with the server's address and a token, for example in
-Claude Code:
+A client is configured with the server's address and a token. The window that
+shows a new token gives the line or the file entry for Claude Code, Codex,
+Gemini CLI, Kimi Code CLI, Cursor, VS Code and opencode
+(`features/preferences/mcp.ts`); in Claude Code, for example:
 
 ```bash
 claude mcp add --transport http dataplayer https://dataplayer.example/mcp \

@@ -18,7 +18,7 @@ import {
 import { WindowDialog } from "@/shared/windows"
 
 import { useCreateMcpToken } from "./api"
-import { EXPIRY_DAYS, claudeCommand, clientJson } from "./mcp"
+import { EXPIRY_DAYS, MCP_CLIENTS } from "./mcp"
 import type { ExpiryDays } from "./mcp"
 
 /**
@@ -48,8 +48,20 @@ const expiries = computed(() => [
   ...EXPIRY_DAYS.map((days) => ({ label: t("preferences.mcp.dialog.days", { count: days }), value: days })),
   { label: t("preferences.mcp.dialog.never"), value: "never" },
 ])
-const command = computed(() => (made.value ? claudeCommand(address.value, made.value.token) : ""))
-const json = computed(() => (made.value ? clientJson(address.value, made.value.token) : ""))
+/** The agent the token is for; its snippet is shown, the others are a choice away. */
+const clientId = ref(MCP_CLIENTS[0]?.id ?? "")
+const clients = MCP_CLIENTS.map((one) => ({ label: one.label, value: one.id }))
+const client = computed(() => MCP_CLIENTS.find((one) => one.id === clientId.value) ?? MCP_CLIENTS[0])
+const snippet = computed(() =>
+  made.value && client.value ? client.value.snippet(address.value, made.value.token) : ""
+)
+const place = computed(() => {
+  const where = client.value?.place
+  if (where === undefined) return ""
+  return where.kind === "terminal"
+    ? t("preferences.mcp.dialog.run_in_terminal")
+    : t("preferences.mcp.dialog.add_to_file", { file: where.file })
+})
 
 // A closed window forgets the token: it must not wait there for the next
 // person at this screen.
@@ -62,6 +74,7 @@ watch(
     expiry.value = 90
     error.value = ""
     made.value = null
+    clientId.value = MCP_CLIENTS[0]?.id ?? ""
   }
 )
 
@@ -143,23 +156,26 @@ async function copy(text: string) {
         </div>
       </div>
       <div class="mcp-made__part">
-        <span class="mcp-made__label">{{ t('preferences.mcp.dialog.command') }}</span>
-        <div class="mcp-made__line">
-          <code class="mcp-made__code">{{ command }}</code>
-          <AppCopyButton
-            :tooltip="t('preferences.mcp.dialog.copy_command')"
-            data-testid="mcp-token-copy-command"
-            @click="copy(command)"
+        <!-- The name above the field, as "Token" stands above its line. -->
+        <AppForm labels="above">
+          <AppSelect
+            :model-value="clientId"
+            :options="clients"
+            :label="t('preferences.mcp.dialog.client')"
+            data-testid="mcp-token-client"
+            @update:model-value="clientId = String($event)"
           />
-        </div>
-      </div>
-      <div class="mcp-made__part">
-        <span class="mcp-made__label">{{ t('preferences.mcp.dialog.json') }}</span>
+        </AppForm>
+        <span class="dp-helper">{{ place }}</span>
         <div class="mcp-made__line">
-          <pre class="mcp-made__code">{{ json }}</pre>
+          <pre
+            class="mcp-made__code"
+            data-testid="mcp-token-snippet"
+          >{{ snippet }}</pre>
           <AppCopyButton
-            :tooltip="t('preferences.mcp.dialog.copy_json')"
-            @click="copy(json)"
+            :tooltip="t('preferences.mcp.dialog.copy_snippet')"
+            data-testid="mcp-token-copy-snippet"
+            @click="copy(snippet)"
           />
         </div>
       </div>
@@ -190,10 +206,13 @@ async function copy(text: string) {
 </template>
 
 <style scoped>
+/* The form before it pads itself (AppForm's section layout); this is its
+   place in the same window, so it keeps the same margin. */
 .mcp-made {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-4);
+  padding: var(--dp-space-4);
 }
 .mcp-made__part {
   display: flex;
@@ -218,7 +237,9 @@ async function copy(text: string) {
   background: var(--dp-field-surface);
   font-family: var(--dp-font-mono);
   font-size: var(--dp-font-size-mono);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  /* Never wrapped: a command broken after "Bearer" reads as two lines to
+     copy, and a token broken anywhere reads as two tokens. */
+  white-space: pre;
+  overflow-x: auto;
 }
 </style>
