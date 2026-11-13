@@ -37,9 +37,6 @@ MESSAGES: dict[str, str] = {
     "This connection is gone, or no longer shared with you": "यह कनेक्शन चला गया, या अब आपके साथ साझा नहीं है",
     "This connection is switched off": "यह कनेक्शन बंद है",
     "This connection cannot be read": "यह कनेक्शन पढ़ा नहीं जा सकता",
-    "This canvas holds too many rows to hint at once: select a card first": "इस कैनवास में एक साथ संकेत देने के लिए बहुत अधिक पंक्तियाँ हैं: पहले कोई कार्ड चुनें",
-    "Only the links of the selected card are hinted": "केवल चयनित कार्ड के लिंक का संकेत दिया जाता है",
-    "Only the first {count} pairs of rows of the selected card are hinted": "चयनित कार्ड की केवल पहली {count} पंक्ति-जोड़ियों का संकेत दिया जाता है",
     "{names} and {last}": "{names} और {last}",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} एक-दूसरे में लिखते हैं, इसलिए तीर पहला लिंक नहीं बताते: यह पहले जाता है क्योंकि इसका कार्ड सबसे बाईं ओर है",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} एक-दूसरे में लिखते हैं, इसलिए तीर पहला लिंक नहीं बताते: यह पहले जाता है क्योंकि इसका कार्ड सबसे ऊपर है",
@@ -53,9 +50,15 @@ MESSAGES: dict[str, str] = {
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · \"{title}\" के लिए कुंजी और मान चुनना आवश्यक है",
     # A pipeline following its topics (D315).
-    "Followed; not run": "फ़ॉलो हो रहा है; नहीं चला",
     "Followed; {count} messages carried": "फ़ॉलो किया; पहुँचाए गए संदेश: {count}",
     "Only a link reading a topic follows it": "केवल टॉपिक पढ़ने वाला लिंक ही उसे फ़ॉलो कर सकता है",
     "This following could not be read": "यह फ़ॉलो पढ़ा नहीं जा सका",
     "following its topics": "अपने टॉपिक फ़ॉलो कर रहा है",
+    # A pipeline switched on with one button (D362, D363).
+    "Runs continuously; not run": "लगातार चलता है; नहीं चला",
+    "Not switched on: {needs}": "चालू नहीं हुआ: {needs}",
+    "Same connection": "वही कनेक्शन",
+    "Nothing can go from here into this connection": "यहाँ से इस कनेक्शन में कुछ नहीं जा सकता",
+    "Already linked": "पहले से जुड़ा है",
+    "Nothing can go here": "यहाँ कुछ नहीं जा सकता",
 }

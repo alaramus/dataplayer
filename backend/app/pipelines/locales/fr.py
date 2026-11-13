@@ -37,9 +37,6 @@ MESSAGES: dict[str, str] = {
     "This connection is gone, or no longer shared with you": "Cette connexion n'existe plus, ou ne vous est plus partagée",
     "This connection is switched off": "Cette connexion est désactivée",
     "This connection cannot be read": "Cette connexion ne peut pas être lue",
-    "This canvas holds too many rows to hint at once: select a card first": "Ce canevas contient trop de lignes pour tout suggérer d'un coup : sélectionnez d'abord une carte",
-    "Only the links of the selected card are hinted": "Seuls les liens de la carte sélectionnée sont suggérés",
-    "Only the first {count} pairs of rows of the selected card are hinted": "Seules les {count} premières paires de lignes de la carte sélectionnée sont suggérées",
     "{names} and {last}": "{names} et {last}",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} s'écrivent mutuellement, les flèches ne désignent donc aucun premier lien : celui-ci passe en premier parce que sa carte est la plus à gauche",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} s'écrivent mutuellement, les flèches ne désignent donc aucun premier lien : celui-ci passe en premier parce que sa carte est la plus haute",
@@ -53,9 +50,15 @@ MESSAGES: dict[str, str] = {
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · « {title} » doit avoir sa clé et ses valeurs choisies",
     # A pipeline following its topics (D315).
-    "Followed; not run": "Suivi ; non exécuté",
     "Followed; {count} messages carried": "Suivi ; messages transportés : {count}",
     "Only a link reading a topic follows it": "Seul un lien qui lit un topic peut le suivre",
     "This following could not be read": "Ce suivi n'a pas pu être lu",
     "following its topics": "suit ses topics",
+    # A pipeline switched on with one button (D362, D363).
+    "Runs continuously; not run": "S'exécute en continu ; non exécuté",
+    "Not switched on: {needs}": "Non activé : {needs}",
+    "Same connection": "Même connexion",
+    "Nothing can go from here into this connection": "Rien ne peut aller d'ici vers cette connexion",
+    "Already linked": "Déjà lié",
+    "Nothing can go here": "Rien ne peut aller ici",
 }

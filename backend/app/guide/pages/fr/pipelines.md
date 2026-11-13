@@ -1,9 +1,12 @@
 # Pipelines
 
-Un pipeline dispose vos connexions sur un canevas et trace des liens entre ce qu'elles contiennent :
-des lignes d'une table copiées dans une autre table, une table enregistrée en fichier CSV dans un
-dossier, un topic lu dans une table, et ainsi de suite. Un pipeline s'exécute quand vous appuyez sur
-**Exécuter**, selon un planning, ou — pour un lien qui lit un topic ou une file — en continu.
+Un pipeline dispose vos connexions sur un canevas et trace des liens entre ce
+qu'elles contiennent : les lignes d'une table copiées dans une autre table, une
+table enregistrée en fichier CSV dans un dossier, un topic lu en continu dans une
+table, etc. Activé, il tourne tout seul : un lien qui lit un topic, une file ou
+un flux transporte ce qui arrive en quelques secondes, et les autres liens
+s'exécutent selon la planification. Il peut aussi être exécuté une fois à la
+main.
 
 Les pipelines se trouvent dans l'espace **Pipelines** de l'interrupteur, en haut de la barre de gauche.
 Un pipeline est à vous seul : il n'est pas partagé.
@@ -29,10 +32,17 @@ le signale. Une table qui n'existe plus est barrée et marquée « not found ».
 
 ## Liens
 
-- Faites glisser une ligne d'une carte sur une ligne d'une autre. Si quelque chose peut passer de l'une à
-  l'autre, un lien est tracé ; sinon, la raison est indiquée.
-- **Afficher les liens qui pourraient être tracés**, dans l'en-tête, trace en pointillés chaque lien possible entre les
-  lignes du canevas, étiqueté par ce qu'il ferait. Appuyer sur un lien en pointillés le trace.
+- Faites glisser une ligne d'une carte sur une ligne d'une autre. Pendant le
+  glissement, chaque ligne où elle peut aller est teintée et dit ce que ferait
+  un dépôt à cet endroit ; les autres sont estompées et disent pourquoi non.
+  Déposée sur une ligne teintée, elle trace le lien.
+- Un lien est tracé prêt à s'exécuter quand ses choix peuvent être devinés :
+  une nouvelle table porte le nom de sa source avec toutes ses colonnes, les
+  colonnes sont associées par nom, les clés viennent de la clé d'un topic. Son
+  panneau change chacun d'eux.
+- Un lien à qui il manque encore un choix est tracé dans la couleur
+  d'avertissement et dit ce qu'il lui faut. La ligne sous le canevas le nomme,
+  et **Choisir** l'ouvre.
 - Les deux extrémités d'un lien doivent être dans des connexions différentes : à l'intérieur d'une même
   connexion, utilisez **Copier** et **Coller** dans son catalogue.
 
@@ -45,10 +55,35 @@ temps elle vit.
 Chaque lien reçoit un numéro dans l'ordre où il s'exécute. Un lien attend chaque lien qui écrit dans la carte
 qu'il lit.
 
-## Exécution
+## Activer
 
-- **Exécuter** enregistre le pipeline et exécute chaque lien l'un après l'autre. Il refuse de démarrer avant
-  d'exécuter quoi que ce soit si un lien n'a pas encore de choix, et ouvre ce lien.
+**Activer**, dans l'en-tête, enregistre le pipeline et le démarre. Un lien qui
+lit un topic, une file ou un flux s'exécute en continu : il transporte ce qui
+arrive en quelques secondes. Tout autre lien s'exécute selon la planification.
+**Désactiver** arrête les deux.
+
+- Activer refuse avant que rien ne démarre quand il manque un choix à un lien,
+  et ouvre ce lien ; quand des liens s'exécutent selon la planification et
+  qu'aucune n'est définie, il ouvre **Planification…**.
+- La ligne sous le canevas dit ce qui manque au pipeline ou ce qu'il fait : ce
+  que fera l'activation, depuis combien de temps il est activé et quand il a
+  transporté quelque chose pour la dernière fois, quand vient la prochaine
+  exécution planifiée, ou quel lien échoue sans cesse.
+- Un lien qui lit en continu peut s'exécuter selon la planification à la place :
+  **Tant que le pipeline est activé** dans son panneau. **La première exécution
+  lit** choisit **Depuis le plus ancien disponible** ou **Seulement ce qui est
+  nouveau** ; ensuite, le lien continue à lire là où il s'est arrêté.
+- Tant qu'il est activé, la cloche d'activité indique combien de messages ont
+  été transportés, et un lien qui échoue sans cesse apparaît sous **Vous
+  attend**. L'arrêter là désactive le pipeline.
+
+## Exécuter une fois
+
+- **Exécuter une fois maintenant**, dans le menu à côté d'**Activer**,
+  enregistre le pipeline et exécute chaque lien une fois, l'un après l'autre.
+  Il refuse avant toute exécution quand il manque encore un choix à un lien, et
+  ouvre ce lien. Tant que le pipeline est activé, les liens qui s'exécutent en
+  continu sont laissés de côté.
 - Le premier lien qui échoue arrête l'exécution ; les liens qui suivent ne sont pas exécutés.
 - Pendant l'exécution, chaque lien affiche **En attente**, **En cours**, **Terminé** ou **Échec**, et l'exécution
   apparaît dans la cloche d'activité, où elle peut être arrêtée. Arrêter termine le lien en cours ; ceux qui
@@ -58,24 +93,20 @@ qu'il lit.
 
 ## Planning
 
-L'horloge de l'en-tête ouvre **Planification** : **S'exécuter tout seul**, puis soit **À intervalle régulier** — un nombre de
-minutes, d'heures ou de jours —, soit **À des heures de la journée**, aux jours cochés. Les heures sont celles de
-l'horloge du navigateur qui a enregistré le planning. L'en-tête indique la prochaine exécution.
-
-## Suivre un topic ou une file
-
-Un lien qui lit un topic Kafka, un flux ou une file RabbitMQ, ou une autre source de messages, peut être
-marqué **Suivre** dans son panneau. **La première exécution lit** choisit **Depuis le plus ancien disponible** ou **Seulement ce qui est nouveau** ; ensuite, le lien continue à lire là où il s'est arrêté.
-
-Le commutateur **Suivre** de l'en-tête transporte alors ce qui arrive en quelques secondes, jusqu'à ce qu'on
-le désactive. Pendant le suivi, la cloche d'activité indique le nombre de messages transportés, et un lien qui
-échoue sans cesse est listé sous **Vous attend**.
+**Planification…**, dans le menu à côté d'**Activer**, fixe quand les liens
+planifiés s'exécutent tant que le pipeline est activé : soit **À intervalle
+régulier** — un nombre de minutes, d'heures ou de jours —, soit **À des heures de
+la journée**, les jours cochés. Les heures sont celles de l'horloge du navigateur
+qui a enregistré la planification. La ligne sous le canevas indique la
+prochaine exécution.
 
 ## Historique
 
-**Historique**, dans l'en-tête, liste chaque exécution, la plus récente en premier : quand elle a commencé, si
-c'était à la main ou par le planning, combien de temps elle a duré et ce que chaque lien a fait. Choisir une
-exécution l'affiche sur le canevas ; **Retour à la dernière exécution** revient à la dernière.
+**Historique**, dans le menu **⋯** de l'en-tête, liste chaque exécution, de la
+plus récente à la plus ancienne : quand elle a commencé, à la main ou par la
+planification, combien de temps elle a duré et ce qu'a fait chaque lien. Choisir
+une exécution l'affiche sur le canevas ; **Retour à la dernière exécution**
+revient.
 
 ## Limites
 

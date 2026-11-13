@@ -1,4 +1,4 @@
-"""A pipeline that runs by itself on a schedule (D179)."""
+"""A pipeline that runs by itself on a schedule while it is on (D179, D362)."""
 
 import uuid
 from datetime import UTC, datetime, time, timedelta
@@ -15,6 +15,7 @@ from app.core.db import async_session_maker
 from app.jobs import crud as job_crud
 from app.jobs.models import Job
 from app.main import app
+from app.pipelines.models import PipelineSwitch
 from app.pipelines.record import RunRecord
 from app.pipelines.schedule import PipelineSchedule, ScheduleNote
 from app.pipelines.scheduler import Scheduler
@@ -23,7 +24,7 @@ from tests.pipelines.canvas import BASE, Canvas, card, connector, link
 
 pytestmark = pytest.mark.usefixtures("clean")
 
-EVERY_FIVE = {"enabled": True, "kind": "interval", "every_minutes": 5, "time_zone": "Europe/Riga"}
+EVERY_FIVE = {"kind": "interval", "every_minutes": 5, "time_zone": "Europe/Riga"}
 
 
 def _three_next_day(came: datetime) -> datetime:
@@ -34,9 +35,21 @@ def _three_next_day(came: datetime) -> datetime:
     return datetime.combine(day, time(3, 0), tzinfo=riga).astimezone(UTC)
 
 
+async def _put(canvas: Canvas, chosen: dict[str, Any]) -> Any:
+    return await canvas.client.put(f"{BASE}/{canvas.id}/schedule", headers=canvas.headers, json=chosen)
+
+
 async def _schedule(canvas: Canvas, chosen: dict[str, Any]) -> Any:
-    answer = await canvas.client.put(f"{BASE}/{canvas.id}/schedule", headers=canvas.headers, json=chosen)
-    return answer
+    """The schedule set on a pipeline already on, as a canvas with nothing to
+    run cannot be switched on through its route."""
+    async with async_session_maker() as session:
+        session.add(PipelineSwitch(pipeline_id=uuid.UUID(canvas.id), on=True))
+        await session.commit()
+    return await _put(canvas, chosen)
+
+
+async def _switch(canvas: Canvas, on: bool) -> Any:
+    return await canvas.client.put(f"{BASE}/{canvas.id}/switch", headers=canvas.headers, json={"on": on})
 
 
 async def _copying(client: AsyncClient, headers: dict[str, str], home: Path) -> Canvas:
@@ -87,24 +100,38 @@ def _scheduler(moment: datetime) -> Scheduler:
     return Scheduler(app.state.job_runner, app.state.topics, now=lambda: moment)
 
 
-async def test_a_schedule_is_set_read_and_switched_off_by_its_owner_only(
-    client: AsyncClient, normal_user_token_headers: dict[str, str], superuser_token_headers: dict[str, str]
+async def test_a_schedule_comes_only_while_its_pipeline_is_on_and_answers_its_owner_only(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    superuser_token_headers: dict[str, str],
+    home: Path,
 ) -> None:
-    canvas = await Canvas(client, normal_user_token_headers).make()
+    canvas = await _copying(client, normal_user_token_headers, home)
     before = await client.get(f"{BASE}/{canvas.id}/schedule", headers=normal_user_token_headers)
     assert before.json() == {"settings": None, "next_at": None}
+    # A scheduled link with no schedule is not switched on.
+    refused = await _switch(canvas, True)
+    assert refused.status_code == 422
+    assert refused.json()["detail"]["code"] == "pipelines.no_schedule"
+
+    kept = await _put(canvas, EVERY_FIVE)
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["next_at"] is None
 
     started = datetime.now(UTC)
-    answer = await _schedule(canvas, EVERY_FIVE)
-
-    assert answer.status_code == 200, answer.text
-    next_at = datetime.fromisoformat(answer.json()["next_at"])
+    on = await _switch(canvas, True)
+    assert on.status_code == 200, on.text
+    next_at = (await _row(canvas)).next_at
+    assert next_at is not None
     assert timedelta(minutes=4) < next_at - started <= timedelta(minutes=5, seconds=5)
-    off = await _schedule(canvas, {**EVERY_FIVE, "enabled": False})
-    assert off.json()["next_at"] is None
-    assert off.json()["settings"]["every_minutes"] == 5
-    for refused in ({**EVERY_FIVE, "every_minutes": 4}, {**EVERY_FIVE, "time_zone": "Mars/Olympus"}):
-        assert (await _schedule(canvas, refused)).status_code == 422
+    assert on.json()["status"]["kind"] == "on"
+    off = await _switch(canvas, False)
+    assert off.json()["on"] is False
+    assert (await _row(canvas)).next_at is None
+    after = await client.get(f"{BASE}/{canvas.id}/schedule", headers=normal_user_token_headers)
+    assert after.json()["settings"]["every_minutes"] == 5
+    for wrong in ({**EVERY_FIVE, "every_minutes": 4}, {**EVERY_FIVE, "time_zone": "Mars/Olympus"}):
+        assert (await _put(canvas, wrong)).status_code == 422
     elsewhere = await client.get(f"{BASE}/{canvas.id}/schedule", headers=superuser_token_headers)
     assert elsewhere.status_code == 404
 

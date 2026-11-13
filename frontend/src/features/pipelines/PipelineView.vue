@@ -3,7 +3,7 @@ import { useQueries, useQueryClient } from "@tanstack/vue-query"
 import { AxiosError } from "axios"
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue"
 
-import type { Card, CardRow, CardState, ConnectorPublic, HintLink, Link, LinkEnd, PipelineSummary } from "@/client"
+import type { Card, CardRow, CardState, ConnectorPublic, Link, LinkEnd, PipelineSummary } from "@/client"
 import { startedInThisTab } from "@/features/activity/transfers"
 import { useAdapterTypes } from "@/features/connectors/api"
 import { isJobEvent, JOBS_TOPIC } from "@/features/services/jobs"
@@ -21,9 +21,9 @@ import {
   AppForm,
   AppIconButton,
   AppInput,
+  AppMenu,
   AppSelect,
   AppSpinner,
-  AppTooltip,
   appIcons,
   useConfirm,
   useToast,
@@ -36,14 +36,15 @@ import {
   lackingLinks,
   lastRunKey,
   linkOffersKey,
+  problemCode,
   scheduleKey,
-  followKey,
-  switchFollow,
-  useFollow,
+  setSwitch,
+  switchKey,
+  useSwitch,
   pipelineKey,
   readCardState,
-  readHint,
   readLinkOffers,
+  readTargets,
   runPipeline,
   useDeletePipeline,
   useLastRun,
@@ -58,14 +59,12 @@ import { shownWords } from "./history"
 import HistoryWindow from "./HistoryWindow.vue"
 import LinkPanel from "./LinkPanel.vue"
 import { followedLinks, followTone } from "./follow"
-import { nextRunWords, scheduleWords } from "./schedule"
 import ScheduleWindow from "./ScheduleWindow.vue"
+import { statusLine } from "./status"
 import {
   chainOf,
   dependents,
   endOf,
-  hintEdges,
-  hintOf,
   joinProblem,
   keptLinks,
   linkBetween,
@@ -73,8 +72,10 @@ import {
   linkFromOffer,
   listed,
   madeRows,
+  needsDialog,
   refusal,
   runProblem,
+  targetRows,
   usable,
 } from "./links"
 import {
@@ -85,11 +86,12 @@ import {
   pipelineGraph,
   positionsOf,
   revealing,
+  rowKey,
   withoutCard,
   withRows,
   worldPoint,
 } from "./model"
-import type { CardConnection } from "./model"
+import type { CardConnection, RowTarget } from "./model"
 import { newId } from "@/shared/ids"
 
 /**
@@ -98,9 +100,10 @@ import { newId } from "@/shared/ids"
  *
  * Cards and links are held here as a draft and saved whole a moment after the
  * last change, with the version they were read at, as a dashboard is (D129).
- * The pipeline runs whole by what was saved, so Run saves first (D177).
- * The lines say what the last run did, or an older one pressed in the
- * history (D180); the head says only when the schedule comes next.
+ * What runs is what was saved, so Switch on and Run once save first (D177,
+ * D362). The lines say what the last run did, or an older one pressed in the
+ * history (D180); the status line at the foot says what the pipeline needs or
+ * does now (D364).
  */
 const props = defineProps<{
   pipelineId: string
@@ -131,33 +134,85 @@ const adapterTypes = useAdapterTypes()
 const lastRun = useLastRun(() => props.pipelineId)
 const timetable = useSchedule(() => props.pipelineId)
 const scheduling = ref(false)
-// Whether the pipeline follows its topics, and what each followed link did (D315).
-const following = useFollow(() => props.pipelineId)
-const followOn = computed(() => following.data.value?.on === true)
-const followed = computed(() => followedLinks(following.data.value))
+// Whether the pipeline is on, its status line, and what each continuous link did (D362, D364).
+const switchState = useSwitch(() => props.pipelineId)
+const switchOn = computed(() => switchState.data.value?.on === true)
+const followed = computed(() => followedLinks(switchState.data.value))
 const switching = ref(false)
-const anyFollowed = computed(() => links.value.some((link) => link.follow === true))
+const now = useNow()
+const status = computed(() => statusLine(switchState.data.value?.status, now.value))
 
-async function toggleFollow() {
+/** Switched on — what is on the screen kept first, since what runs is what is kept — or off. */
+async function toggleSwitch() {
   if (switching.value) return
   switching.value = true
+  const on = !switchOn.value
   try {
-    // What is followed is what is kept, so what is on the screen is kept first.
-    if (!followOn.value && !(await save())) return
-    const answer = await switchFollow(props.pipelineId, !followOn.value)
-    queryClient.setQueryData(followKey(props.pipelineId), answer)
-    if (answer.job_id) startedInThisTab(answer.job_id)
+    if (on && !(await save())) return
+    const answer = await setSwitch(props.pipelineId, on)
+    queryClient.setQueryData(switchKey(props.pipelineId), answer)
+    if (answer.follow?.running === true && answer.follow.job_id) startedInThisTab(answer.follow.job_id)
+    void queryClient.invalidateQueries({ queryKey: scheduleKey(props.pipelineId) })
   } catch (cause) {
-    toast.error(messageOf(cause, t("pipelines.follow.switch_failed")))
+    // What it lacks is opened, so it is one press away.
+    if (problemCode(cause) === "pipelines.no_schedule") scheduling.value = true
+    openLacking(cause)
+    toast.error(messageOf(cause, t("pipelines.switch.failed")))
   } finally {
     switching.value = false
   }
 }
-const now = useNow()
-// When it runs by itself next (D179); what came of the times before is the history's.
-const nextRun = computed(() =>
-  timetable.data.value?.settings?.enabled ? nextRunWords(timetable.data.value.next_at, now.value) : null
-)
+
+/** The first link a refusal named as lacking a choice, selected with its window open. */
+function openLacking(cause: unknown) {
+  const first = lackingLinks(cause)[0]
+  if (first === undefined) return
+  selection.value = { kind: "edge", id: first }
+  autoOpenLinkId.value = first
+}
+
+const runMenu = computed(() => [
+  {
+    name: "schedule",
+    label: t("pipelines.view.schedule"),
+    icon: appIcons.schedule,
+  },
+  {
+    name: "run-once",
+    label: t("pipelines.view.run_once"),
+    icon: appIcons.playArrow,
+    disable: runBlocked.value !== null || starting.value,
+    hint: runBlocked.value ?? undefined,
+  },
+])
+const moreMenu = computed(() => [
+  { name: "history", label: t("pipelines.view.history"), icon: appIcons.history },
+  { name: "rename", label: t("pipelines.view.rename_tooltip"), icon: appIcons.edit },
+  { name: "delete", label: t("pipelines.view.delete_tooltip"), icon: appIcons.delete, danger: true },
+])
+
+function pickRun(name: string) {
+  if (name === "schedule") scheduling.value = true
+  else if (name === "run-once") void run()
+}
+
+function pickMore(name: string) {
+  if (name === "history") historyOpen.value = true
+  else if (name === "rename") startRename()
+  else if (name === "delete") void removePipeline()
+}
+
+/** The status line's action: the link it names, the schedule, or the history. */
+function statusAction() {
+  const line = status.value
+  if (line === null) return
+  if (line.action === "schedule") scheduling.value = true
+  else if (line.action === "history") historyOpen.value = true
+  else if (line.action === "link" && line.linkId !== null) {
+    selection.value = { kind: "edge", id: line.linkId }
+    autoOpenLinkId.value = line.linkId
+  }
+}
 const historyOpen = ref(false)
 // An older run pressed in the history, or none while the last is shown.
 const pastJobId = ref<string | null>(null)
@@ -190,8 +245,6 @@ const selection = ref<GraphSelection>(null)
 // A link that still needs its table or column choices — just drawn, given
 // another operation, or named by a Run that failed on it — opens its window.
 const autoOpenLinkId = ref<string | null>(null)
-const hints = ref<HintLink[]>([])
-const hinting = ref(false)
 const starting = ref(false)
 const canvasBox = useTemplateRef<HTMLElement>("canvasBox")
 const canvas = useTemplateRef<InstanceType<typeof Graph2D>>("canvas")
@@ -230,6 +283,8 @@ async function send(): Promise<boolean> {
     })
     version.value = answer.version
     saved.value = answer.cards ?? []
+    // What a link lacks, and so the status line, follows what was kept (D364).
+    void queryClient.invalidateQueries({ queryKey: switchKey(props.pipelineId) })
     return true
   } catch (cause) {
     if (cause instanceof AxiosError && cause.response?.status === 409) {
@@ -304,21 +359,73 @@ const order = computed(() => new Map((pipeline.data.value?.order ?? []).map((pla
 const results = computed(() => pipeline.data.value?.results ?? [])
 const readers = computed(() => new Map((pipeline.data.value?.readers ?? []).map((one) => [one.link_id, one.name])))
 const linkRuns = computed(() => new Map((shownRun.value?.links ?? []).map((run) => [run.link_id, run])))
-const edges = computed(() => [
-  ...links.value.map((link) =>
+// What each link still needs, as the server last answered a save (D364).
+const lacks = computed(() => new Map((pipeline.data.value?.lacking ?? []).map((one) => [one.link_id, one])))
+const edges = computed(() =>
+  links.value.map((link) =>
     linkEdge(
       link,
       order.value.get(link.id),
       linkRuns.value.get(link.id),
-      followOn.value && link.follow === true ? followTone(followed.value.get(link.id)) ?? null : undefined
+      switchOn.value && link.runs === "continuous" ? followTone(followed.value.get(link.id)) ?? null : undefined,
+      lacks.value.get(link.id)
     )
-  ),
-  ...hintEdges(hints.value),
-])
+  )
+)
+
+// While a row is dragged (D363): what a drop on each row would do, or why not.
+const dragFrom = ref<LinkEnd | null>(null)
+const targets = ref<Map<string, RowTarget> | null>(null)
+const partial = ref(false)
+const askedCards = new Set<string>()
+let dragTurn = 0
+
+function merge(found: Map<string, RowTarget>) {
+  targets.value = new Map([...(targets.value ?? []), ...found])
+}
+
+async function linking(from: GraphPort | null) {
+  dragTurn += 1
+  const turn = dragTurn
+  askedCards.clear()
+  partial.value = false
+  targets.value = null
+  dragFrom.value = null
+  if (from === null) return
+  const end = endOf(from)
+  // The top of a connection takes things; it is refused at the drop.
+  if (end.node_id == null && end.made_by == null) return
+  dragFrom.value = end
+  try {
+    // The pipeline as kept answers, as it does a drop.
+    if (!(await save()) || turn !== dragTurn) return
+    const answer = await readTargets(props.pipelineId, end, null)
+    if (turn !== dragTurn) return
+    partial.value = answer.partial === true
+    merge(targetRows(answer.targets ?? []))
+  } catch {
+    // Nothing tinted: the drop is asked as it always was.
+  }
+}
+
+/** A canvas too large to answer whole: a card's rows are asked when the pointer reaches it. */
+async function aim(port: GraphPort | null) {
+  const from = dragFrom.value
+  if (port === null || from === null || !partial.value || askedCards.has(port.nodeId)) return
+  askedCards.add(port.nodeId)
+  const turn = dragTurn
+  try {
+    const answer = await readTargets(props.pipelineId, from, port.nodeId)
+    if (turn === dragTurn) merge(targetRows(answer.targets ?? []))
+  } catch {
+    // That card stays untinted.
+  }
+}
+
 const graph = computed(() =>
   pipelineGraph(
     cards.value, connectionsById.value, states.value, typeTitles.value, edges.value,
-    madeRows(results.value, links.value, order.value)
+    madeRows(results.value, links.value, order.value), targets.value
   )
 )
 const positions = computed(() => positionsOf(cards.value))
@@ -370,12 +477,6 @@ function chainKey(from: LinkEnd, to: LinkEnd): string {
     [...chainOf(links.value, from), ...chainOf(links.value, to)]
       .map((link) => [link.id, link.kind, link.name ?? null, link.columns ?? null, link.source])
   )
-}
-
-// Hints answer for the canvas as it was asked; a card or a link changed
-// since makes them an answer to another question.
-function forgetHints() {
-  hints.value = []
 }
 
 // A card in the making: the window is open on its connection, and it is
@@ -471,7 +572,6 @@ async function picked(rows: CardRow[]) {
     cards.value = withRows(cards.value, made.cardId, rows)
     links.value = staying
   }
-  forgetHints()
   schedule()
 }
 
@@ -492,7 +592,6 @@ async function remove(cardId: string) {
   links.value = links.value.filter((link) => !going.includes(link))
   if (selection.value?.id === cardId || going.some((link) => link.id === selection.value?.id)) selection.value = null
   if (autoOpenLinkId.value !== null && going.some((link) => link.id === autoOpenLinkId.value)) autoOpenLinkId.value = null
-  forgetHints()
   schedule()
 }
 
@@ -538,24 +637,23 @@ async function join(from: LinkEnd, to: LinkEnd) {
     toast.info(refusal(offers))
     return
   }
+  // Drawn with what the server says it starts with: ready, unless a choice
+  // cannot be guessed, and then its window opens (D364).
   const link = linkFromOffer(newId(), from, to, first)
   links.value = [...links.value, link]
-  hints.value = hints.value.filter((hint) => linkBetween([link], hint.source, hint.target) === null)
   selection.value = { kind: "edge", id: link.id }
-  autoOpenLinkId.value = link.id
+  autoOpenLinkId.value = needsDialog(link, first.workflow ?? "run") ? link.id : null
   schedule()
 }
 
 function connect(from: GraphPort, to: GraphPort) {
+  // A row the drag already answered for cannot take it: nothing is drawn, and its reason was in view.
+  const known = targets.value?.get(rowKey(to.nodeId, to.portId))
+  if (known !== undefined && !known.fit) return
   void join(endOf(from), endOf(to))
 }
 
 function select(value: GraphSelection) {
-  const hint = value?.kind === "edge" ? hintOf(hints.value, value.id) : null
-  if (hint !== null) {
-    void join(hint.source, hint.target)
-    return
-  }
   if (value?.kind !== "edge" || value.id !== autoOpenLinkId.value) autoOpenLinkId.value = null
   selection.value = value
 }
@@ -630,11 +728,7 @@ async function run() {
     startedInThisTab(answer.job_id)
   } catch (cause) {
     // A link lacking a choice is opened, so the choice is one press away.
-    const first = lackingLinks(cause)[0]
-    if (first !== undefined) {
-      selection.value = { kind: "edge", id: first }
-      autoOpenLinkId.value = first
-    }
+    openLacking(cause)
     toast.error(messageOf(cause, t("pipelines.view.run_failed")))
   } finally {
     starting.value = false
@@ -649,31 +743,10 @@ const stopListening = realtime().subscribe(JOBS_TOPIC, (payload) => {
   void queryClient.invalidateQueries({ queryKey: historyKey(props.pipelineId) })
   // A run the schedule started moves its next time on (D179).
   if (payload.state === "queued" || payload.state === "running") {
-    void queryClient.invalidateQueries({ queryKey: scheduleKey(props.pipelineId) })
+    void queryClient.invalidateQueries({ queryKey: switchKey(props.pipelineId) })
   }
 })
 onBeforeUnmount(stopListening)
-
-/** Every link that could be drawn, dashed; pressed again, they go. */
-async function toggleHint() {
-  if (hints.value.length > 0) {
-    forgetHints()
-    return
-  }
-  hinting.value = true
-  try {
-    if (!(await save())) return
-    const card = selection.value?.kind === "node" ? selection.value.id : null
-    const answer = await readHint(props.pipelineId, card)
-    hints.value = answer.links
-    if (answer.notice) toast.info(answer.notice)
-    else if (answer.links.length === 0) toast.info(t("pipelines.view.no_other_link"))
-  } catch (cause) {
-    toast.error(messageOf(cause, t("pipelines.view.hints_failed")))
-  } finally {
-    hinting.value = false
-  }
-}
 
 const renameOpen = ref(false)
 const renameDraft = ref("")
@@ -727,74 +800,47 @@ defineExpose({ place })
         data-testid="pipeline-switcher"
         @update:model-value="emit('select', String($event))"
       />
-      <span
-        v-if="nextRun"
-        class="pipeline-view__next-run"
-        data-testid="pipeline-next-run"
-      >{{ t('pipelines.view.next_run', { when: nextRun }) }}</span>
       <template #actions>
-        <span class="pipeline-view__run">
+        <span class="pipeline-view__switch">
           <AppButton
             size="sm"
-            :icon="appIcons.playArrow"
-            :label="t('pipelines.view.run')"
-            :disable="runBlocked !== null"
-            :loading="starting"
-            data-testid="pipeline-run"
-            @click="run"
+            :variant="switchOn ? 'secondary' : 'primary'"
+            :icon="switchOn ? appIcons.stop : appIcons.playArrow"
+            :label="switchOn ? t('pipelines.view.switch_off') : t('pipelines.view.switch_on')"
+            :loading="switching"
+            data-testid="pipeline-switch"
+            @click="toggleSwitch"
           />
-          <AppTooltip>{{ runBlocked ?? t('pipelines.view.run_hint') }}</AppTooltip>
+          <span>
+            <AppIconButton
+              :icon="appIcons.expandMore"
+              :tooltip="t('pipelines.view.run_menu')"
+              :loading="starting"
+              data-testid="pipeline-run-menu"
+            />
+            <AppMenu
+              :items="runMenu"
+              @select="pickRun"
+            />
+          </span>
         </span>
-        <AppIconButton
-          :icon="appIcons.sensors"
-          :tooltip="followOn ? t('pipelines.follow.stop_tooltip') : anyFollowed ? t('pipelines.follow.start_tooltip') : t('pipelines.follow.none_tooltip')"
-          :active="followOn"
-          :loading="switching"
-          :disable="!followOn && !anyFollowed"
-          data-testid="pipeline-follow"
-          @click="toggleFollow"
-        />
-        <AppIconButton
-          :icon="appIcons.schedule"
-          :tooltip="t('pipelines.view.schedule_tooltip', { what: scheduleWords(timetable.data.value?.settings) })"
-          :active="timetable.data.value?.settings?.enabled === true"
-          data-testid="pipeline-schedule"
-          @click="scheduling = true"
-        />
-        <AppIconButton
-          :icon="appIcons.history"
-          :tooltip="t('pipelines.view.history_tooltip')"
-          :active="historyOpen"
-          data-testid="pipeline-history"
-          @click="historyOpen = !historyOpen"
-        />
-        <AppIconButton
-          :icon="appIcons.lightbulb"
-          :tooltip="hints.length > 0 ? t('pipelines.view.hide_hints') : t('pipelines.view.show_hints')"
-          :active="hints.length > 0"
-          :loading="hinting"
-          data-testid="pipeline-hint"
-          @click="toggleHint"
-        />
         <AppIconButton
           :icon="appIcons.centerFocusStrong"
           :tooltip="t('pipelines.view.fit')"
           data-testid="pipeline-fit"
           @click="canvas?.fit()"
         />
-        <AppIconButton
-          :icon="appIcons.edit"
-          :tooltip="t('pipelines.view.rename_tooltip')"
-          data-testid="pipeline-rename"
-          @click="startRename"
-        />
-        <AppIconButton
-          :icon="appIcons.delete"
-          :tooltip="t('pipelines.view.delete_tooltip')"
-          variant="danger-quiet"
-          data-testid="pipeline-delete"
-          @click="removePipeline"
-        />
+        <span>
+          <AppIconButton
+            :icon="appIcons.moreVert"
+            :tooltip="t('pipelines.view.more')"
+            data-testid="pipeline-more"
+          />
+          <AppMenu
+            :items="moreMenu"
+            @select="pickMore"
+          />
+        </span>
         <AppButton
           variant="quiet"
           size="sm"
@@ -864,6 +910,8 @@ defineExpose({ place })
           @select="select"
           @activate="edit"
           @connect="connect"
+          @linking="linking"
+          @aim="aim"
         >
           <template #node-head="{ node }">
             <AppIconButton
@@ -892,6 +940,28 @@ defineExpose({ place })
           />
         </div>
       </div>
+      <div
+        v-if="status && cards.length > 0"
+        class="pipeline-view__status"
+        :class="`pipeline-view__status--${status.tone}`"
+        role="status"
+        data-testid="pipeline-status"
+        :data-kind="switchState.data.value?.status.kind"
+      >
+        <q-icon
+          :name="status.tone === 'caution' ? appIcons.warningAmber : status.tone === 'working' ? appIcons.sensors : appIcons.info"
+          size="var(--dp-icon-sm)"
+        />
+        <span class="pipeline-view__status-text">{{ status.text }}</span>
+        <AppButton
+          v-if="status.action"
+          variant="quiet"
+          size="sm"
+          :label="status.actionLabel"
+          data-testid="pipeline-status-action"
+          @click="statusAction"
+        />
+      </div>
       <LinkPanel
         v-if="selectedLink && panelSides"
         :key="selectedLink.id"
@@ -909,7 +979,7 @@ defineExpose({ place })
         :past="pastJobId !== null"
         :auto-open="autoOpenLinkId === selectedLink.id"
         :reader="readers.get(selectedLink.id) ?? null"
-        :follow-on="followOn"
+        :switch-on="switchOn"
         :followed="followed.get(selectedLink.id)"
         @change="changeLink"
         @operate="operate"
@@ -990,17 +1060,35 @@ defineExpose({ place })
   flex: 0 1 280px;
   min-width: 0;
 }
-.pipeline-view__next-run {
-  flex: 0 1 auto;
+.pipeline-view__switch {
+  display: inline-flex;
+  align-items: center;
+}
+/* One line at the foot of the canvas (D364): what the pipeline needs or does now. */
+.pipeline-view__status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-1) var(--dp-space-3);
+  border-top: 1px solid var(--dp-border-faint);
+  background: var(--dp-chrome);
+  color: var(--dp-text-muted);
+  font-size: var(--dp-font-size-sm);
+}
+.pipeline-view__status--caution {
+  background: var(--dp-tone-warning-wash);
+  color: var(--dp-tone-warning-text);
+}
+.pipeline-view__status--working {
+  color: var(--dp-content-success);
+}
+.pipeline-view__status-text {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--dp-text-muted);
-  font-size: var(--dp-font-size-sm);
-}
-.pipeline-view__run {
-  display: inline-flex;
 }
 .pipeline-view__center {
   flex: 1;
@@ -1013,6 +1101,9 @@ defineExpose({ place })
   flex: 1;
   min-height: 0;
   display: flex;
+  /* Trap: the graph keeps its own height when the panel below squeezes this
+     box, and spills over the status line, covering it. */
+  overflow: hidden;
 }
 /* Over the empty canvas and out of its way: the canvas still pans, and a
    connection is still dropped on it through this. */

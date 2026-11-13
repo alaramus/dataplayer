@@ -37,9 +37,6 @@ MESSAGES: dict[str, str] = {
     "This connection is gone, or no longer shared with you": "Это подключение удалено или больше не доступно вам",
     "This connection is switched off": "Это подключение отключено",
     "This connection cannot be read": "Это подключение не читается",
-    "This canvas holds too many rows to hint at once: select a card first": "На холсте слишком много строк, чтобы подсказать все сразу: сначала выберите карточку",
-    "Only the links of the selected card are hinted": "Подсказаны только связи выбранной карточки",
-    "Only the first {count} pairs of rows of the selected card are hinted": "Подсказаны только первые пары строк выбранной карточки: {count}",
     "{names} and {last}": "{names} и {last}",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} пишут друг в друга, поэтому стрелки не задают первую связь: эта идёт первой, потому что её карточка левее всех",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} пишут друг в друга, поэтому стрелки не задают первую связь: эта идёт первой, потому что её карточка выше всех",
@@ -53,9 +50,15 @@ MESSAGES: dict[str, str] = {
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · «{title}»: нужно выбрать ключ и значения",
     # A pipeline following its topics (D315).
-    "Followed; not run": "Отслеживается; не запускалась",
     "Followed; {count} messages carried": "Наблюдение: перенесено сообщений: {count}",
     "Only a link reading a topic follows it": "Следить может только связь, читающая топик",
     "This following could not be read": "Это наблюдение не удалось прочитать",
     "following its topics": "наблюдение за топиками",
+    # A pipeline switched on with one button (D362, D363).
+    "Runs continuously; not run": "Выполняется постоянно; не запускалась",
+    "Not switched on: {needs}": "Не включён: {needs}",
+    "Same connection": "То же подключение",
+    "Nothing can go from here into this connection": "Из этой строки ничего нельзя передать в это подключение",
+    "Already linked": "Уже связано",
+    "Nothing can go here": "Сюда ничего нельзя передать",
 }

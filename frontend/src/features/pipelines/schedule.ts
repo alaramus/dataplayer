@@ -19,9 +19,9 @@ export function browserZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
 
-/** A schedule never set: off, and every night at 03:00 once it is switched on. */
+/** A schedule never set: every night at 03:00, while the pipeline is on (D362). */
 export function firstSettings(zone: string): ScheduleSettings {
-  return { enabled: true, kind: "times", every_minutes: 60, times: ["03:00"], days: [...EVERY_DAY], time_zone: zone }
+  return { kind: "times", every_minutes: 60, times: ["03:00"], days: [...EVERY_DAY], time_zone: zone }
 }
 
 /** An interval as the form shows it: the largest unit it is a whole number of. */
@@ -84,7 +84,7 @@ function daysWords(days: readonly number[]): string {
 
 /** What the schedule does, in a line: "Every 5 minutes", "Weekdays at 09:00 and 18:00". */
 export function scheduleWords(settings: ScheduleSettings | null | undefined): string {
-  if (!settings?.enabled) return t("pipelines.schedule.manual")
+  if (!settings) return t("pipelines.schedule.manual")
   if (settings.kind === "interval") {
     const { count, unit } = intervalParts(settings.every_minutes ?? 60)
     return counted(count, unit)

@@ -404,6 +404,14 @@ function moreTours() {
   box-shadow: 0 2px 8px var(--dp-shadow);
   transition: top 0.15s ease, left 0.15s ease;
 }
+/* A row dragged on a canvas (D363) is dropped through the card, which may
+   stand over the very row the tour asks for. */
+/* Trap: written as `:global(...) .tour-card`, Vue keeps only the root and the
+   whole page stops taking the pointer. */
+:global(:root[data-graph-linking] .tour-card) {
+  pointer-events: none;
+  opacity: var(--dp-opacity-dim);
+}
 .tour-card__head {
   display: flex;
   align-items: baseline;

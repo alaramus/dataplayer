@@ -199,7 +199,7 @@ export const problems: Record<ProblemCode, string> = {
   "pipelines.running": "Конвейер уже выполняется; дождитесь окончания",
   "pipelines.too_many_running": "Конвейеров уже выполняется: {count}. Дождитесь окончания одного из них",
   "pipelines.run_not_found": "Запуск не найден",
-  "pipelines.nothing_followed": "Сначала отметьте связь «Следить»",
+  "pipelines.no_schedule": "Сначала задайте, когда работают связи по расписанию",
   "pipelines.too_many_following": "Одновременно можно следить не больше чем конвейерами: {count}",
   "pipelines.following_server_full": "Этот сервер одновременно следит не больше чем конвейерами: {count}",
   "shares.link_outdated": "Эта ссылка создана более ранней версией приложения",

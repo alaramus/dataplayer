@@ -516,12 +516,6 @@ import type {
   pipelinesReadCardStateData,
   pipelinesReadCardStateErrors,
   pipelinesReadCardStateResponses,
-  pipelinesReadFollowData,
-  pipelinesReadFollowErrors,
-  pipelinesReadFollowResponses,
-  pipelinesReadHintData,
-  pipelinesReadHintErrors,
-  pipelinesReadHintResponses,
   pipelinesReadHistoryData,
   pipelinesReadHistoryErrors,
   pipelinesReadHistoryResponses,
@@ -543,6 +537,12 @@ import type {
   pipelinesReadScheduleData,
   pipelinesReadScheduleErrors,
   pipelinesReadScheduleResponses,
+  pipelinesReadSwitchData,
+  pipelinesReadSwitchErrors,
+  pipelinesReadSwitchResponses,
+  pipelinesReadTargetsData,
+  pipelinesReadTargetsErrors,
+  pipelinesReadTargetsResponses,
   pipelinesRunPipelineData,
   pipelinesRunPipelineErrors,
   pipelinesRunPipelineResponses,
@@ -552,9 +552,9 @@ import type {
   pipelinesSetScheduleData,
   pipelinesSetScheduleErrors,
   pipelinesSetScheduleResponses,
-  pipelinesSwitchFollowData,
-  pipelinesSwitchFollowErrors,
-  pipelinesSwitchFollowResponses,
+  pipelinesSetSwitchData,
+  pipelinesSetSwitchErrors,
+  pipelinesSetSwitchResponses,
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
@@ -4399,42 +4399,44 @@ export class PipelinesService {
   }
 
   /**
-   * Read Follow
+   * Read Switch
    *
-   * Whether the pipeline follows its topics, and what its newest following
-   * carried link by link (D315).
+   * Whether the pipeline is on, what its status line says, and what its
+   * follower carried link by link (D362, D364).
    */
-  public static readFollow<ThrowOnError extends boolean = true>(
-    options: Options<pipelinesReadFollowData, ThrowOnError>
+  public static readSwitch<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadSwitchData, ThrowOnError>
   ) {
     return (options.client ?? client).get<
-      pipelinesReadFollowResponses,
-      pipelinesReadFollowErrors,
+      pipelinesReadSwitchResponses,
+      pipelinesReadSwitchErrors,
       ThrowOnError
     >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/pipelines/{pipeline_id}/follow",
+      url: "/api/v1/pipelines/{pipeline_id}/switch",
       ...options,
     })
   }
 
   /**
-   * Switch Follow
+   * Set Switch
    *
-   * Following switched on, its follower started; or off, its follower stopped.
+   * Switched on, its continuous links followed and its schedule armed; or
+   * off, both stopped. Refused whole, before anything starts, for a link that
+   * lacks a choice or scheduled links with no schedule.
    */
-  public static switchFollow<ThrowOnError extends boolean = true>(
-    options: Options<pipelinesSwitchFollowData, ThrowOnError>
+  public static setSwitch<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesSetSwitchData, ThrowOnError>
   ) {
     return (options.client ?? client).put<
-      pipelinesSwitchFollowResponses,
-      pipelinesSwitchFollowErrors,
+      pipelinesSetSwitchResponses,
+      pipelinesSetSwitchErrors,
       ThrowOnError
     >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/pipelines/{pipeline_id}/follow",
+      url: "/api/v1/pipelines/{pipeline_id}/switch",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -4549,7 +4551,7 @@ export class PipelinesService {
   /**
    * Set Schedule
    *
-   * The schedule, replaced; switched off, it keeps what was chosen.
+   * The schedule, replaced; it comes only while the pipeline is on.
    */
   public static setSchedule<ThrowOnError extends boolean = true>(
     options: Options<pipelinesSetScheduleData, ThrowOnError>
@@ -4598,21 +4600,21 @@ export class PipelinesService {
   }
 
   /**
-   * Read Hint
+   * Read Targets
    *
-   * Every link that could be drawn among the rows kept on the pipeline.
+   * Where a row being dragged can go, row by row, and why not (D363).
    */
-  public static readHint<ThrowOnError extends boolean = true>(
-    options: Options<pipelinesReadHintData, ThrowOnError>
+  public static readTargets<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadTargetsData, ThrowOnError>
   ) {
     return (options.client ?? client).post<
-      pipelinesReadHintResponses,
-      pipelinesReadHintErrors,
+      pipelinesReadTargetsResponses,
+      pipelinesReadTargetsErrors,
       ThrowOnError
     >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/pipelines/{pipeline_id}/hint",
+      url: "/api/v1/pipelines/{pipeline_id}/targets",
       ...options,
       headers: {
         "Content-Type": "application/json",

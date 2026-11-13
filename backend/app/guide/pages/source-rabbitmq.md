@@ -233,8 +233,8 @@ sends rows into it, others carry what arrives into tables.
   sent through RabbitMQ comes back by itself. Only top-level fields; a new
   table gets the message's own columns. **First run reads** means nothing for
   a queue: it always takes what waits.
-- **Follow** carries what arrives within seconds, from a stream or a queue,
-  as it does from a topic.
+- A pipeline switched on carries what arrives within seconds, from a stream
+  or a queue, as it does from a topic.
 
 ## Downloads
 

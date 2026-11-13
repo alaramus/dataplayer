@@ -37,9 +37,6 @@ MESSAGES: dict[str, str] = {
     "This connection is gone, or no longer shared with you": "Diese Verbindung ist nicht mehr vorhanden oder wird nicht mehr mit Ihnen geteilt",
     "This connection is switched off": "Diese Verbindung ist ausgeschaltet",
     "This connection cannot be read": "Diese Verbindung kann nicht gelesen werden",
-    "This canvas holds too many rows to hint at once: select a card first": "Diese Fläche enthält zu viele Zeilen, um alle auf einmal vorzuschlagen: Wählen Sie zuerst eine Karte aus",
-    "Only the links of the selected card are hinted": "Nur die Verbindungen der ausgewählten Karte werden vorgeschlagen",
-    "Only the first {count} pairs of rows of the selected card are hinted": "Nur die ersten {count} Zeilenpaare der ausgewählten Karte werden vorgeschlagen",
     "{names} and {last}": "{names} und {last}",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} schreiben ineinander, daher geben die Pfeile keine erste Verbindung vor: Diese kommt zuerst, weil ihre Karte am weitesten links liegt",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} schreiben ineinander, daher geben die Pfeile keine erste Verbindung vor: Diese kommt zuerst, weil ihre Karte am höchsten liegt",
@@ -53,9 +50,15 @@ MESSAGES: dict[str, str] = {
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · „{title}“ benötigt Schlüssel und Werte",
     # A pipeline following its topics (D315).
-    "Followed; not run": "Wird verfolgt; nicht ausgeführt",
     "Followed; {count} messages carried": "Gefolgt; übertragene Nachrichten: {count}",
     "Only a link reading a topic follows it": "Nur eine Verknüpfung, die ein Topic liest, kann ihm folgen",
     "This following could not be read": "Dieses Folgen ließ sich nicht lesen",
     "following its topics": "folgt seinen Topics",
+    # A pipeline switched on with one button (D362, D363).
+    "Runs continuously; not run": "Läuft fortlaufend; nicht ausgeführt",
+    "Not switched on: {needs}": "Nicht eingeschaltet: {needs}",
+    "Same connection": "Dieselbe Verbindung",
+    "Nothing can go from here into this connection": "Von hier kann nichts in diese Verbindung gehen",
+    "Already linked": "Bereits verknüpft",
+    "Nothing can go here": "Hierher kann nichts gehen",
 }

@@ -141,13 +141,13 @@ export const onboarding: Messages["onboarding"] = {
       },
       link: {
         title: "Reliez-les",
-        hint: "L'indice dessine chaque lien possible. On peut aussi glisser une ligne sur une autre.",
-        press: "Appuyez sur le lien en pointillés de la table vers le dossier.",
+        hint: "Faites glisser la ligne de {table} sur la ligne du dossier. Les lignes où elle peut aller s'allument.",
       },
       run: {
         title: "Lancez-le",
-        hint: "Lancez le pipeline. Le lien enregistre la table en fichier CSV.",
-        taken: "Le dossier contient déjà un fichier de ce nom : sous « Si le nom est pris », choisissez « Garder les deux », puis relancez.",
+        menu: "Ouvrez le menu à côté de « Activer ».",
+        hint: "Exécutez-le une fois maintenant. Le lien enregistre la table en fichier CSV.",
+        taken: "Le dossier contient déjà un fichier de ce nom : sous « Si le nom est pris », choisissez « Garder les deux », puis exécutez-le une fois de plus.",
       },
       seen: {
         title: "Le fichier",

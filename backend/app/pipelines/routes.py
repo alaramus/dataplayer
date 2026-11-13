@@ -1,5 +1,6 @@
 """A person's pipelines: listed, made, saved whole, removed (D175), run
-(D177), run by a schedule (D179) and looked back on (D180).
+(D177), switched on to run by themselves (D179, D315, D362) and looked back
+on (D180).
 
 Private in this step: every route answers only the owner, and anyone else is
 told there is no such pipeline, as a connection nobody shared is (D33).
@@ -16,7 +17,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.resources import ResourcesDep
 from app.connectors import crud as connector_crud
-from app.connectors.paste.models import PasteOffers
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message
@@ -24,8 +24,6 @@ from app.core.translation import say
 from app.jobs import crud as job_crud
 from app.jobs.runner import JobRunnerDep
 from app.pipelines.check import card_state
-from app.pipelines.follow import FollowState, FollowSwitch, follow_state, switch
-from app.pipelines.hint import Hint, HintRequest, hint
 from app.pipelines.history import PipelineHistory, history
 from app.pipelines.models import (
     MAX_PIPELINES,
@@ -42,13 +40,14 @@ from app.pipelines.models import (
     reader_of,
     summary,
 )
-from app.pipelines.offers import Asking, LinkOffersRequest
+from app.pipelines.offers import Asking, LinkOffers, LinkOffersRequest
 from app.pipelines.order import ordered
 from app.pipelines.results import Foresight
 from app.pipelines.runs import (
     KIND,
     LastRun,
     PipelineRunPublic,
+    lacking,
     last_run,
     run_of,
     start_run,
@@ -56,6 +55,8 @@ from app.pipelines.runs import (
 from app.pipelines.schedule import PipelineSchedule, SchedulePublic, ScheduleSettings
 from app.pipelines.scheduler import public as schedule_public
 from app.pipelines.scheduler import save as save_schedule
+from app.pipelines.switch import SwitchRequest, SwitchState, switch, switch_state
+from app.pipelines.targets import Targets, TargetsRequest, targets
 from app.realtime.topics import TopicsDep
 from app.users.deps import CurrentUser
 from app.users.models import User
@@ -102,6 +103,7 @@ def public(pipeline: Pipeline) -> PipelinePublic:
             for link in content.links
             if (name := reader_of(link)) is not None
         ],
+        lacking=[] if content is None else lacking(content),
     )
 
 
@@ -207,24 +209,26 @@ async def read_card_state(
     return await card_state(session, current_user, resources, card)
 
 
-@router.get("/{pipeline_id}/follow", response_model=FollowState)
-async def read_follow(session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID) -> Any:
-    """Whether the pipeline follows its topics, and what its newest following
-    carried link by link (D315)."""
-    pipeline = await _owned(session, current_user, pipeline_id)
-    return await follow_state(session, pipeline)
+@router.get("/{pipeline_id}/switch", response_model=SwitchState)
+async def read_switch(session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID) -> Any:
+    """Whether the pipeline is on, what its status line says, and what its
+    follower carried link by link (D362, D364)."""
+    pipeline, content = await _content(session, current_user, pipeline_id)
+    return await switch_state(session, pipeline, content)
 
 
-@router.put("/{pipeline_id}/follow", response_model=FollowState)
-async def switch_follow(
+@router.put("/{pipeline_id}/switch", response_model=SwitchState)
+async def set_switch(
     session: SessionDep,
     current_user: CurrentUser,
     runner: JobRunnerDep,
     topics: TopicsDep,
     pipeline_id: uuid.UUID,
-    body: FollowSwitch,
+    body: SwitchRequest,
 ) -> Any:
-    """Following switched on, its follower started; or off, its follower stopped."""
+    """Switched on, its continuous links followed and its schedule armed; or
+    off, both stopped. Refused whole, before anything starts, for a link that
+    lacks a choice or scheduled links with no schedule."""
     pipeline, content = await _content(session, current_user, pipeline_id)
     return await switch(session, current_user, runner, topics, pipeline, content, body.on)
 
@@ -286,12 +290,12 @@ async def read_schedule(
 async def set_schedule(
     session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID, body: ScheduleSettings
 ) -> Any:
-    """The schedule, replaced; switched off, it keeps what was chosen."""
+    """The schedule, replaced; it comes only while the pipeline is on."""
     pipeline = await _owned(session, current_user, pipeline_id)
     return await save_schedule(session, pipeline.id, body, datetime.now(UTC))
 
 
-@router.post("/{pipeline_id}/offers", response_model=PasteOffers)
+@router.post("/{pipeline_id}/offers", response_model=LinkOffers)
 async def read_link_offers(
     session: SessionDep,
     current_user: CurrentUser,
@@ -306,17 +310,17 @@ async def read_link_offers(
     """
     _, content = await _content(session, current_user, pipeline_id)
     asking = Asking(session, current_user, resources, content, strict=True)
-    return PasteOffers(offers=await asking.offers(body.source, body.target))
+    return LinkOffers(offers=await asking.link_offers(body.source, body.target))
 
 
-@router.post("/{pipeline_id}/hint", response_model=Hint)
-async def read_hint(
+@router.post("/{pipeline_id}/targets", response_model=Targets)
+async def read_targets(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
     pipeline_id: uuid.UUID,
-    body: HintRequest,
+    body: TargetsRequest,
 ) -> Any:
-    """Every link that could be drawn among the rows kept on the pipeline."""
+    """Where a row being dragged can go, row by row, and why not (D363)."""
     _, content = await _content(session, current_user, pipeline_id)
-    return await hint(session, current_user, resources, content, body.card_id)
+    return await targets(session, current_user, resources, content, body)

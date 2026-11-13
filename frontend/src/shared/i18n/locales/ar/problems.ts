@@ -199,7 +199,7 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "pipelines.running": "خط الأنابيب هذا قيد التشغيل؛ انتظر انتهاءه",
   "pipelines.too_many_running": "عدد خطوط الأنابيب الجاري تشغيلها {count} — انتظر انتهاء أحدها",
   "pipelines.run_not_found": "لم يتم العثور على التشغيل",
-  "pipelines.nothing_followed": "حدّد أولًا رابطًا للمتابعة",
+  "pipelines.no_schedule": "اختر أولًا متى تعمل الروابط المجدولة",
   "pipelines.too_many_following": "يتابع الشخص {count} خطوط معالجة على الأكثر في وقت واحد",
   "pipelines.following_server_full": "يتابع هذا الخادم {count} خطوط معالجة على الأكثر في وقت واحد",
   "shares.link_outdated": "أنشأ هذا الرابط إصدار أقدم من التطبيق",

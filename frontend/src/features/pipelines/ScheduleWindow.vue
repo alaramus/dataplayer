@@ -15,7 +15,6 @@ import {
   AppNumberInput,
   AppRadioGroup,
   AppSelect,
-  AppToggle,
   appIcons,
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -25,8 +24,9 @@ import { browserZone, dayNames, firstSettings, intervalParts, MAX_TIMES, minutes
 import type { IntervalUnit } from "./schedule"
 
 /**
- * When a pipeline runs by itself (D179): every so long, or at times of the
- * day on chosen days, in this browser's clock. Kept as a whole on Save.
+ * When a pipeline's scheduled links run while it is on (D179, D362): every so
+ * long, or at times of the day on chosen days, in this browser's clock. Kept
+ * as a whole on Save.
  */
 const props = defineProps<{
   pipelineId: string
@@ -39,7 +39,6 @@ const emit = defineEmits<{ close: [] }>()
 const saving = useSaveSchedule()
 const zone = browserZone()
 const start = props.settings ?? firstSettings(zone)
-const enabled = ref(start.enabled ?? false)
 const kind = ref<string>(start.kind ?? "times")
 const interval = intervalParts(start.every_minutes ?? 60)
 const count = ref<number | null>(interval.count)
@@ -48,21 +47,16 @@ const times = ref<string[]>([...(start.times ?? ["03:00"])])
 const days = ref<Set<number>>(new Set(start.days ?? []))
 const failure = ref("")
 
-// Kept while switched off, so switching back on finds them, but out of reach:
-// a time set under a switched-off schedule looked like a schedule.
-const off = computed(() => !enabled.value)
 const kinds = computed(() => [
   {
     label: t("pipelines.schedule.window.interval"),
     value: "interval",
     description: t("pipelines.schedule.window.interval_description"),
-    disable: off.value,
   },
   {
     label: t("pipelines.schedule.window.times"),
     value: "times",
     description: t("pipelines.schedule.window.times_description"),
-    disable: off.value,
   },
 ])
 const units = computed(() =>
@@ -71,7 +65,6 @@ const units = computed(() =>
 const dayLabels = computed(() => dayNames())
 
 const chosen = computed<ScheduleSettings>(() => ({
-  enabled: enabled.value,
   kind: kind.value === "interval" ? "interval" : "times",
   every_minutes: minutesOf(count.value ?? 0, unit.value),
   times: times.value.filter((time) => time !== ""),
@@ -116,11 +109,6 @@ async function save() {
       layout="section"
       labels="above"
     >
-      <AppToggle
-        v-model="enabled"
-        :label="t('pipelines.schedule.window.enabled')"
-        data-testid="schedule-enabled"
-      />
       <AppRadioGroup
         v-model="kind"
         :options="kinds"
@@ -131,14 +119,12 @@ async function save() {
         <AppNumberInput
           v-model="count"
           :label="t('pipelines.schedule.window.every')"
-          :disable="off"
           data-testid="schedule-every"
         />
         <AppSelect
           v-model="unit"
           :options="units"
           :label="t('pipelines.schedule.window.of')"
-          :disable="off"
           data-testid="schedule-unit"
         />
       </template>
@@ -152,7 +138,6 @@ async function save() {
           type="time"
           class="schedule-window__time"
           :label="index === 0 ? t('pipelines.schedule.window.at') : t('pipelines.schedule.window.and_at')"
-          :disable="off"
           :data-testid="`schedule-time-${index}`"
           @update:model-value="setTime(index, $event)"
         >
@@ -163,7 +148,6 @@ async function save() {
             <AppIconButton
               :icon="appIcons.close"
               :tooltip="t('pipelines.schedule.window.remove_time')"
-              :disable="off"
               :data-testid="`schedule-time-remove-${index}`"
               @click="times = times.filter((_, at) => at !== index)"
             />
@@ -175,7 +159,7 @@ async function save() {
             size="sm"
             :icon="appIcons.add"
             :label="t('pipelines.schedule.window.add_time')"
-            :disable="off || times.length >= MAX_TIMES"
+            :disable="times.length >= MAX_TIMES"
             data-testid="schedule-add-time"
             @click="times = [...times, '12:00']"
           />
@@ -189,7 +173,6 @@ async function save() {
               class="schedule-window__day"
               :label="day"
               dense
-              :disable="off"
               :data-testid="`schedule-day-${index}`"
               @update:model-value="toggleDay(index, $event)"
             />

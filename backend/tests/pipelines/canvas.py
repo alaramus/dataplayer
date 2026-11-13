@@ -103,8 +103,14 @@ class Canvas:
         assert answer.status_code == 200, answer.text
         return {one["kind"]: one for one in answer.json()["offers"]}
 
-    async def hint(self, card_id: str | None = None) -> dict[str, Any]:
-        answer = await self.client.post(f"{BASE}/{self.id}/hint", headers=self.headers, json={"card_id": card_id})
+    async def targets(self, source: dict[str, Any], card_id: str | None = None) -> dict[str, Any]:
+        """Where a row being dragged can go (D363)."""
+        answer = await self.client.post(
+            f"{BASE}/{self.id}/targets", headers=self.headers, json={"source": source, "card_id": card_id}
+        )
         assert answer.status_code == 200, answer.text
         result: dict[str, Any] = answer.json()
         return result
+
+    async def switch(self, on: bool) -> Response:
+        return await self.client.put(f"{BASE}/{self.id}/switch", headers=self.headers, json={"on": on})

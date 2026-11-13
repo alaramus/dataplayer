@@ -22,8 +22,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings as app_settings
 from app.core.db import async_session_maker
 from app.jobs.runner import JobRunner
-from app.pipelines.follow import ensure_followers
-from app.pipelines.models import Pipeline, PipelineContent, content_of
+from app.pipelines.models import Pipeline, PipelineContent, PipelineSwitch, content_of
 from app.pipelines.runs import start_run
 from app.pipelines.schedule import (
     KEPT_NOTES,
@@ -33,6 +32,7 @@ from app.pipelines.schedule import (
     SchedulePublic,
     ScheduleSettings,
 )
+from app.pipelines.switch import ensure_followers
 from app.pipelines.timing import next_time
 from app.realtime.topics import TopicSet
 from app.users.models import User
@@ -64,16 +64,19 @@ def public(row: PipelineSchedule | None) -> SchedulePublic:
 async def save(
     session: AsyncSession, pipeline_id: uuid.UUID, chosen: ScheduleSettings, now: datetime
 ) -> SchedulePublic:
-    """Keep the owner's choice, and when it comes next from now."""
+    """Keep the owner's choice, and when it comes next from now while the
+    pipeline is on (D362)."""
     row = await session.get(PipelineSchedule, pipeline_id)
     before = None if row is None else _settings_of(row)
     if row is None:
         row = PipelineSchedule(pipeline_id=pipeline_id, settings={}, counted_from=now)
-    if chosen.enabled and before != chosen:
-        # Switched on, or changed: an interval counts from now.
+    if before != chosen:
+        # Changed: an interval counts from now.
         row.counted_from = now
     row.settings = chosen.model_dump(mode="json")
-    row.next_at = next_time(chosen, now, row.counted_from) if chosen.enabled else None
+    switch = await session.get(PipelineSwitch, pipeline_id)
+    on = switch is not None and switch.on
+    row.next_at = next_time(chosen, now, row.counted_from) if on else None
     session.add(row)
     await session.commit()
     return public(row)
@@ -178,7 +181,10 @@ class Scheduler:
             owner = await session.get(User, pipeline.owner_id)
             came, counted_from = row.next_at, row.counted_from
         skipped: str | None = None
-        if chosen is not None and owner is not None:
+        content = content_of(pipeline) or PipelineContent()
+        # Every link runs continuously: a run would only say so (D362).
+        quiet = bool(content.links) and all(link.runs == "continuous" for link in content.links)
+        if chosen is not None and owner is not None and not quiet:
             # A session of its own: a refused admission rolls it back.
             async with async_session_maker() as running:
                 try:
@@ -188,7 +194,7 @@ class Scheduler:
                         self._runner,
                         self._topics,
                         pipeline,
-                        content_of(pipeline) or PipelineContent(),
+                        content,
                         scheduled_for=came,
                     )
                 except HTTPException as refused:

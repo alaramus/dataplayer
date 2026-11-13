@@ -41,7 +41,7 @@ from app.metrics.models import MetricsAgent, MetricsConnector, MetricsStoreSetti
 from app.metrics.dashboards import Dashboard, DashboardGrant  # noqa
 from app.pipelines.models import Pipeline  # noqa
 from app.pipelines.schedule import PipelineSchedule, ScheduleNote  # noqa
-from app.pipelines.models import PipelineFollow  # noqa
+from app.pipelines.models import PipelineSwitch  # noqa
 from app.ai.models import (  # noqa
     AgentPreferences,
     AgentRun,

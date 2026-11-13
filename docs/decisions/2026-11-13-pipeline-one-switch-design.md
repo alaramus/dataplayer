@@ -45,14 +45,14 @@ With this spec it becomes two drags and one press: Switch on.
   which case it opens the schedule's window. The bounds of D315 apply only
   when there are continuous links.
 - **The head holds one split button**: "Switch on" / "Switch off", and a
-  chevron opening a menu:
-  - *Continuously* sets every link that reads on to `continuous`.
-  - *On a schedule…* sets every link to `scheduled` and opens the schedule's
-    window.
-  - *Run once now* is D177's Run.
-  The current choice is ticked, and neither is ticked when the links' own
-  choices differ. History, Rename and Delete move into a "⋯" menu; Fit and New
-  stay where they are. The separate Run, Follow and clock buttons go.
+  chevron opening a menu of *Schedule…*, the schedule's window, and *Run once
+  now*, D177's Run. History, Rename and Delete move into a "⋯" menu; Fit and
+  New stay where they are. The separate Run, Follow and clock buttons go.
+
+  Corrected while building: the menu was to hold *Continuously* and *On a
+  schedule…*, setting every link's `runs` at once. Which links can run
+  continuously is known only by asking each source, so the choice stays each
+  link's, in its panel, with the offer's default.
 - **Run once now runs every link once**, continuous links included, which read
   what is new and stop. While the pipeline is on, it leaves the continuous
   links out, saying "Runs continuously; not run" (D315's rule, reworded).
@@ -112,7 +112,8 @@ says so.
   4. while off and ready: what Switch on will do ("2 links will run
      continuously, 1 at 03:00 daily").
 
-  The sentence comes from the server, with the follow state. The head keeps
+  Which of them applies is the server's choice, sent with the follow state;
+  the screen words it, as it words a run's times. The head keeps
   only the button. History is opened from the "⋯" menu and from the status
   line.
 

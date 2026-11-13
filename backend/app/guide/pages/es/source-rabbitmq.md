@@ -240,8 +240,8 @@ le envía filas y otros llevan lo que llega a tablas.
   primer nivel; una tabla nueva recibe las columnas del mensaje. **La primera
   ejecución lee** no significa nada para una cola: siempre toma lo que
   espera.
-- **Seguir** lleva lo que llega en segundos, desde un stream o una cola, como
-  desde un topic.
+- Un pipeline encendido lleva lo que llega en segundos, desde un stream o una
+  cola, como desde un topic.
 
 ## Descargas
 

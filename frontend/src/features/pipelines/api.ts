@@ -6,7 +6,7 @@ import type { MaybeRefOrGetter } from "vue"
 import { PipelinesService } from "@/client"
 import { jobsKey } from "@/features/activity/api"
 import type {
-  Card, FollowState, LinkEnd, PipelinePublic, PipelineRunPublic, PipelineSave, PipelineSummary, ScheduleSettings,
+  Card, LinkEnd, SwitchState, PipelinePublic, PipelineRunPublic, PipelineSave, PipelineSummary, ScheduleSettings,
 } from "@/client"
 
 import { FOLLOW_POLL_MS } from "./follow"
@@ -165,21 +165,24 @@ export function useSchedule(pipelineId: MaybeRefOrGetter<string>) {
   })
 }
 
-export function followKey(pipelineId: string) {
-  return ["pipeline-follow", pipelineId] as const
+export function switchKey(pipelineId: string) {
+  return ["pipeline-switch", pipelineId] as const
 }
 
-/** Whether the pipeline follows its topics, asked again every few seconds while it does (D315). */
-export function useFollow(pipelineId: MaybeRefOrGetter<string>) {
+/**
+ * Whether the pipeline is on, what its status line says and what its follower
+ * carried (D362, D364); asked again every few seconds while it is on.
+ */
+export function useSwitch(pipelineId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => followKey(toValue(pipelineId))),
-    queryFn: async () => (await PipelinesService.readFollow({ path: { pipeline_id: toValue(pipelineId) } })).data,
+    queryKey: computed(() => switchKey(toValue(pipelineId))),
+    queryFn: async () => (await PipelinesService.readSwitch({ path: { pipeline_id: toValue(pipelineId) } })).data,
     refetchInterval: (query) => (query.state.data?.on === true ? FOLLOW_POLL_MS : false),
   })
 }
 
-export async function switchFollow(pipelineId: string, on: boolean): Promise<FollowState> {
-  return (await PipelinesService.switchFollow({ path: { pipeline_id: pipelineId }, body: { on } })).data
+export async function setSwitch(pipelineId: string, on: boolean): Promise<SwitchState> {
+  return (await PipelinesService.setSwitch({ path: { pipeline_id: pipelineId }, body: { on } })).data
 }
 
 export function useSaveSchedule() {
@@ -189,6 +192,8 @@ export function useSaveSchedule() {
       (await PipelinesService.setSchedule({ path: { pipeline_id: input.pipelineId }, body: input.settings })).data,
     onSuccess: (schedule, input) => {
       queryClient.setQueryData(scheduleKey(input.pipelineId), schedule)
+      // The status line asks for a schedule until there is one (D364).
+      void queryClient.invalidateQueries({ queryKey: switchKey(input.pipelineId) })
     },
   })
 }
@@ -202,8 +207,20 @@ export function lackingLinks(cause: unknown): string[] {
   return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : []
 }
 
-export async function readHint(pipelineId: string, cardId: string | null) {
-  return (await PipelinesService.readHint({ path: { pipeline_id: pipelineId }, body: { card_id: cardId } })).data
+/** The problem code a refusal carries, such as `pipelines.no_schedule`. */
+export function problemCode(cause: unknown): string | null {
+  if (!(cause instanceof AxiosError)) return null
+  const detail: unknown = cause.response?.data?.detail
+  if (detail === null || typeof detail !== "object" || !("code" in detail)) return null
+  return typeof detail.code === "string" ? detail.code : null
+}
+
+/** Where a row being dragged can go, row by row, or one card's rows (D363). */
+export async function readTargets(pipelineId: string, source: LinkEnd, cardId: string | null) {
+  return (await PipelinesService.readTargets({
+    path: { pipeline_id: pipelineId },
+    body: { source, card_id: cardId },
+  })).data
 }
 
 /** One end of a link and the connection its card is on. */

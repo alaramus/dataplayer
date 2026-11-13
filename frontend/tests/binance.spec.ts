@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test"
 import { catalogRow, openNode } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { canvasRow, drawLink } from "./utils/pipelines"
+import { canvasRow, drawLink, runOnce, pipelineMenu } from "./utils/pipelines"
 import { signedApi } from "./utils/search"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
@@ -148,7 +148,10 @@ test("reads a symbol's trades into a table its link makes, each trade once", asy
   await drawLink(page, canvasRow(page, "Trades"), canvasRow(page, "public"))
   const panel = page.getByTestId("link-panel")
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Add new messages to a new table")
+  // Drawn ready with a table named after its source (D364); renamed here.
   const window = page.getByTestId("grid-create-table-dialog")
+  await expect(window).toHaveCount(0)
+  await panel.getByTestId("link-panel-choose-columns").click()
   await expect(window).toBeVisible()
   await window.getByTestId("grid-create-table-name").fill(table)
   await window.getByTestId("grid-create-table-run").click()
@@ -157,18 +160,18 @@ test("reads a symbol's trades into a table its link makes, each trade once", asy
   // From now on: the last hour of BTCUSDT is over a hundred thousand trades.
   await page.getByTestId("link-panel-start").click()
   await page.getByRole("option", { name: "Only what is new", exact: true }).click()
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   const result = panel.getByTestId("link-panel-result")
   await expect(result).toContainText("the table was made with a key on id", { timeout: 60_000 })
   await expect(panel.getByTestId("link-panel-reader")).toContainText("dataplayer-link-")
   await page.screenshot({ path: "test-results/binance-pipeline.png" })
 
   // BTCUSDT trades every second; the next run adds only what came since.
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   await expect(result).toContainText("new messages added", { timeout: 60_000 })
   await expect(result).not.toContainText("the table was made")
 
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
   await page.getByTestId("space-data").click()
   await deleteConnector(page, database)

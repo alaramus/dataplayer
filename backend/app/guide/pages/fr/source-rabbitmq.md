@@ -244,8 +244,8 @@ y envoie des lignes, d'autres portent ce qui arrive dans des tables.
   Seulement les champs de premier niveau ; une nouvelle table reçoit les
   colonnes du message. **La première exécution lit** n'a pas de sens pour une
   file : elle prend toujours ce qui attend.
-- **Suivre** porte ce qui arrive en quelques secondes, depuis un stream ou une
-  file, comme depuis un topic.
+- Un pipeline activé porte ce qui arrive en quelques secondes, depuis un
+  stream ou une file, comme depuis un topic.
 
 ## Téléchargements
 

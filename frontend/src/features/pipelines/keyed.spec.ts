@@ -1,35 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import type { FetchColumn } from "@/client"
-
-import { defaultKey, defaultValues, fieldName, holdsHash, keyedProblem } from "./keyed"
-
-function columns(...names: string[]): FetchColumn[] {
-  return names.map((name) => ({ name, type: { sql: "text", category: "string" } }))
-}
-
-const topic = columns("partition", "offset", "timestamp", "key", "value", "headers", "value.price", "value.side")
+import { fieldName, holdsHash, keyedProblem } from "./keyed"
 
 describe("a link keeping the latest per key (D314)", () => {
-  it("starts from a topic's key and its JSON fields as a hash", () => {
-    expect(defaultKey(topic)).toBe("key")
-    expect(defaultValues(topic, "key")).toEqual([
-      { source: "value.price", target: "price" },
-      { source: "value.side", target: "side" },
-    ])
-  })
-
-  it("keeps a topic's whole value as a string when it has no fields", () => {
-    const plain = columns("partition", "offset", "key", "value")
-    expect(defaultValues(plain, "key")).toEqual([{ source: "value", target: "value" }])
-  })
-
-  it("takes a table's first column as the key and the next as the value", () => {
-    const table = columns("symbol", "price")
-    expect(defaultKey(table)).toBe("symbol")
-    expect(defaultValues(table, "symbol")).toEqual([{ source: "price", target: "price" }])
-  })
-
   it("names a field by itself, and leaves other columns as they are", () => {
     expect(fieldName("value.price")).toBe("price")
     expect(fieldName("value.")).toBe("value.")

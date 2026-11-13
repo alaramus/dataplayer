@@ -1,9 +1,9 @@
-import type { FollowedLinkPublic, FollowState } from "@/client"
+import type { FollowedLinkPublic, SwitchState } from "@/client"
 import type { GraphEdgeTone } from "@/shared/graph/model"
 import { t } from "@/shared/i18n"
 
 /**
- * A pipeline following its topics (D315), as the canvas and the panel say it:
+ * A pipeline's continuous links while it is on (D315, D362), as the canvas and the panel say it:
  * plain functions of what the server answered, so they are tested without a
  * screen.
  */
@@ -11,7 +11,7 @@ import { t } from "@/shared/i18n"
 /** How often the screen asks again while a pipeline follows. */
 export const FOLLOW_POLL_MS = 2_000
 
-/** A followed link's line while its pipeline follows: what it is doing now. */
+/** A continuous link's line while its pipeline is on: what it is doing now. */
 export function followTone(entry: FollowedLinkPublic | undefined): GraphEdgeTone | undefined {
   if (entry === undefined) return undefined
   if (entry.state === "retrying") return "error"
@@ -20,11 +20,11 @@ export function followTone(entry: FollowedLinkPublic | undefined): GraphEdgeTone
 }
 
 /** Each link's entry of the newest following, by link. */
-export function followedLinks(state: FollowState | undefined): Map<string, FollowedLinkPublic> {
-  return new Map((state?.links ?? []).map((one) => [one.link_id, one]))
+export function followedLinks(state: SwitchState | undefined): Map<string, FollowedLinkPublic> {
+  return new Map((state?.follow?.links ?? []).map((one) => [one.link_id, one]))
 }
 
-/** The panel's line about a followed link while its pipeline follows. */
+/** The panel's line about a continuous link while its pipeline is on. */
 export function followWords(entry: FollowedLinkPublic | undefined, at: (iso: string) => string): string {
   if (entry === undefined || (entry.carried === 0 && entry.state !== "retrying")) {
     return t("pipelines.follow.waiting")

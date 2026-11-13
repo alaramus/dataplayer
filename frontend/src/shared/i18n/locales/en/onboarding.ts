@@ -139,13 +139,13 @@ export const onboarding = {
       },
       link: {
         title: "Join them",
-        hint: "The hint draws every link that could be made. A row can also be dragged onto another.",
-        press: "Press the dashed link from the table to the folder.",
+        hint: "Drag the row of {table} onto the folder's row. The rows it can go to light up.",
       },
       run: {
         title: "Run it",
-        hint: "Run the pipeline. The link saves the table as a CSV file.",
-        taken: "The folder already has a file of that name: under “If the name is taken” choose “Keep both”, then Run again.",
+        menu: "Open the menu beside Switch on.",
+        hint: "Run it once now. The link saves the table as a CSV file.",
+        taken: "The folder already has a file of that name: under “If the name is taken” choose “Keep both”, then run it once again.",
       },
       seen: {
         title: "The file",

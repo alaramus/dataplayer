@@ -3,7 +3,7 @@ import type { Locator, Page } from "@playwright/test"
 
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { canvasRow, drawLink } from "./utils/pipelines"
+import { canvasRow, drawLink, runOnce, openSchedule, pipelineMenu } from "./utils/pipelines"
 import { deleteConnector } from "./utils/workspace"
 
 /**
@@ -43,7 +43,7 @@ test("lays connections out as cards of what was ticked in them, and keeps them",
   if (await first.isVisible()) await first.click()
   else await page.getByTestId("pipeline-new").click()
   await created
-  await page.getByTestId("pipeline-rename").click()
+  await pipelineMenu(page, "rename")
   await page.getByTestId("pipeline-rename-input").fill(name)
   const renamed = saved(page)
   // Enter closes the window; it once reopened it through the pencil.
@@ -107,11 +107,7 @@ test("lays connections out as cards of what was ticked in them, and keeps them",
   await removed
   await expect(cards(page, files)).toHaveCount(0)
 
-  // Neutral at rest and red under the pointer, as every destructive command in
-  // a toolbar is (D186).
-  await expect(page.getByTestId("pipeline-delete")).toHaveClass(/app-icon-button--danger/)
-
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
   await expect(page.getByTestId("pipeline-view").or(page.getByTestId("pipeline-create-first"))).toBeVisible()
   await expect(page.getByTestId("pipelines-space")).not.toContainText(name)
@@ -123,7 +119,7 @@ test("lays connections out as cards of what was ticked in them, and keeps them",
 
 
 
-test("joins two rows by a link, runs the pipeline from its head, and hints the others", async ({ page }) => {
+test("joins two rows by a link, runs it once from the head's menu, and tints where a drag can go", async ({ page }) => {
   const stamp = Date.now()
   const database = `e2e-link-db-${stamp}`
   const files = `e2e-link-files-${stamp}`
@@ -160,8 +156,8 @@ test("joins two rows by a link, runs the pipeline from its head, and hints the o
   await expect(panel.getByTestId("link-panel-number")).toHaveText("1")
   await panel.getByTestId("link-panel-name").fill(csv)
 
-  // The head's Run saves what is on the screen first, then runs what was saved.
-  await page.getByTestId("pipeline-run").click()
+  // Run once saves what is on the screen first, then runs what was saved.
+  await runOnce(page)
   const result = panel.getByTestId("link-panel-result")
   await expect(result).toContainText("Done", { timeout: 20_000 })
   await expect(result).toContainText(`${csv} saved in reports`)
@@ -170,18 +166,29 @@ test("joins two rows by a link, runs the pipeline from its head, and hints the o
   await page.screenshot({ path: "test-results/pipelines-link.png" })
 
   // It stays, and runs again: the name is taken now, and the link says so.
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   await expect(result).toContainText("Failed", { timeout: 20_000 })
   await panel.getByTestId("link-panel-close").click()
   await expect(panel).toHaveCount(0)
 
-  // The hint: what else could be drawn, dashed; pressed, one becomes a link.
-  await page.getByTestId("pipeline-hint").click()
-  // The file the runs made is a row of its card too (D178), and hinted from.
-  const hinted = page.locator('[data-testid^="graph-edge-hint:"][aria-label="Save as CSV"]')
-  await expect(hinted.first()).toBeAttached()
-  await page.screenshot({ path: "test-results/pipelines-hint.png" })
-  await hinted.first().press("Enter")
+  // A drag tints the rows it can go to with what a drop draws (D363); the row
+  // it is already linked to says so, faded.
+  const table = await canvasRow(page, "pipeline").boundingBox()
+  const top = cards(page, files).locator('[data-testid^="graph-port-"][data-testid$="-top"]')
+  const reports = canvasRow(page, "reports")
+  if (table === null) throw new Error("The table's row is not on screen")
+  await page.mouse.move(table.x + table.width / 2, table.y + table.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(table.x + table.width / 2 + 40, table.y + table.height / 2 + 10, { steps: 6 })
+  await expect(top).toHaveClass(/graph-node__row--fit/)
+  await expect(top).toContainText("Save as CSV")
+  await expect(reports).toHaveClass(/graph-node__row--unfit/)
+  await expect(reports).toContainText("Already linked")
+  await page.screenshot({ path: "test-results/pipelines-drag.png" })
+  const spot = await top.boundingBox()
+  if (spot === null) throw new Error("The top's row is not on screen")
+  await page.mouse.move(spot.x + spot.width / 2, spot.y + spot.height / 2, { steps: 6 })
+  await page.mouse.up()
   await expect(panel.getByTestId("link-panel-sentence")).toHaveText(
     `Save as CSV: ${database} · pipeline → ${files} (top)`
   )
@@ -192,7 +199,7 @@ test("joins two rows by a link, runs the pipeline from its head, and hints the o
   await page.getByTestId("confirm-accept").click()
   await expect(panel).toHaveCount(0)
 
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
   await page.getByTestId("space-data").click()
   await deleteConnector(page, files)
@@ -219,7 +226,10 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   if (await first.isVisible()) await first.click()
   else await page.getByTestId("pipeline-new").click()
   await expect(page.getByTestId("pipeline-view")).toBeVisible()
-  await expect(page.getByTestId("pipeline-run")).toBeDisabled()
+  // Nothing drawn: Run once is off, and the status line says how to start.
+  await page.getByTestId("pipeline-run-menu").click()
+  await expect(page.getByTestId("menu-item-run-once")).toHaveAttribute("aria-disabled", "true")
+  await page.keyboard.press("Escape")
 
   // A table on the left, and on its right the top of personal storage and a
   // folder in it.
@@ -250,11 +260,11 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   await expect(labels).toHaveText(["1 · Save as CSV", "2 · Save as CSV"])
 
   // One Run, both links.
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   await expect(page.locator('[data-tone="success"]')).toHaveCount(2, { timeout: 20_000 })
 
   // Again: the first finds its name taken, and the second is not run.
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   await expect(page.locator('[data-tone="error"]')).toHaveCount(1, { timeout: 20_000 })
   await expect(page.locator('[data-tone="muted"]')).toHaveCount(1)
   await labels.filter({ hasText: "2 · Save as CSV" }).click()
@@ -273,7 +283,7 @@ test("runs every link by one Run, stops at the first failure, and says where a c
 
   // The history (D180): both runs, newest first, by hand, each with its
   // sentence; the canvas shows the newest.
-  await page.getByTestId("pipeline-history").click()
+  await pipelineMenu(page, "history")
   const history = page.getByTestId("history-window")
   const runs = history.getByTestId("history-run")
   await expect(runs).toHaveCount(2)
@@ -301,11 +311,11 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   await expect(panel.getByTestId("link-panel-result")).toHaveText("Not run: the run stopped before it")
 
   // Shown again, then Run: the canvas follows the run it starts.
-  await page.getByTestId("pipeline-history").click()
+  await pipelineMenu(page, "history")
   await runs.nth(1).click()
   await page.locator('[data-testid^="window-close-dialog:history-window"]').click()
   await expect(page.getByTestId("pipeline-shown-run")).toBeVisible()
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   await expect(page.getByTestId("pipeline-shown-run")).toHaveCount(0)
   await expect(page.locator('[data-tone="error"]')).toHaveCount(1, { timeout: 20_000 })
   await panel.getByTestId("link-panel-close").click()
@@ -318,29 +328,22 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   await page.getByTestId(`pipeline-card-settings-${database}`).click()
   await picker.getByTestId("catalog-check-public").click()
   await picker.getByTestId("card-picker-done").click()
+  const drawn = saved(page)
   await drawLink(page, port(page, csv), port(page, "public"))
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Create a table")
-  const drawn = saved(page)
-  // A link that still needs its table opens the window at once, so there is
-  // nothing to press: the table is offered the name of the file it is read
-  // from. It was offered the sentence's "connection · file", which had to be
-  // typed over.
-  await expect(page.getByTestId("grid-create-table-name")).toHaveValue(csv.replace(/\.csv$/, ""))
-  await page.getByTestId("grid-create-table-dialog").getByRole("button", { name: "Cancel" }).click()
-  await panel.getByTestId("link-panel-close").click()
+  // Drawn ready (D364): named after the file it is read from, with all its
+  // columns, and no window to press through.
   await drawn
+  await expect(page.getByTestId("grid-create-table-dialog")).toHaveCount(0)
+  await expect(panel.getByTestId("link-panel-columns")).toContainText(csv.replace(/\.csv$/, "").replaceAll("-", "_"))
+  await panel.getByTestId("link-panel-close").click()
   await expect(labels.filter({ hasText: "Create a table" })).toHaveText("3 · Create a table")
   const broken = labels.filter({ hasText: "1 · Save as CSV" }).locator('[data-testid^="graph-edge-badge-"]')
   await broken.hover()
   await expect(page.getByText(`${database} and ${files} write into each other`)).toBeVisible()
   await page.screenshot({ path: "test-results/pipelines-circle.png" })
 
-  // Its columns never chosen: nothing runs, and that link is opened.
-  await page.getByTestId("pipeline-run").click()
-  await expect(page.getByText("Nothing ran: 3 · Create a table needs its table named and its columns chosen")).toBeVisible()
-  await expect(panel.getByTestId("link-panel-number")).toHaveText("3")
-
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
   await page.getByTestId("space-data").click()
   await deleteConnector(page, files)
@@ -404,7 +407,7 @@ test("draws a chain before anything is made, runs it by one Run, and takes it ap
   await panel.getByTestId("link-panel-close").click()
   await page.screenshot({ path: "test-results/pipelines-chain.png" })
 
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   await expect(page.locator('[data-tone="success"]')).toHaveCount(2, { timeout: 20_000 })
   await page.locator('[data-testid^="graph-edge-label-"]', { hasText: "Copy files" }).click()
   await expect(panel.getByTestId("link-panel-made")).toHaveText(`Read ${csv} · Made ${csv}`)
@@ -417,7 +420,7 @@ test("draws a chain before anything is made, runs it by one Run, and takes it ap
   await expect(page.locator('[data-testid^="graph-edge-label-"]')).toHaveCount(0)
   await expect(result).toHaveCount(0)
 
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
   await page.getByTestId("space-data").click()
   await deleteConnector(page, backup)
@@ -425,7 +428,7 @@ test("draws a chain before anything is made, runs it by one Run, and takes it ap
   await deleteConnector(page, database)
 })
 
-test("runs a pipeline by itself on a schedule, says when next, and is switched off", async ({ page }) => {
+test("runs its scheduled links only while switched on, says when next, and asks for a schedule first", async ({ page }) => {
   await login(page)
   await page.getByTestId("space-pipelines").click()
   const created = page.waitForResponse(
@@ -436,55 +439,81 @@ test("runs a pipeline by itself on a schedule, says when next, and is switched o
   if (await first.isVisible()) await first.click()
   else await page.getByTestId("pipeline-new").click()
   await created
-  const next = page.getByTestId("pipeline-next-run")
-  await expect(next).toHaveCount(0)
+  // A link to run on the schedule: a table saved as CSV into the top of storage.
+  const files = `e2e-sched-files-${Date.now()}`
+  const database = `e2e-sched-db-${Date.now()}`
+  await page.getByTestId("space-data").click()
+  await createPostgresConnector(page, database)
+  await createFileConnector(page, files)
+  await page.getByTestId("space-pipelines").click()
+  const rail = page.getByTestId("pipelines-rail")
+  const picker = page.getByTestId("card-picker")
+  await rail.getByTestId(`connector-${database}`).click()
+  await picker.getByTestId("catalog-node-public").click()
+  await picker.getByTestId("catalog-check-pipeline").click()
+  await picker.getByTestId("card-picker-done").click()
+  await rail.getByTestId(`connector-${files}`).click()
+  await picker.getByTestId("card-picker-top").click()
+  await picker.getByTestId("card-picker-done").click()
+  const drawn = page.waitForResponse(
+    (response) => /\/api\/v1\/pipelines\/[^/]+$/.test(response.url()) && response.request().method() === "PUT"
+  )
+  // Placed beside the first, the view pans to show it: let it settle.
+  await expect(port(page, null)).toBeInViewport()
+  await page.getByTestId("pipeline-fit").click()
+  await drawLink(page, port(page, "public.pipeline"), port(page, null))
+  await drawn
+  await page.getByTestId("link-panel").getByTestId("link-panel-close").click()
+
+  // A scheduled link and no schedule: the status line asks for one, and
+  // Switch on refuses and opens the schedule's window.
+  const status = page.getByTestId("pipeline-status")
+  await expect(status).toHaveAttribute("data-kind", "no_schedule")
+  await expect(status).toContainText("1 link runs on the schedule, and no schedule is set")
+  const window = page.getByTestId("schedule-window")
+  await page.getByTestId("pipeline-switch").click()
+  await expect(window).toBeVisible()
 
   // Every night at 03:00, in this browser's clock.
-  const window = page.getByTestId("schedule-window")
   const kept = () => page.waitForResponse(
     (response) => response.url().endsWith("/schedule") && response.request().method() === "PUT"
   )
-  // A schedule nobody has set opens switched on: opening it is asking for one.
-  await page.getByTestId("pipeline-schedule").click()
-  await expect(window.getByTestId("schedule-enabled")).toHaveAttribute("aria-checked", "true")
   await expect(window.getByTestId("schedule-time-0")).toHaveValue("03:00")
-  await expect(window.getByTestId("schedule-time-0")).toBeEnabled()
   await page.screenshot({ path: "test-results/pipelines-schedule-window.png" })
   let saved = kept()
   await window.getByTestId("schedule-save").click()
   await saved
   await expect(window).toHaveCount(0)
-  await expect(next).toContainText(/Next run: (today|tomorrow) 03:00/)
+  await expect(status).toHaveAttribute("data-kind", "ready")
+
+  // On: the line says when it runs next.
+  await page.getByTestId("pipeline-switch").click()
+  await expect(page.getByTestId("pipeline-switch")).toContainText("Switch off")
+  await expect(status).toContainText(/next run (today|tomorrow) 03:00/)
   await page.screenshot({ path: "test-results/pipelines-schedule.png" })
 
   // Every hour instead: the next time is within the hour.
-  await page.getByTestId("pipeline-schedule").click()
+  await openSchedule(page)
   await window.getByTestId("schedule-kind-interval").click()
   await expect(window.getByTestId("schedule-every")).toHaveValue("1")
   saved = kept()
   await window.getByTestId("schedule-save").click()
   await saved
-  await expect(next).toContainText(/Next run: (today|tomorrow) \d\d:\d\d/)
+  await expect(status).toContainText(/next run (today|tomorrow) \d\d:\d\d/)
 
-  // Off: nothing runs by itself, the choice is kept for next time and cannot
-  // be changed until it is switched back on.
-  await page.getByTestId("pipeline-schedule").click()
-  await window.getByTestId("schedule-enabled").click()
-  await expect(window.getByTestId("schedule-every")).toBeDisabled()
-  await expect(window.getByRole("radio", { name: "At times of the day" })).toHaveAttribute("aria-disabled", "true")
-  saved = kept()
-  await window.getByTestId("schedule-save").click()
-  await saved
-  await expect(next).toHaveCount(0)
-  await page.getByTestId("pipeline-schedule").click()
-  await expect(window.getByTestId("schedule-enabled")).toHaveAttribute("aria-checked", "false")
+  // Off: nothing runs by itself, and the choice is kept for next time.
+  await page.getByTestId("pipeline-switch").click()
+  await expect(page.getByTestId("pipeline-switch")).toContainText("Switch on")
+  await expect(status).toHaveAttribute("data-kind", "ready")
+  await openSchedule(page)
   await expect(window.getByTestId("schedule-every")).toHaveValue("1")
-  await window.getByTestId("schedule-enabled").click()
-  await expect(window.getByTestId("schedule-every")).toBeEnabled()
   await window.getByRole("button", { name: "Cancel" }).click()
 
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
+  await page.getByTestId("space-data").click()
+  await deleteConnector(page, files)
+  await deleteConnector(page, database)
 })
 
 test("keeps the head of the connections in place from Data to Pipelines, both at their narrowest", async ({ page }) => {

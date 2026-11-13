@@ -249,8 +249,8 @@ Verknüpfung schickt Zeilen hinein, andere tragen das Angekommene in Tabellen.
   zurückkommt. Nur Felder der obersten Ebene; eine neue Tabelle bekommt die
   Spalten der Nachricht. **Erster Lauf liest** bedeutet für eine Queue nichts:
   sie holt immer, was wartet.
-- **Folgen** trägt Angekommenes binnen Sekunden, aus einem Stream oder einer
-  Queue, wie aus einem Topic.
+- Eine eingeschaltete Pipeline trägt Angekommenes binnen Sekunden, aus einem
+  Stream oder einer Queue, wie aus einem Topic.
 
 ## Herunterladen
 

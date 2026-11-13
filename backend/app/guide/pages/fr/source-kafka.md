@@ -195,12 +195,12 @@ portent ce qui arrive vers des tables.
 - **Garder le plus récent par clé**, tiré vers une base ou un dossier Redis,
   garde la valeur la plus récente de chaque clé de message comme une clé à
   part, avec une durée de vie si vous le souhaitez ; voir la page Redis.
-- **Suivre** dans le panneau d'un lien et **Suivre** en tête du pipeline
-  transportent ce qui arrive en quelques secondes plutôt qu'à la prochaine
-  exécution. Le pipeline regarde toutes les quelques secondes, continue après
-  un redémarrage du serveur, et l'exécution comme la planification laissent
-  de côté un lien suivi. Un lien qui échoue est réessayé un peu plus tard,
-  les autres continuent.
+- Tant que le pipeline est activé, un lien qui lit un topic transporte ce qui
+  arrive en quelques secondes plutôt qu'à la prochaine exécution ; **Tant que le
+  pipeline est activé** dans son panneau le passe à la planification. Le
+  pipeline regarde toutes les quelques secondes, continue après un redémarrage
+  du serveur, et l'exécution unique laisse un tel lien de côté. Un lien qui
+  échoue est réessayé un peu plus tard, les autres continuent.
 - Les messages que Kafka a supprimés avant que le lien les lise sont comptés
   dans le résultat de l'exécution.
 - Kafka oublie les positions d'un groupe après une semaine sans écriture ; un

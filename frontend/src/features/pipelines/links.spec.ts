@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest"
 
-import type { Card, Link, LinkRun, PasteOffer, PipelineRunPublic } from "@/client"
+import type { Card, Link, LinkRun, LinkOffer, PipelineRunPublic } from "@/client"
 
 import {
   chainOf,
   dependents,
   endOf,
-  hintEdges,
-  hintOf,
   joinProblem,
   keptLinks,
   linkBetween,
   linkEdge,
   linkFromOffer,
+  targetRows,
   listed,
   madeRows,
   needsDialog,
@@ -41,7 +40,7 @@ const files: Card = {
 }
 const sameSales: Card = { ...sales, id: "sales-2" }
 
-function offer(kind: PasteOffer["kind"], title: string, more: Partial<PasteOffer> = {}): PasteOffer {
+function offer(kind: LinkOffer["kind"], title: string, more: Partial<LinkOffer> = {}): LinkOffer {
   return { kind, title, available: true, ...more }
 }
 
@@ -63,7 +62,26 @@ describe("a link between two rows", () => {
       label: "Save as CSV",
       directed: true,
     })
-    expect(saving).toMatchObject({ kind: "relation_csv", conflict: "refuse", name: null, columns: null })
+    expect(saving).toMatchObject({ kind: "relation_csv", conflict: "refuse", name: null, columns: null, runs: "scheduled" })
+  })
+
+  it("is drawn with the choices the server says it starts with, so it is ready (D364)", () => {
+    const table = offer("rows_since_last_new", "Add new messages to a new table", {
+      workflow: "new-relation",
+      reads_on: true,
+      defaults: { runs: "continuous", name: "btc_trades", columns: [{ source: "id", target: "id", type_code: "text" }] },
+    })
+    const drawn = linkFromOffer("l2", saving.source, saving.target, table)
+    expect(drawn).toMatchObject({ runs: "continuous", name: "btc_trades", columns: [{ source: "id", target: "id", type_code: "text" }] })
+    expect(needsDialog(drawn, "new-relation")).toBe(false)
+  })
+
+  it("is drawn in the caution colour saying what it still needs (D364)", () => {
+    const lacking = linkEdge(saving, undefined, { link_id: "l1", outcome: "done" }, undefined, {
+      link_id: "l1", needs: "table", sentence: "1 · Save as CSV needs its table named and its columns chosen",
+    })
+    expect(lacking.tone).toBe("caution")
+    expect(lacking.label).toBe("Save as CSV · needs a table")
   })
 
   it("is refused before asking when it starts at a top or stays in one connection", () => {
@@ -167,18 +185,16 @@ describe("a link between two rows", () => {
   })
 })
 
-describe("the hint", () => {
-  it("draws what could be made dashed, and turns a pressed one back into its ends", () => {
-    const hints = [
-      { source: saving.source, target: saving.target, titles: ["Save as CSV"] },
-      { source: { card_id: "files", node_id: "reports" }, target: { card_id: "sales", node_id: "public" }, titles: ["Create a table", "Add rows"] },
-    ]
-    const [first, second] = hintEdges(hints)
-    expect(first).toMatchObject({ id: "hint:0", dashed: true, label: "Save as CSV" })
-    expect(second?.label).toBe("Create a table · Add rows")
-    expect(hintOf(hints, "hint:1")).toBe(hints[1])
-    expect(hintOf(hints, "l1")).toBeNull()
-    expect(hintOf(hints, "hint:9")).toBeNull()
+describe("a drag answered row by row (D363)", () => {
+  it("tints the rows that take the drop and fades the rest with their reason, leaving unasked rows alone", () => {
+    const found = targetRows([
+      { end: { card_id: "files", node_id: "reports" }, kind: "relation_csv", title: "Save as CSV" },
+      { end: { card_id: "sales-2", node_id: "public" }, reason: "Same connection" },
+      { end: { card_id: "files", node_id: null, made_by: "save" } },
+    ])
+    expect(found.get("files|node:reports")).toEqual({ fit: true, note: "Save as CSV" })
+    expect(found.get("sales-2|node:public")).toEqual({ fit: false, note: "Same connection" })
+    expect(found.size).toBe(2)
   })
 })
 

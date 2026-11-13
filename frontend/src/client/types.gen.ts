@@ -5915,13 +5915,9 @@ export type FollowRequest = {
 /**
  * FollowState
  *
- * Whether the pipeline follows, and what its newest following did.
+ * What the pipeline's newest follower did, link by link.
  */
 export type FollowState = {
-  /**
-   * On
-   */
-  on: boolean
   /**
    * Job Id
    */
@@ -5938,16 +5934,6 @@ export type FollowState = {
    * Links
    */
   links?: Array<FollowedLinkPublic>
-}
-
-/**
- * FollowSwitch
- */
-export type FollowSwitch = {
-  /**
-   * On
-   */
-  on: boolean
 }
 
 /**
@@ -6321,42 +6307,6 @@ export type HashDimensionDesign = {
    * Partitions
    */
   partitions: number
-}
-
-/**
- * Hint
- */
-export type Hint = {
-  /**
-   * Links
-   */
-  links: Array<HintLink>
-  /**
-   * Notice
-   */
-  notice?: string | null
-}
-
-/**
- * HintLink
- */
-export type HintLink = {
-  source: LinkEnd
-  target: LinkEnd
-  /**
-   * Titles
-   */
-  titles: Array<string>
-}
-
-/**
- * HintRequest
- */
-export type HintRequest = {
-  /**
-   * Card Id
-   */
-  card_id?: string | null
 }
 
 /**
@@ -8039,13 +7989,35 @@ export type Link = {
   start?: "earliest" | "latest"
   by_key?: KeyedChoice | null
   /**
-   * Follow
+   * Runs
    */
-  follow?: boolean
+  runs?: "continuous" | "scheduled"
   /**
    * Binding Key
    */
   binding_key?: string | null
+}
+
+/**
+ * LinkDefaults
+ *
+ * What a link drawn with an offer starts with, so it is ready to run
+ * without a window where the choices can be guessed (D364).
+ */
+export type LinkDefaults = {
+  /**
+   * Runs
+   */
+  runs?: "continuous" | "scheduled"
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Columns
+   */
+  columns?: Array<PasteColumn> | null
+  by_key?: KeyedChoice | null
 }
 
 /**
@@ -8067,6 +8039,114 @@ export type LinkEnd = {
    * Made By
    */
   made_by?: string | null
+}
+
+/**
+ * LinkLack
+ *
+ * A link that cannot run yet, and what it lacks (D364).
+ */
+export type LinkLack = {
+  /**
+   * Link Id
+   */
+  link_id: string
+  /**
+   * Needs
+   */
+  needs: "table" | "pairing" | "key"
+  /**
+   * Sentence
+   */
+  sentence: string
+}
+
+/**
+ * LinkOffer
+ */
+export type LinkOffer = {
+  /**
+   * Kind
+   */
+  kind:
+    | "file_copy"
+    | "file_move"
+    | "relation_csv"
+    | "rows_new_relation"
+    | "rows_into_relation"
+    | "rows_since_last"
+    | "rows_since_last_new"
+    | "rows_by_key"
+    | "rows_new_file"
+    | "tables_copy"
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Mode
+   */
+  mode?: "copy" | "move"
+  /**
+   * Available
+   */
+  available: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+  /**
+   * Name Conflict
+   */
+  name_conflict?: boolean
+  /**
+   * Converts
+   */
+  converts?: boolean
+  /**
+   * Can Replace
+   */
+  can_replace?: boolean
+  /**
+   * Changes Source
+   */
+  changes_source?: boolean
+  /**
+   * Workflow
+   */
+  workflow?: "run" | "file-name" | "new-relation" | "into-relation" | "copy-tables" | "keyed"
+  /**
+   * Makes
+   */
+  makes?: boolean
+  /**
+   * Suggested Name
+   */
+  suggested_name?: string | null
+  /**
+   * Source Columns
+   */
+  source_columns?: Array<FetchColumn>
+  /**
+   * Target Columns
+   */
+  target_columns?: Array<FetchColumn>
+  /**
+   * Reads On
+   */
+  reads_on?: boolean
+  reading?: ReadingTerms | null
+  defaults?: LinkDefaults
+}
+
+/**
+ * LinkOffers
+ */
+export type LinkOffers = {
+  /**
+   * Offers
+   */
+  offers: Array<LinkOffer>
 }
 
 /**
@@ -10314,6 +10394,10 @@ export type PipelinePublic = {
    * Readers
    */
   readers?: Array<LinkReader>
+  /**
+   * Lacking
+   */
+  lacking?: Array<LinkLack>
 }
 
 /**
@@ -10368,6 +10452,44 @@ export type PipelineSave = {
    * Version
    */
   version: number
+}
+
+/**
+ * PipelineStatus
+ */
+export type PipelineStatus = {
+  /**
+   * Kind
+   */
+  kind: "empty" | "lacking" | "no_schedule" | "retrying" | "on" | "ready"
+  /**
+   * Link Id
+   */
+  link_id?: string | null
+  /**
+   * Message
+   */
+  message?: string | null
+  /**
+   * Continuous
+   */
+  continuous?: number
+  /**
+   * Scheduled
+   */
+  scheduled?: number
+  /**
+   * Since
+   */
+  since?: string | null
+  /**
+   * Last At
+   */
+  last_at?: string | null
+  /**
+   * Next At
+   */
+  next_at?: string | null
 }
 
 /**
@@ -10923,7 +11045,7 @@ export type ProblemDetail = {
     | "pipelines.running"
     | "pipelines.too_many_running"
     | "pipelines.run_not_found"
-    | "pipelines.nothing_followed"
+    | "pipelines.no_schedule"
     | "pipelines.too_many_following"
     | "pipelines.following_server_full"
     | "shares.link_outdated"
@@ -13304,10 +13426,6 @@ export type SchedulePublic = {
  */
 export type ScheduleSettings = {
   /**
-   * Enabled
-   */
-  enabled?: boolean
-  /**
    * Kind
    */
   kind?: "interval" | "times"
@@ -14709,6 +14827,28 @@ export type StoredGeneration = {
 }
 
 /**
+ * SwitchRequest
+ */
+export type SwitchRequest = {
+  /**
+   * On
+   */
+  on: boolean
+}
+
+/**
+ * SwitchState
+ */
+export type SwitchState = {
+  /**
+   * On
+   */
+  on: boolean
+  status: PipelineStatus
+  follow?: FollowState
+}
+
+/**
  * SymbolNode
  *
  * One pair traded on a market, as Binance lists it (D317).
@@ -15234,6 +15374,50 @@ export type TablesPreviewRequest = {
    */
   target_node_id?: string | null
   tables?: TablesChoice
+}
+
+/**
+ * Target
+ */
+export type Target = {
+  end: LinkEnd
+  /**
+   * Kind
+   */
+  kind?: string | null
+  /**
+   * Title
+   */
+  title?: string | null
+  /**
+   * Reason
+   */
+  reason?: string | null
+}
+
+/**
+ * Targets
+ */
+export type Targets = {
+  /**
+   * Targets
+   */
+  targets?: Array<Target>
+  /**
+   * Partial
+   */
+  partial?: boolean
+}
+
+/**
+ * TargetsRequest
+ */
+export type TargetsRequest = {
+  source: LinkEnd
+  /**
+   * Card Id
+   */
+  card_id?: string | null
 }
 
 /**
@@ -21394,7 +21578,7 @@ export type pipelinesReadCardStateResponses = {
 export type pipelinesReadCardStateResponse =
   pipelinesReadCardStateResponses[keyof pipelinesReadCardStateResponses]
 
-export type pipelinesReadFollowData = {
+export type pipelinesReadSwitchData = {
   body?: never
   path: {
     /**
@@ -21403,30 +21587,30 @@ export type pipelinesReadFollowData = {
     pipeline_id: string
   }
   query?: never
-  url: "/api/v1/pipelines/{pipeline_id}/follow"
+  url: "/api/v1/pipelines/{pipeline_id}/switch"
 }
 
-export type pipelinesReadFollowErrors = {
+export type pipelinesReadSwitchErrors = {
   /**
    * A coded refusal
    */
   "4XX": ProblemResponse
 }
 
-export type pipelinesReadFollowError = pipelinesReadFollowErrors[keyof pipelinesReadFollowErrors]
+export type pipelinesReadSwitchError = pipelinesReadSwitchErrors[keyof pipelinesReadSwitchErrors]
 
-export type pipelinesReadFollowResponses = {
+export type pipelinesReadSwitchResponses = {
   /**
    * Successful Response
    */
-  200: FollowState
+  200: SwitchState
 }
 
-export type pipelinesReadFollowResponse =
-  pipelinesReadFollowResponses[keyof pipelinesReadFollowResponses]
+export type pipelinesReadSwitchResponse =
+  pipelinesReadSwitchResponses[keyof pipelinesReadSwitchResponses]
 
-export type pipelinesSwitchFollowData = {
-  body: FollowSwitch
+export type pipelinesSetSwitchData = {
+  body: SwitchRequest
   path: {
     /**
      * Pipeline Id
@@ -21434,28 +21618,27 @@ export type pipelinesSwitchFollowData = {
     pipeline_id: string
   }
   query?: never
-  url: "/api/v1/pipelines/{pipeline_id}/follow"
+  url: "/api/v1/pipelines/{pipeline_id}/switch"
 }
 
-export type pipelinesSwitchFollowErrors = {
+export type pipelinesSetSwitchErrors = {
   /**
    * A coded refusal
    */
   "4XX": ProblemResponse
 }
 
-export type pipelinesSwitchFollowError =
-  pipelinesSwitchFollowErrors[keyof pipelinesSwitchFollowErrors]
+export type pipelinesSetSwitchError = pipelinesSetSwitchErrors[keyof pipelinesSetSwitchErrors]
 
-export type pipelinesSwitchFollowResponses = {
+export type pipelinesSetSwitchResponses = {
   /**
    * Successful Response
    */
-  200: FollowState
+  200: SwitchState
 }
 
-export type pipelinesSwitchFollowResponse =
-  pipelinesSwitchFollowResponses[keyof pipelinesSwitchFollowResponses]
+export type pipelinesSetSwitchResponse =
+  pipelinesSetSwitchResponses[keyof pipelinesSetSwitchResponses]
 
 export type pipelinesReadLastRunData = {
   body?: never
@@ -21673,14 +21856,14 @@ export type pipelinesReadLinkOffersResponses = {
   /**
    * Successful Response
    */
-  200: PasteOffers
+  200: LinkOffers
 }
 
 export type pipelinesReadLinkOffersResponse =
   pipelinesReadLinkOffersResponses[keyof pipelinesReadLinkOffersResponses]
 
-export type pipelinesReadHintData = {
-  body: HintRequest
+export type pipelinesReadTargetsData = {
+  body: TargetsRequest
   path: {
     /**
      * Pipeline Id
@@ -21688,26 +21871,27 @@ export type pipelinesReadHintData = {
     pipeline_id: string
   }
   query?: never
-  url: "/api/v1/pipelines/{pipeline_id}/hint"
+  url: "/api/v1/pipelines/{pipeline_id}/targets"
 }
 
-export type pipelinesReadHintErrors = {
+export type pipelinesReadTargetsErrors = {
   /**
    * A coded refusal
    */
   "4XX": ProblemResponse
 }
 
-export type pipelinesReadHintError = pipelinesReadHintErrors[keyof pipelinesReadHintErrors]
+export type pipelinesReadTargetsError = pipelinesReadTargetsErrors[keyof pipelinesReadTargetsErrors]
 
-export type pipelinesReadHintResponses = {
+export type pipelinesReadTargetsResponses = {
   /**
    * Successful Response
    */
-  200: Hint
+  200: Targets
 }
 
-export type pipelinesReadHintResponse = pipelinesReadHintResponses[keyof pipelinesReadHintResponses]
+export type pipelinesReadTargetsResponse =
+  pipelinesReadTargetsResponses[keyof pipelinesReadTargetsResponses]
 
 export type sharesListSharesData = {
   body?: never
