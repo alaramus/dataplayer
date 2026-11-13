@@ -306,4 +306,101 @@ describe("the controlled tabular grid", () => {
     await cell.get(".data-grid__value").trigger("mouseover")
     expect(cell.findComponent(AppTooltip).exists()).toBe(true)
   })
+
+  describe("on a page too large to draw whole", () => {
+    const WIDE: TabularColumn[] = Array.from({ length: 300 }, (_, index) => ({
+      id: `c${index}`,
+      label: `column ${index}`,
+      type: { sql: "text", category: "string" },
+      sortable: false,
+      filter_operators: [],
+    }))
+    const LONG = Array.from({ length: 500 }, (_, row) => ({
+      id: String(row),
+      values: WIDE.map((_, column) => `${row}:${column}`),
+    }))
+
+    function mountWide(layout = defaultColumnLayout(WIDE)) {
+      return mountGrid({ columns: WIDE, rows: LONG, pageSize: 500, layout })
+    }
+
+    it("draws the rows and columns in view and stands room in for the rest", () => {
+      const wrapper = mountWide()
+
+      const rows = wrapper.findAll("tbody > tr.data-grid__row")
+      expect(rows.length).toBeGreaterThan(0)
+      expect(rows.length).toBeLessThan(100)
+      const headings = wrapper.findAll('thead th[data-testid^="grid-column-"]')
+      expect(headings.length).toBeGreaterThan(0)
+      expect(headings.length).toBeLessThan(60)
+      // Every line has the heading's cells, so the fixed table keeps its columns.
+      const headCells = wrapper.findAll("thead > tr > th").length
+      for (const row of rows) expect(row.findAll(":scope > td").length).toBe(headCells)
+      // The rows not drawn still take their room, so the scrollbar spans the page.
+      const after = wrapper.get("tbody > tr.data-grid__spacer > td")
+      expect(after.attributes("colspan")).toBe(String(headCells))
+      expect(after.attributes("style")).toContain(`${(500 - rows.length) * 25}px`)
+      expect(wrapper.findAll("thead .data-grid__gap")).toHaveLength(1)
+    })
+
+    it("follows the scroll and keeps a pinned column drawn", async () => {
+      const wrapper = mountWide({ ...defaultColumnLayout(WIDE), pinnedLeft: ["c5"] })
+      const scroll = wrapper.get('[data-testid="grid-focus"]')
+      scroll.element.scrollTop = 25 * 300
+      scroll.element.scrollLeft = 150 * 200
+      await scroll.trigger("scroll")
+
+      expect(wrapper.find('[data-testid="grid-row-0"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="grid-row-300"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="grid-column-c0"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="grid-column-c5"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="grid-cell-300-c5"]').exists()).toBe(true)
+      // Room on both sides of what is drawn: the columns scrolled past, and the rest.
+      expect(wrapper.findAll("thead .data-grid__gap")).toHaveLength(2)
+      expect(wrapper.findAll("tbody > tr.data-grid__spacer")).toHaveLength(2)
+    })
+
+    it("selects and copies what is not drawn as well", async () => {
+      const wrapper = mountWide()
+      await wrapper.get('[data-testid="grid-select-page"]').trigger("click")
+
+      const selections = wrapper.emitted("selection") ?? []
+      expect(selections.at(-1)?.[0]).toHaveLength(500)
+      await wrapper.get('[data-testid="grid-focus"]').trigger("keydown", { key: "c", ctrlKey: true })
+      await flushPromises()
+      const copied = vi.mocked(navigator.clipboard.writeText).mock.calls[0]?.[0] ?? ""
+      const lines = copied.split("\n")
+      expect(lines).toHaveLength(500)
+      expect(lines.at(-1)?.split("\t").at(-1)).toBe("499:299")
+    })
+
+    it("draws the commands of a row only on the row pointed at", async () => {
+      const wrapper = mount(TabularGrid, {
+        props: {
+          columns: COLUMNS,
+          rows: [
+            { id: "row-a", values: ["a", "b"] },
+            { id: "row-b", values: ["c", "d"] },
+          ],
+          page: 0,
+          pageSize: 100,
+          filters: [],
+          sort: [],
+          layout: defaultColumnLayout(COLUMNS),
+        },
+        slots: {
+          "row-actions": ({ row }: { row: { id: string } }) =>
+            h("button", { "data-testid": `act-${row.id}` }),
+        },
+        global: { plugins: [Quasar] },
+      })
+      expect(wrapper.find('[data-testid="act-row-a"]').exists()).toBe(false)
+      await wrapper.get('[data-testid="grid-row-row-a"]').trigger("mouseenter")
+      expect(wrapper.find('[data-testid="act-row-a"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="act-row-b"]').exists()).toBe(false)
+      // The keyboard reaches them too: the row it is in has them drawn.
+      await wrapper.get('[data-testid="grid-select-row-row-b"]').trigger("focusin")
+      expect(wrapper.find('[data-testid="act-row-b"]').exists()).toBe(true)
+    })
+  })
 })

@@ -909,11 +909,15 @@ describe("the basic data grid", () => {
     await wrapper.get('[data-testid="grid-select-row-0"]').trigger("click")
     expect(wrapper.findAll(".data-grid__selected")).toHaveLength(2)
 
+    // Counted over the rows drawn: a page of 100 is taller than the view the
+    // grid assumes before it is measured, and the rest are not drawn.
+    const drawn = wrapper.findAll("tbody > tr.data-grid__row").length
+    expect(drawn).toBeLessThan(100)
     await wrapper.get('[data-testid="grid-column-select-name"]').trigger("click")
-    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(100)
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(drawn)
 
     await wrapper.get('[data-testid="grid-select-page"]').trigger("click")
-    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(200)
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(2 * drawn)
   })
 
   it("copies the same raw TSV from a drag and from Ctrl+C", async () => {
@@ -949,7 +953,9 @@ describe("the basic data grid", () => {
     expect(wrapper.findAll(".data-grid__selected")).toHaveLength(0)
 
     await wrapper.get('[data-testid="grid-column-select-name"]').trigger("click")
-    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(100)
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(
+      wrapper.findAll("tbody > tr.data-grid__row").length
+    )
     await wrapper.get('[data-testid="grid-pin-name"]').trigger("click")
     expect(wrapper.findAll(".data-grid__selected")).toHaveLength(0)
   })
@@ -1389,6 +1395,8 @@ describe("what a source offers on one row", () => {
     mockReport()
     const wrapper = mountGrid()
     await flushPromises()
+    // A row's commands are drawn on the row pointed at, one row at a time.
+    await wrapper.get('[data-testid="grid-row-0"]').trigger("mouseenter")
 
     // The row's own value decides which of the two means anything on it, and
     // the source is what said so: nothing here knows what `installed` is.
@@ -1396,11 +1404,12 @@ describe("what a source offers on one row", () => {
     expect(wrapper.find('[data-testid="grid-row-command-install_extension-0"]').exists()).toBe(
       false
     )
+    expect(wrapper.find('[data-testid="grid-open-row-0"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="grid-row-1"]').trigger("mouseenter")
     expect(wrapper.find('[data-testid="grid-row-command-install_extension-1"]').exists()).toBe(
       true
     )
     expect(wrapper.find('[data-testid="grid-row-command-drop_extension-1"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="grid-open-row-0"]').exists()).toBe(false)
     // And nothing about them is left in the row of buttons above the page.
     expect(wrapper.find('[data-testid="grid-row-command-run-install_extension"]').exists()).toBe(
       false
@@ -1414,6 +1423,7 @@ describe("what a source offers on one row", () => {
     } as never)
     const wrapper = mountGrid()
     await flushPromises()
+    await wrapper.get('[data-testid="grid-row-1"]').trigger("mouseenter")
 
     await wrapper
       .get('[data-testid="grid-row-command-install_extension-1"]')
@@ -1435,6 +1445,8 @@ describe("what a source offers on one row", () => {
     const wrapper = mountGrid()
     await flushPromises()
 
+    expect(wrapper.find('[data-testid="grid-open-row-0"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="grid-row-0"]').trigger("mouseenter")
     expect(wrapper.find('[data-testid="grid-open-row-0"]').exists()).toBe(true)
   })
 })

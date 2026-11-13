@@ -281,6 +281,13 @@ accessibility. A separate browser scenario measures a wide page of 500 rows. If
 it does not stay smooth, TanStack Virtual is added on measurement, not in
 advance.
 
+*Later (2026-11-13):* the measurement came. A CSV of 319 columns on a page of
+500 drew 160,000 cells, and a click on one took 12 seconds. The grid now draws
+only the rows and columns in view, inside the same semantic table, with gap
+rows and cells standing in for the rest. Rows have one height and columns
+known widths, so the arithmetic is a small module of its own rather than
+TanStack Virtual. See [grid.md](../architecture/grid.md).
+
 ## What changes
 
 **Backend.** `adapters/fetch.py` gets per-column capability and a strict filter

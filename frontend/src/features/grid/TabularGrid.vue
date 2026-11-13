@@ -19,7 +19,7 @@ import type {
   ColumnPinningState,
   Updater,
 } from "@tanstack/vue-table"
-import { computed, ref, useTemplateRef, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, reactive, ref, useTemplateRef, watch } from "vue"
 import type { CSSProperties } from "vue"
 
 import type { Sort } from "@/client"
@@ -42,11 +42,12 @@ import { autoFitWidth } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
 import GridHeader from "./GridHeader.vue"
 import { cellPresentation, shouldOpenViewer } from "./model"
+import RenderScope from "./RenderScope.vue"
 import { selectedWholeRowIndexes, selectionMatrix } from "./selection"
 import type { VisibleGridColumn } from "./selection"
 import { toggleMultiSort, toggleSingleSort } from "./sortModel"
-import { columnOf } from "./tabular"
 import type {
+  DrawnColumns,
   TabularColumn,
   TabularEditRequest,
   TabularPasteRequest,
@@ -55,6 +56,8 @@ import type {
 import type { CellPresentation } from "./model"
 import { PAGE_SIZES } from "./types"
 import type { Filter, GridRow, PageSize } from "./types"
+import { columnWindow, revealOffset, rowWindow } from "./virtualWindow"
+import type { VirtualWindow } from "./virtualWindow"
 
 const props = withDefaults(
   defineProps<{
@@ -142,6 +145,9 @@ defineSlots<{
   "after-rows"(props: {
     visibleColumns: TabularVisibleColumn[]
     nextRowNumber: number
+    /** The columns drawn now and the room standing in for the rest: a row
+        added under the page draws the same cells the rows above it do. */
+    columnWindow: DrawnColumns
   }): unknown
   "after-grid"(): unknown
 }>()
@@ -211,6 +217,17 @@ const table = useTable<GridFeatures, GridRow>({
   },
 })
 
+/** A column's place in `columns` and in each row's values, by id: a wide page
+    asks for it per cell, and a search through hundreds of columns per cell
+    was most of the cost of drawing one. */
+const columnIndexes = computed(
+  () => new Map(props.columns.map((column, index) => [column.id, index]))
+)
+function sourceOf(columnId: string): TabularColumn | undefined {
+  const index = columnIndexes.value.get(columnId)
+  return index === undefined ? undefined : props.columns[index]
+}
+
 const columnWidthVariables = computed<Record<string, string>>(() =>
   Object.fromEntries(
     table.getAllLeafColumns().map((column) => [columnVariable(column.id), `${column.getSize()}px`])
@@ -226,13 +243,13 @@ const visibleColumns = computed<VisibleGridColumn[]>(() => {
     ...table.getCenterVisibleLeafColumns(),
   ]
   return ordered.flatMap((column) => {
-    const valueIndex = props.columns.findIndex((item) => item.id === column.id)
-    return valueIndex < 0 ? [] : [{ id: column.id, valueIndex }]
+    const valueIndex = columnIndexes.value.get(column.id)
+    return valueIndex === undefined ? [] : [{ id: column.id, valueIndex }]
   })
 })
 const visibleColumnsForSlot = computed<TabularVisibleColumn[]>(() =>
   visibleColumns.value.flatMap((visible) => {
-    const source = columnOf(props.columns, visible.id)
+    const source = sourceOf(visible.id)
     const tableColumn = table.getColumn(visible.id)
     return source === undefined || tableColumn === undefined
       ? []
@@ -249,6 +266,185 @@ const visibleColumnsForSlot = computed<TabularVisibleColumn[]>(() =>
 const selectedRowIndexes = computed(() =>
   selectedWholeRowIndexes(table.getCellSelectionBounds(), visibleColumns.value.length)
 )
+/**
+ * Only the rows and unpinned columns in view are drawn, with a few beyond
+ * them; a gap of the right size stands in for the rest, so the scroll box
+ * keeps the size and the scrollbars of the whole page. Selection, copying and
+ * pasting read the page's data, never what is drawn, so they still cover
+ * every row and column.
+ *
+ * Until the box is measured — and wherever it cannot be, as under jsdom — the
+ * view is assumed to be a large monitor: a page that fits on one is drawn
+ * whole, and a wide one still never draws all of itself.
+ */
+const SELECTOR_WIDTH = 72
+const view = reactive({ top: 0, left: 0, width: 2560, height: 1440 })
+const rowHeight = ref(25)
+const headHeight = ref(0)
+const pinnedCount = computed(() => table.getStartVisibleLeafColumns().length)
+const pinnedWidth = computed(() =>
+  table.getStartVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0)
+)
+const centerColumns = computed(() => table.getCenterVisibleLeafColumns())
+// The previous window is kept when the next one is the same, so scrolling
+// within a row or a column does not redraw the page.
+const rowRange = computed<VirtualWindow>((previous) =>
+  sameWindow(previous, rowWindow(props.rows.length, rowHeight.value, view.top, view.height))
+)
+const columnRange = computed<VirtualWindow>((previous) =>
+  sameWindow(
+    previous,
+    columnWindow(
+      centerColumns.value.map((column) => column.getSize()),
+      view.left,
+      view.width - SELECTOR_WIDTH - pinnedWidth.value
+    )
+  )
+)
+const drawnColumns = computed<DrawnColumns>(() => {
+  const { start, end, before, after } = columnRange.value
+  return {
+    ids: new Set([
+      ...table.getStartVisibleLeafColumns().map((column) => column.id),
+      ...centerColumns.value.slice(start, end).map((column) => column.id),
+    ]),
+    before,
+    after,
+  }
+})
+/** Every cell a drawn line is made of: the selector, the drawn columns and the gaps. */
+const drawnCellCount = computed(
+  () =>
+    1 +
+    drawnColumns.value.ids.size +
+    (drawnColumns.value.before > 0 ? 1 : 0) +
+    (drawnColumns.value.after > 0 ? 1 : 0)
+)
+const drawnRows = computed(() => {
+  const { start, end } = rowRange.value
+  return table
+    .getRowModel()
+    .rows.slice(start, end)
+    .map((row, index) => ({ row, index: start + index }))
+})
+
+function sameWindow(previous: VirtualWindow | undefined, next: VirtualWindow): VirtualWindow {
+  return previous !== undefined &&
+    previous.start === next.start &&
+    previous.end === next.end &&
+    previous.before === next.before &&
+    previous.after === next.after
+    ? previous
+    : next
+}
+
+type LineItem<T> = { key: string; item: T } | { key: string; gap: number }
+
+/**
+ * A heading or a row as it is drawn: pinned columns, the gap for unpinned
+ * columns scrolled past, the unpinned columns in view, the gap for the rest.
+ * Gaps are cells, because a fixed table takes its columns from its first row.
+ *
+ * `items` are a heading's or a row's visible cells, which the engine keeps in
+ * the order pinned, then the rest: sliced by position rather than asked one by
+ * one, because asking every cell of a wide row was a cost per drawn row.
+ */
+function drawnLine<T extends { column: { id: string } }>(items: readonly T[]): LineItem<T>[] {
+  const { start, end, before, after } = columnRange.value
+  const pinned = pinnedCount.value
+  const line: LineItem<T>[] = items
+    .slice(0, pinned)
+    .map((item) => ({ key: item.column.id, item }))
+  if (before > 0) line.push({ key: "gap-before", gap: before })
+  for (const item of items.slice(pinned + start, pinned + end)) {
+    line.push({ key: item.column.id, item })
+  }
+  if (after > 0) line.push({ key: "gap-after", gap: after })
+  return line
+}
+
+function readView() {
+  const scroll = gridFocus.value
+  if (scroll === null) return
+  view.top = scroll.scrollTop
+  view.left = scroll.scrollLeft
+  // A box that is not laid out — a hidden tab — measures zero and keeps the
+  // last size it had.
+  if (scroll.clientWidth > 0) view.width = scroll.clientWidth
+  if (scroll.clientHeight > 0) view.height = scroll.clientHeight
+}
+
+/** One row's height and the heading's, read from what was drawn. */
+function measureLines() {
+  const scroll = gridFocus.value
+  if (scroll === null) return
+  const row = scroll.querySelector<HTMLElement>("tbody > tr.data-grid__row")
+  const head = scroll.querySelector<HTMLElement>("thead")
+  if (row !== null && row.offsetHeight > 0) rowHeight.value = row.offsetHeight
+  if (head !== null && head.offsetHeight > 0) headHeight.value = head.offsetHeight
+}
+
+let resizes: ResizeObserver | null = null
+watch(
+  gridFocus,
+  (scroll) => {
+    resizes?.disconnect()
+    resizes = null
+    if (scroll === null || typeof ResizeObserver === "undefined") return
+    resizes = new ResizeObserver(() => {
+      readView()
+      measureLines()
+    })
+    resizes.observe(scroll)
+  },
+  { flush: "post" }
+)
+onBeforeUnmount(() => resizes?.disconnect())
+watch(
+  () => [props.rows, props.loading] as const,
+  () => {
+    readView()
+    measureLines()
+  },
+  { flush: "post" }
+)
+
+/**
+ * Scroll the cell the keyboard moved to into view. Before the grid drew only
+ * what was in view, an arrow could already walk off the screen; now the cell
+ * it walks to may not be drawn at all.
+ */
+function revealSelectionEnd() {
+  const scroll = gridFocus.value
+  const range = table.store.state.cellSelection?.at(-1)
+  if (scroll === null || range === undefined) return
+  const rowIndex = props.rows.findIndex((row) => row.id === range.focusRowId)
+  if (rowIndex >= 0) {
+    scroll.scrollTop = revealOffset(
+      scroll.scrollTop,
+      scroll.clientHeight,
+      headHeight.value,
+      headHeight.value + rowIndex * rowHeight.value,
+      rowHeight.value
+    )
+  }
+  const columnIndex = centerColumns.value.findIndex((column) => column.id === range.focusColumnId)
+  if (columnIndex >= 0) {
+    const reserved = SELECTOR_WIDTH + pinnedWidth.value
+    const start = centerColumns.value
+      .slice(0, columnIndex)
+      .reduce((width, column) => width + column.getSize(), reserved)
+    scroll.scrollLeft = revealOffset(
+      scroll.scrollLeft,
+      scroll.clientWidth,
+      reserved,
+      start,
+      centerColumns.value[columnIndex]?.getSize() ?? 0
+    )
+  }
+  readView()
+}
+
 const offset = computed(() => props.page * props.pageSize)
 const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 
@@ -269,7 +465,7 @@ function changeLayout(layout: ColumnLayoutState) {
 }
 
 function sortColumn(columnId: string, event: MouseEvent) {
-  if (columnOf(props.columns, columnId)?.sortable !== true) return
+  if (sourceOf(columnId)?.sortable !== true) return
   emit(
     "update:sort",
     event.shiftKey
@@ -295,19 +491,18 @@ function sortDirection(columnId: string): "none" | "asc" | "desc" {
 }
 
 function columnIsSortable(columnId: string): boolean {
-  return columnOf(props.columns, columnId)?.sortable === true
+  return sourceOf(columnId)?.sortable === true
 }
 
 function pinTooltip(column: Column<GridFeatures, GridRow, unknown>): string {
-  const label = columnOf(props.columns, column.id)?.label ?? column.id
+  const label = sourceOf(column.id)?.label ?? column.id
   return column.getIsPinned() === "start"
     ? t("grid.columns.unpin", { column: label })
     : t("grid.columns.pin_short", { column: label })
 }
 
 function columnVariable(columnId: string): string {
-  const index = props.columns.findIndex((column) => column.id === columnId)
-  return `--grid-column-${Math.max(0, index)}`
+  return `--grid-column-${columnIndexes.value.get(columnId) ?? 0}`
 }
 
 function columnStyle(column: Column<GridFeatures, GridRow, unknown>): CSSProperties {
@@ -397,6 +592,14 @@ watch(selectedRowIndexes, (indexes) => {
  * a cell is a component a cell, thousands on a full page.
  */
 const pointedRow = ref<string | null>(null)
+/** The row the keyboard is in: its commands are drawn too, so Tab reaches them. */
+const focusedRow = ref<string | null>(null)
+function leaveRows(event: FocusEvent) {
+  const body = event.currentTarget as Element | null
+  if (!(event.relatedTarget instanceof Node) || body?.contains(event.relatedTarget) !== true) {
+    focusedRow.value = null
+  }
+}
 /**
  * The cell whose overlay is under the pointer. A mark there carries its own
  * tooltip, and the cell's hint about editing was drawn beside it.
@@ -508,6 +711,7 @@ function handleGridKey(event: KeyboardEvent) {
     event.preventDefault()
     if (event.shiftKey) table.extendCellSelection(direction)
     else table.moveCellSelection(direction)
+    void nextTick(revealSelectionEnd)
     return
   }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
@@ -541,7 +745,7 @@ function isTextField(target: EventTarget | null): boolean {
 }
 
 function presentCell(cell: Cell<GridFeatures, GridRow, unknown>): CellPresentation {
-  const column = columnOf(props.columns, cell.column.id)
+  const column = sourceOf(cell.column.id)
   const value = cellValue(cell)
   return column === undefined
     ? { text: value ?? "null", align: "left", tone: "default" }
@@ -554,13 +758,13 @@ function cellValue(cell: Cell<GridFeatures, GridRow, unknown>): string | null {
 
 function cellIsEditable(cell: Cell<GridFeatures, GridRow, unknown>): boolean {
   return (
-    columnOf(props.columns, cell.column.id)?.editable === true &&
+    sourceOf(cell.column.id)?.editable === true &&
     editableRows.value.has(cell.row.id)
   )
 }
 
 function openCell(cell: Cell<GridFeatures, GridRow, unknown>, event: MouseEvent) {
-  const column = columnOf(props.columns, cell.column.id)
+  const column = sourceOf(cell.column.id)
   if (column === undefined) return
   const value = cell.getValue() as string | null
   const opensViewer = shouldOpenViewer(value, column.type)
@@ -582,7 +786,7 @@ function openCell(cell: Cell<GridFeatures, GridRow, unknown>, event: MouseEvent)
 }
 
 function cellTitle(cell: Cell<GridFeatures, GridRow, unknown>): string | undefined {
-  const column = columnOf(props.columns, cell.column.id)
+  const column = sourceOf(cell.column.id)
   if (column === undefined) return undefined
   if (!cellIsEditable(cell)) return props.updateReason || undefined
   const value = cell.getValue() as string | null
@@ -726,6 +930,7 @@ defineExpose({
       data-testid="grid-focus"
       @keydown="handleGridKey"
       @paste="handleNativePaste"
+      @scroll.passive="readView"
     >
       <div
         v-if="loading"
@@ -739,175 +944,227 @@ defineExpose({
           class="data-grid__skeleton-row"
         />
       </div>
-      <table
-        v-else
-        class="data-grid__table"
-        :style="{ width: `${tableWidth}px` }"
-      >
-        <thead>
-          <tr
-            v-for="headerGroup in table.getHeaderGroups()"
-            :key="headerGroup.id"
-          >
-            <th
-              class="data-grid__selector"
-              scope="col"
+      <!-- What is drawn follows the scroll; inside a scope of its own, so
+           that following it redraws the rows and not the commands above. -->
+      <RenderScope v-else>
+        <table
+          class="data-grid__table"
+          :style="{ width: `${tableWidth}px` }"
+        >
+          <thead>
+            <tr
+              v-for="headerGroup in table.getHeaderGroups()"
+              :key="headerGroup.id"
             >
-              <AppIconButton
-                :icon="appIcons.selectAll"
-                :tooltip="t('grid.select.page')"
-                data-testid="grid-select-page"
-                @click="selectPage"
-              />
-            </th>
-            <th
-              v-for="header in headerGroup.headers"
-              :key="header.id"
-              scope="col"
-              :data-testid="`grid-column-${header.column.id}`"
-              :class="{
-                'data-grid__sortable': columnIsSortable(header.column.id),
-                'data-grid__sorted': sortIndex(header.column.id) >= 0,
-                'data-grid__pinned': header.column.getIsPinned() === 'start',
-              }"
-              :style="columnStyle(header.column)"
-            >
-              <button
-                type="button"
-                class="data-grid__column-name"
-                :aria-label="t('grid.select.column', { column: columnOf(columns, header.column.id)?.label ?? header.column.id })"
-                :data-testid="`grid-column-select-${header.column.id}`"
-                @click="selectColumn(header.column.id)"
+              <th
+                class="data-grid__selector"
+                scope="col"
               >
-                {{ columnOf(columns, header.column.id)?.label ?? header.column.id }}
-              </button>
-              <span class="data-grid__column-actions">
-                <span
-                  v-if="sortIndex(header.column.id) >= 0"
-                  :data-testid="`grid-sort-priority-${header.column.id}`"
-                  class="data-grid__sort-priority"
-                >{{ sortIndex(header.column.id) + 1 }}</span>
                 <AppIconButton
-                  v-if="columnIsSortable(header.column.id)"
-                  :icon="sortIcon(header.column.id)"
-                  :tooltip="t('grid.sort.by', { column: columnOf(columns, header.column.id)?.label ?? header.column.id })"
-                  :data-direction="sortDirection(header.column.id)"
-                  :data-testid="`grid-sort-direction-${header.column.id}`"
-                  compact
-                  @click.stop="sortColumn(header.column.id, $event)"
+                  :icon="appIcons.selectAll"
+                  :tooltip="t('grid.select.page')"
+                  data-testid="grid-select-page"
+                  @click="selectPage"
                 />
-                <AppIconButton
-                  :icon="appIcons.pushPin"
+              </th>
+              <template
+                v-for="entry in drawnLine(headerGroup.headers)"
+                :key="entry.key"
+              >
+                <th
+                  v-if="'gap' in entry"
+                  class="data-grid__gap"
+                  aria-hidden="true"
+                  :style="{ width: `${entry.gap}px` }"
+                />
+                <th
+                  v-else
+                  scope="col"
+                  :data-testid="`grid-column-${entry.item.column.id}`"
                   :class="{
-                    'data-grid__pin--active': header.column.getIsPinned() === 'start',
+                    'data-grid__sortable': columnIsSortable(entry.item.column.id),
+                    'data-grid__sorted': sortIndex(entry.item.column.id) >= 0,
+                    'data-grid__pinned': entry.item.column.getIsPinned() === 'start',
                   }"
-                  :aria-pressed="header.column.getIsPinned() === 'start'"
-                  :tooltip="pinTooltip(header.column)"
-                  :data-testid="`grid-pin-${header.column.id}`"
-                  compact
-                  @click.stop="togglePin(header.column)"
-                />
-                <AppIconButton
-                  :icon="appIcons.visibilityOff"
-                  :tooltip="t('grid.columns.hide', { column: columnOf(columns, header.column.id)?.label ?? header.column.id })"
-                  :data-testid="`grid-hide-${header.column.id}`"
-                  compact
-                  @click.stop="hideColumn(header.column)"
-                />
-              </span>
-              <span
-                class="data-grid__resize"
-                :data-testid="`grid-resize-${header.column.id}`"
-                @mousedown.stop="header.getResizeHandler()($event)"
-                @touchstart.stop="header.getResizeHandler()($event)"
-                @dblclick.stop="autoFit(header.column.id)"
-              />
-            </th>
-          </tr>
-        </thead>
-        <tbody @mouseleave="pointedRow = null">
-          <tr
-            v-for="(row, rowIndex) in table.getRowModel().rows"
-            :key="row.id"
-            :data-testid="`grid-row-${row.id}`"
-            @mouseenter="pointedRow = row.id"
+                  :style="columnStyle(entry.item.column)"
+                >
+                  <button
+                    type="button"
+                    class="data-grid__column-name"
+                    :aria-label="t('grid.select.column', { column: sourceOf(entry.item.column.id)?.label ?? entry.item.column.id })"
+                    :data-testid="`grid-column-select-${entry.item.column.id}`"
+                    @click="selectColumn(entry.item.column.id)"
+                  >
+                    {{ sourceOf(entry.item.column.id)?.label ?? entry.item.column.id }}
+                  </button>
+                  <span class="data-grid__column-actions">
+                    <span
+                      v-if="sortIndex(entry.item.column.id) >= 0"
+                      :data-testid="`grid-sort-priority-${entry.item.column.id}`"
+                      class="data-grid__sort-priority"
+                    >{{ sortIndex(entry.item.column.id) + 1 }}</span>
+                    <AppIconButton
+                      v-if="columnIsSortable(entry.item.column.id)"
+                      :icon="sortIcon(entry.item.column.id)"
+                      :tooltip="t('grid.sort.by', { column: sourceOf(entry.item.column.id)?.label ?? entry.item.column.id })"
+                      :data-direction="sortDirection(entry.item.column.id)"
+                      :data-testid="`grid-sort-direction-${entry.item.column.id}`"
+                      compact
+                      @click.stop="sortColumn(entry.item.column.id, $event)"
+                    />
+                    <AppIconButton
+                      :icon="appIcons.pushPin"
+                      :class="{
+                        'data-grid__pin--active': entry.item.column.getIsPinned() === 'start',
+                      }"
+                      :aria-pressed="entry.item.column.getIsPinned() === 'start'"
+                      :tooltip="pinTooltip(entry.item.column)"
+                      :data-testid="`grid-pin-${entry.item.column.id}`"
+                      compact
+                      @click.stop="togglePin(entry.item.column)"
+                    />
+                    <AppIconButton
+                      :icon="appIcons.visibilityOff"
+                      :tooltip="t('grid.columns.hide', { column: sourceOf(entry.item.column.id)?.label ?? entry.item.column.id })"
+                      :data-testid="`grid-hide-${entry.item.column.id}`"
+                      compact
+                      @click.stop="hideColumn(entry.item.column)"
+                    />
+                  </span>
+                  <span
+                    class="data-grid__resize"
+                    :data-testid="`grid-resize-${entry.item.column.id}`"
+                    @mousedown.stop="entry.item.getResizeHandler()($event)"
+                    @touchstart.stop="entry.item.getResizeHandler()($event)"
+                    @dblclick.stop="autoFit(entry.item.column.id)"
+                  />
+                </th>
+              </template>
+            </tr>
+          </thead>
+          <tbody
+            @mouseleave="pointedRow = null"
+            @focusout="leaveRows"
           >
-            <td class="data-grid__selector">
-              <button
-                type="button"
-                class="data-grid__row-selector"
-                :data-testid="`grid-select-row-${row.id}`"
-                :aria-label="t('grid.select.row', { n: rowNumber(row.original, rowIndex) })"
-                @click="selectRow(row.id, $event)"
-              >
-                {{ rowNumber(row.original, rowIndex) }}
-                <AppTooltip v-if="pointedRow === row.id">
-                  {{ t('grid.select.row_hint', { n: rowNumber(row.original, rowIndex), key: addKey }) }}
-                </AppTooltip>
-              </button>
-              <!-- Whatever the screen offers about a whole row. Drawn on the
-                   row under the pointer only: it is a way in, not a fact
-                   about the row, and one per row would be a column of
-                   buttons. The wrapper is this component's own so that its
-                   own rule about hovering applies to it. -->
-              <span class="data-grid__row-extra">
-                <slot
-                  name="row-actions"
-                  :row="row.original"
-                />
-              </span>
-            </td>
-            <td
-              v-for="cell in row.getVisibleCells()"
-              :key="cell.id"
-              :data-testid="`grid-cell-${row.id}-${cell.column.id}`"
-              :class="{
-                'data-grid__pinned': cell.column.getIsPinned() === 'start',
-                'data-grid__selected': cell.getIsSelected(),
-                'data-grid__editable': cellIsEditable(cell),
-              }"
-              :style="columnStyle(cell.column)"
-              @mousedown="startSelection(cell, $event)"
-              @mouseenter="cell.getSelectionExtendHandler()($event)"
-              @dblclick="openCell(cell, $event)"
-              @mouseover="pointCell(cell.id, $event)"
+            <tr
+              v-if="rowRange.before > 0"
+              class="data-grid__spacer"
+              aria-hidden="true"
             >
-              <!-- The kit tooltip rather than the browser's own `title`, on
-                   the row under the pointer only (pointedRow). -->
-              <AppTooltip
-                v-if="
-                  pointedRow === row.id &&
-                    pointedOverlay !== cell.id &&
-                    cellTitle(cell) !== undefined
-                "
+              <td
+                :colspan="drawnCellCount"
+                :style="{ height: `${rowRange.before}px` }"
+              />
+            </tr>
+            <tr
+              v-for="{ row, index: rowIndex } in drawnRows"
+              :key="row.id"
+              class="data-grid__row"
+              :data-testid="`grid-row-${row.id}`"
+              @mouseenter="pointedRow = row.id"
+              @focusin="focusedRow = row.id"
+            >
+              <td class="data-grid__selector">
+                <button
+                  type="button"
+                  class="data-grid__row-selector"
+                  :data-testid="`grid-select-row-${row.id}`"
+                  :aria-label="t('grid.select.row', { n: rowNumber(row.original, rowIndex) })"
+                  @click="selectRow(row.id, $event)"
+                >
+                  {{ rowNumber(row.original, rowIndex) }}
+                  <AppTooltip v-if="pointedRow === row.id">
+                    {{ t('grid.select.row_hint', { n: rowNumber(row.original, rowIndex), key: addKey }) }}
+                  </AppTooltip>
+                </button>
+                <!-- Whatever the screen offers about a whole row. Drawn on the
+                     row under the pointer or holding the focus only: it is a
+                     way in, not a fact about the row, and mounting its buttons
+                     on every row was most of what scrolling a page cost. The
+                     wrapper is this component's own so that its own rule
+                     about hovering applies to it. -->
+                <span
+                  v-if="pointedRow === row.id || focusedRow === row.id"
+                  class="data-grid__row-extra"
+                >
+                  <slot
+                    name="row-actions"
+                    :row="row.original"
+                  />
+                </span>
+              </td>
+              <template
+                v-for="entry in drawnLine(row.getVisibleCells())"
+                :key="entry.key"
               >
-                {{ cellTitle(cell) }}
-              </AppTooltip>
-              <span
-                class="data-grid__value"
-                :class="{
-                  'data-grid__null': presentCell(cell).tone === 'null',
-                  'data-grid__monospace': presentCell(cell).monospace === true,
-                }"
-              >{{ presentCell(cell).text }}</span>
-              <span class="data-grid__overlay">
-                <slot
-                  name="cell-overlay"
-                  :row="row.original"
-                  :column="columnOf(columns, cell.column.id)!"
-                  :value="cellValue(cell)"
-                  :visible-columns="visibleColumns"
+                <td
+                  v-if="'gap' in entry"
+                  class="data-grid__gap"
+                  aria-hidden="true"
                 />
-              </span>
-            </td>
-          </tr>
-          <slot
-            name="after-rows"
-            :visible-columns="visibleColumnsForSlot"
-            :next-row-number="offset + rows.length + 1"
-          />
-        </tbody>
-      </table>
+                <td
+                  v-else
+                  :data-testid="`grid-cell-${row.id}-${entry.item.column.id}`"
+                  :class="{
+                    'data-grid__pinned': entry.item.column.getIsPinned() === 'start',
+                    'data-grid__selected': entry.item.getIsSelected(),
+                    'data-grid__editable': cellIsEditable(entry.item),
+                  }"
+                  :style="columnStyle(entry.item.column)"
+                  @mousedown="startSelection(entry.item, $event)"
+                  @mouseenter="entry.item.getSelectionExtendHandler()($event)"
+                  @dblclick="openCell(entry.item, $event)"
+                  @mouseover="pointCell(entry.item.id, $event)"
+                >
+                  <!-- The kit tooltip rather than the browser's own `title`, on
+                       the row under the pointer only (pointedRow). -->
+                  <AppTooltip
+                    v-if="
+                      pointedRow === row.id &&
+                        pointedOverlay !== entry.item.id &&
+                        cellTitle(entry.item) !== undefined
+                    "
+                  >
+                    {{ cellTitle(entry.item) }}
+                  </AppTooltip>
+                  <span
+                    class="data-grid__value"
+                    :class="{
+                      'data-grid__null': presentCell(entry.item).tone === 'null',
+                      'data-grid__monospace': presentCell(entry.item).monospace === true,
+                    }"
+                  >{{ presentCell(entry.item).text }}</span>
+                  <span class="data-grid__overlay">
+                    <slot
+                      name="cell-overlay"
+                      :row="row.original"
+                      :column="sourceOf(entry.item.column.id)!"
+                      :value="cellValue(entry.item)"
+                      :visible-columns="visibleColumns"
+                    />
+                  </span>
+                </td>
+              </template>
+            </tr>
+            <tr
+              v-if="rowRange.after > 0"
+              class="data-grid__spacer"
+              aria-hidden="true"
+            >
+              <td
+                :colspan="drawnCellCount"
+                :style="{ height: `${rowRange.after}px` }"
+              />
+            </tr>
+            <slot
+              name="after-rows"
+              :visible-columns="visibleColumnsForSlot"
+              :next-row-number="offset + rows.length + 1"
+              :column-window="drawnColumns"
+            />
+          </tbody>
+        </table>
+      </RenderScope>
       <AppEmptyState
         v-if="!loading && rows.length === 0 && emptyText"
         class="data-grid__state"
@@ -1081,6 +1338,14 @@ defineExpose({
   z-index: var(--dp-layer-sticky);
   background: var(--dp-surface);
   box-shadow: var(--grid-pinned-lift);
+}
+
+/* What stands in for the rows and columns that are not drawn: room, with no
+   edges of its own to draw. */
+.data-grid__table .data-grid__gap,
+.data-grid__table .data-grid__spacer > td {
+  padding: 0;
+  border: 0;
 }
 
 .data-grid__resize {

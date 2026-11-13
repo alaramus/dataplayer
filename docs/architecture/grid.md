@@ -89,8 +89,21 @@ Ctrl+click adds rows and Shift+click extends from the last one picked, so
 several rows are what Delete and the row commands act on. Typed renderers change alignment and
 appearance but not the canonical string; complex or long values open that same
 full string in a read-only viewer. The page ceiling is 500 rows, with explicit
-pagination rather than virtualization until browser measurement demonstrates a
-need.
+pagination.
+
+Only what is in view is drawn: the rows and unpinned columns crossing the
+scroll box, a few beyond each edge, and a gap row or cell of the right size for
+the rest, so the scrollbars still span the whole page. Pinned columns, the
+selector and the heading are always drawn. The window moves in steps rather
+than row by row, so most frames of a scroll redraw nothing; it is drawn inside
+a component of its own (`RenderScope`), so following the scroll does not
+redraw the command row above it. Selection, copying and pasting read the
+page's data, so they cover rows and columns that are not drawn; an arrow key
+scrolls the cell it moves to into view. A row's commands are drawn on the row
+pointed at or holding the focus, not on every row. The need was measured: a
+CSV of 319 columns on a page of 500 drew 160,000 cells and took 12 seconds to
+answer a click on one; drawn this way it takes about 40 milliseconds. The
+arithmetic is `virtualWindow.ts`; there is no virtualization library.
 
 A cell whose column stands in a foreign key carries an arrow out of the row, on
 the first of that key's columns that is on screen — one arrow per key, so a
@@ -129,9 +142,9 @@ conflict leaves every selected row intact.
 
 Known deviations:
 
-- **There is no virtualization.** A browser scenario exercises a 500-row page;
-  TanStack Virtual is deferred until measurement shows that bounded DOM is not
-  responsive enough.
+- **A row is one measured height.** The window places rows by the height of
+  the first one drawn; a row that grew taller than one line would put the rows
+  under it out of place. D24 keeps every row to one line.
 - **Saved views are local and unnamed.** Grid state follows one browser and one
   connector/node pair; it cannot yet be shared or selected as a named view.
 - **Clipboard and selection stop at the current page.** Exporting rows that are

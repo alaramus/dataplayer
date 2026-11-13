@@ -1651,11 +1651,12 @@ defineExpose({
       </button>
     </template>
 
-    <template #after-rows="{ nextRowNumber }">
+    <template #after-rows="{ nextRowNumber, columnWindow }">
       <RowInsertRow
         v-if="insertOpen"
         ref="insertForm"
         :columns="insertGridColumns"
+        :drawn="columnWindow"
         :row-number="nextRowNumber"
         :saving="insertRow.isPending.value"
         @save="saveInsert"

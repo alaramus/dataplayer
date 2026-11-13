@@ -36,6 +36,17 @@ export interface TabularVisibleColumn extends VisibleGridColumn {
   style: CSSProperties
 }
 
+/**
+ * The columns a grid draws at the moment, by id, and the room standing in for
+ * the unpinned ones it does not: those scrolled past on the left and those
+ * still to come on the right. Pinned columns are always drawn.
+ */
+export interface DrawnColumns {
+  ids: ReadonlySet<string>
+  before: number
+  after: number
+}
+
 export interface TabularEditRequest {
   row: GridRow
   rowIndex: number

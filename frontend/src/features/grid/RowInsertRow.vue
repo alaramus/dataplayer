@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { reactive, watch } from "vue"
+import { computed, reactive, watch } from "vue"
 import type { CSSProperties } from "vue"
 
 import type { FetchColumn, InsertValue } from "@/client"
 import { t } from "@/shared/i18n"
 import { AppIconButton, AppInput, AppSelect } from "@/shared/ui"
+
+import type { DrawnColumns } from "./tabular"
 
 export interface InsertGridColumn {
   column: FetchColumn
@@ -17,6 +19,10 @@ const props = defineProps<{
   columns: InsertGridColumn[]
   rowNumber: number
   saving: boolean
+  /** Which of `columns` the grid draws now, and the room for the rest; every
+      column is drawn without it. `columns` stays whole either way, so a
+      column scrolled out of view keeps its rules and its value. */
+  drawn?: DrawnColumns
 }>()
 const emit = defineEmits<{
   cancel: []
@@ -51,6 +57,24 @@ watch(
   },
   { immediate: true }
 )
+
+type LineItem = { key: string; entry: InsertGridColumn } | { key: string; gap: true }
+
+/** The cells of this row in the grid's order, with a gap wherever it has one. */
+const line = computed<LineItem[]>(() => {
+  const drawn = props.drawn
+  if (drawn === undefined) {
+    return props.columns.map((entry) => ({ key: entry.column.name, entry }))
+  }
+  const pinned = props.columns.filter((entry) => entry.pinned)
+  const rest = props.columns.filter((entry) => !entry.pinned && drawn.ids.has(entry.column.name))
+  return [
+    ...pinned.map((entry) => ({ key: entry.column.name, entry })),
+    ...(drawn.before > 0 ? [{ key: "gap-before", gap: true as const }] : []),
+    ...rest.map((entry) => ({ key: entry.column.name, entry })),
+    ...(drawn.after > 0 ? [{ key: "gap-after", gap: true as const }] : []),
+  ]
+})
 
 function options(column: FetchColumn) {
   if (column.type.category === "boolean") {
@@ -175,69 +199,78 @@ function handleNativePaste(event: ClipboardEvent) {
         />
       </div>
     </td>
-    <td
-      v-for="entry in columns"
-      :key="entry.column.name"
-      :style="entry.style"
-      :class="{
-        'row-insert__pinned': entry.pinned,
-        'row-insert__unavailable': entry.column.insertable !== true,
-      }"
+    <template
+      v-for="item in line"
+      :key="item.key"
     >
-      <span v-if="entry.column.insertable !== true">—</span>
-      <div
+      <td
+        v-if="'gap' in item"
+        class="row-insert__gap"
+        aria-hidden="true"
+      />
+      <td
         v-else
-        class="row-insert__editor"
+        :style="item.entry.style"
+        :class="{
+          'row-insert__pinned': item.entry.pinned,
+          'row-insert__unavailable': item.entry.column.insertable !== true,
+        }"
       >
-        <AppSelect
-          v-if="entry.column.type.category === 'boolean' || entry.column.type.category === 'enum'"
-          :model-value="included[entry.column.name] === true ? drafts[entry.column.name] : null"
-          :options="options(entry.column)"
-          :disable="nulls[entry.column.name] === true || saving"
-          compact
-          :data-testid="`grid-insert-value-${entry.column.name}`"
-          @update:model-value="update(entry.column, $event)"
-        />
-        <AppInput
+        <span v-if="item.entry.column.insertable !== true">—</span>
+        <div
           v-else
-          :model-value="drafts[entry.column.name] ?? ''"
-          :placeholder="
-            nulls[entry.column.name] === true
-              ? '<null>'
-              : included[entry.column.name] === true
-                ? ''
-                : t('grid.insert.default_placeholder')
-          "
-          :disable="nulls[entry.column.name] === true || saving"
-          compact
-          :data-testid="`grid-insert-value-${entry.column.name}`"
-          @focus="include(entry.column)"
-          @update:model-value="update(entry.column, $event)"
-        />
-        <div class="row-insert__cell-actions">
-          <AppIconButton
-            v-if="entry.column.insert_required !== true && included[entry.column.name] === true"
-            :icon="appIcons.restartAlt"
-            :tooltip="t('grid.insert.use_default', { column: entry.column.name })"
-            :disable="saving"
-            :data-testid="`grid-insert-default-${entry.column.name}`"
-            @click="useDefault(entry.column)"
+          class="row-insert__editor"
+        >
+          <AppSelect
+            v-if="item.entry.column.type.category === 'boolean' || item.entry.column.type.category === 'enum'"
+            :model-value="included[item.entry.column.name] === true ? drafts[item.entry.column.name] : null"
+            :options="options(item.entry.column)"
+            :disable="nulls[item.entry.column.name] === true || saving"
+            compact
+            :data-testid="`grid-insert-value-${item.entry.column.name}`"
+            @update:model-value="update(item.entry.column, $event)"
           />
-          <AppIconButton
-            v-if="entry.column.nullable === true"
-            :icon="nulls[entry.column.name] === true ? appIcons.doNotDisturbOn : appIcons.block"
-            :tooltip="
-              nulls[entry.column.name] === true
-                ? t('grid.insert.enter_value', { column: entry.column.name })
-                : t('grid.insert.set_null', { column: entry.column.name })
+          <AppInput
+            v-else
+            :model-value="drafts[item.entry.column.name] ?? ''"
+            :placeholder="
+              nulls[item.entry.column.name] === true
+                ? '<null>'
+                : included[item.entry.column.name] === true
+                  ? ''
+                  : t('grid.insert.default_placeholder')
             "
-            :disable="saving"
-            :data-testid="`grid-insert-null-${entry.column.name}`"
-            @click="toggleNull(entry.column)"
+            :disable="nulls[item.entry.column.name] === true || saving"
+            compact
+            :data-testid="`grid-insert-value-${item.entry.column.name}`"
+            @focus="include(item.entry.column)"
+            @update:model-value="update(item.entry.column, $event)"
           />
+          <div class="row-insert__cell-actions">
+            <AppIconButton
+              v-if="item.entry.column.insert_required !== true && included[item.entry.column.name] === true"
+              :icon="appIcons.restartAlt"
+              :tooltip="t('grid.insert.use_default', { column: item.entry.column.name })"
+              :disable="saving"
+              :data-testid="`grid-insert-default-${item.entry.column.name}`"
+              @click="useDefault(item.entry.column)"
+            />
+            <AppIconButton
+              v-if="item.entry.column.nullable === true"
+              :icon="nulls[item.entry.column.name] === true ? appIcons.doNotDisturbOn : appIcons.block"
+              :tooltip="
+                nulls[item.entry.column.name] === true
+                  ? t('grid.insert.enter_value', { column: item.entry.column.name })
+                  : t('grid.insert.set_null', { column: item.entry.column.name })
+              "
+              :disable="saving"
+              :data-testid="`grid-insert-null-${item.entry.column.name}`"
+              @click="toggleNull(item.entry.column)"
+            />
+          </div>
         </div>
-      </div>
-    </td>
+      </td>
+    </template>
   </tr>
 </template>
 
@@ -253,6 +286,11 @@ function handleNativePaste(event: ClipboardEvent) {
   background: var(--dp-selected-quiet);
   text-align: start;
   white-space: nowrap;
+}
+
+.row-insert > td.row-insert__gap {
+  padding: 0;
+  border: 0;
 }
 
 .row-insert__selector {
