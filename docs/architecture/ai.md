@@ -491,6 +491,4 @@ and preferences, each written for the person at the screen.
 Rejected: the guide in the system prompt, an index of embedded passages, and
 the architecture documents as the agent's source.
 
-Known deviation: those application pages are English only for now.
-
 Spec: [The agent reads the user's guide](../decisions/2026-11-13-agent-reads-the-guide-design.md)

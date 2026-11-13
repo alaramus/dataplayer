@@ -87,8 +87,8 @@ by it and rest on review.
 - Dates and numbers are formatted by the browser's locale, not by the chosen
   language.
 - The user's guide (D183) has Russian, German, French, Chinese, Hindi, Spanish and Arabic pages; a page
-  a language lacks is shown in English (D227). The pages about the application
-  rather than a source (D359) are English only so far.
+  a language lacks is shown in English (D227). The application's own pages
+  (D359) have them too.
 - The agent answers in whatever language it is written to; it is not told the
   account's.
 
