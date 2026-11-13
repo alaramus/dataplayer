@@ -100,6 +100,54 @@ def test_full_points_search_at_the_model_and_keeps_another(
     assert example.get("EMBEDDINGS_URL") == "http://gpu-box:80"  # type: ignore[attr-defined]
 
 
+def test_full_names_the_chosen_e5_model_and_a_rerun_keeps_it(
+    setup: ModuleType, example: object
+) -> None:
+    get = example.get  # type: ignore[attr-defined]
+    assert get("EMBEDDINGS_MODEL") == setup.MODEL_IDS[setup.DEFAULT_MODEL]
+    setup.configure(example, setup.Choices("prod", "full", False, model="large"))
+    assert get("EMBEDDINGS_MODEL") == "intfloat/multilingual-e5-large"
+    assert setup.defaults_from(example, setup.parse_args([])).model == "large"
+    # No choice keeps what `.env` names; another preset leaves the model alone.
+    setup.configure(example, setup.Choices("prod", "full", False))
+    setup.configure(example, setup.Choices("prod", "minimal", False, model="base"))
+    assert get("EMBEDDINGS_MODEL") == "intfloat/multilingual-e5-large"
+
+
+def test_a_model_that_is_not_ours_is_kept_until_one_is_chosen(
+    setup: ModuleType, example: object
+) -> None:
+    example.set("EMBEDDINGS_MODEL", "BAAI/bge-m3")  # type: ignore[attr-defined]
+    assert setup.current_model(example) is None
+    kept = setup.defaults_from(example, setup.parse_args(["--preset", "full"]))
+    setup.configure(example, kept)
+    assert example.get("EMBEDDINGS_MODEL") == "BAAI/bge-m3"  # type: ignore[attr-defined]
+    chosen = setup.parse_args(["--preset", "full", "--model", "base"])
+    setup.configure(example, setup.defaults_from(example, chosen))
+    assert example.get("EMBEDDINGS_MODEL") == "intfloat/multilingual-e5-base"  # type: ignore[attr-defined]
+
+
+def test_the_wizard_asks_for_a_model_with_full_alone(
+    setup: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    # mode dev, preset full, model base, email, generated password, write.
+    answer(monkeypatch, "2", "3", "2", "", "", "y")
+    assert run(setup, tmp_path) == 0
+    env = setup.EnvFile.load(tmp_path / ".env")
+    assert env.get("EMBEDDINGS_MODEL") == "intfloat/multilingual-e5-base"
+    output = capsys.readouterr().out
+    assert "\nmodel\n" in output
+    assert "search by meaning: intfloat/multilingual-e5-base" in output
+    # Standard does not ask: mode, preset standard, email, write.
+    answer(monkeypatch, "", "2", "", "y")
+    assert run(setup, tmp_path) == 0
+    assert "\nmodel\n" not in capsys.readouterr().out
+
+
 def test_the_api_origin_follows_the_mode(setup: ModuleType, example: object) -> None:
     # The API accepts calls from FRONTEND_HOST alone: a prod address left in
     # development locks the Vite interface out.

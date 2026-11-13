@@ -114,6 +114,10 @@ so does every later `docker compose` command.
 | `standard` | and a Redis | a read cache shared by the processes |
 | `full` | and a local model | search by meaning; the model is downloaded on the first start |
 
+With `full` the setup also asks which multilingual E5 model reads by meaning:
+`small` (the default, about 0.5 GB), `base` (1.1 GB) or `large` (2.2 GB, slow
+on a CPU). A larger one finds more and answers slower.
+
 | | Run it (`prod`) | Develop it (`dev`) |
 | --- | --- | --- |
 | You need | Docker | Docker, [Bun](https://bun.sh) and Node.js |
@@ -122,7 +126,7 @@ so does every later `docker compose` command.
 | Default preset | `minimal` | `full` |
 
 Without a terminal, or with `--yes`, it asks nothing and takes its flags:
-`--mode`, `--preset`, `--superuser EMAIL`, `--enable-services` or
+`--mode`, `--preset`, `--model`, `--superuser EMAIL`, `--enable-services` or
 `--disable-services`, and for an `https://` address `--https caddy` or
 `--https own`. They go after the service name:
 

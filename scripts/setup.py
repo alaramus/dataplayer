@@ -15,7 +15,8 @@ COMPOSE_FILE carries the mode, COMPOSE_PROFILES the preset.
 
     minimal   no profile: the memory read cache, no search by meaning.
     standard  profile `cache`: the shared Redis read cache (D103).
-    full      profiles `cache,meaning`: plus search by meaning (D220).
+    full      profiles `cache,meaning`: plus search by meaning (D220), with
+              a multilingual E5 model of the size asked for.
 
 A secret is generated only where `.env` holds nothing or `changethis`; one
 already there is never replaced.
@@ -79,12 +80,24 @@ FIXED_AT_FIRST_START = {
 DEV_HOST = "http://localhost:5173"
 PROD_HOST = "http://localhost:8000"
 EMBEDDER_URL = "http://embedder:80"
+# Multilingual E5 alone: every size takes the same `query: ` and `passage: `
+# prefixes and the same similarity floor, so a choice changes the model and
+# nothing else. large-instruct is left out because its queries need another
+# prefix.
+MODELS = ("small", "base", "large")
+MODEL_IDS = {size: f"intfloat/multilingual-e5-{size}" for size in MODELS}
+DEFAULT_MODEL = "small"
 LOCAL_HOSTS = {"localhost", "127.0.0.1"}
 
 PRESET_HELP = {
     "minimal": "the application alone",
     "standard": "plus a shared read cache in Redis",
     "full": "plus search by meaning; downloads a model once",
+}
+MODEL_HELP = {
+    "small": "fastest; downloads about 0.5 GB",
+    "base": "finds more by meaning; about 1.1 GB, slower",
+    "large": "finds the most; about 2.2 GB, slow on a CPU",
 }
 FRONT_HELP = {
     "caddy": "DataPlayer gets and renews the certificate itself",
@@ -252,6 +265,8 @@ class Choices:
     host: str | None = None
     # Who serves HTTPS; None keeps what `.env` already says.
     front: str | None = None
+    # The size of the model search by meaning uses; None keeps `.env`'s.
+    model: str | None = None
 
 
 def current_mode(env: EnvFile) -> str | None:
@@ -271,6 +286,12 @@ def current_preset(env: EnvFile) -> str | None:
     if "meaning" in names:
         return "full"
     return "standard" if "cache" in names else "minimal"
+
+
+def current_model(env: EnvFile) -> str | None:
+    """The size `.env` names, or None for a model that is not one of ours."""
+    named = env.get("EMBEDDINGS_MODEL")
+    return next((size for size, model in MODEL_IDS.items() if model == named), None)
 
 
 def current_services(env: EnvFile) -> bool | None:
@@ -376,8 +397,11 @@ def configure(env: EnvFile, choices: Choices) -> None:
     if "meaning" not in profiles:
         # Search never aims at a model that is not running.
         env.set("EMBEDDINGS_URL", "")
-    elif env.is_unset("EMBEDDINGS_URL"):
-        env.set("EMBEDDINGS_URL", EMBEDDER_URL)
+    else:
+        if env.is_unset("EMBEDDINGS_URL"):
+            env.set("EMBEDDINGS_URL", EMBEDDER_URL)
+        if choices.model is not None:
+            env.set("EMBEDDINGS_MODEL", MODEL_IDS[choices.model])
 
     if choices.mode == "dev":
         env.set("FASTAPI_ENV", "development")
@@ -571,6 +595,9 @@ def run_wizard(env: EnvFile, defaults: Choices) -> Choices:
     if mode != defaults.mode and defaults.preset == default_preset(defaults.mode):
         defaults.preset = default_preset(mode)
     preset = ask_choice("preset", PRESETS, defaults.preset, PRESET_HELP)
+    model = None
+    if preset == "full":
+        model = ask_choice("model", MODELS, defaults.model or DEFAULT_MODEL, MODEL_HELP)
 
     while True:
         email = ask_text("superuser email", env.get("FIRST_SUPERUSER") or "admin@example.com")
@@ -603,7 +630,14 @@ def run_wizard(env: EnvFile, defaults: Choices) -> Choices:
             "allow managed services", default_yes=default_services(defaults.services, host)
         )
     return Choices(
-        mode, preset, services, email=email, password=password, host=host, front=front
+        mode,
+        preset,
+        services,
+        email=email,
+        password=password,
+        host=host,
+        front=front,
+        model=model,
     )
 
 
@@ -614,6 +648,11 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Write .env for DataPlayer.")
     parser.add_argument("--mode", choices=MODES, help="prod runs it, dev develops it.")
     parser.add_argument("--preset", choices=PRESETS)
+    parser.add_argument(
+        "--model",
+        choices=MODELS,
+        help="the multilingual E5 model search by meaning uses, for the full preset.",
+    )
     parser.add_argument("--superuser", metavar="EMAIL", help="the first superuser's email.")
     services = parser.add_mutually_exclusive_group()
     services.add_argument(
@@ -642,7 +681,8 @@ def defaults_from(env: EnvFile | None, args: argparse.Namespace) -> Choices:
         current_services(env) if env else None
     )
     front = args.front or (env and current_front(env)) or None
-    return Choices(mode, preset, services, email=args.superuser, front=front)
+    model = args.model or (env and current_model(env)) or None
+    return Choices(mode, preset, services, email=args.superuser, front=front, model=model)
 
 
 def describe(choices: Choices, changed: list[Change], notes: list[str]) -> None:
@@ -650,6 +690,8 @@ def describe(choices: Choices, changed: list[Change], notes: list[str]) -> None:
     print()
     print(bold("To be written to .env"))
     print(f"  mode {choices.mode}, preset {choices.preset} (profiles: {profiles})")
+    if choices.preset == "full" and choices.model is not None:
+        print(f"  search by meaning: {MODEL_IDS[choices.model]}")
     generated = [c.name for c in changed if c.name in SECRETS]
     if generated:
         print("  " + green("secrets: ") + ", ".join(generated))
@@ -696,7 +738,7 @@ def next_steps(choices: Choices, env: EnvFile, password_shown: bool) -> None:
     if password_shown:
         print("password: " + bold(env.get("FIRST_SUPERUSER_PASSWORD") or "") + dim("  (also in .env)"))
     if choices.preset == "full":
-        print(dim("The first start downloads the model search by meaning uses."))
+        print(dim("The first start of a model downloads it; until then search has no meaning."))
     print(dim("Every docker compose command follows .env; run setup again to change it."))
 
 
@@ -735,7 +777,7 @@ def main(
     interactive = sys.stdin.isatty() and not args.yes
     if interactive:
         erase_by_character()
-    choices =run_wizard(before, defaults) if interactive else defaults
+    choices = run_wizard(before, defaults) if interactive else defaults
     password_generated = choices.password is None and before.is_unset("FIRST_SUPERUSER_PASSWORD")
 
     after = before.copy()

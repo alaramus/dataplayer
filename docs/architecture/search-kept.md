@@ -198,8 +198,10 @@ Spec: [Search, phase 3: what files hold, kept](../decisions/2026-10-11-search-co
   `LocalEmbedder` speaks Text Embeddings Inference; `/info` is believed 30 s
   either way, the last 128 queries are remembered.
 - **The `embedder` service** under the compose profile `meaning`, model
-  `EMBEDDINGS_MODEL` (`intfloat/multilingual-e5-small`), downloaded on first
-  start into its volume; optional `HF_TOKEN` is passed to it alone.
+  `EMBEDDINGS_MODEL`, downloaded on first start into its volume. The setup
+  offers multilingual E5 alone, `small` (the default), `base` or `large`
+  (`--model`): they share the prefixes and the similarity floor, so a choice
+  changes nothing else, and D221 re-embeds for the new one; optional `HF_TOKEN` is passed to it alone.
   `EMBEDDINGS_URL` points the backend and the keeper at it; empty is off.
 - **A model that sends text out is not used.** An external provider is a second
   implementation that must first check D135 per connection and use the owner's
