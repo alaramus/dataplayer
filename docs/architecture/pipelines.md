@@ -444,7 +444,9 @@ Spec: [The latest value per key, kept in Redis by a pipeline's link](../decision
 - **One history row a following** (D180): the follower's job, its record
   each link's totals, written at most once a second. The canvas marks a
   followed link "↻" and colours its line by what it does while following;
-  the footer shows "Nightly · following · links: 3" with Stop.
+  the activity sheet lists "Nightly · following · links: 3" with Stop. It is
+  never the work standing beside the bell (`ProcessRow.standing`): a
+  following lasts for hours, and the canvas's status line says it (D364).
 - **Bounds**: `PIPELINE_FOLLOW_MAX` (3) a person and
   `PIPELINE_FOLLOW_SERVER_MAX` (20) on the server, refused with 429.
 
