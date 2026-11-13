@@ -6,7 +6,7 @@ import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from fastapi import HTTPException
 from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
@@ -120,6 +120,40 @@ async def for_person_async[T](work: Callable[[], Awaitable[T]]) -> T:
         current_language.reset(token)
 
 
+type Operation = Callable[[AsyncSession, User], Awaitable[Any]]
+type PreviewMaker = Callable[[], Awaitable[ChangePreview | None]]
+type ToolDefinition = tuple[Callable[..., Awaitable[str]], str, str]
+
+
+class ToolHost(Protocol):
+    """What a shared tool needs of whoever offers it (D357).
+
+    The chat's run records a step per call and asks with a card; an MCP
+    request answers at once. The checks themselves are the same functions.
+    """
+
+    data_cache: DataCache
+    search_engine: SearchEngine | None
+    attached: tuple[uuid.UUID, ...]
+
+    async def invoke(self, title: str, operation: Operation) -> str: ...
+
+    async def connector(
+        self, session: AsyncSession, user: User, connector_id: uuid.UUID
+    ) -> tuple[Connector, Any, Access] | dict[str, Any]: ...
+
+    async def confirm_change(
+        self,
+        session: AsyncSession,
+        *,
+        connector: Connector,
+        question: str,
+        preview: PreviewMaker | None = None,
+    ) -> str | None: ...
+
+    async def connection_label(self, connector_id: str) -> str: ...
+
+
 class ToolLimitReached(Exception):
     """The run used every tool call it is allowed."""
 
@@ -156,7 +190,7 @@ class ToolRuntime:
     async def invoke(
         self,
         title: str,
-        operation: Callable[[AsyncSession, User], Awaitable[Any]],
+        operation: Operation,
     ) -> str:
         async with self._ordinal_lock:
             if self.resume_ordinal is not None:
@@ -239,7 +273,7 @@ class ToolRuntime:
         *,
         connector: Connector,
         question: str,
-        preview: ChangePreview | None = None,
+        preview: PreviewMaker | None = None,
     ) -> str | None:
         """Ask before a change, unless the conversation already answers (D136).
 
@@ -261,6 +295,8 @@ class ToolRuntime:
             return READ_ONLY_CHAT
         if policy == "allow":
             return None
+        # Made only for who reads it, Jev or the person: a rehearsal runs the
+        # statements once more.
         if policy == "jev":
             # A conversation policy wins over the account-wide allow switch.
             key = await preferences.key_for(session, self.owner_id, "typesafe")
@@ -268,8 +304,9 @@ class ToolRuntime:
                 self._record_jev(for_person(lambda: say("Jev · unavailable")))
                 return JEV_UNAVAILABLE
             state: dict[str, Any] = {"action": question, "connection": connector.name}
-            if preview is not None:
-                preview_text = preview.model_dump_json()
+            shown = await preview() if preview is not None else None
+            if shown is not None:
+                preview_text = shown.model_dump_json()
                 state["preview"] = (
                     preview_text
                     if len(preview_text) <= 16384
@@ -310,7 +347,7 @@ class ToolRuntime:
                 question=question,
                 choices=choices,
                 connector_id=connector.id,
-                preview=preview,
+                preview=await preview() if preview is not None else None,
             )
         )
         picked = CHANGE_CHOICES[choices.index(decision)] if decision in choices else ALLOW_ONCE
@@ -583,7 +620,9 @@ def transfer_policy(runtime: ToolRuntime) -> Any:
     return enforce
 
 
-def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
+def shared_tools(host: ToolHost, *, change_note: str) -> list[ToolDefinition]:
+    """The tools every caller offers: the chat's run and an MCP request (D357)."""
+
     async def list_connections() -> str:
         async def read(session: AsyncSession, user: User) -> Any:
             rows, total = await crud.list_for(session, user=user, limit=100)
@@ -603,13 +642,13 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 ],
                 "total": total,
             }
-        return await runtime.invoke(say("Listing connections"), read)
+        return await host.invoke(say("Listing connections"), read)
 
     async def browse_catalog(
         connector_id: str, node_id: str | None = None, offset: int = 0
     ) -> str:
         async def read(session: AsyncSession, user: User) -> Any:
-            resolved = await runtime.connector(session, user, uuid.UUID(connector_id))
+            resolved = await host.connector(session, user, uuid.UUID(connector_id))
             if isinstance(resolved, dict):
                 return resolved
             connector, adapter, _held = resolved
@@ -627,12 +666,12 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 "total": len(nodes),
                 "has_more": start + len(page) < len(nodes),
             }
-        label = await runtime.connection_label(connector_id)
-        return await runtime.invoke(say('Browsing catalog in "{connection}"', connection=label), read)
+        label = await host.connection_label(connector_id)
+        return await host.invoke(say('Browsing catalog in "{connection}"', connection=label), read)
 
     async def describe_node(connector_id: str, node_id: str) -> str:
         async def read(session: AsyncSession, user: User) -> Any:
-            resolved = await runtime.connector(session, user, uuid.UUID(connector_id))
+            resolved = await host.connector(session, user, uuid.UUID(connector_id))
             if isinstance(resolved, dict):
                 return resolved
             connector, adapter, _held = resolved
@@ -651,11 +690,11 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             if not described:
                 result["error"] = "This node cannot be described"
             return result
-        return await runtime.invoke(say('Describing "{node}"', node=node_id), read)
+        return await host.invoke(say('Describing "{node}"', node=node_id), read)
 
     async def read_rows(connector_id: str, node_id: str, offset: int = 0) -> str:
         async def read(session: AsyncSession, user: User) -> Any:
-            resolved = await runtime.connector(session, user, uuid.UUID(connector_id))
+            resolved = await host.connector(session, user, uuid.UUID(connector_id))
             if isinstance(resolved, dict):
                 return resolved
             connector, adapter, _held = resolved
@@ -672,8 +711,189 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 "columns": [column.model_dump(mode="json") for column in page.columns],
                 "rows": page.rows,
             }
-        return await runtime.invoke(say('Reading rows from "{node}"', node=node_id), read)
+        return await host.invoke(say('Reading rows from "{node}"', node=node_id), read)
 
+    async def run_query(connector_id: str, sql: str) -> str:
+        async def run(session: AsyncSession, user: User) -> Any:
+            resolved = await host.connector(session, user, uuid.UUID(connector_id))
+            if isinstance(resolved, dict):
+                return resolved
+            connector, adapter, held = resolved
+            if not isinstance(adapter, SupportsQuery):
+                return {"error": "This connection does not support queries"}
+            profile = adapter.query_profile()
+            prepared = adapter.prepare_query(sql)
+            kinds = [statement.kind for statement in prepared.statements]
+            changing: list[StatementClass] = [kind for kind in kinds if kind in CHANGING]
+            refusal = write_refusal(connector, held, changing)
+            if refusal is not None:
+                return {"error": refusal}
+            bounds = limits(statement_timeout_seconds=profile.default_timeout_seconds).model_copy(
+                update={"max_result_rows": MAX_ROWS, "max_result_bytes": MAX_RESULT_BYTES}
+            )
+            # Changes run as one transaction that commits only when every
+            # statement succeeded; the agent never holds an open one (D136).
+            mode: ExecutionMode = "auto_commit" if changing else "read"
+            admit(prepared, bounds, mode=mode)
+            request = QueryRequest(text=sql, mode=mode, limits=bounds)
+            if changing:
+                refused = await host.confirm_change(
+                    session,
+                    connector=connector,
+                    question=for_person(
+                        lambda: say(
+                            'Run {count} statement that changes data on "{connection}"?',
+                            count=len(changing), connection=connector.name,
+                        )
+                        if len(changing) == 1
+                        else say(
+                            'Run {count} statements that change data on "{connection}"?',
+                            count=len(changing), connection=connector.name,
+                        )
+                    ),
+                    preview=lambda: for_person_async(
+                        lambda: change_preview(adapter, prepared, request)
+                    ),
+                )
+                if refused is not None:
+                    return {"error": refused}
+            execution = adapter.open_query(request)
+            statements: list[dict[str, Any]] = []
+            async for event in execution.events():
+                if event.event != "statement_finished":
+                    continue
+                statements.append(event.model_dump(mode="json"))
+            if changing and all(statement["status"] == "succeeded" for statement in statements):
+                await host.data_cache.invalidate_connector(connector.id)
+            value = {
+                "connector": connector.name,
+                "connector_id": str(connector.id),
+                "mode": mode,
+                "statements": statements,
+            }
+            return ToolResult(
+                value=value,
+                substeps=for_person(lambda: [statement_substep(one) for one in statements]),
+            )
+        label = await host.connection_label(connector_id)
+        return await host.invoke(say('Running query on "{connection}"', connection=label), run)
+
+    async def run_action(
+        connector_id: str,
+        action_name: str,
+        node_id: str | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> str:
+        async def run(session: AsyncSession, user: User) -> Any:
+            resolved = await host.connector(session, user, uuid.UUID(connector_id))
+            if isinstance(resolved, dict):
+                return resolved
+            connector, adapter, held = resolved
+            acting: SupportsActions = acting_or_501(adapter)
+            action = await action_for_node(acting, action_name, node_id)
+            allowed_or_403(action, held)
+            arguments = params or {}
+            if isinstance(action, RequiresReviewedPlan):
+                return {"error": "Review the operation plan before running it"}
+            if not isinstance(action, TakesParams):
+                return {"error": f"{action.title} uses a different request transport"}
+            if action.requires != "read" or action.destructive:
+
+                async def preview() -> ChangePreview | None:
+                    if not isinstance(action, Previews):
+                        return None
+                    shown = await for_person_async(
+                        lambda: perform(lambda: action.preview(node_id, arguments))
+                    )
+                    return ChangePreview(summary=shown.summary, lines=shown.items)
+
+                refused = await host.confirm_change(
+                    session,
+                    connector=connector,
+                    question=for_person(
+                        lambda: say(
+                            'Run "{action}" on "{connection}"?',
+                            action=say(action.title), connection=connector.name,
+                        )
+                    ),
+                    preview=preview,
+                )
+                if refused is not None:
+                    return {"error": refused}
+            result = await perform(lambda: action.perform(node_id, arguments))
+            await host.data_cache.invalidate_connector(connector.id)
+            return {
+                "connector": connector.name,
+                "connector_id": str(connector.id),
+                "action": action.name,
+                "result": result.model_dump(mode="json"),
+            }
+        label = await host.connection_label(connector_id)
+        return await host.invoke(
+            say('Running action "{action}" on "{connection}"', action=action_name, connection=label),
+            run,
+        )
+
+    async def list_actions(connector_id: str, node_id: str | None = None) -> str:
+        async def read(session: AsyncSession, user: User) -> Any:
+            resolved = await host.connector(session, user, uuid.UUID(connector_id))
+            if isinstance(resolved, dict):
+                return resolved
+            connector, adapter, held = resolved
+            acting: SupportsActions = acting_or_501(adapter)
+            offered = await available_or_422(acting, node_id)
+            available = {one.name for one in offered.actions}
+            actions = []
+            for action in await acting.all_actions():
+                if not at_least(held, action.requires):
+                    continue
+                actions.append({
+                    "name": action.name,
+                    "title": action.title,
+                    "available": action.name in available,
+                    "unavailable_reason": offered.reason_for(action.name),
+                    "destructive": action.destructive,
+                    "requires": action.requires,
+                    "params_schema": action.params_schema(),
+                })
+            return {
+                "connector": connector.name,
+                "connector_id": str(connector.id),
+                "node_id": node_id,
+                "actions": actions,
+            }
+        return await host.invoke(
+            say('Listing actions for "{name}"', name=node_id or connector_id), read
+        )
+
+    async def search(words: str, connector_ids: list[str] | None = None) -> str:
+        async def find(session: AsyncSession, user: User) -> Any:
+            if host.search_engine is None:
+                return {"error": "Search is not available"}
+            return await search_for_agent(
+                host.search_engine,
+                session,
+                user,
+                words=words,
+                named=[uuid.UUID(one) for one in connector_ids or []],
+                attached=host.attached,
+                refusal=refusal_of,
+            )
+        return await host.invoke(say('Searching for "{words}"', words=words.strip()[:80]), find)
+
+    return [
+        (list_connections, "list_connections", "List every connection visible to the current person, including transfer policy."),
+        (search, "search", f"Find tables, files, keys and other nodes by name, plus connections, guide pages and source types. Searches inside the connections named in connector_ids and, in the chat, those of attached tabs (at most {MAX_CONTEXT}); at most {MAX_SEARCH_HITS} hits."),
+        (browse_catalog, "browse_catalog", f"List one level of a connection catalog, at most {MAX_NODES} nodes from offset. Use opaque ids exactly as returned."),
+        (describe_node, "describe_node", "Describe a node's columns, constraints, indexes and summary where supported."),
+        (read_rows, "read_rows", f"Read at most {MAX_ROWS} rows from one opaque node id."),
+        (run_query, "run_query", "Run a query in the connection's own language: SQL, or mongosh's syntax for MongoDB. Reads are free; statements that change data run as one committed transaction. " + change_note),
+        (list_actions, "list_actions", "List source-declared actions and their parameter schemas without running them."),
+        (run_action, "run_action", "Run one source-declared action with validated parameters. " + change_note),
+    ]
+
+
+def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
     async def open_in_workspace(
         connector_id: str,
         node_id: str | None = None,
@@ -715,172 +935,6 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             say('Opening "{name}"', name=title or node_id or connector_id), read
         )
 
-    async def run_query(connector_id: str, sql: str) -> str:
-        async def run(session: AsyncSession, user: User) -> Any:
-            resolved = await runtime.connector(session, user, uuid.UUID(connector_id))
-            if isinstance(resolved, dict):
-                return resolved
-            connector, adapter, held = resolved
-            if not isinstance(adapter, SupportsQuery):
-                return {"error": "This connection does not support queries"}
-            profile = adapter.query_profile()
-            prepared = adapter.prepare_query(sql)
-            kinds = [statement.kind for statement in prepared.statements]
-            changing: list[StatementClass] = [kind for kind in kinds if kind in CHANGING]
-            refusal = write_refusal(connector, held, changing)
-            if refusal is not None:
-                return {"error": refusal}
-            bounds = limits(statement_timeout_seconds=profile.default_timeout_seconds).model_copy(
-                update={"max_result_rows": MAX_ROWS, "max_result_bytes": MAX_RESULT_BYTES}
-            )
-            # Changes run as one transaction that commits only when every
-            # statement succeeded; the agent never holds an open one (D136).
-            mode: ExecutionMode = "auto_commit" if changing else "read"
-            admit(prepared, bounds, mode=mode)
-            request = QueryRequest(text=sql, mode=mode, limits=bounds)
-            if changing:
-                preview = await for_person_async(
-                    lambda: change_preview(adapter, prepared, request)
-                )
-                refused = await runtime.confirm_change(
-                    session,
-                    connector=connector,
-                    question=for_person(
-                        lambda: say(
-                            'Run {count} statement that changes data on "{connection}"?',
-                            count=len(changing), connection=connector.name,
-                        )
-                        if len(changing) == 1
-                        else say(
-                            'Run {count} statements that change data on "{connection}"?',
-                            count=len(changing), connection=connector.name,
-                        )
-                    ),
-                    preview=preview,
-                )
-                if refused is not None:
-                    return {"error": refused}
-            execution = adapter.open_query(request)
-            statements: list[dict[str, Any]] = []
-            async for event in execution.events():
-                if event.event != "statement_finished":
-                    continue
-                statements.append(event.model_dump(mode="json"))
-            if changing and all(statement["status"] == "succeeded" for statement in statements):
-                await runtime.data_cache.invalidate_connector(connector.id)
-            value = {
-                "connector": connector.name,
-                "connector_id": str(connector.id),
-                "mode": mode,
-                "statements": statements,
-            }
-            return ToolResult(
-                value=value,
-                substeps=for_person(lambda: [statement_substep(one) for one in statements]),
-            )
-        label = await runtime.connection_label(connector_id)
-        return await runtime.invoke(say('Running query on "{connection}"', connection=label), run)
-
-    async def run_action(
-        connector_id: str,
-        action_name: str,
-        node_id: str | None = None,
-        params: dict[str, Any] | None = None,
-    ) -> str:
-        async def run(session: AsyncSession, user: User) -> Any:
-            resolved = await runtime.connector(session, user, uuid.UUID(connector_id))
-            if isinstance(resolved, dict):
-                return resolved
-            connector, adapter, held = resolved
-            acting: SupportsActions = acting_or_501(adapter)
-            action = await action_for_node(acting, action_name, node_id)
-            allowed_or_403(action, held)
-            arguments = params or {}
-            if isinstance(action, RequiresReviewedPlan):
-                return {"error": "Review the operation plan before running it"}
-            if not isinstance(action, TakesParams):
-                return {"error": f"{action.title} uses a different request transport"}
-            if action.requires != "read" or action.destructive:
-                preview = None
-                if isinstance(action, Previews):
-                    shown = await for_person_async(
-                        lambda: perform(lambda: action.preview(node_id, arguments))
-                    )
-                    preview = ChangePreview(summary=shown.summary, lines=shown.items)
-                refused = await runtime.confirm_change(
-                    session,
-                    connector=connector,
-                    question=for_person(
-                        lambda: say(
-                            'Run "{action}" on "{connection}"?',
-                            action=say(action.title), connection=connector.name,
-                        )
-                    ),
-                    preview=preview,
-                )
-                if refused is not None:
-                    return {"error": refused}
-            result = await perform(lambda: action.perform(node_id, arguments))
-            await runtime.data_cache.invalidate_connector(connector.id)
-            return {
-                "connector": connector.name,
-                "connector_id": str(connector.id),
-                "action": action.name,
-                "result": result.model_dump(mode="json"),
-            }
-        label = await runtime.connection_label(connector_id)
-        return await runtime.invoke(
-            say('Running action "{action}" on "{connection}"', action=action_name, connection=label),
-            run,
-        )
-
-    async def list_actions(connector_id: str, node_id: str | None = None) -> str:
-        async def read(session: AsyncSession, user: User) -> Any:
-            resolved = await runtime.connector(session, user, uuid.UUID(connector_id))
-            if isinstance(resolved, dict):
-                return resolved
-            connector, adapter, held = resolved
-            acting: SupportsActions = acting_or_501(adapter)
-            offered = await available_or_422(acting, node_id)
-            available = {one.name for one in offered.actions}
-            actions = []
-            for action in await acting.all_actions():
-                if not at_least(held, action.requires):
-                    continue
-                actions.append({
-                    "name": action.name,
-                    "title": action.title,
-                    "available": action.name in available,
-                    "unavailable_reason": offered.reason_for(action.name),
-                    "destructive": action.destructive,
-                    "requires": action.requires,
-                    "params_schema": action.params_schema(),
-                })
-            return {
-                "connector": connector.name,
-                "connector_id": str(connector.id),
-                "node_id": node_id,
-                "actions": actions,
-            }
-        return await runtime.invoke(
-            say('Listing actions for "{name}"', name=node_id or connector_id), read
-        )
-
-    async def search(words: str, connector_ids: list[str] | None = None) -> str:
-        async def find(session: AsyncSession, user: User) -> Any:
-            if runtime.search_engine is None:
-                return {"error": "Search is not available"}
-            return await search_for_agent(
-                runtime.search_engine,
-                session,
-                user,
-                words=words,
-                named=[uuid.UUID(one) for one in connector_ids or []],
-                attached=runtime.attached,
-                refusal=refusal_of,
-            )
-        return await runtime.invoke(say('Searching for "{words}"', words=words.strip()[:80]), find)
-
     async def ask_user(question: str, choices: list[str]) -> str:
         async def prepare(_session: AsyncSession, _user: User) -> Any:
             return {
@@ -891,15 +945,8 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             }
         return await runtime.invoke(say("Waiting for your answer"), prepare)
 
-    definitions: list[tuple[Callable[..., Awaitable[str]], str, str]] = [
-        (list_connections, "list_connections", "List every connection visible to the current person, including transfer policy."),
-        (search, "search", f"Find tables, files, keys and other nodes by name, plus connections, guide pages and source types. Searches inside the connections of attached tabs and those named in connector_ids (at most {MAX_CONTEXT}); at most {MAX_SEARCH_HITS} hits."),
-        (browse_catalog, "browse_catalog", f"List one level of a connection catalog, at most {MAX_NODES} nodes from offset. Use opaque ids exactly as returned."),
-        (describe_node, "describe_node", "Describe a node's columns, constraints, indexes and summary where supported."),
-        (read_rows, "read_rows", f"Read at most {MAX_ROWS} rows from one opaque node id."),
-        (run_query, "run_query", "Run a query in the connection's own language: SQL, or mongosh's syntax for MongoDB. Reads are free; statements that change data ask the person first and run as one committed transaction."),
-        (list_actions, "list_actions", "List source-declared actions and their parameter schemas without running them."),
-        (run_action, "run_action", "Run one source-declared action with validated parameters. A change asks the person first."),
+    definitions: list[ToolDefinition] = [
+        *shared_tools(runtime, change_note="A change asks the person first."),
         (open_in_workspace, "open_in_workspace", "Open a connection or node in the person's Data workspace."),
         (ask_user, "ask_user", "Ask the person one necessary clarifying question instead of guessing."),
     ]

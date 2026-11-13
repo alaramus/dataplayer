@@ -8321,6 +8321,98 @@ export type Match = {
 }
 
 /**
+ * McpTokenCreate
+ */
+export type McpTokenCreate = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Policy
+   */
+  policy: "read_only" | "full"
+  /**
+   * Expires In Days
+   */
+  expires_in_days?: 7 | 30 | 90 | 365 | null
+}
+
+/**
+ * McpTokenCreated
+ *
+ * The one answer that carries the token itself.
+ */
+export type McpTokenCreated = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Policy
+   */
+  policy: "read_only" | "full"
+  /**
+   * Shown
+   */
+  shown: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Expires At
+   */
+  expires_at: string | null
+  /**
+   * Last Used At
+   */
+  last_used_at: string | null
+  /**
+   * Token
+   */
+  token: string
+}
+
+/**
+ * McpTokenPublic
+ */
+export type McpTokenPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Policy
+   */
+  policy: "read_only" | "full"
+  /**
+   * Shown
+   */
+  shown: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Expires At
+   */
+  expires_at: string | null
+  /**
+   * Last Used At
+   */
+  last_used_at: string | null
+}
+
+/**
  * MeaningState
  *
  * How much of a connection's kept names and text the model has read.
@@ -10612,6 +10704,7 @@ export type ProblemDetail = {
     | "ai.file_not_found"
     | "ai.answer_not_found"
     | "ai.answer_elsewhere"
+    | "ai.mcp_token_not_found"
     | "metrics.no_metrics"
     | "metrics.agent_not_found"
     | "metrics.agent_or_connection_required"
@@ -24383,6 +24476,88 @@ export type aiCancelRunResponses = {
 }
 
 export type aiCancelRunResponse = aiCancelRunResponses[keyof aiCancelRunResponses]
+
+export type aiReadMcpTokensData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/mcp-tokens/"
+}
+
+export type aiReadMcpTokensErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiReadMcpTokensError = aiReadMcpTokensErrors[keyof aiReadMcpTokensErrors]
+
+export type aiReadMcpTokensResponses = {
+  /**
+   * Response Ai-Read Mcp Tokens
+   *
+   * Successful Response
+   */
+  200: Array<McpTokenPublic>
+}
+
+export type aiReadMcpTokensResponse = aiReadMcpTokensResponses[keyof aiReadMcpTokensResponses]
+
+export type aiCreateMcpTokenData = {
+  body: McpTokenCreate
+  path?: never
+  query?: never
+  url: "/api/v1/ai/mcp-tokens/"
+}
+
+export type aiCreateMcpTokenErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiCreateMcpTokenError = aiCreateMcpTokenErrors[keyof aiCreateMcpTokenErrors]
+
+export type aiCreateMcpTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: McpTokenCreated
+}
+
+export type aiCreateMcpTokenResponse = aiCreateMcpTokenResponses[keyof aiCreateMcpTokenResponses]
+
+export type aiDeleteMcpTokenData = {
+  body?: never
+  path: {
+    /**
+     * Token Id
+     */
+    token_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/mcp-tokens/{token_id}"
+}
+
+export type aiDeleteMcpTokenErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiDeleteMcpTokenError = aiDeleteMcpTokenErrors[keyof aiDeleteMcpTokenErrors]
+
+export type aiDeleteMcpTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type aiDeleteMcpTokenResponse = aiDeleteMcpTokenResponses[keyof aiDeleteMcpTokenResponses]
 
 export type searchSearchData = {
   body: SearchRequest

@@ -112,4 +112,5 @@ MESSAGES: dict[str, str] = {
     "Chat project": "Projet de discussion",
     "Stopped before every title was read": "Arrêté avant que tous les titres aient été lus",
     "Only the newest {count} chats of each kind are searched": "Seules les {count} discussions les plus récentes de chaque type sont recherchées",
+    "Token revoked": "Jeton révoqué",
 }

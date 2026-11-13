@@ -135,6 +135,7 @@ export const problems: Record<ProblemCode, string> = {
   "ai.file_not_found": "找不到文件",
   "ai.answer_not_found": "找不到回答",
   "ai.answer_elsewhere": "此回答由另一台服务器写入",
+  "ai.mcp_token_not_found": "没有这个令牌",
   "metrics.no_metrics": "此类数据源不声明指标",
   "metrics.agent_not_found": "找不到指标智能体",
   "metrics.agent_or_connection_required": "请指定智能体和主机，或一个连接",

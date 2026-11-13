@@ -111,4 +111,5 @@ MESSAGES: dict[str, str] = {
     "Chat project": "مشروع دردشات",
     "Stopped before every title was read": "توقف قبل قراءة كل العناوين",
     "Only the newest {count} chats of each kind are searched": "لا يُبحث إلا في أحدث {count} دردشة من كل نوع",
+    "Token revoked": "أُلغي الرمز",
 }

@@ -135,6 +135,7 @@ export const problems: Record<ProblemCode, string> = {
   "ai.file_not_found": "Fichier introuvable",
   "ai.answer_not_found": "Réponse introuvable",
   "ai.answer_elsewhere": "Cette réponse est écrite par un autre serveur",
+  "ai.mcp_token_not_found": "Jeton introuvable",
   "metrics.no_metrics": "Les sources de ce type ne déclarent pas de métriques",
   "metrics.agent_not_found": "Agent de métriques introuvable",
   "metrics.agent_or_connection_required": "Indiquez un agent et un hôte, ou une connexion",

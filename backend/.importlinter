@@ -843,3 +843,36 @@ forbidden_modules =
     app.adapters.kafka
     app.adapters.rabbitmq
     app.adapters.binance
+
+# MCP's SDK, by the rule every driver follows: the module that serves /mcp
+# owns it, and the tools it offers know nothing of it (D357). Direct imports
+# only: the application assembly reaches it through that module.
+[importlinter:contract:mcp-sdk-is-contained]
+name = the mcp SDK is imported only by app.ai.mcp_server
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.adapters
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.pipelines
+    app.transfers
+    app.search
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.terminals
+    app.api
+    app.ai.tools
+    app.ai.mcp_tokens
+    app.ai.mcp_routes
+    app.ai.runner
+    app.ai.routes
+forbidden_modules =
+    mcp

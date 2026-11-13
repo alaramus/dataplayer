@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.adapters.routes import router as adapter_types_router
 from app.ai import topic as agent_topic
+from app.ai.mcp_routes import router as mcp_tokens_router
 from app.ai.routes import router as agent_router
 from app.connectors import changes as source_changes
 from app.connectors import health as connector_health
@@ -62,6 +63,7 @@ api_router.include_router(shares_router)
 api_router.include_router(queries_router)
 api_router.include_router(metrics_router)
 api_router.include_router(agent_router)
+api_router.include_router(mcp_tokens_router)
 api_router.include_router(search_router)
 api_router.include_router(kept_names_router)
 api_router.include_router(realtime_router)

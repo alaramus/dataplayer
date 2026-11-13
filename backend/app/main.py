@@ -14,6 +14,7 @@ from app.adapters.explorer.copies import copies
 from app.adapters.postgres.checkpoint_pool import checkpoint_pool
 from app.adapters.redis.cache import RedisDataCache
 from app.adapters.resources import ResourceStore
+from app.ai import mcp_server
 from app.ai.catalog import catalog
 from app.ai.checkpoints import checkpointer
 from app.ai.providers import ProviderChatModels
@@ -207,6 +208,12 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             async with (
                 sweeping(application.state.query_sessions),
                 scheduling(application.state.job_runner, application.state.topics),
+                mcp_server.serving(
+                    application,
+                    resources=application.state.resources,
+                    data_cache=application.state.data_cache,
+                    search_engine=application.state.search_engine,
+                ),
             ):
                 yield
         finally:
@@ -255,6 +262,8 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+# Outside the API's prefix: the address a client is configured with (D357).
+mcp_server.mount(app)
 
 # Serving the built frontend is enabled only when a build exists: without the
 # check app.frontend raises RuntimeError and the application stops importing,
