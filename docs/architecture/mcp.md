@@ -1,11 +1,11 @@
-# DataPlayer as an MCP server
+# MCP: DataPlayer as a server, and the servers its agent calls
 
 How an agent outside DataPlayer works on a person's data: the `/mcp` route,
 the tokens it is entered with, and what it may do. Read this before adding a
 tool to the agent, changing a token, or changing what `/mcp` answers. The
 tools themselves, their bounds and the transfer flag are in [ai.md](ai.md).
 
-Decisions here: D357, D358.
+Decisions here: D357, D358, D360, D361.
 
 ## What exists today
 
@@ -68,3 +68,61 @@ Rejected: the session's JWT as the token, and a token limited to chosen
 connections.
 
 Spec: [DataPlayer as an MCP server](../decisions/2026-11-13-mcp-server-design.md)
+
+## Outside MCP servers the agent calls
+
+```
+backend/app/ai/
+├── mcp_servers.py        the server table, its sealed secrets, the address check
+├── mcp_client.py         the SDK's client: listing tools, calling one
+├── mcp_tools.py          the tools offered in a run, their listings kept a while
+└── mcp_client_routes.py  /ai/mcp-servers
+frontend/src/features/ai/McpServersSection.vue   the agent's settings, MCP servers
+```
+
+A person adds a server in the AI space's settings with a name, an address, an
+optional bearer token and other headers; **Tools** asks the server what it
+offers, and each tool can be switched off. The composer of a chat switches
+servers on and off for that chat.
+
+## D360. An outside MCP server is a person's, reached over HTTP from the backend
+
+A server is its owner's alone and is not shared. The backend is the client by
+Streamable HTTP; stdio and the older SSE transport are not offered. The token
+and the headers are sealed under `CONNECTOR_SECRET_KEY` and never come back:
+the list says a token is set and names the headers. Before every connection
+the address must be http or https and every address its host resolves to
+public; a private, loopback, link-local or reserved one is refused unless
+`MCP_CLIENT_ALLOW_PRIVATE` is set. The SDK follows a redirect only within the
+same origin. The `mcp` SDK is imported by `mcp_client.py` and `mcp_server.py`
+alone.
+
+Known deviation: the host is resolved for the check and again by the HTTP
+client, so a name that answers differently between the two can still lead
+inside.
+
+Rejected: stdio, a server shared like a connection, and trusting an address
+once when it is saved.
+
+Spec: [The agent calls outside MCP servers](../decisions/2026-11-13-mcp-client-design.md)
+
+## D361. Its tools join the agent's in a chat, named by server, and a change asks
+
+When a run starts, the tools of each server that is on, and on in that chat,
+are listed — kept in the process for five minutes — and offered as
+`‹server›__‹tool›`, at most 64 characters. A server that does not answer is
+left out of that answer. Each call opens its own session and closes it, so a
+run paused for days resumes without one. A tool with `readOnlyHint` is a read;
+any other goes through D136's gate with its arguments as the card's preview.
+What comes back is bounded as D134's results are and described to the model as
+data; a failure is unreachable, refused the credentials, or failed, never the
+transport's text. Quick chat and `/mcp` do not offer these tools.
+
+Known deviation, accepted: data read from a connection that allows transfer
+(D135) can go to an outside tool as an argument; the card shows it unless every
+change is allowed.
+
+Rejected: a session held for a run, `langchain-mcp-adapters`, and every outside
+tool treated as a change.
+
+Spec: [The agent calls outside MCP servers](../decisions/2026-11-13-mcp-client-design.md)

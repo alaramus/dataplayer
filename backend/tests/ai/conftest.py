@@ -65,6 +65,8 @@ class Script:
     turns: list[Turn] = field(default_factory=list)
     calls: list[list[BaseMessage]] = field(default_factory=list)
     built: list[tuple[str, str, int]] = field(default_factory=list)
+    # The names of the tools the model was offered, per binding.
+    bound: list[list[str]] = field(default_factory=list)
 
     def next(self, messages: Sequence[BaseMessage]) -> Turn:
         self.calls.append(list(messages))
@@ -82,7 +84,8 @@ class ScriptedChatModel(BaseChatModel):
     def _llm_type(self) -> str:
         return "scripted"
 
-    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> Runnable[Any, AIMessage]:  # type: ignore[override]  # tools are accepted and ignored
+    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> Runnable[Any, AIMessage]:  # type: ignore[override]  # tools are recorded and ignored
+        self.script.bound.append([str(getattr(tool, "name", "")) for tool in tools])
         return self  # type: ignore[return-value]  # the model is the runnable
 
     def _generate(

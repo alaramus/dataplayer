@@ -467,6 +467,7 @@ async def update_conversation(
             "auto_provider" in body.model_fields_set or model_key is not None
         ),
         change_policy=body.change_policy,
+        mcp_servers_off=body.mcp_servers_off,
         project_id=place.project_id,
         move=place.move,
     )

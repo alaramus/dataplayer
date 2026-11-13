@@ -67,6 +67,17 @@ def first_line_title(text: str) -> str:
     return line[:MAX_TITLE_CHARS] or NEW_CHAT
 
 
+def servers_off(conversation: Conversation) -> list[uuid.UUID]:
+    """The chat's switched-off MCP servers; a stored id that no longer reads is dropped."""
+    found: list[uuid.UUID] = []
+    for one in conversation.mcp_servers_off or []:
+        try:
+            found.append(uuid.UUID(one))
+        except ValueError:
+            continue
+    return found
+
+
 def policy_of(value: str) -> ChangePolicy:
     """The stored text as the closed set it is (D136).
 
@@ -104,6 +115,7 @@ def summary_of(conversation: Conversation, latest: str | None) -> ConversationSu
         auto_provider=auto_provider_of(conversation.auto_provider),
         change_policy=policy_of(conversation.change_policy),
         project_id=conversation.project_id,
+        mcp_servers_off=servers_off(conversation),
     )
 
 
@@ -229,6 +241,7 @@ async def change(
     auto_provider: AutoProvider | None = None,
     set_auto_provider: bool = False,
     change_policy: ChangePolicy | None = None,
+    mcp_servers_off: list[uuid.UUID] | None = None,
     project_id: uuid.UUID | None = None,
     move: bool = False,
 ) -> Conversation:
@@ -250,6 +263,8 @@ async def change(
         conversation.auto_provider = auto_provider
     if change_policy is not None:
         conversation.change_policy = change_policy
+    if mcp_servers_off is not None:
+        conversation.mcp_servers_off = sorted({str(one) for one in mcp_servers_off})
     # Said apart from the value: taking a conversation out of every folder is a
     # move, and it is `None` like leaving the folder alone would be.
     if move:
@@ -733,6 +748,7 @@ async def conversation_public(
         model_key=conversation.model_key,
         auto_provider=auto_provider_of(conversation.auto_provider),
         change_policy=policy_of(conversation.change_policy),
+        mcp_servers_off=servers_off(conversation),
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
         messages=[

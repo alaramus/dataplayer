@@ -39,6 +39,7 @@ from app.ai.catalog import (
     ModelInfo,
     Provider,
 )
+from app.ai.mcp_tools import build_mcp_tools
 from app.ai.model_routing import choose as choose_model
 from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, StepStatus
 from app.ai.prompts import TITLE_PROMPT, system_prompt
@@ -544,7 +545,7 @@ class AgentRunner:
         )
         agent = create_agent(
             chat,
-            tools=build_tools(runtime),
+            tools=[*build_tools(runtime), *await build_mcp_tools(runtime)],
             system_prompt=system_prompt(language),
             checkpointer=self._checkpointer,
             middleware=[

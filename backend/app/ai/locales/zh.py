@@ -20,6 +20,9 @@ MESSAGES: dict[str, str] = {
     'Running action "{action}" on "{connection}"': "正在“{connection}”上运行操作“{action}”",
     'Listing actions for "{name}"': "列出“{name}”的操作",
     'Searching for "{words}"': "正在搜索“{words}”",
+    "Run \"{tool}\" on the MCP server \"{server}\"?": "在 MCP 服务器“{server}”上运行“{tool}”？",
+    "With these arguments:": "使用以下参数：",
+    "Calling \"{tool}\" on \"{server}\"": "正在调用“{server}”上的“{tool}”",
     "Reading the guide": "正在阅读指南",
     'Reading "{page}" in the guide': "正在阅读指南中的“{page}”",
     "Waiting for your answer": "正在等待你的回答",
@@ -114,4 +117,5 @@ MESSAGES: dict[str, str] = {
     "Stopped before every title was read": "在读取所有标题之前已停止",
     "Only the newest {count} chats of each kind are searched": "每种类型仅搜索最新的 {count} 个对话",
     "Token revoked": "令牌已撤销",
+    "MCP server removed": "已移除 MCP 服务器",
 }

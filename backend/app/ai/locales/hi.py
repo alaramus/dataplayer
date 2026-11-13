@@ -21,6 +21,9 @@ MESSAGES: dict[str, str] = {
     'Running action "{action}" on "{connection}"': '"{connection}" पर क्रिया "{action}" चला रहा है',
     'Listing actions for "{name}"': '"{name}" के लिए क्रियाएँ सूचीबद्ध कर रहा है',
     'Searching for "{words}"': '"{words}" खोज रहा है',
+    "Run \"{tool}\" on the MCP server \"{server}\"?": "MCP सर्वर \"{server}\" पर \"{tool}\" चलाएँ?",
+    "With these arguments:": "इन आर्गुमेंट्स के साथ:",
+    "Calling \"{tool}\" on \"{server}\"": "\"{server}\" पर \"{tool}\" बुला रहा है",
     "Reading the guide": "गाइड पढ़ रहा है",
     'Reading "{page}" in the guide': "गाइड में \"{page}\" पढ़ रहा है",
     "Waiting for your answer": "आपके उत्तर की प्रतीक्षा है",
@@ -115,4 +118,5 @@ MESSAGES: dict[str, str] = {
     "Stopped before every title was read": "हर शीर्षक पढ़े जाने से पहले रोका गया",
     "Only the newest {count} chats of each kind are searched": "हर प्रकार की केवल नवीनतम {count} चैट खोजी जाती हैं",
     "Token revoked": "टोकन रद्द किया गया",
+    "MCP server removed": "MCP सर्वर हटाया गया",
 }

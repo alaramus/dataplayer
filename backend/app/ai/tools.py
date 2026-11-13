@@ -148,7 +148,8 @@ class ToolHost(Protocol):
         self,
         session: AsyncSession,
         *,
-        connector: Connector,
+        connector: Connector | None = None,
+        place: str | None = None,
         question: str,
         preview: PreviewMaker | None = None,
     ) -> str | None: ...
@@ -273,11 +274,15 @@ class ToolRuntime:
         self,
         session: AsyncSession,
         *,
-        connector: Connector,
+        connector: Connector | None = None,
+        place: str | None = None,
         question: str,
         preview: PreviewMaker | None = None,
     ) -> str | None:
         """Ask before a change, unless the conversation already answers (D136).
+
+        A change is on a connection, or on a `place` that is none: an outside
+        MCP server (D361).
 
         A sentence comes back where the change may not happen at all, for the
         caller to hand the model in place of the result; `None` means go ahead.
@@ -305,7 +310,10 @@ class ToolRuntime:
             if key is None:
                 self._record_jev(for_person(lambda: say("Jev · unavailable")))
                 return JEV_UNAVAILABLE
-            state: dict[str, Any] = {"action": question, "connection": connector.name}
+            state: dict[str, Any] = {
+                "action": question,
+                "connection": connector.name if connector is not None else place,
+            }
             shown = await preview() if preview is not None else None
             if shown is not None:
                 preview_text = shown.model_dump_json()
@@ -348,7 +356,7 @@ class ToolRuntime:
                 kind="confirm_change",
                 question=question,
                 choices=choices,
-                connector_id=connector.id,
+                connector_id=connector.id if connector is not None else None,
                 preview=await preview() if preview is not None else None,
             )
         )

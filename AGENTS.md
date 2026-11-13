@@ -72,7 +72,7 @@ documentation.
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | The agent, its tools, sending data to a third party, quick chat, the agent reading the user's guide | [ai.md](docs/architecture/ai.md) |
-| An agent outside DataPlayer working through `/mcp`, its access tokens | [mcp.md](docs/architecture/mcp.md) |
+| An agent outside DataPlayer working through `/mcp`, its access tokens, outside MCP servers the agent calls | [mcp.md](docs/architecture/mcp.md) |
 | Models, provider keys, Jev | [ai-models.md](docs/architecture/ai-models.md) |
 | One search over everything, its providers, the field in the header | [search.md](docs/architecture/search.md) |
 | A connection's names and files' text kept for search, search by meaning and its model, the search-keeper process, the Search index window | [search-kept.md](docs/architecture/search-kept.md) |
@@ -137,7 +137,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/rabbitmq](docs/architecture/sources/rabbitmq.md) | D325–D332, D334, D335, D337–D339 |
 | [sources/cassandra](docs/architecture/sources/cassandra.md) | D340–D354 |
 | [tour](docs/architecture/tour.md) | D355, D356 |
-| [mcp](docs/architecture/mcp.md) | D357, D358 |
+| [mcp](docs/architecture/mcp.md) | D357, D358, D360, D361 |
 
 ## Working rules
 

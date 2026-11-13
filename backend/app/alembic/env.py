@@ -55,6 +55,7 @@ from app.ai.models import (  # noqa
 from app.ai.checkpoints import CHECKPOINT_TABLES  # noqa
 from app.ai.quick_chat import QuickConversation, QuickMessage  # noqa
 from app.ai.mcp_tokens import McpToken  # noqa
+from app.ai.mcp_servers import McpServer  # noqa
 from app.search.keep import (  # noqa
     SearchChunk, SearchContentFile, SearchContentScope, SearchKeep, SearchName,
     SearchPassage, SearchVector,

@@ -135,11 +135,12 @@ class McpHost:
         self,
         session: AsyncSession,
         *,
-        connector: Connector,
+        connector: Connector | None = None,
+        place: str | None = None,
         question: str,
         preview: PreviewMaker | None = None,
     ) -> str | None:
-        del session, connector, question, preview
+        del session, connector, place, question, preview
         return READ_ONLY_TOKEN if current_caller().policy == "read_only" else None
 
     async def connection_label(self, connector_id: str) -> str:

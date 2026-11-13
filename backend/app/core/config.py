@@ -284,6 +284,11 @@ class Settings(BaseSettings):
     QUERY_RESULT_STORE_MAX_BYTES: int = 256 * 1024 * 1024
     QUERY_RESULT_TTL_SECONDS: float = 1800.0
 
+    # Whether an outside MCP server may be at a private, loopback or
+    # link-local address (D360): off, a person's address cannot reach the
+    # database or the containers beside the backend.
+    MCP_CLIENT_ALLOW_PRIVATE: bool = False
+
     # How long one answer of the agent may take before it is stopped (D137).
     AI_RUN_TIMEOUT_SECONDS: float = 900.0
     # The most one answer may write, whatever the model could produce: a

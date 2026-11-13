@@ -27,6 +27,7 @@ import {
   useDeleteAiConversation,
   useAnswerAiRun,
   useCancelAiRun,
+  useMcpServers,
   useSendAiMessage,
   useUpdateAiConversation,
   useUpdateAiSettings,
@@ -155,6 +156,31 @@ const attachItems = computed<MenuItem[]>(() => [
   },
   { name: "files", label: t("ai.conversation.attach_files"), icon: appIcons.attachFile, disable: rules.value === null },
 ])
+// The outside MCP servers the person switched on, each on in this chat unless
+// it was switched off here (D361). A chat not made yet keeps its choice until
+// the first message makes it.
+const mcpServers = useMcpServers()
+const pendingServersOff = ref<string[]>([])
+const serversOff = computed(() => conversation.data.value?.mcp_servers_off ?? pendingServersOff.value)
+const usableServers = computed(() => (mcpServers.data.value ?? []).filter((one) => one.enabled))
+const serverItems = computed<MenuItem[]>(() =>
+  usableServers.value.map((server) => ({
+    name: server.id,
+    label: server.name,
+    icon: serversOff.value.includes(server.id) ? appIcons.checkBoxBlank : appIcons.checkBox,
+  }))
+)
+async function switchServer(serverId: string) {
+  const off = new Set(serversOff.value)
+  if (off.has(serverId)) off.delete(serverId)
+  else off.add(serverId)
+  const id = currentId.value
+  try {
+    if (id) await updateConversation.mutateAsync({ id, mcp_servers_off: [...off] })
+    else pendingServersOff.value = [...off]
+  }
+  catch (cause) { toast.error(messageOf(cause, t("ai.conversation.servers_failed"))) }
+}
 function chooseAttachment(name: string) {
   if (name === "tabs") contextDialogShown.value = true
   if (name === "files") picker.value?.click()
@@ -372,6 +398,7 @@ async function submit() {
       await updateConversation.mutateAsync({
         id,
         change_policy: pendingPolicy.value,
+        ...(pendingServersOff.value.length ? { mcp_servers_off: pendingServersOff.value } : {}),
         ...(props.projectId ? { project_id: props.projectId } : {}),
         ...(pendingModelKey.value ? { model_key: pendingModelKey.value, auto_provider: pendingAutoProvider.value } : {}),
       })
@@ -790,6 +817,19 @@ onBeforeUnmount(() => {
                   data-testid="ai-file-input"
                   @change="pickFiles"
                 >
+                <span v-if="usableServers.length > 0">
+                  <AppIconButton
+                    :icon="appIcons.hub"
+                    :tooltip="t('ai.conversation.servers', { on: usableServers.length - usableServers.filter((one) => serversOff.includes(one.id)).length, n: usableServers.length })"
+                    data-testid="ai-mcp-servers"
+                    :disable="activeRun !== null"
+                  />
+                  <AppMenu
+                    v-if="activeRun === null"
+                    :items="serverItems"
+                    @select="switchServer"
+                  />
+                </span>
                 <AppSelect
                   class="ai-conversation__policy"
                   compact
