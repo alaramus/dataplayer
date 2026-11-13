@@ -1,11 +1,11 @@
 """A pipeline following its topics (D315).
 
 One job a pipeline, kind `pipeline.follow`, that runs until it is stopped:
-every few seconds it asks each link marked to follow whether its source holds
-anything unread, and carries out that link's step when it does — the step a
-run carries out, through the same code. Whether a pipeline follows is a row
-beside it, so a restart, which replays no job (D81), starts a new follower
-from the row rather than resuming the old one.
+every few seconds it asks each link that runs continuously (D362) whether its
+source holds anything unread, and carries out that link's step when it does —
+the step a run carries out, through the same code. Whether a pipeline is on is
+a row beside it (`switch.py`), so a restart, which replays no job (D81),
+starts a new follower from the row rather than resuming the old one.
 """
 
 import asyncio
@@ -36,7 +36,6 @@ from app.connectors.paste.transfer import TransferStopped
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.problems import Problem
-from app.core.schemas import get_datetime_utc
 from app.core.translation import N_, say
 from app.jobs import crud as job_crud
 from app.jobs.models import TERMINAL, Job, JobKind
@@ -46,7 +45,6 @@ from app.pipelines.models import (
     Link,
     Pipeline,
     PipelineContent,
-    PipelineFollow,
     content_of,
 )
 from app.pipelines.order import ordered
@@ -83,7 +81,7 @@ class _Strict(BaseModel):
 
 
 class FollowedLink(_Strict):
-    """One marked link, and what it carried while its pipeline followed."""
+    """One continuous link, and what it carried while its pipeline was on."""
 
     link_id: uuid.UUID
     title: str = Field(max_length=255)
@@ -157,7 +155,7 @@ class FollowPipeline:
                 return record.told()
             for placed in ordered(content):
                 link = placed.link
-                if not link.follow:
+                if link.runs != "continuous":
                     continue
                 pending = (
                     await self._turn(job, content, link, record.entry(link)) or pending
@@ -294,13 +292,7 @@ async def _content(pipeline_id: uuid.UUID) -> PipelineContent | None:
         return content_of(pipeline) or PipelineContent()
 
 
-# --- the switch -----------------------------------------------------------------
-
-
-class FollowSwitch(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    on: bool
+# --- the follower's state -------------------------------------------------------
 
 
 class FollowedLinkPublic(BaseModel):
@@ -313,9 +305,8 @@ class FollowedLinkPublic(BaseModel):
 
 
 class FollowState(BaseModel):
-    """Whether the pipeline follows, and what its newest following did."""
+    """What the pipeline's newest follower did, link by link."""
 
-    on: bool
     job_id: uuid.UUID | None = None
     running: bool = False
     started_at: datetime | None = None
@@ -332,22 +323,15 @@ def followings_of(pipeline: Pipeline) -> Any:
     )
 
 
-async def follows(session: AsyncSession, pipeline_id: uuid.UUID) -> bool:
-    row = await session.get(PipelineFollow, pipeline_id)
-    return row is not None and row.on
-
-
 async def follow_state(session: AsyncSession, pipeline: Pipeline) -> FollowState:
-    row = await session.get(PipelineFollow, pipeline.id)
     newest = (await session.exec(followings_of(pipeline).limit(1))).first()
     if newest is None:
-        return FollowState(on=row is not None and row.on)
+        return FollowState()
     try:
         record = FollowRecord.model_validate(newest.parameters)
     except ValidationError:
         record = None
     return FollowState(
-        on=row is not None and row.on,
         job_id=newest.id,
         running=newest.state not in TERMINAL,
         started_at=newest.started_at or newest.created_at,
@@ -365,36 +349,12 @@ async def follow_state(session: AsyncSession, pipeline: Pipeline) -> FollowState
     )
 
 
-async def switch(
-    session: AsyncSession,
-    user: User,
-    runner: JobRunner,
-    topics: TopicSet,
-    pipeline: Pipeline,
-    content: PipelineContent,
-    on: bool,
-) -> FollowState:
-    """Following switched on, a follower started; or off, its follower stopped."""
-    row = await session.get(PipelineFollow, pipeline.id)
-    if row is None:
-        row = PipelineFollow(pipeline_id=pipeline.id)
-    if on:
-        if not any(link.follow for link in content.links):
-            raise Problem(422, "pipelines.nothing_followed")
-        await start_follower(session, user, runner, topics, pipeline)
-    else:
-        running = (
-            await session.exec(
-                followings_of(pipeline).where(col(Job.state).not_in(TERMINAL))
-            )
-        ).all()
-        for job in running:
-            await runner.cancel(job.id)
-    row.on = on
-    row.changed_at = get_datetime_utc()
-    session.add(row)
-    await session.commit()
-    return await follow_state(session, pipeline)
+async def stop_followers(session: AsyncSession, runner: JobRunner, pipeline: Pipeline) -> None:
+    running = (
+        await session.exec(followings_of(pipeline).where(col(Job.state).not_in(TERMINAL)))
+    ).all()
+    for job in running:
+        await runner.cancel(job.id)
 
 
 async def start_follower(
@@ -444,47 +404,3 @@ async def start_follower(
         session, kind=KIND, subject_id=pipeline.id, keep=KEPT_RUNS
     )
     return job
-
-
-async def ensure_followers(runner: JobRunner, topics: TopicSet) -> int:
-    """Start a follower for every pipeline switched on that has none running;
-    how many were started. A following its owner stopped switches it off."""
-    async with async_session_maker() as session:
-        switched = list(
-            (
-                await session.exec(select(PipelineFollow).where(col(PipelineFollow.on)))
-            ).all()
-        )
-    started = 0
-    for row in switched:
-        async with async_session_maker() as session:
-            pipeline = await session.get(Pipeline, row.pipeline_id)
-            if pipeline is None:
-                continue
-            newest = (await session.exec(followings_of(pipeline).limit(1))).first()
-            if newest is not None and newest.state not in TERMINAL:
-                continue
-            kept = await session.get(PipelineFollow, row.pipeline_id)
-            if kept is None or not kept.on:
-                continue
-            if newest is not None and newest.state == "cancelled":
-                # Stopped from the footer: that is switching it off.
-                kept.on = False
-                kept.changed_at = get_datetime_utc()
-                session.add(kept)
-                await session.commit()
-                continue
-            owner = await session.get(User, pipeline.owner_id)
-            if owner is None:
-                continue
-            try:
-                if (
-                    await start_follower(session, owner, runner, topics, pipeline)
-                    is not None
-                ):
-                    started += 1
-                await session.commit()
-            except Problem:
-                # Over a bound now; the next look tries again.
-                await session.rollback()
-    return started

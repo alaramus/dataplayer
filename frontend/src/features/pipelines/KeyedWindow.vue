@@ -16,7 +16,7 @@ import {
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
-import { defaultKey, defaultValues, fieldName, holdsHash, keyedProblem } from "./keyed"
+import { fieldName, holdsHash, keyedProblem } from "./keyed"
 
 /**
  * What a link keeping the latest per key writes (D314): the column naming
@@ -35,13 +35,14 @@ const emit = defineEmits<{
   keep: [pick: { by_key: KeyedChoice; columns: PasteColumn[] }]
 }>()
 
-const keyColumn = ref<string | null>(props.kept.byKey?.key_column ?? defaultKey(props.sourceColumns))
+// What the link keeps, or what the server says it starts with (D364).
+const keyColumn = ref<string | null>(props.kept.byKey?.key_column ?? null)
 const prefix = ref(props.kept.byKey?.prefix ?? props.suggestedPrefix)
 const ttl = ref<number | null>(props.kept.byKey?.ttl_seconds ?? null)
 // Every column, ticked or not, with the name it is written under.
 const values = ref(
   (() => {
-    const chosen = props.kept.columns?.length ? [...props.kept.columns] : defaultValues(props.sourceColumns, keyColumn.value)
+    const chosen = [...(props.kept.columns ?? [])]
     return props.sourceColumns.map((column) => {
       const found = chosen.find((one) => one.source === column.name)
       return { source: column.name, target: found?.target ?? fieldName(column.name), on: found !== undefined }

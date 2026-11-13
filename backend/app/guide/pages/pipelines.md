@@ -2,9 +2,10 @@
 
 A pipeline lays your connections out on a canvas and draws links between what
 they hold: rows of a table copied into another table, a table saved as a CSV
-file in a folder, a topic read on into a table, and so on. A pipeline runs when
-you press **Run**, on a schedule, or — for a link that reads a topic or a queue
-— continuously.
+file in a folder, a topic read on into a table, and so on. Switched on, it runs
+by itself: a link that reads a topic, a queue or a stream carries what arrives
+within seconds, and the other links run on a schedule. It can also be run once
+by hand.
 
 Pipelines are in the **Pipelines** space of the switch at the top of the left
 rail. A pipeline is yours alone: it is not shared.
@@ -31,11 +32,14 @@ dashed and says so. A table that no longer exists is struck out as
 
 ## Links
 
-- Drag a row of one card onto a row of another. If something can go from one
-  to the other, a link is drawn; if not, it says why.
-- **Show the links that could be drawn**, in the head, draws dashed every link
-  that could be made between the rows on the canvas, labelled by what it would
-  do. Pressing a dashed link draws it.
+- Drag a row of one card onto a row of another. While you drag, every row it
+  can go to is tinted, saying what a drop there would do; the others are
+  faded, saying why not. Dropping on a tinted row draws the link.
+- A link is drawn ready to run where its choices can be guessed: a new table
+  is named after what it comes from, with all its columns; columns are paired
+  by name; keys come from a topic's key. Its panel changes any of them.
+- A link that still lacks a choice is drawn in the caution colour, saying what
+  it needs. The line under the canvas names it, and **Choose** opens it.
 - Both ends of a link must be in different connections: within one connection,
   use **Copy** and **Paste** in its catalog.
 
@@ -50,11 +54,33 @@ key, what to put before it, and how long a key lives.
 Each link is numbered in the order it runs. A link waits for every link that
 writes into the card it reads from.
 
-## Running
+## Switching on
 
-- **Run** saves the pipeline and runs every link, one after another. It
-  refuses before anything runs when a link still lacks a choice, and opens that
-  link.
+**Switch on**, in the head, saves the pipeline and starts it. A link that
+reads a topic, a queue or a stream runs continuously: it carries what arrives
+within seconds. Every other link runs on the schedule. **Switch off** stops
+both.
+
+- Switch on refuses before anything starts when a link lacks a choice, and
+  opens that link; when links run on the schedule and none is set, it opens
+  **Schedule…**.
+- The line under the canvas says what the pipeline needs or does: what
+  switching on will do, how long it has been on and when it last carried
+  something, when the schedule comes next, or a link that keeps failing.
+- A link that reads on can run on the schedule instead: **While the pipeline
+  is on** in its panel. **First run reads** chooses **From the earliest
+  available** or **Only what is new**; afterwards the link reads on from where
+  it stopped.
+- While it is on, the activity bell shows how many messages were carried, and
+  a link that keeps failing is listed under **Needs you**. Stopping it there
+  switches the pipeline off.
+
+## Running once
+
+- **Run once now**, in the menu beside **Switch on**, saves the pipeline and
+  runs every link once, one after another. It refuses before anything runs
+  when a link still lacks a choice, and opens that link. While the pipeline is
+  on, the links that run continuously are left out.
 - The first link that fails stops the run; the links after it are not run.
 - While it runs, each link says **Waiting**, **Running**, **Done** or
   **Failed**, and the run is in the activity bell, where it can be stopped.
@@ -64,28 +90,18 @@ writes into the card it reads from.
 
 ## Schedule
 
-The clock in the head opens **Schedule**: **Run by itself**, then either
-**Every so long** — a number of minutes, hours or days — or **At times of the
-day**, on the days ticked. Times are the clock of the browser that saved the
-schedule. The head shows the next run.
-
-## Following a topic or a queue
-
-A link that reads a Kafka topic, a RabbitMQ stream or queue, or another source
-of messages can be marked **Follow** in its panel. **First run reads**
-chooses **From the earliest available** or **Only what is new**; afterwards the
-link reads on from where it stopped.
-
-The **Follow** switch in the head then carries what arrives within seconds,
-until it is switched off. While following, the activity bell shows how many
-messages were carried, and a link that keeps failing is listed under
-**Needs you**.
+**Schedule…**, in the menu beside **Switch on**, sets when the scheduled links
+run while the pipeline is on: either **Every so long** — a number of minutes,
+hours or days — or **At times of the day**, on the days ticked. Times are the
+clock of the browser that saved the schedule. The line under the canvas shows
+the next run.
 
 ## History
 
-**History**, in the head, lists every run, newest first: when it started,
-whether by hand or by the schedule, how long it took and what each link did.
-Choosing a run shows it on the canvas; **Back to the last run** returns.
+**History**, in the **⋯** menu of the head, lists every run, newest first: when
+it started, whether by hand or by the schedule, how long it took and what each
+link did. Choosing a run shows it on the canvas; **Back to the last run**
+returns.
 
 ## Limits
 

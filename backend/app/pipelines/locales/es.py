@@ -37,9 +37,6 @@ MESSAGES: dict[str, str] = {
     "This connection is gone, or no longer shared with you": "Esta conexión ya no existe o ya no se comparte contigo",
     "This connection is switched off": "Esta conexión está desactivada",
     "This connection cannot be read": "No se puede leer esta conexión",
-    "This canvas holds too many rows to hint at once: select a card first": "El lienzo tiene demasiadas filas para mostrar todas las sugerencias a la vez: selecciona primero una tarjeta",
-    "Only the links of the selected card are hinted": "Solo se muestran las sugerencias de los enlaces de la tarjeta seleccionada",
-    "Only the first {count} pairs of rows of the selected card are hinted": "Solo se muestran las sugerencias de los primeros {count} pares de filas de la tarjeta seleccionada",
     "{names} and {last}": "{names} y {last}",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} escriben entre sí, así que las flechas no determinan el primer enlace: este va primero porque su tarjeta está más a la izquierda",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} escriben entre sí, así que las flechas no determinan el primer enlace: este va primero porque su tarjeta está más arriba",
@@ -53,9 +50,15 @@ MESSAGES: dict[str, str] = {
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · «{title}» necesita que se elijan su clave y sus valores",
     # A pipeline following its topics (D315).
-    "Followed; not run": "En seguimiento; no se ejecutó",
     "Followed; {count} messages carried": "Seguimiento; mensajes llevados: {count}",
     "Only a link reading a topic follows it": "Solo un enlace que lee un topic puede seguirlo",
     "This following could not be read": "No se pudo leer este seguimiento",
     "following its topics": "siguiendo sus topics",
+    # A pipeline switched on with one button (D362, D363).
+    "Runs continuously; not run": "Se ejecuta de forma continua; no se ejecutó",
+    "Not switched on: {needs}": "No se encendió: {needs}",
+    "Same connection": "La misma conexión",
+    "Nothing can go from here into this connection": "Nada puede ir desde aquí a esta conexión",
+    "Already linked": "Ya enlazado",
+    "Nothing can go here": "Nada puede ir aquí",
 }

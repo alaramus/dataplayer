@@ -199,7 +199,7 @@ export const problems: Record<ProblemCode, string> = {
   "pipelines.running": "此流水线已在运行；请等待它结束",
   "pipelines.too_many_running": "已有 {count} 条流水线正在运行；请等待其中一条结束",
   "pipelines.run_not_found": "找不到执行",
-  "pipelines.nothing_followed": "请先勾选要跟随的链接",
+  "pipelines.no_schedule": "请先选择按计划的连线何时运行",
   "pipelines.too_many_following": "每人最多同时跟随 {count} 个管道",
   "pipelines.following_server_full": "此服务器最多同时跟随 {count} 个管道",
   "shares.link_outdated": "此链接由应用程序的较早版本创建",

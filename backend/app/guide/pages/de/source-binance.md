@@ -98,7 +98,7 @@ Die **Trades** eines Symbols und jede Serie von **Kerzen** können der Anfang
 einer Verbindung einer Pipeline sein, die weiterliest: **Neue Nachrichten zu
 einer Tabelle hinzufügen** oder **zu einer neuen Tabelle**, oder **Das
 Neueste je Schlüssel behalten**. Jeder Lauf liest nur, was seit dem letzten
-kam, und **Folgen** überträgt es innerhalb von Sekunden.
+kam, und eine eingeschaltete Pipeline überträgt es innerhalb von Sekunden.
 
 - DataPlayer merkt sich, wo jede Verbindung stehen blieb; Binance nicht.
 - **Der erste Lauf liest**: **Nur Neues** beginnt jetzt; **Ab dem Frühesten,

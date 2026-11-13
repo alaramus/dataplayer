@@ -171,8 +171,11 @@ const pipelineLinked: TourChapter = {
   id: "pipeline-link",
   title: say("onboarding.tours.pipeline.link.title"),
   targets: [
-    { locate: () => testId("pipeline-hint"), hint: say("onboarding.tours.pipeline.link.hint") },
-    { locate: () => testIdPrefix("graph-edge-hint:"), hint: say("onboarding.tours.pipeline.link.press") },
+    // The practice database's card came first, and the table is its row (D363).
+    {
+      locate: () => `${testId("pipeline-canvas")} [data-port-id^="node:"]`,
+      hint: say("onboarding.tours.pipeline.link.hint", { table: TOUR_TABLE }),
+    },
   ],
   done: { kind: "shown", locate: () => testId("link-panel") },
 }
@@ -181,7 +184,8 @@ const pipelineRun: TourChapter = {
   id: "pipeline-run",
   title: say("onboarding.tours.pipeline.run.title"),
   targets: [
-    { locate: () => testId("pipeline-run"), hint: say("onboarding.tours.pipeline.run.hint") },
+    { locate: () => testId("pipeline-run-menu"), hint: say("onboarding.tours.pipeline.run.menu") },
+    { locate: () => testId("menu-item-run-once"), hint: say("onboarding.tours.pipeline.run.hint") },
     // A tour taken twice finds its file already there, and the link refuses.
     {
       locate: () => testId("link-panel-conflict"),

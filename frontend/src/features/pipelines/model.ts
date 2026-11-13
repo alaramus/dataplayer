@@ -114,24 +114,46 @@ export function cardNode(
   }
 }
 
+/** While a row is dragged (D363): what a drop on each row would do, or why not, by `rowKey`. */
+export interface RowTarget {
+  fit: boolean
+  note: string
+}
+
+export function rowKey(cardId: string, rowId: string): string {
+  return `${cardId}|${rowId}`
+}
+
+function tinted(node: GraphNode, targets: ReadonlyMap<string, RowTarget> | null): GraphNode {
+  if (targets === null) return node
+  return {
+    ...node,
+    rows: node.rows.map((row) => {
+      const found = targets.get(rowKey(node.id, row.id))
+      return found === undefined ? row : { ...row, tint: found.fit ? "fit" : "unfit", detail: found.note }
+    }),
+  }
+}
+
 export function pipelineGraph(
   cards: readonly Card[],
   connections: ReadonlyMap<string, CardConnection>,
   states: ReadonlyMap<string, CardState>,
   typeTitles: ReadonlyMap<string, string>,
   edges: readonly GraphEdge[] = [],
-  made: readonly MadeRow[] = []
+  made: readonly MadeRow[] = [],
+  targets: ReadonlyMap<string, RowTarget> | null = null
 ): GraphDocument {
   return {
     nodes: cards.map((card) => {
       const connection = connections.get(card.connector_id)
-      return cardNode(
+      return tinted(cardNode(
         card,
         connection,
         states.get(card.id),
         connection === undefined ? undefined : typeTitles.get(connection.adapterType),
         made
-      )
+      ), targets)
     }),
     edges,
     groups: [],

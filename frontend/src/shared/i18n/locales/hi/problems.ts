@@ -199,7 +199,7 @@ export const problems: Record<ProblemCode, string> = {
   "pipelines.running": "यह पाइपलाइन पहले से चल रही है; इसके पूरा होने की प्रतीक्षा करें",
   "pipelines.too_many_running": "पहले से {count} पाइपलाइनें चल रही हैं; किसी एक के पूरा होने की प्रतीक्षा करें",
   "pipelines.run_not_found": "रन नहीं मिला",
-  "pipelines.nothing_followed": "पहले फ़ॉलो करने के लिए कोई लिंक चुनें",
+  "pipelines.no_schedule": "पहले तय करें कि शेड्यूल वाले लिंक कब चलें",
   "pipelines.too_many_following": "एक व्यक्ति एक साथ अधिकतम {count} पाइपलाइन फ़ॉलो कर सकता है",
   "pipelines.following_server_full": "यह सर्वर एक साथ अधिकतम {count} पाइपलाइन फ़ॉलो करता है",
   "shares.link_outdated": "यह लिंक एप्लिकेशन के पुराने संस्करण द्वारा बनाया गया है",

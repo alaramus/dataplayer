@@ -2,7 +2,7 @@
 
 Read this before changing the pipelines space, a pipeline's cards, links,
 run, schedule or history, the answer of what a person's connections can
-give each other, or a link that reads a topic on from where it stopped, into a table it may make or into keys holding the latest per key, and a pipeline following its topics, and a node whose moving rows are not its page's (D336).
+give each other, or a link that reads a topic on from where it stopped, into a table it may make or into keys holding the latest per key, and a pipeline following its topics, and a node whose moving rows are not its page's (D336). The switch that starts a pipeline, where a dragged row can go and a link drawn ready are [pipeline-switch.md](pipeline-switch.md) (D362–D364).
 
 Decisions here: D174, D175, D176, D177, D178, D179, D180, D312, D313, D314, D315, D336.
 
@@ -82,8 +82,10 @@ Spec: [Pipelines: connections laid out on a canvas, and links run between them](
   `POST /pipelines/{id}/offers`, so the screen saves first; that is how an
   end that is a link's result is answered too (D178). None usable —
   available, or held back only by a taken name — draws nothing and says the
-  first reason. Both ends in one connection, or a start at the top of a
-  connection, are refused before anything is asked.
+  first reason; a row the drag already answered for draws nothing at all
+  (D363). Both ends in one connection, or a start at the top of a
+  connection, are refused before anything is asked. A link drawn takes the
+  offer's defaults (D364).
 - **A link is part of the pipeline's body**: its ends, its kind, the title
   it was chosen by, and the choices Paste asks — a file name, what to do with
   a taken name, the columns of a new table or the pairing into a ticked one.
@@ -95,27 +97,19 @@ Spec: [Pipelines: connections laid out on a canvas, and links run between them](
   table's columns and a pairing are chosen in the windows Paste opens for
   them, started from what the link kept; they keep the choice rather than
   run. A link is run only with the pipeline (D177).
-- **The hint** — a button in the head — draws dashed every link that could be
-  made among the rows kept on the pipeline, labelled by what it would do. It
-  asks each pair of connections first (D174), then each kind's offer for
-  each pair of rows, drawn links left out. Past 400 pairs of rows it hints the
-  selected card's only, and says so; with none selected, it says to select
-  one. A dashed link pressed is drawn as if dragged. Pressed again, or once
-  anything is changed, the hint goes.
+- **The hint** went with D363: what it drew for every pair of rows is shown
+  for the row being dragged, when it is wanted.
 
 Known deviations:
 
 - **A link's title is kept as it was chosen**, as a row's label is: the
   canvas draws it without naming kinds.
-- **The hint asks every offer one after another.** Four hundred pairs of rows
-  can take seconds on sources that are slow to answer.
-
 Spec: [Pipelines: connections laid out on a canvas, and links run between them](../decisions/2026-09-26-pipelines-design.md)
 
 ## D177. A pipeline runs as one job, link by link along its arrows
 
-- **Run in the head is the only Run.** It saves the draft, then
-  `POST /pipelines/{id}/run` runs the pipeline as saved. It refuses before
+- **Run once now, in the menu beside Switch on (D362), is the only Run.** It
+  saves the draft, then `POST /pipelines/{id}/run` runs the pipeline as saved. It refuses before
   anything runs with no link drawn, and when a link lacks a choice its kind's
   workflow needs — a new table's name and columns, a pairing — naming those
   links, their ids beside the message; the screen opens the first. That is
@@ -223,7 +217,8 @@ Spec: [Chains: what one link makes, read by the next](../decisions/2026-09-26-pi
   hours or days, 5 minutes to 7 days, counted from when it was switched on or
   changed; or up to twelve times of the day on chosen days of the week. Kept
   beside the body, so a change of it is not checked against the canvas's
-  version. Switched off, it keeps what was chosen.
+  version. It comes only while the pipeline is switched on (D362), and runs
+  its scheduled links; off, it keeps what was chosen.
 - **Times are the owner's wall clock**: the browser's zone is saved with the
   schedule and every save takes the browser's again. `timing.py` works out
   the next time as a plain function: a time the clock skips runs as it moves
@@ -238,9 +233,9 @@ Spec: [Chains: what one link makes, read by the next](../decisions/2026-09-26-pi
 - **A time more than two minutes past when the server starts is not caught
   up**: noted as missed, "the server was off", and the next time is worked
   out from then. One less late still runs: a restart takes seconds.
-- **On the canvas** a clock button beside Run opens the schedule's window and
-  is highlighted while it is on; the head says "Next run: tomorrow 03:00" in
-  the browser's clock. The skips and misses are rows of the history (D180).
+- **On the canvas** Schedule… in the menu beside Switch on opens the
+  schedule's window; the status line says "next run tomorrow 03:00" in the
+  browser's clock (D364). The skips and misses are rows of the history (D180).
   The footer names a run the schedule started "Nightly · scheduled".
 
 Known deviations:
@@ -259,7 +254,7 @@ Spec: [Schedules: a pipeline that runs by itself](../decisions/2026-09-26-pipeli
   is its job — state, sentence, start and end, and whether the schedule
   started it (`scheduled_for`) — and a skip or a miss is a `ScheduleNote`,
   the time that came, its kind and why. The screen only words the rows.
-- **A History button in the head** opens a window of those rows: the
+- **History, in the head's "⋯" menu,** opens a window of those rows: the
   sentence, then "26 Sep 03:00 · by the schedule · took 12.4 s"; a run that
   failed or was interrupted in the caution colour, a skip or a miss faded.
   The window reads again at each move of a run told over the socket and
@@ -270,8 +265,8 @@ Spec: [Schedules: a pipeline that runs by itself](../decisions/2026-09-26-pipeli
   "Drawn since this run"; a strip over the canvas says "Showing the run of 26
   Sep 03:00" with "Back to the last run". The newest row pressed is the last
   run itself, and Run brings the canvas back to the run it starts.
-- **The head says only when the schedule comes next.** A run going is
-  followed by its lines and the footer.
+- **The status line says when the schedule comes next** (D364). A run going
+  is followed by its lines and the footer.
 - **The last hundred of each are kept.** Starting a run removes the ended runs
   of the pipeline after its newest hundred (`jobs.crud.forget_finished`), and
   a note removes the notes after the newest hundred. A run still going is
@@ -424,9 +419,9 @@ Spec: [The latest value per key, kept in Redis by a pipeline's link](../decision
 
 ## D315. A pipeline follows its topics, carrying what arrives within seconds
 
-- **A link is marked `follow`**, only a link-only kind (D312–D314); its
-  panel offers the mark where its source is read on. **Follow in the head**
-  switches the pipeline's `PipelineFollow` row, kept beside it as the
+- **A link runs `continuous`** (D362), only a link-only kind (D312–D314); its
+  panel offers the choice where its source is read on. **Switch on in the
+  head** switches the pipeline's `PipelineSwitch` row, kept beside it as the
   schedule is, and starts or stops its follower.
 - **One follower a pipeline**, a job of kind `pipeline.follow`
   (`pipelines/follow.py`), that runs until stopped: every
@@ -439,16 +434,19 @@ Spec: [The latest value per key, kept in Redis by a pipeline's link](../decision
   and 60 seconds and then every five minutes, its last failure in its panel.
   Ten in a row make it an item of Needs you, read from the follower's record
   by the screen and gone when it carries again.
-- **The scheduler's loop starts a follower** for every row switched on that
-  has none unfinished (`ensure_followers`), so the server starting picks
-  following up again; a following whose newest job was cancelled — Stop in
-  the footer — is switched off instead.
-- **Run and the schedule leave a followed link out** while the pipeline
-  follows: its step is `not_run`, "Followed; not run".
+- **The scheduler's loop starts a follower** for every pipeline switched on
+  with a continuous link and no follower unfinished (`switch.ensure_followers`),
+  so the server starting picks following up again; one whose follower was
+  cancelled since it was switched on — Stop in the footer — is switched off
+  instead, its schedule with it.
+- **Run once and the schedule leave a continuous link out** while the
+  pipeline is on: its step is `not_run`, "Runs continuously; not run".
 - **One history row a following** (D180): the follower's job, its record
   each link's totals, written at most once a second. The canvas marks a
   followed link "↻" and colours its line by what it does while following;
-  the footer shows "Nightly · following · links: 3" with Stop.
+  the activity sheet lists "Nightly · following · links: 3" with Stop. It is
+  never the work standing beside the bell (`ProcessRow.standing`): a
+  following lasts for hours, and the canvas's status line says it (D364).
 - **Bounds**: `PIPELINE_FOLLOW_MAX` (3) a person and
   `PIPELINE_FOLLOW_SERVER_MAX` (20) on the server, refused with 429.
 
@@ -485,4 +483,3 @@ message's own a sender sets plus a body field named as each column coming in,
 so pairing by name puts a whole row into a JSON body (D335).
 
 Spec: [RabbitMQ in pipelines](../decisions/2026-11-09-rabbitmq-pipelines-design.md)
-

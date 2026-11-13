@@ -34,6 +34,9 @@ const emit = defineEmits<{
   select: [value: GraphSelection]
   activate: [id: string]
   connect: [from: GraphPort, to: GraphPort]
+  /** A row began to be dragged towards another, and where it is aimed as it moves; null once it ends. */
+  linking: [from: GraphPort | null]
+  aim: [port: GraphPort | null]
 }>()
 const root = ref<HTMLDivElement>()
 const camera = computed(() => props.camera ?? { x: 32, y: 32, zoom: 1 })
@@ -50,7 +53,7 @@ const spots = computed(() =>
   labelSpots(labelled.value.map((item) => ({ id: item.edge.id, text: labelText(item.edge), curve: item.curve })))
 )
 const arrowId = `graph-arrow-${useId()}`
-const ARROW_TONES = ["plain", "active", "info", "success", "error", "muted", "secondary"] as const
+const ARROW_TONES = ["plain", "active", "info", "success", "error", "muted", "secondary", "caution"] as const
 /** The arrowhead a line ends in: its result's colour, else the selection's. */
 function arrowTone(edge: GraphEdge, active: boolean): (typeof ARROW_TONES)[number] {
   return edge.tone ?? (active ? "active" : "plain")
@@ -139,9 +142,16 @@ function move(event: PointerEvent) {
   const drawn = linking.value
   if (drawn && drawn.pointer === event.pointerId) {
     if (drawn.at === null && Math.hypot(event.clientX - drawn.start.x, event.clientY - drawn.start.y) < 3) return
+    if (drawn.at === null) {
+      emit("linking", drawn.from)
+      // Said on the page too: what floats over the canvas lets a drop through (D363).
+      document.documentElement.dataset.graphLinking = ""
+    }
     linking.value = { ...drawn, at: worldOf(event) }
     const port = portAt(event)
-    aimed.value = port !== null && port.nodeId !== drawn.from.nodeId ? port : null
+    const next = port !== null && port.nodeId !== drawn.from.nodeId ? port : null
+    if (next?.nodeId !== aimed.value?.nodeId || next?.portId !== aimed.value?.portId) emit("aim", next)
+    aimed.value = next
     return
   }
   if (!gesture || gesture.pointer !== event.pointerId) return
@@ -166,7 +176,10 @@ function end(event: PointerEvent) {
     swallowClick = true
     setTimeout(() => { swallowClick = false }, 0)
     const port = portAt(event)
+    // Before the drag is said to end: a listener may still read what it was over.
     if (port !== null && port.nodeId !== drawn.from.nodeId) emit("connect", drawn.from, port)
+    emit("linking", null)
+    delete document.documentElement.dataset.graphLinking
     return
   }
   if (!gesture || gesture.pointer !== event.pointerId) return
@@ -180,6 +193,10 @@ function cancel() {
   const drawn = linking.value
   linking.value = null
   aimed.value = null
+  if (drawn?.at != null) {
+    emit("linking", null)
+    delete document.documentElement.dataset.graphLinking
+  }
   if (drawn?.capture.hasPointerCapture(drawn.pointer)) drawn.capture.releasePointerCapture(drawn.pointer)
   const ended = gesture
   gesture = null
@@ -340,7 +357,7 @@ defineExpose({ fit, zoom, focus })
             class="graph-node__row"
             role="button"
             tabindex="0"
-            :class="{ 'graph-node__row--selected': selection?.kind === 'node' && selection.id === node.id && selection.portId === row.id, 'graph-node__row--muted': row.muted, 'graph-node__row--made': row.made, 'graph-node__row--aimed': aimed?.nodeId === node.id && aimed.portId === row.id }"
+            :class="{ 'graph-node__row--selected': selection?.kind === 'node' && selection.id === node.id && selection.portId === row.id, 'graph-node__row--muted': row.muted, 'graph-node__row--made': row.made, 'graph-node__row--fit': row.tint === 'fit', 'graph-node__row--unfit': row.tint === 'unfit', 'graph-node__row--aimed': aimed?.nodeId === node.id && aimed.portId === row.id }"
             :style="{ height: `${ROW_HEIGHT}px` }"
             :aria-label="`${node.label}: ${row.label}`"
             :data-testid="`graph-port-${node.id}-${row.id}`"
@@ -401,6 +418,7 @@ defineExpose({ fit, zoom, focus })
 .graph-2d__arrow--success { fill: var(--dp-content-success); }
 .graph-2d__arrow--error { fill: var(--dp-content-error); }
 .graph-2d__arrow--secondary { fill: var(--dp-graph-edge-secondary); }
+.graph-2d__arrow--caution { fill: var(--dp-tone-warning-text); }
 .graph-2d__edge--active .graph-2d__edge { stroke: var(--dp-accent); stroke-width: 2.8; }
 /* After the selection's rule: a selected line keeps its result's colour. */
 .graph-2d__tone--info .graph-2d__edge { stroke: var(--dp-info); stroke-width: 2.8; }
@@ -408,6 +426,7 @@ defineExpose({ fit, zoom, focus })
 .graph-2d__tone--error .graph-2d__edge { stroke: var(--dp-content-error); }
 .graph-2d__tone--muted { opacity: var(--dp-opacity-dim); }
 .graph-2d__tone--secondary .graph-2d__edge { stroke: var(--dp-graph-edge-secondary); }
+.graph-2d__tone--caution .graph-2d__edge { stroke: var(--dp-tone-warning-text); }
 /* Its own stroke is the mark of focus, and only the keyboard's: a pointer press
    focuses the curve too, and with :focus the fourteen pixels showed as a grey
    band, while the browser's ring drew a rectangle round the whole curve. */
@@ -430,6 +449,10 @@ defineExpose({ fit, zoom, focus })
 .graph-node__badges { flex: 0 0 34px; display: flex; align-items: center; color: var(--node-accent); font-size: var(--dp-font-size-xs); font-weight: 600; }
 .graph-node__row--muted .graph-node__name { color: var(--dp-text-muted); text-decoration: line-through; }
 .graph-node__row--made .graph-node__name { font-style: italic; }
+/* While a row is dragged (D363): where it can go, and faded where it cannot. */
+.graph-node__row--fit { background: var(--dp-tone-success-wash); }
+.graph-node__row--fit .graph-node__type { color: var(--dp-content-success); }
+.graph-node__row--unfit { opacity: var(--dp-opacity-dim); }
 .graph-node__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graph-node__type { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dp-text-muted); font-family: var(--dp-font-mono); font-size: var(--dp-font-size-xs); }
 .graph-node__port { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--node-accent); top: calc(50% - 2.5px); }

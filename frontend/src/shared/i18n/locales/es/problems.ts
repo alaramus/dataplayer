@@ -199,7 +199,7 @@ export const problems: Record<ProblemCode, string> = {
   "pipelines.running": "Este flujo ya se está ejecutando; espera a que termine",
   "pipelines.too_many_running": "Ya hay {count} flujos en ejecución; espera a que termine uno",
   "pipelines.run_not_found": "No se encontró la ejecución",
-  "pipelines.nothing_followed": "Marque primero un enlace para seguir",
+  "pipelines.no_schedule": "Primero elija cuándo se ejecutan los enlaces programados",
   "pipelines.too_many_following": "Una persona sigue como máximo {count} pipelines a la vez",
   "pipelines.following_server_full": "Este servidor sigue como máximo {count} pipelines a la vez",
   "shares.link_outdated": "Este enlace lo creó una versión anterior de la aplicación",

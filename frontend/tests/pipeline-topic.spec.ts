@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test"
 
 import { createPostgresConnector, createRedisConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { canvasRow, drawLink } from "./utils/pipelines"
+import { canvasRow, drawLink, runOnce, pipelineMenu } from "./utils/pipelines"
 import { REDIS, redisCommands } from "./utils/redis"
 import { signedApi } from "./utils/search"
 import { requireE2EService } from "./utils/services"
@@ -99,33 +99,29 @@ test("reads a topic into a table, only what is new at each run", async ({ page }
   await picker.getByTestId(`catalog-check-${table}`).click()
   await picker.getByTestId("card-picker-done").click()
 
-  // The one way out of a topic: its pairing opens at once.
+  // The one way out of a topic, drawn ready: its value paired by name (D364).
   await drawLink(page, canvasRow(page, topic), canvasRow(page, table))
   const panel = page.getByTestId("link-panel")
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Add new messages to a table")
-  const pairing = page.getByTestId("grid-import-dialog")
-  await expect(pairing).toBeVisible()
-  await pairing.getByTestId("grid-import-pair-value").click()
-  await page.getByRole("option", { name: "value", exact: true }).click()
-  await pairing.getByTestId("grid-import-run").click()
-  await expect(pairing).toHaveCount(0)
+  await expect(page.getByTestId("grid-import-dialog")).toHaveCount(0)
+  await expect(panel.getByTestId("link-panel-columns")).toContainText("1 column paired")
 
   // The server names the link's group once the pipeline is saved.
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   const result = panel.getByTestId("link-panel-result")
   await expect(result).toContainText("3 new messages added", { timeout: 30_000 })
   await expect(panel.getByTestId("link-panel-reader")).toContainText("dataplayer-link-")
   await expect(panel.getByTestId("link-panel-start")).toBeVisible()
 
   await send(page, api, kafka, topic, [4, 5])
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   await expect(result).toContainText("2 new messages added", { timeout: 30_000 })
   await page.screenshot({ path: "test-results/pipeline-topic.png" })
 
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   await expect(result).toContainText("Nothing new since the last run", { timeout: 30_000 })
 
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
   await sql(page, api, postgres, `DROP TABLE public.${table}`)
   await page.request.post(`${api.base}/connectors/${kafka}/actions/delete_topic`, {
@@ -179,12 +175,15 @@ test("reads a topic into a table its link makes, keyed so each message is kept o
   await picker.getByTestId("catalog-check-public").click()
   await picker.getByTestId("card-picker-done").click()
 
-  // Drawn to a schema: the table is made, its window opens at once with
-  // every column of the topic, partition and offset among them.
+  // Drawn to a schema: the table is made with every column of the topic,
+  // partition and offset among them.
   await drawLink(page, canvasRow(page, topic), canvasRow(page, "public"))
   const panel = page.getByTestId("link-panel")
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Add new messages to a new table")
+  // Drawn ready with a table named after its source (D364); renamed here.
   const window = page.getByTestId("grid-create-table-dialog")
+  await expect(window).toHaveCount(0)
+  await panel.getByTestId("link-panel-choose-columns").click()
   await expect(window).toBeVisible()
   await window.getByTestId("grid-create-table-name").fill(table)
   await window.getByTestId("grid-create-table-run").click()
@@ -192,18 +191,18 @@ test("reads a topic into a table its link makes, keyed so each message is kept o
   // What it makes is a row of the card before it runs (D178).
   await expect(page.getByTestId("pipeline-canvas")).toContainText(table)
 
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   const result = panel.getByTestId("link-panel-result")
   await expect(result).toContainText("3 new messages added", { timeout: 30_000 })
   await expect(result).toContainText("the table was made with a key on partition and offset")
 
   await send(page, api, kafka, topic, [4, 5])
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   await expect(result).toContainText("2 new messages added", { timeout: 30_000 })
   await expect(result).not.toContainText("the table was made")
   await page.screenshot({ path: "test-results/pipeline-topic-new-table.png" })
 
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
   await sql(page, api, postgres, `DROP TABLE public.${table}`)
   await page.request.post(`${api.base}/connectors/${kafka}/actions/delete_topic`, {
@@ -265,12 +264,14 @@ test("keeps the latest value of each message key as Redis keys (D314)", async ({
   await picker.getByTestId(`catalog-check-db${REDIS.database}`).click()
   await picker.getByTestId("card-picker-done").click()
 
-  // Drawn to a database: its window opens with the topic's key and the
-  // fields of its JSON.
+  // Drawn to a database, ready: keyed by the topic's key, the fields of its
+  // JSON as the value (D364). Its window changes the prefix.
   await drawLink(page, canvasRow(page, topic), canvasRow(page, `db${REDIS.database}`))
   const panel = page.getByTestId("link-panel")
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Keep the latest per key")
   const window = page.getByTestId("keyed-window")
+  await expect(window).toHaveCount(0)
+  await panel.getByTestId("link-panel-choose-keyed").click()
   await expect(window).toBeVisible()
   await window.getByTestId("keyed-prefix").fill(prefix)
   await expect(window.getByTestId("keyed-shape")).toHaveText("One value: a string key")
@@ -279,13 +280,13 @@ test("keeps the latest value of each message key as Redis keys (D314)", async ({
   await expect(window).toHaveCount(0)
   await expect(panel.getByTestId("link-panel-keyed")).toContainText(`${prefix}{key}`)
 
-  await page.getByTestId("pipeline-run").click()
+  await runOnce(page)
   const result = panel.getByTestId("link-panel-result")
   await expect(result).toContainText(`3 rows: 2 keys written under ${prefix}`, { timeout: 30_000 })
   await expect(panel.getByTestId("link-panel-reader")).toContainText("dataplayer-link-")
   await page.screenshot({ path: "test-results/pipeline-topic-keyed.png" })
 
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
   await redisCommands([["DEL", `${prefix}BTC`, `${prefix}ETH`]])
   await page.request.post(`${api.base}/connectors/${kafka}/actions/delete_topic`, {
@@ -297,7 +298,7 @@ test("keeps the latest value of each message key as Redis keys (D314)", async ({
   await deleteConnector(page, broker)
 })
 
-test("follows a topic: a message sent appears in its table without pressing Run (D315)", async ({ page }) => {
+test("switched on, a message sent to a topic appears in its table without a run (D315, D362)", async ({ page }) => {
   await requireE2EService("kafka")
   const stamp = Date.now()
   const database = `e2e-follow-db-${stamp}`
@@ -341,19 +342,14 @@ test("follows a topic: a message sent appears in its table without pressing Run 
 
   await drawLink(page, canvasRow(page, topic), canvasRow(page, table))
   const panel = page.getByTestId("link-panel")
-  const pairing = page.getByTestId("grid-import-dialog")
-  await expect(pairing).toBeVisible()
-  await pairing.getByTestId("grid-import-pair-value").click()
-  await page.getByRole("option", { name: "value", exact: true }).click()
-  await pairing.getByTestId("grid-import-run").click()
-  await expect(pairing).toHaveCount(0)
-
-  // The head's Follow is off until a link is marked; the mark is in the panel.
-  const follow = page.getByTestId("pipeline-follow")
-  await expect(follow).toBeDisabled()
-  await panel.getByTestId("link-panel-follow").click()
-  await expect(follow).toBeEnabled()
+  // A link reading a topic on runs continuously unless told otherwise, and the
+  // status line says what Switch on will do.
+  await expect(panel.getByTestId("link-panel-runs")).toContainText("Runs continuously")
+  const status = page.getByTestId("pipeline-status")
+  await expect(status).toContainText("Ready. Switch on and 1 link runs continuously")
+  const follow = page.getByTestId("pipeline-switch")
   await follow.click()
+  await expect(follow).toContainText("Switch off")
   const following = panel.getByTestId("link-panel-following")
   await expect(following).toContainText("messages carried: 2", { timeout: 30_000 })
   await expect(page.locator('[data-testid^="graph-edge-label-"]', { hasText: "↻" })).toHaveCount(1)
@@ -363,10 +359,11 @@ test("follows a topic: a message sent appears in its table without pressing Run 
   await expect(following).toContainText("messages carried: 3", { timeout: 30_000 })
   await page.screenshot({ path: "test-results/pipeline-follow.png" })
 
+  await expect(status).toContainText("last carried")
   await follow.click()
   await expect(following).toHaveCount(0)
 
-  await page.getByTestId("pipeline-delete").click()
+  await pipelineMenu(page, "delete")
   await page.getByTestId("confirm-accept").click()
   await sql(page, api, postgres, `DROP TABLE public.${table}`)
   await page.request.post(`${api.base}/connectors/${kafka}/actions/delete_topic`, {

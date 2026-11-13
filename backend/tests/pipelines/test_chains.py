@@ -61,11 +61,10 @@ async def test_what_a_link_makes_is_a_row_asked_of_as_it_will_be_made(
     # Two ticked rows are asked as the pair window asks them.
     plain = await canvas.offers(end(tables, f"{schema}.regions"), end(folder, "reports"))
     assert plain["relation_csv"]["suggested_name"] == "regions.csv"
-    # And the hint draws a link from the result as from any row.
-    hinted = await canvas.hint()
-    assert {
-        (one["source"]["made_by"], one["target"]["node_id"], tuple(one["titles"])) for one in hinted["links"]
-    } >= {(save["id"], schema, ("Create a table",))}
+    # And a drag from the result is answered as from any row.
+    found = await canvas.targets(end(folder, made_by=save))
+    titles = {one["end"]["node_id"]: one["title"] for one in found["targets"]}
+    assert titles[schema] == "Create a table"
 
 
 async def test_a_chain_reads_what_was_made_in_this_run_under_the_name_it_was_made_with(

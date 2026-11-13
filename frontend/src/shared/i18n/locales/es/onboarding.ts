@@ -141,13 +141,13 @@ export const onboarding: Messages["onboarding"] = {
       },
       link: {
         title: "Únelas",
-        hint: "La pista dibuja cada enlace posible. También se puede arrastrar una fila sobre otra.",
-        press: "Pulsa el enlace discontinuo de la tabla a la carpeta.",
+        hint: "Arrastre la fila de {table} sobre la fila de la carpeta. Se iluminan las filas donde puede ir.",
       },
       run: {
         title: "Ejecútala",
-        hint: "Ejecuta la canalización. El enlace guarda la tabla como archivo CSV.",
-        taken: "La carpeta ya tiene un archivo con ese nombre: en «Si el nombre ya está ocupado» elige «Conservar ambos» y vuelve a ejecutar.",
+        menu: "Abra el menú junto a «Encender».",
+        hint: "Ejecútelo una vez ahora. El enlace guarda la tabla como archivo CSV.",
+        taken: "La carpeta ya tiene un archivo con ese nombre: en «Si el nombre ya está ocupado» elija «Conservar ambos» y vuelva a ejecutarlo una vez.",
       },
       seen: {
         title: "El archivo",

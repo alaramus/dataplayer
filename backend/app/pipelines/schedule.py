@@ -43,7 +43,6 @@ class ScheduleSettings(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    enabled: bool = False
     kind: Literal["interval", "times"] = "times"
     every_minutes: int = PydanticField(default=60, ge=MIN_EVERY_MINUTES, le=MAX_EVERY_MINUTES)
     times: list[TimeOfDay] = PydanticField(default_factory=lambda: ["03:00"], max_length=MAX_TIMES)
@@ -76,12 +75,13 @@ class PipelineSchedule(SQLModel, table=True):
         foreign_key="pipeline.id", primary_key=True, ondelete="CASCADE"
     )
     settings: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
-    # What an interval counts from: when the schedule was last switched on.
+    # What an interval counts from: when the pipeline was last switched on, or
+    # the schedule changed while it was on.
     counted_from: datetime = Field(
         default_factory=get_datetime_utc,
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
-    # None while it is off.
+    # None while the pipeline is switched off (D362).
     next_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), nullable=True, index=True)
     )

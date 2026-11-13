@@ -4,7 +4,7 @@ import { firstSettings, intervalParts, minutesOf, nextRunWords, scheduleWords } 
 
 describe("a pipeline's schedule on the screen (D179)", () => {
   it("says what a schedule does in a line", () => {
-    const nightly = { ...firstSettings("Europe/Riga"), enabled: true }
+    const nightly = firstSettings("Europe/Riga")
     expect(scheduleWords(nightly)).toBe("Every day at 03:00")
     expect(scheduleWords({ ...nightly, times: ["18:00", "09:00"], days: [0, 1, 2, 3, 4] }))
       .toBe("Weekdays at 09:00 and 18:00")
@@ -13,8 +13,7 @@ describe("a pipeline's schedule on the screen (D179)", () => {
     expect(scheduleWords({ ...nightly, kind: "interval", every_minutes: 5 })).toBe("Every 5 minutes")
     expect(scheduleWords({ ...nightly, kind: "interval", every_minutes: 60 })).toBe("Every hour")
     expect(scheduleWords({ ...nightly, kind: "interval", every_minutes: 2 * 24 * 60 })).toBe("Every 2 days")
-    expect(scheduleWords({ ...nightly, enabled: false })).toBe("Runs only when Run is pressed")
-    expect(scheduleWords(null)).toBe("Runs only when Run is pressed")
+    expect(scheduleWords(null)).toBe("No schedule set")
   })
 
   it("shows an interval in the largest unit it fills, and back", () => {

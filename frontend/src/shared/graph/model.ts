@@ -12,6 +12,8 @@ export interface GraphRow {
   muted?: boolean
   /** Not there yet: what something on the canvas will make. */
   made?: boolean
+  /** While a row is dragged: whether this one takes the drop (D363). */
+  tint?: "fit" | "unfit"
 }
 export interface GraphDetail { label: string; value: string }
 export interface GraphNode {
@@ -30,7 +32,7 @@ export interface GraphPort { nodeId: string; portId: string }
  * What a line says by its colour: at work, done, failed, passed over, or a
  * line of a second kind drawn beside the ordinary ones.
  */
-export type GraphEdgeTone = "info" | "success" | "error" | "muted" | "secondary"
+export type GraphEdgeTone = "info" | "success" | "error" | "muted" | "secondary" | "caution"
 export interface GraphEdge {
   id: string
   source: GraphEndpoint

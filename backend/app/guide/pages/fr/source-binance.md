@@ -103,7 +103,7 @@ Les **Transactions** d'un symbole et chaque série de **Bougies** peuvent être
 le début d'un lien de pipeline qui lit à la suite : **Ajouter les nouveaux
 messages à une table** ou **à une nouvelle table**, ou **Garder le plus
 récent par clé**. Chaque exécution ne lit que ce qui est arrivé depuis la
-précédente, et **Suivre** le transporte en quelques secondes.
+précédente, et un pipeline activé le transporte en quelques secondes.
 
 - DataPlayer garde l'endroit où chaque lien s'est arrêté ; Binance non.
 - **La première exécution lit** : **Seulement ce qui est nouveau** commence

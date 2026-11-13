@@ -8,7 +8,7 @@ import ImportDialog from "@/features/grid/ImportDialog.vue"
 import { messageOf } from "@/shared/api/errors"
 import { useNow } from "@/shared/freshness/useNow"
 import { t } from "@/shared/i18n"
-import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, AppToggle, appIcons } from "@/shared/ui"
+import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, appIcons } from "@/shared/ui"
 
 import { linkOffersKey, readLinkOffers } from "./api"
 import { followWords } from "./follow"
@@ -23,8 +23,8 @@ import type { EndNamer, LinkWorkflow } from "./links"
  * what it did in the run shown: the last (D177), or one pressed in the
  * history (D180).
  *
- * Every choice is the link's and is saved with the pipeline; the head's Run
- * runs what was saved, never what is on this screen.
+ * Every choice is the link's and is saved with the pipeline; what runs is
+ * what was saved, never what is on this screen.
  */
 const props = defineProps<{
   link: Link
@@ -47,8 +47,8 @@ const props = defineProps<{
   autoOpen?: boolean
   /** The consumer group a link reading on reads as (D312), once the server has named it. */
   reader?: string | null
-  /** Whether the pipeline follows its topics, and what this link did while it does (D315). */
-  followOn?: boolean
+  /** Whether the pipeline is on, and what this link did while it is (D315, D362). */
+  switchOn?: boolean
   followed?: FollowedLinkPublic
 }>()
 
@@ -102,6 +102,12 @@ function rebind(value: string | number | null) {
   const typed = String(value ?? "")
   emit("change", { ...props.link, binding_key: typed === "" ? null : typed.slice(0, 255) })
 }
+
+// How the link runs while the pipeline is on (D362): only a link reading on has a choice.
+const runsChoices = [
+  { get label() { return t("pipelines.link_panel.runs_continuous") }, value: "continuous" },
+  { get label() { return t("pipelines.link_panel.runs_scheduled") }, value: "scheduled" },
+]
 
 const starts = [
   { get label() { return t("pipelines.link_panel.start_earliest") }, value: "earliest" },
@@ -237,12 +243,15 @@ const columnsWord = computed(() => {
         data-testid="link-panel-conflict"
         @update:model-value="emit('change', { ...link, conflict: $event as Link['conflict'] })"
       />
-      <AppToggle
+      <AppSelect
         v-if="readsOn"
-        :model-value="link.follow === true"
-        :label="t('pipelines.follow.mark')"
-        data-testid="link-panel-follow"
-        @update:model-value="emit('change', { ...link, follow: $event })"
+        class="link-panel__field"
+        :model-value="link.runs ?? 'scheduled'"
+        :options="runsChoices"
+        :label="t('pipelines.link_panel.runs')"
+        compact
+        data-testid="link-panel-runs"
+        @update:model-value="emit('change', { ...link, runs: $event as Link['runs'] })"
       />
       <AppInput
         v-if="readsOn && reading?.asks_binding_key"
@@ -294,7 +303,7 @@ const columnsWord = computed(() => {
     </div>
 
     <p
-      v-if="followOn && link.follow"
+      v-if="switchOn && link.runs === 'continuous'"
       class="link-panel__result"
       :class="{ 'link-panel__result--failed': followed?.state === 'retrying' }"
       data-testid="link-panel-following"
@@ -345,7 +354,7 @@ const columnsWord = computed(() => {
       v-if="keyedOpen && offer"
       :source-columns="offer.source_columns ?? []"
       :suggested-prefix="offer.suggested_name ?? ''"
-      :kept="{ byKey: link.by_key ?? null, columns: link.columns ?? null }"
+      :kept="{ byKey: link.by_key ?? offer.defaults?.by_key ?? null, columns: link.columns ?? offer.defaults?.columns ?? null }"
       @close="keyedOpen = false"
       @keep="keepKeyed"
     />

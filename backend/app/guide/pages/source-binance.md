@@ -92,7 +92,7 @@ book with each level's depth, and the trades as they happen.
 A symbol's **Trades** and each **Candles** series can be the start of a
 pipeline's link that reads on: **Add new messages to a table** or **to a new
 table**, or **Keep the latest per key**. Each run reads only what came since
-the last one, and **Follow** carries it within seconds.
+the last one, and a pipeline switched on carries it within seconds.
 
 - DataPlayer keeps where each link stopped; Binance does not.
 - **First run reads**: **Only what is new** starts now; **From the earliest

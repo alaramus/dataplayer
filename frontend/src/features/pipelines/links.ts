@@ -8,15 +8,15 @@
  */
 
 import type {
-  Card, CardRow, HintLink, Link, LinkEnd, LinkPlace, LinkRun, PasteOffer, PipelineRunPublic, ResultRow,
+  Card, CardRow, Link, LinkEnd, LinkLack, LinkOffer, LinkPlace, LinkRun, PipelineRunPublic, ResultRow, Target,
 } from "@/client"
 import { ICONS } from "@/features/catalog/nodes"
 import { ageLabel } from "@/shared/freshness/freshness"
 import { t } from "@/shared/i18n"
 import type { GraphEdge, GraphEdgeTone, GraphPort } from "@/shared/graph/model"
 
-import { rowId } from "./model"
-import type { MadeRow } from "./model"
+import { rowId, rowKey } from "./model"
+import type { MadeRow, RowTarget } from "./model"
 
 const MADE = "made:"
 
@@ -54,20 +54,24 @@ const TONES: Record<LinkRun["outcome"], GraphEdgeTone | undefined> = {
 /**
  * A link as its line: numbered by its place in a run, the number in the
  * caution colour where a circle was broken at it, and coloured by what it did
- * in the run shown — the last, or one pressed in the history (D180).
+ * in the run shown — the last, or one pressed in the history (D180). A link
+ * that cannot run yet is in the caution colour, saying what it needs (D364).
  */
 export function linkEdge(
-  link: Link, place?: LinkPlace, run?: LinkRun, following?: GraphEdgeTone | null
+  link: Link, place?: LinkPlace, run?: LinkRun, following?: GraphEdgeTone | null, lack?: LinkLack
 ): GraphEdge {
-  // A followed link is marked before its title (D315).
-  const label = link.follow === true ? `${FOLLOW_MARK} ${link.title}` : link.title
+  // A continuous link is marked before its title (D315, D362).
+  const marked = link.runs === "continuous" ? `${FOLLOW_MARK} ${link.title}` : link.title
+  const label = lack === undefined ? marked : `${marked} · ${t(`pipelines.links.needs.${lack.needs}`)}`
   const edge: GraphEdge = {
     id: link.id, source: endpoint(link.source), target: endpoint(link.target), label, directed: true,
   }
-  // While its pipeline follows, a followed link's line says what it does now.
-  const tone = following !== undefined
-    ? following ?? undefined
-    : run === undefined ? undefined : TONES[run.outcome]
+  // While its pipeline is on, a continuous link's line says what it does now.
+  const tone = lack !== undefined
+    ? "caution"
+    : following !== undefined
+      ? following ?? undefined
+      : run === undefined ? undefined : TONES[run.outcome]
   return {
     ...edge,
     ...(place === undefined ? {} : { badge: String(place.number) }),
@@ -76,25 +80,21 @@ export function linkEdge(
   }
 }
 
-/** The sign a followed link carries before its title. */
+/** The sign a continuous link carries before its title. */
 export const FOLLOW_MARK = "↻"
 
-export const HINT_PREFIX = "hint:"
-
-export function hintEdges(hints: readonly HintLink[]): GraphEdge[] {
-  return hints.map((hint, index) => ({
-    id: `${HINT_PREFIX}${String(index)}`,
-    source: endpoint(hint.source),
-    target: endpoint(hint.target),
-    label: hint.titles.join(" · "),
-    directed: true,
-    dashed: true,
-  }))
-}
-
-export function hintOf(hints: readonly HintLink[], edgeId: string): HintLink | null {
-  if (!edgeId.startsWith(HINT_PREFIX)) return null
-  return hints[Number(edgeId.slice(HINT_PREFIX.length))] ?? null
+/**
+ * What the server answered of a drag (D363), by the canvas's row: what a
+ * drop draws, or why nothing would. A row left unasked is left out.
+ */
+export function targetRows(targets: readonly Target[]): Map<string, RowTarget> {
+  const found = new Map<string, RowTarget>()
+  for (const target of targets) {
+    const key = rowKey(target.end.card_id, endRowId(target.end))
+    if (target.kind != null) found.set(key, { fit: true, note: target.title ?? "" })
+    else if (target.reason != null) found.set(key, { fit: false, note: target.reason })
+  }
+  return found
 }
 
 function sameEnd(a: LinkEnd, b: LinkEnd): boolean {
@@ -121,24 +121,35 @@ export function joinProblem(cards: readonly Card[], from: LinkEnd, to: LinkEnd):
 }
 
 /** The offers a link may run: available, or held back only by a taken name. */
-export function usable(offers: readonly PasteOffer[]): PasteOffer[] {
+export function usable(offers: readonly LinkOffer[]): LinkOffer[] {
   return offers.filter((offer) => offer.available || offer.name_conflict === true)
 }
 
 /** Why no link was drawn: the first reason the offers give. */
-export function refusal(offers: readonly PasteOffer[]): string {
+export function refusal(offers: readonly LinkOffer[]): string {
   return offers.find((offer) => offer.reason)?.reason ?? t("pipelines.links.nothing_fits")
 }
 
-/** A new link doing what this offer does, with no choice made yet. */
-export function linkFromOffer(id: string, from: LinkEnd, to: LinkEnd, offer: PasteOffer): Link {
-  return { id, source: from, target: to, kind: offer.kind, title: offer.title, conflict: "refuse", name: null, columns: null, by_key: null }
+/** The choices an offer says a link starts with, so it is drawn ready where it can be (D364). */
+function choicesOf(offer: LinkOffer): Pick<Link, "runs" | "name" | "columns" | "by_key"> {
+  const given = offer.defaults
+  return {
+    runs: given?.runs ?? "scheduled",
+    name: given?.name ?? null,
+    columns: given?.columns ?? null,
+    by_key: given?.by_key ?? null,
+  }
+}
+
+/** A new link doing what this offer does, with the choices it starts with. */
+export function linkFromOffer(id: string, from: LinkEnd, to: LinkEnd, offer: LinkOffer): Link {
+  return { id, source: from, target: to, kind: offer.kind, title: offer.title, conflict: "refuse", ...choicesOf(offer) }
 }
 
 /** The same link doing what another offer does: its choices were the other's. */
-export function withOffer(link: Link, offer: PasteOffer): Link {
+export function withOffer(link: Link, offer: LinkOffer): Link {
   if (link.kind === offer.kind) return link
-  return { ...link, kind: offer.kind, title: offer.title, conflict: "refuse", name: null, columns: null, by_key: null }
+  return { ...link, kind: offer.kind, title: offer.title, conflict: "refuse", ...choicesOf(offer) }
 }
 
 /**
@@ -220,7 +231,7 @@ export function sentence(link: Link, name: EndNamer): string {
   return `${link.title}: ${name(link.source)} → ${name(link.target)}`
 }
 
-export type LinkWorkflow = NonNullable<PasteOffer["workflow"]>
+export type LinkWorkflow = NonNullable<LinkOffer["workflow"]>
 
 /** Whether the link still needs its table or column choices (D176): open its window at once. */
 export function needsDialog(link: Link, workflow: LinkWorkflow): boolean {

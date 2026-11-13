@@ -1,4 +1,4 @@
-"""A pipeline following its topics (D315)."""
+"""A pipeline switched on following its topics (D315, D362)."""
 
 import asyncio
 import json
@@ -18,9 +18,10 @@ from app.core.db import async_session_maker
 from app.jobs.models import Job
 from app.main import app
 from app.pipelines import follow as follow_module
-from app.pipelines.follow import FollowedLink, FollowPipeline, ensure_followers
+from app.pipelines.follow import FollowedLink, FollowPipeline
 from app.pipelines.handler import StepFailed
-from app.pipelines.models import Link, PipelineContent, PipelineFollow
+from app.pipelines.models import Link, PipelineContent, PipelineSwitch
+from app.pipelines.switch import ensure_followers
 from tests.adapters.kafka_fixture import (
     ORDERS,
     admin,
@@ -101,7 +102,7 @@ async def _drawn(
     topic: str,
     table: str,
     *,
-    follow: bool = True,
+    runs: str = "continuous",
 ) -> tuple[Canvas, dict[str, Any], str]:
     kafka = await connector(
         client,
@@ -120,7 +121,7 @@ async def _drawn(
         table,
         "rows_since_last",
         columns=COLUMNS,
-        follow=follow,
+        runs=runs,
     )
     saved = await canvas.save([source, target], [drawn])
     assert saved.status_code == 200, saved.text
@@ -129,7 +130,7 @@ async def _drawn(
 
 async def _switch(canvas: Canvas, on: bool) -> Any:
     answer = await canvas.client.put(
-        f"{BASE}/{canvas.id}/follow", headers=canvas.headers, json={"on": on}
+        f"{BASE}/{canvas.id}/switch", headers=canvas.headers, json={"on": on}
     )
     return answer
 
@@ -138,7 +139,7 @@ async def _stopped(canvas: Canvas) -> None:
     """Following switched off, and its job ended."""
     answer = await _switch(canvas, False)
     assert answer.status_code == 200, answer.text
-    job_id = answer.json()["job_id"]
+    job_id = answer.json()["follow"]["job_id"]
     if job_id is not None:
         await app.state.job_runner.wait_for(uuid.UUID(job_id))
 
@@ -153,7 +154,7 @@ async def test_a_followed_link_carries_what_arrives_without_a_run(
     try:
         answer = await _switch(canvas, True)
         assert answer.status_code == 200, answer.text
-        assert answer.json()["on"] is True and answer.json()["running"] is True
+        assert answer.json()["on"] is True and answer.json()["follow"]["running"] is True
         await _reaches(table, SENT)
 
         await on_server(lambda: _send(topic, 3))
@@ -161,10 +162,12 @@ async def test_a_followed_link_carries_what_arrives_without_a_run(
         await asyncio.sleep(1.5)  # the record is written at most once a second
         state = (
             await client.get(
-                f"{BASE}/{canvas.id}/follow", headers=normal_user_token_headers
+                f"{BASE}/{canvas.id}/switch", headers=normal_user_token_headers
             )
         ).json()
-        [followed] = state["links"]
+        assert state["status"]["kind"] == "on"
+        assert state["status"]["last_at"] is not None
+        [followed] = state["follow"]["links"]
         assert followed["link_id"] == drawn["id"]
         assert followed["carried"] == SENT + 3
         assert followed["failures"] == 0
@@ -198,28 +201,31 @@ async def test_run_leaves_a_followed_link_out_while_the_pipeline_follows(
         await app.state.job_runner.wait_for(uuid.UUID(started.json()["job_id"]))
         assert (await canvas.outcomes())[drawn["id"]] == (
             "not_run",
-            "Followed; not run",
+            "Runs continuously; not run",
         )
     finally:
         await _stopped(canvas)
         await _forget(group)
 
 
-async def test_following_needs_a_marked_link_and_marks_only_links_reading_on(
+async def test_a_scheduled_link_needs_a_schedule_and_only_links_reading_on_run_continuously(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     topic: str,
     table: str,
 ) -> None:
     canvas, drawn, _ = await _drawn(
-        client, normal_user_token_headers, topic, table, follow=False
+        client, normal_user_token_headers, topic, table, runs="scheduled"
     )
     refused = await _switch(canvas, True)
     assert refused.status_code == 422
-    assert refused.json()["detail"]["code"] == "pipelines.nothing_followed"
+    assert refused.json()["detail"]["code"] == "pipelines.no_schedule"
+    state = (await canvas.client.get(f"{BASE}/{canvas.id}/switch", headers=canvas.headers)).json()
+    assert state["on"] is False
+    assert state["status"]["kind"] == "no_schedule"
 
     with pytest.raises(ValueError, match="Only a link reading a topic on"):
-        Link.model_validate({**drawn, "kind": "rows_into_relation", "follow": True})
+        Link.model_validate({**drawn, "kind": "rows_into_relation", "runs": "continuous"})
 
 
 async def test_a_person_follows_with_so_many_pipelines(
@@ -246,7 +252,7 @@ async def test_the_switch_starts_a_new_follower_and_a_stop_switches_it_off(
     pipeline_id = uuid.UUID(canvas.id)
     try:
         started = (await _switch(canvas, True)).json()
-        first = uuid.UUID(started["job_id"])
+        first = uuid.UUID(started["follow"]["job_id"])
         # A restart: the process's job is interrupted, the switch stays on.
         await app.state.job_runner.cancel(first)
         await app.state.job_runner.wait_for(first)
@@ -259,9 +265,9 @@ async def test_the_switch_starts_a_new_follower_and_a_stop_switches_it_off(
         assert await ensure_followers(app.state.job_runner, app.state.topics) == 1
         state = (
             await client.get(
-                f"{BASE}/{canvas.id}/follow", headers=normal_user_token_headers
+                f"{BASE}/{canvas.id}/switch", headers=normal_user_token_headers
             )
-        ).json()
+        ).json()["follow"]
         assert state["running"] is True and state["job_id"] != str(first)
 
         # Stopped from the footer: the job is cancelled, and that switches it off.
@@ -271,8 +277,8 @@ async def test_the_switch_starts_a_new_follower_and_a_stop_switches_it_off(
         async with async_session_maker() as session:
             row = (
                 await session.exec(
-                    select(PipelineFollow).where(
-                        PipelineFollow.pipeline_id == pipeline_id
+                    select(PipelineSwitch).where(
+                        PipelineSwitch.pipeline_id == pipeline_id
                     )
                 )
             ).one()
@@ -308,7 +314,7 @@ async def test_a_failing_link_is_tried_again_later_and_recovers(
             "target": {"card_id": str(uuid.uuid4()), "node_id": "public.t"},
             "kind": "rows_since_last",
             "title": "1",
-            "follow": True,
+            "runs": "continuous",
         }
     )
 

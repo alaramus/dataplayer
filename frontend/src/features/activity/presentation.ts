@@ -35,6 +35,11 @@ export interface ProcessRow {
   canResume: boolean
   canStop: boolean
   controlsHint: string
+  /**
+   * Runs until it is switched off, as a pipeline's follower does (D362): told
+   * in the sheet, never beside the bell, where it would stand for hours.
+   */
+  standing?: boolean
 }
 
 const JOB_LABELS: Record<JobPublic["kind"], MessageKey> = {
@@ -202,6 +207,7 @@ function followRow(job: JobPublic, follow: FollowRecord): ProcessRow {
     createdAt: Date.parse(job.created_at),
     canPause: false, canResume: false, canStop: active,
     controlsHint: active ? t("activity.rows.following_hint") : "",
+    standing: true,
   }
 }
 
@@ -225,7 +231,11 @@ function contentsRow(job: JobPublic, measurement: string): ProcessRow {
   }
 }
 
-/** Prefer work that is moving over a paused queue; never average unlike units. */
+/**
+ * What stands beside the bell: work that is moving over a paused queue, and
+ * never work that runs until switched off. Never average unlike units.
+ */
 export function foreground(rows: ProcessRow[]): ProcessRow | undefined {
-  return rows.find((row) => row.active && !row.paused) ?? rows.find((row) => row.active)
+  const passing = rows.filter((row) => row.active && row.standing !== true)
+  return passing.find((row) => !row.paused) ?? passing[0]
 }

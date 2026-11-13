@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 import { login } from "./utils/login"
+import { runOnce } from "./utils/pipelines"
 
 /**
  * The short tours (D356), started from Preferences and followed the way a
@@ -93,20 +94,29 @@ test("the pipeline tour saves the practice table as a CSV in the person's folder
   await pressRinged(page) // tick the folder itself
   await pressRinged(page) // put it on the canvas
   await expect(position(page)).toHaveText("Step 4 of 6")
-  await pressRinged(page) // the hint
-  const dashed = page.locator('[data-testid^="graph-edge-hint:"]').first()
-  await expect(dashed).toBeAttached()
-  await page.screenshot({ path: test.info().outputPath("pipeline-hint.png") })
-  await dashed.press("Enter")
+  // The table's row is ringed: dragged onto the folder's top (D363).
+  const from = await ringed(page)
+  const top = page.getByTestId("pipeline-canvas").locator('[data-testid^="graph-port-"][data-testid$="-top"]')
+  const to = await top.boundingBox()
+  if (to === null) throw new Error("The folder's row is not on screen")
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down()
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 })
+  await expect(top).toHaveClass(/graph-node__row--fit/)
+  await page.screenshot({ path: test.info().outputPath("pipeline-drag.png") })
+  await page.mouse.up()
+  // Dropped, it is saved and its offers asked before the link is drawn.
+  await expect(page.getByTestId("link-panel")).toBeVisible({ timeout: 15_000 })
   await expect(position(page)).toHaveText("Step 5 of 6")
-  await pressRinged(page) // Run
+  await pressRinged(page) // the menu beside Switch on
+  await pressRinged(page) // Run once now
   // A file of that name left by an earlier run: the ring moves to the choice.
   const result = page.getByTestId("link-panel-result")
   await expect(result).toHaveAttribute("data-outcome", /done|failed/, { timeout: 30_000 })
   if ((await result.getAttribute("data-outcome")) === "failed") {
     await pressRinged(page) // If the name is taken
     await page.getByRole("option", { name: "Keep both" }).click()
-    await page.getByTestId("pipeline-run").click()
+    await runOnce(page)
   }
   await expect(position(page)).toHaveText("Step 6 of 6", { timeout: 30_000 })
   await pressRinged(page) // back to Data

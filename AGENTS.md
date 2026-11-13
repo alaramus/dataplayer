@@ -69,6 +69,7 @@ documentation.
 | A notification, something waiting for an answer, running work on screen | [notifications.md](docs/architecture/notifications.md) |
 | A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
 | A pipeline, its cards, links, run, schedule and history, what connections can give each other, a link reading a topic on, a node's columns when rows move | [pipelines.md](docs/architecture/pipelines.md) |
+| Switching a pipeline on, the head of its canvas, where a dragged row can go, a link drawn ready, the status line under the canvas | [pipeline-switch.md](docs/architecture/pipeline-switch.md) |
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | The agent, its tools, sending data to a third party, quick chat, the agent reading the user's guide | [ai.md](docs/architecture/ai.md) |
@@ -124,6 +125,7 @@ file; `D247–D262` is every number between, all in that file.
 | [terminals](docs/architecture/terminals.md) | D148, D149, D286 |
 | [sources/explorer](docs/architecture/sources/explorer.md) | D150–D152, D324 |
 | [pipelines](docs/architecture/pipelines.md) | D174–D180, D312–D315, D336 |
+| [pipeline-switch](docs/architecture/pipeline-switch.md) | D362–D364 |
 | [search](docs/architecture/search.md) | D197–D205 |
 | [search-kept](docs/architecture/search-kept.md) | D212–D222 |
 | [localization](docs/architecture/localization.md) | D224–D227, D281 |

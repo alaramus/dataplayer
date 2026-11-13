@@ -28,9 +28,11 @@ from app.pipelines.models import (
     Card,
     Link,
     LinkEnd,
+    LinkLack,
+    LinkNeeds,
     Pipeline,
     PipelineContent,
-    PipelineFollow,
+    PipelineSwitch,
     reader_of,
 )
 from app.pipelines.order import ordered
@@ -46,10 +48,10 @@ KEPT_RUNS = 100
 
 # What a link lacks before it can run, by the window its kind opens; the other
 # workflows run with what they have.
-_NEEDS = {
-    "new-relation": N_("{number} · {title} needs its table named and its columns chosen"),
-    "into-relation": N_("{number} · {title} needs its columns paired"),
-    "keyed": N_("{number} · {title} needs its key and values chosen"),
+_NEEDS: dict[LinkNeeds, str] = {
+    "table": N_("{number} · {title} needs its table named and its columns chosen"),
+    "pairing": N_("{number} · {title} needs its columns paired"),
+    "key": N_("{number} · {title} needs its key and values chosen"),
 }
 
 class LinkRun(BaseModel):
@@ -82,17 +84,43 @@ class LastRun(BaseModel):
     run: PipelineRunPublic | None = None
 
 
-def missing(link: Link) -> str | None:
-    """What running the link still needs chosen, asked of its kind alone: a
-    sentence to fill with the link's number and title."""
+def missing(link: Link) -> LinkNeeds | None:
+    """What running the link still needs chosen, asked of its kind alone."""
     workflow = kind_named(link.kind).workflow
     if workflow == "new-relation" and (link.name is None or not link.columns):
-        return _NEEDS[workflow]
+        return "table"
     if workflow == "into-relation" and not link.columns:
-        return _NEEDS[workflow]
+        return "pairing"
     if workflow == "keyed" and (link.by_key is None or not link.columns):
-        return _NEEDS[workflow]
+        return "key"
     return None
+
+
+def lacking(content: PipelineContent) -> list[LinkLack]:
+    """Every link that cannot run yet, in the run's order (D364): what the
+    canvas marks, the status line names and Run refuses with."""
+    return [
+        LinkLack(
+            link_id=placed.link.id,
+            needs=needs,
+            sentence=say(_NEEDS[needs], number=placed.number, title=placed.link.title),
+        )
+        for placed in ordered(content)
+        if (needs := missing(placed.link)) is not None
+    ]
+
+
+def refuse_lacking(content: PipelineContent, verb: str) -> None:
+    """Refused whole, naming each link that lacks a choice, with their ids."""
+    found = lacking(content)
+    if found:
+        raise HTTPException(
+            422,
+            detail={
+                "message": say(verb, needs="; ".join(one.sentence for one in found)),
+                "link_ids": [str(one.link_id) for one in found],
+            },
+        )
 
 
 def _named(card: Card, end: LinkEnd, foresight: Foresight) -> str:
@@ -160,18 +188,7 @@ async def start_run(
     if not content.links:
         raise Problem(422, "pipelines.no_links")
     order = ordered(content)
-    lacking = [(placed, needs) for placed in order if (needs := missing(placed.link))]
-    if lacking:
-        said = "; ".join(
-            say(needs, number=placed.number, title=placed.link.title) for placed, needs in lacking
-        )
-        raise HTTPException(
-            422,
-            detail={
-                "message": say("Nothing ran: {needs}", needs=said),
-                "link_ids": [str(placed.link.id) for placed, _ in lacking],
-            },
-        )
+    refuse_lacking(content, N_("Nothing ran: {needs}"))
     foresight = Foresight(content)
     record = RunRecord(
         pipeline_id=pipeline.id,
@@ -179,14 +196,14 @@ async def start_run(
         scheduled_for=scheduled_for,
         steps=[link_step(content, placed.link, foresight) for placed in order],
     )
-    follow = await session.get(PipelineFollow, pipeline.id)
-    if follow is not None and follow.on:
+    switch = await session.get(PipelineSwitch, pipeline.id)
+    if switch is not None and switch.on:
         # Two readers of one group would race over its positions (D315).
-        followed = {link.id for link in content.links if link.follow}
+        followed = {link.id for link in content.links if link.runs == "continuous"}
         for step in record.steps:
             if step.link_id in followed:
                 step.outcome = "not_run"
-                step.message = say("Followed; not run")
+                step.message = say("Runs continuously; not run")
     try:
         job = await job_crud.admit_within(
             session,

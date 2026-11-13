@@ -17,7 +17,7 @@ def _utc(*parts: int) -> datetime:
 
 
 def _settings(**chosen: Any) -> ScheduleSettings:
-    return ScheduleSettings.model_validate({"enabled": True, "time_zone": RIGA, **chosen})
+    return ScheduleSettings.model_validate({"time_zone": RIGA, **chosen})
 
 
 def test_an_interval_counts_from_when_it_was_switched_on() -> None:

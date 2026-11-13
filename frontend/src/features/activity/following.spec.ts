@@ -4,7 +4,7 @@ import { ref } from "vue"
 import type { JobPublic } from "@/client"
 
 import { carriedOf, followingAttention, followOf, NEEDS_YOU_AFTER } from "./following"
-import { serverRow } from "./presentation"
+import { foreground, serverRow } from "./presentation"
 
 function job(links: Array<Record<string, unknown>>, state: JobPublic["state"] = "running"): JobPublic {
   return {
@@ -32,6 +32,14 @@ describe("a following in the footer and in Needs you (D315)", () => {
     expect(record?.pipelineName).toBe("Nightly")
     expect(record && carriedOf(record)).toBe(15)
     expect(followOf({ ...job([]), kind: "pipeline.run" })).toBeNull()
+  })
+
+  it("is listed in the sheet but never stands beside the bell (D362)", () => {
+    const following = serverRow(job([quiet]), undefined)
+    const run = serverRow({ ...job([]), id: "j2", kind: "service.create", parameters: null, step: "pulling" }, undefined)
+    expect(following).toMatchObject({ active: true, standing: true })
+    expect(foreground([following])).toBeUndefined()
+    expect(foreground([following, run])).toBe(run)
   })
 
   it("is a row named by its pipeline, with what it carried, and Stop", () => {

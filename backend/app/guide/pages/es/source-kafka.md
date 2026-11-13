@@ -192,11 +192,12 @@ llevan lo que llega a tablas.
 - **Guardar lo último por clave**, trazado hacia una base o carpeta de Redis,
   guarda el valor más reciente de cada clave de mensaje como una clave propia,
   con tiempo de vida si se elige; vea la página de Redis.
-- **Seguir** en el panel de un enlace y **Seguir** en la cabecera del pipeline
-  llevan lo que llega en segundos en lugar de en la siguiente ejecución. El
-  pipeline mira cada pocos segundos, sigue tras reiniciarse el servidor, y la
-  ejecución y la programación dejan fuera mientras tanto un enlace seguido.
-  Un enlace que falla se reintenta un poco después y los demás continúan.
+- Mientras el pipeline está encendido, un enlace que lee un topic lleva lo que
+  llega en segundos en lugar de en la siguiente ejecución; **Mientras el flujo
+  está encendido** en su panel lo pasa a la programación. El pipeline mira cada
+  pocos segundos, sigue tras reiniciarse el servidor, y ejecutar una vez deja
+  fuera ese enlace mientras tanto. Un enlace que falla se reintenta un poco
+  después y los demás continúan.
 - Los mensajes que Kafka borró antes de que el enlace los leyera se cuentan en
   el resultado de la ejecución.
 - Kafka olvida las posiciones de un grupo tras una semana sin escribirlas; un

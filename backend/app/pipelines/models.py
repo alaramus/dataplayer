@@ -10,7 +10,7 @@ refused, so one damaged row does not lock its owner out of the rest.
 
 import uuid
 from datetime import datetime
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -43,6 +43,10 @@ MAX_LABEL = 255
 # A node id is the source's own string; a file's is its path.
 MAX_NODE_ID = 4096
 MAX_TRAIL = 32
+# How a link runs while its pipeline is switched on (D362): carried as what it
+# reads arrives, or at the schedule's times.
+LinkRuns = Literal["continuous", "scheduled"]
+
 # Far beyond any canvas a person pans across, and short of a number that
 # stops being one when it is drawn.
 MAX_COORDINATE = 1_000_000.0
@@ -134,8 +138,8 @@ class Link(_Strict):
     start: ReadStart = "earliest"
     # What a link keeping the latest per key writes (D314).
     by_key: KeyedChoice | None = None
-    # Carried as messages arrive while the pipeline follows (D315).
-    follow: bool = False
+    # Carried as what it reads arrives while the pipeline is on (D315, D362).
+    runs: LinkRuns = "scheduled"
     # What the link's own queue is bound to an exchange by (D337). Links are
     # part of the pipeline's stored document; were they ever a table, this
     # field is a new Alembic revision.
@@ -149,9 +153,9 @@ class Link(_Strict):
         return kind
 
     @model_validator(mode="after")
-    def follows_only_what_reads_on(self) -> Self:
-        if self.follow and self.kind not in {kind.name for kind in LINK_ONLY}:
-            raise ValueError("Only a link reading a topic on can follow it")
+    def continuous_only_what_reads_on(self) -> Self:
+        if self.runs == "continuous" and self.kind not in {kind.name for kind in LINK_ONLY}:
+            raise ValueError("Only a link reading a topic on can run continuously")
         return self
 
 
@@ -263,9 +267,10 @@ class Pipeline(SQLModel, table=True):
     )
 
 
-class PipelineFollow(SQLModel, table=True):
-    """Whether a pipeline follows its topics (D315): kept beside it, as its
-    schedule is, so a restart starts a follower from it."""
+class PipelineSwitch(SQLModel, table=True):
+    """Whether a pipeline is switched on (D362): its continuous links followed
+    (D315) and its scheduled ones run at the schedule's times (D179). Kept
+    beside it, so a restart starts a follower from it."""
 
     pipeline_id: uuid.UUID = Field(foreign_key="pipeline.id", primary_key=True, ondelete="CASCADE")
     on: bool = Field(default=False, index=True)
@@ -326,6 +331,20 @@ def reader_of(link: Link) -> str | None:
     return f"dataplayer-link-{link.id}"
 
 
+# What a link still needs chosen before it can run (D364), by the window
+# that chooses it.
+LinkNeeds = Literal["table", "pairing", "key"]
+
+
+class LinkLack(BaseModel):
+    """A link that cannot run yet, and what it lacks (D364)."""
+
+    link_id: uuid.UUID
+    needs: LinkNeeds
+    # The sentence Run refuses with, naming the link by number and title.
+    sentence: str
+
+
 class PipelinePublic(PipelineContent):
     id: uuid.UUID
     name: str
@@ -336,6 +355,7 @@ class PipelinePublic(PipelineContent):
     order: list[LinkPlace] = PydanticField(default_factory=list)
     results: list[ResultRow] = PydanticField(default_factory=list)
     readers: list[LinkReader] = PydanticField(default_factory=list)
+    lacking: list[LinkLack] = PydanticField(default_factory=list)
 
 
 class CardState(BaseModel):

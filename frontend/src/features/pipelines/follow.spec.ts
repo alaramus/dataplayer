@@ -15,10 +15,10 @@ const link: Link = {
   target: { card_id: "b", node_id: "public.orders" },
   kind: "rows_since_last",
   title: "Add new messages to a table",
-  follow: true,
+  runs: "continuous",
 }
 
-describe("a pipeline following its topics (D315)", () => {
+describe("a pipeline's continuous links while it is on (D315, D362)", () => {
   it("colours a followed line by what its link does now", () => {
     expect(followTone(entry({ state: "carrying" }))).toBe("info")
     expect(followTone(entry({ state: "retrying" }))).toBe("error")
@@ -34,7 +34,7 @@ describe("a pipeline following its topics (D315)", () => {
     expect(linkEdge(link, undefined, { link_id: "l1", outcome: "done" }, null).tone).toBeUndefined()
     // Not following: the last run's colour.
     expect(linkEdge(link, undefined, { link_id: "l1", outcome: "done" }).tone).toBe("success")
-    expect(linkEdge({ ...link, follow: false }).label).toBe("Add new messages to a table")
+    expect(linkEdge({ ...link, runs: "scheduled" }).label).toBe("Add new messages to a table")
   })
 
   it("says what a followed link did", () => {
@@ -49,7 +49,7 @@ describe("a pipeline following its topics (D315)", () => {
   })
 
   it("keys the following's entries by link", () => {
-    const state = { on: true, running: true, links: [entry()] }
+    const state = { on: true, status: { kind: "on" as const }, follow: { running: true, links: [entry()] } }
     expect(followedLinks(state).get("l1")?.carried).toBe(0)
     expect(followedLinks(undefined).size).toBe(0)
   })

@@ -37,9 +37,6 @@ MESSAGES: dict[str, str] = {
     "This connection is gone, or no longer shared with you": "هذا الاتصال لم يعد موجودًا أو لم يعد مشتركًا معك",
     "This connection is switched off": "هذا الاتصال مُعطّل",
     "This connection cannot be read": "تعذّرت قراءة هذا الاتصال",
-    "This canvas holds too many rows to hint at once: select a card first": "تحتوي لوحة الرسم على صفوف أكثر من أن تُعرض كل التلميحات دفعة واحدة: اختر بطاقة أولًا",
-    "Only the links of the selected card are hinted": "لا تُعرض إلا تلميحات روابط البطاقة المحددة",
-    "Only the first {count} pairs of rows of the selected card are hinted": "لا تُعرض إلا تلميحات أول {count} زوجًا من صفوف البطاقة المحددة",
     "{names} and {last}": "{names} و{last}",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} يكتب كل منها في الآخر، لذا لا تحدد الأسهم الرابط الأول: يبدأ هذا أولًا لأن بطاقته في أقصى اليسار",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} يكتب كل منها في الآخر، لذا لا تحدد الأسهم الرابط الأول: يبدأ هذا أولًا لأن بطاقته في الأعلى",
@@ -53,9 +50,15 @@ MESSAGES: dict[str, str] = {
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · «{title}» يحتاج إلى اختيار مفتاحه وقيمه",
     # A pipeline following its topics (D315).
-    "Followed; not run": "قيد المتابعة؛ لم يُشغَّل",
     "Followed; {count} messages carried": "تمت المتابعة؛ الرسائل المنقولة: {count}",
     "Only a link reading a topic follows it": "لا يتابع الموضوع إلا رابط يقرؤه",
     "This following could not be read": "تعذّرت قراءة هذه المتابعة",
     "following its topics": "يتابع مواضيعه",
+    # A pipeline switched on with one button (D362, D363).
+    "Runs continuously; not run": "يعمل باستمرار؛ لم يُشغَّل",
+    "Not switched on: {needs}": "لم يُشغَّل: {needs}",
+    "Same connection": "الاتصال نفسه",
+    "Nothing can go from here into this connection": "لا يمكن نقل شيء من هنا إلى هذا الاتصال",
+    "Already linked": "مرتبط بالفعل",
+    "Nothing can go here": "لا يمكن نقل شيء إلى هنا",
 }

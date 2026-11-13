@@ -1,11 +1,13 @@
 # Pipelines
 
-Eine Pipeline ordnet Ihre Verbindungen auf einer Arbeitsfläche an und zieht Verknüpfungen
-zwischen dem, was sie enthalten: Zeilen einer Tabelle, die in eine andere Tabelle kopiert
-werden, eine Tabelle, die als CSV-Datei in einen Ordner gespeichert wird, ein Topic, das in
-eine Tabelle gelesen wird, und so weiter. Eine Pipeline läuft, wenn Sie **Ausführen** drücken, nach
-einem Zeitplan oder — für eine Verknüpfung, die ein Topic oder eine Warteschlange liest —
-fortlaufend.
+Eine Pipeline legt Ihre Verbindungen auf einer Fläche aus und zieht Verbindungen
+zwischen dem, was sie enthalten: Zeilen einer Tabelle, die in eine andere kopiert
+werden, eine Tabelle, die als CSV-Datei in einem Ordner gespeichert wird, ein
+Topic, das fortlaufend in eine Tabelle gelesen wird, und so weiter.
+Eingeschaltet läuft sie von selbst: Eine Verbindung, die ein Topic, eine
+Warteschlange oder einen Stream liest, überträgt Eintreffendes innerhalb von
+Sekunden, die übrigen laufen nach Zeitplan. Sie lässt sich auch einmal von Hand
+ausführen.
 
 Pipelines finden Sie im Bereich **Pipelines** des Schalters oben in der linken Leiste. Eine
 Pipeline gehört nur Ihnen; sie wird nicht geteilt.
@@ -33,11 +35,17 @@ durchgestrichen und als „not found“ markiert.
 
 ## Verknüpfungen
 
-- Ziehen Sie eine Zeile einer Karte auf eine Zeile einer anderen. Wenn etwas von der einen zur
-  anderen gehen kann, wird eine Verknüpfung gezeichnet; wenn nicht, sagt die Karte warum.
-- **Die Verbindungen anzeigen, die gezogen werden könnten** im Kopf zeichnet alle Verknüpfungen gestrichelt, die
-  zwischen den Zeilen auf der Arbeitsfläche möglich wären, beschriftet nach dem, was sie täten.
-  Ein Klick auf eine gestrichelte Verknüpfung zieht sie.
+- Ziehen Sie eine Zeile einer Karte auf eine Zeile einer anderen. Während Sie
+  ziehen, ist jede Zeile, auf die sie passt, getönt und sagt, was ein Ablegen
+  dort täte; die übrigen sind abgeblendet und sagen, warum nicht. Auf einer
+  getönten Zeile abgelegt, entsteht die Verbindung.
+- Eine Verbindung wird startbereit gezeichnet, wo sich ihre Einstellungen
+  erraten lassen: Eine neue Tabelle heißt nach ihrer Quelle und erhält all ihre
+  Spalten, Spalten werden nach Namen gepaart, Schlüssel kommen aus dem
+  Schlüssel eines Topics. Ihr Feld ändert jede davon.
+- Eine Verbindung, der noch eine Wahl fehlt, wird in der Warnfarbe gezeichnet
+  und sagt, was sie braucht. Die Zeile unter der Fläche nennt sie, und
+  **Auswählen** öffnet sie.
 - Beide Enden einer Verknüpfung müssen in verschiedenen Verbindungen liegen: Innerhalb einer
   Verbindung verwenden Sie **Kopieren** und **Einfügen** in ihrem Katalog.
 
@@ -52,11 +60,36 @@ was ihm vorangestellt wird und wie lange ein Schlüssel lebt.
 Jede Verknüpfung erhält eine Nummer in der Reihenfolge, in der sie läuft. Eine Verknüpfung wartet
 auf jede Verknüpfung, die in die Karte schreibt, aus der sie liest.
 
-## Ausführen
+## Einschalten
 
-- **Ausführen** speichert die Pipeline und führt jede Verknüpfung nacheinander aus. Fehlt einer
-  Verknüpfung noch eine Auswahl, verweigert es den Start, bevor etwas läuft, und öffnet diese
-  Verknüpfung.
+**Einschalten** im Kopf speichert die Pipeline und startet sie. Eine
+Verbindung, die ein Topic, eine Warteschlange oder einen Stream liest, läuft
+fortlaufend: Sie überträgt Eintreffendes innerhalb von Sekunden. Jede andere
+Verbindung läuft nach Zeitplan. **Ausschalten** stoppt beides.
+
+- Einschalten verweigert, bevor etwas startet, wenn einer Verbindung eine Wahl
+  fehlt, und öffnet diese Verbindung; laufen Verbindungen nach Zeitplan und ist
+  keiner festgelegt, öffnet es **Zeitplan…**.
+- Die Zeile unter der Fläche sagt, was der Pipeline fehlt oder was sie tut:
+  was das Einschalten bewirkt, wie lange sie schon eingeschaltet ist und wann
+  sie zuletzt etwas übertragen hat, wann der Zeitplan als Nächstes kommt oder
+  welche Verbindung immer wieder fehlschlägt.
+- Eine Verbindung, die fortlaufend liest, kann stattdessen nach Zeitplan laufen:
+  **Solange die Pipeline eingeschaltet ist** in ihrem Feld. **Der erste Lauf
+  liest** wählt **Ab dem Frühesten, das verfügbar ist** oder **Nur Neues**;
+  danach liest die Verbindung dort weiter, wo sie aufgehört hat.
+- Solange sie eingeschaltet ist, zeigt die Aktivitätsglocke, wie viele
+  Nachrichten übertragen wurden, und eine Verbindung, die immer wieder
+  fehlschlägt, steht unter **Braucht dich**. Dort angehalten, wird die Pipeline
+  ausgeschaltet.
+
+## Einmal ausführen
+
+- **Jetzt einmal ausführen** im Menü neben **Einschalten** speichert die
+  Pipeline und führt jede Verbindung einmal aus, eine nach der anderen. Fehlt
+  einer Verbindung noch eine Wahl, verweigert es vor dem Start und öffnet diese
+  Verbindung. Solange die Pipeline eingeschaltet ist, bleiben fortlaufende
+  Verbindungen außen vor.
 - Die erste Verknüpfung, die fehlschlägt, stoppt den Lauf; die Verknüpfungen danach laufen nicht.
 - Während des Laufs zeigt jede Verknüpfung **Wartet**, **Wird ausgeführt**, **Fertig** oder **Fehlgeschlagen**.
   Der Lauf erscheint in der Aktivitätsglocke, wo er gestoppt werden kann. Ein Stopp beendet die
@@ -66,26 +99,18 @@ auf jede Verknüpfung, die in die Karte schreibt, aus der sie liest.
 
 ## Zeitplan
 
-Die Uhr im Kopf öffnet **Zeitplan**: **Selbstständig ausführen** und dann entweder **In Abständen** — eine
-Anzahl von Minuten, Stunden oder Tagen — oder **Zu Tageszeiten** an den angehakten Wochentagen.
-Die Zeiten sind die Uhrzeit des Browsers, der den Zeitplan gespeichert hat. Der Kopf zeigt den
-nächsten Lauf.
-
-## Einem Topic oder einer Warteschlange folgen
-
-Eine Verknüpfung, die ein Kafka-Topic, einen RabbitMQ-Stream oder eine Warteschlange oder eine
-andere Nachrichtenquelle liest, kann in ihrem Feld mit **Folgen** markiert werden. **Der erste Lauf liest** wählt **Ab dem Frühesten, das verfügbar ist** oder **Nur Neues**; danach liest die
-Verknüpfung dort weiter, wo sie aufgehört hat.
-
-Der Schalter **Folgen** im Kopf übernimmt dann, was innerhalb von Sekunden eintrifft, bis er
-ausgeschaltet wird. Während des Folgens zeigt die Aktivitätsglocke, wie viele Nachrichten
-übernommen wurden; eine Verknüpfung, die immer wieder fehlschlägt, steht unter **Braucht dich**.
+**Zeitplan…** im Menü neben **Einschalten** legt fest, wann die Verbindungen
+nach Zeitplan laufen, solange die Pipeline eingeschaltet ist: entweder **In
+Abständen** — eine Anzahl Minuten, Stunden oder Tage — oder **Zu Tageszeiten**
+an den markierten Tagen. Die Zeiten folgen der Uhr des Browsers, der den
+Zeitplan gespeichert hat. Die Zeile unter der Fläche zeigt den nächsten Lauf.
 
 ## Verlauf
 
-**Verlauf** im Kopf listet jeden Lauf auf, der neueste zuerst: wann er begann, ob von Hand oder
-nach dem Zeitplan, wie lange er dauerte und was jede Verknüpfung tat. Die Auswahl eines Laufs
-zeigt ihn auf der Arbeitsfläche; **Zurück zur letzten Ausführung** kehrt zurück.
+**Verlauf** im Menü **⋯** des Kopfes listet jede Ausführung, die neueste zuerst:
+wann sie begann, ob von Hand oder nach Zeitplan, wie lange sie dauerte und was
+jede Verbindung getan hat. Eine gewählte Ausführung wird auf der Fläche gezeigt;
+**Zurück zur letzten Ausführung** kehrt zurück.
 
 ## Grenzen
 

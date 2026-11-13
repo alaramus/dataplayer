@@ -141,13 +141,13 @@ export const onboarding: Messages["onboarding"] = {
       },
       link: {
         title: "Verbinden",
-        hint: "Der Hinweis zeichnet jede mögliche Verbindung. Eine Zeile lässt sich auch auf eine andere ziehen.",
-        press: "Drücken Sie die gestrichelte Verbindung von der Tabelle zum Ordner.",
+        hint: "Ziehen Sie die Zeile von {table} auf die Zeile des Ordners. Die Zeilen, auf die sie passt, leuchten auf.",
       },
       run: {
         title: "Ausführen",
-        hint: "Führen Sie die Pipeline aus. Die Verbindung speichert die Tabelle als CSV-Datei.",
-        taken: "Im Ordner gibt es schon eine Datei dieses Namens: Wählen Sie unter „Wenn der Name vergeben ist“ „Beide behalten“ und führen Sie erneut aus.",
+        menu: "Öffnen Sie das Menü neben „Einschalten“.",
+        hint: "Führen Sie sie jetzt einmal aus. Die Verbindung speichert die Tabelle als CSV-Datei.",
+        taken: "Im Ordner gibt es schon eine Datei dieses Namens: Wählen Sie unter „Wenn der Name vergeben ist“ „Beide behalten“ und führen Sie sie noch einmal aus.",
       },
       seen: {
         title: "Die Datei",

@@ -37,9 +37,6 @@ MESSAGES: dict[str, str] = {
     "This connection is gone, or no longer shared with you": "此连接已不存在，或不再与你分享",
     "This connection is switched off": "此连接已关闭",
     "This connection cannot be read": "无法读取此连接",
-    "This canvas holds too many rows to hint at once: select a card first": "此画布包含的行太多，无法一次全部提示：请先选择一张卡片",
-    "Only the links of the selected card are hinted": "仅提示所选卡片的连线",
-    "Only the first {count} pairs of rows of the selected card are hinted": "仅提示所选卡片的前 {count} 对行",
     "{names} and {last}": "{names} 和 {last}",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} 互相写入，因此箭头无法确定第一条连线：这条优先，因为其卡片最靠左",
     "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} 互相写入，因此箭头无法确定第一条连线：这条优先，因为其卡片最高",
@@ -53,9 +50,15 @@ MESSAGES: dict[str, str] = {
     # A link keeping the latest per key (D314).
     "{number} · {title} needs its key and values chosen": "{number} · “{title}”需要选择键和值",
     # A pipeline following its topics (D315).
-    "Followed; not run": "跟随中；未运行",
     "Followed; {count} messages carried": "已跟随；传送消息：{count}",
     "Only a link reading a topic follows it": "只有读取主题的链接才能跟随它",
     "This following could not be read": "无法读取此跟随",
     "following its topics": "正在跟随其主题",
+    # A pipeline switched on with one button (D362, D363).
+    "Runs continuously; not run": "持续运行；未运行",
+    "Not switched on: {needs}": "未开启：{needs}",
+    "Same connection": "同一连接",
+    "Nothing can go from here into this connection": "无法从这里传到此连接",
+    "Already linked": "已链接",
+    "Nothing can go here": "无法传到这里",
 }

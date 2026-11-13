@@ -97,7 +97,7 @@ con el mercado: el día arriba, las velas sobre su volumen, el libro de
 Las **Operaciones** de un símbolo y cada serie de **Velas** pueden ser el
 inicio de un enlace de pipeline que sigue leyendo: **Añadir los mensajes
 nuevos a una tabla** o **a una tabla nueva**, o **Guardar lo último por
-clave**. Cada ejecución lee solo lo que llegó desde la anterior, y **Seguir**
+clave**. Cada ejecución lee solo lo que llegó desde la anterior, y un pipeline encendido
 lo lleva en segundos.
 
 - DataPlayer guarda dónde se detuvo cada enlace; Binance no.
