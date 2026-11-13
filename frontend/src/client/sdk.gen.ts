@@ -27,6 +27,9 @@ import type {
   aiCreateConversationData,
   aiCreateConversationErrors,
   aiCreateConversationResponses,
+  aiCreateMcpTokenData,
+  aiCreateMcpTokenErrors,
+  aiCreateMcpTokenResponses,
   aiCreateProjectData,
   aiCreateProjectErrors,
   aiCreateProjectResponses,
@@ -42,6 +45,9 @@ import type {
   aiDeleteConversationData,
   aiDeleteConversationErrors,
   aiDeleteConversationResponses,
+  aiDeleteMcpTokenData,
+  aiDeleteMcpTokenErrors,
+  aiDeleteMcpTokenResponses,
   aiDeleteProjectData,
   aiDeleteProjectErrors,
   aiDeleteProjectResponses,
@@ -63,6 +69,9 @@ import type {
   aiReadConversationsData,
   aiReadConversationsErrors,
   aiReadConversationsResponses,
+  aiReadMcpTokensData,
+  aiReadMcpTokensErrors,
+  aiReadMcpTokensResponses,
   aiReadModelsData,
   aiReadModelsErrors,
   aiReadModelsResponses,
@@ -6810,6 +6819,70 @@ export class AiService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/runs/{run_id}/cancel",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Mcp Tokens
+   *
+   * Every token of this person, never the token itself.
+   */
+  public static readMcpTokens<ThrowOnError extends boolean = true>(
+    options?: Options<aiReadMcpTokensData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      aiReadMcpTokensResponses,
+      aiReadMcpTokensErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/mcp-tokens/",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Mcp Token
+   *
+   * Make a token. This answer is the only one that carries it.
+   */
+  public static createMcpToken<ThrowOnError extends boolean = true>(
+    options: Options<aiCreateMcpTokenData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      aiCreateMcpTokenResponses,
+      aiCreateMcpTokenErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/mcp-tokens/",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Mcp Token
+   *
+   * Revoke a token: the next call made with it is refused.
+   */
+  public static deleteMcpToken<ThrowOnError extends boolean = true>(
+    options: Options<aiDeleteMcpTokenData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      aiDeleteMcpTokenResponses,
+      aiDeleteMcpTokenErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/mcp-tokens/{token_id}",
       ...options,
     })
   }

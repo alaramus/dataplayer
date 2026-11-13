@@ -8,13 +8,14 @@ import { AppButton, AppLayout, AppPageHeader, AppSectionsLayout, sectionOf } fro
 
 import ConnectionsSection from "./ConnectionsSection.vue"
 import GeneralSection from "./GeneralSection.vue"
+import McpSection from "./McpSection.vue"
 import ToursSection from "./ToursSection.vue"
 import { PREFERENCE_SECTIONS } from "./sections"
 import type { PreferenceSectionId } from "./sections"
 
 /**
  * What this account chose for itself: a list of sections beside what one of
- * them shows, the way Administration reads. There are four sections today,
+ * them shows, the way Administration reads. There are five sections today,
  * and what comes next arrives as an entry in `sections.ts` rather than as a
  * rearrangement of this screen.
  *
@@ -34,6 +35,7 @@ const BODIES: Record<PreferenceSectionId, typeof GeneralSection> = {
   general: GeneralSection,
   connections: ConnectionsSection,
   "ssh-keys": SshKeysSection,
+  mcp: McpSection,
   tours: ToursSection,
 }
 

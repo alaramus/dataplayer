@@ -56,6 +56,8 @@ dependencies = [
     "confluent-kafka>=2.12,<3",
     "aio-pika>=10.2.3",
     "scylla-driver>=3.29.13",
+    # The MCP server at /mcp (D357), imported by app.ai.mcp_server alone.
+    "mcp>=1.30,<2",
 ]
 
 [dependency-groups]

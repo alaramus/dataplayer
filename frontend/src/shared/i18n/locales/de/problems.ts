@@ -135,6 +135,7 @@ export const problems: Record<ProblemCode, string> = {
   "ai.file_not_found": "Datei nicht gefunden",
   "ai.answer_not_found": "Antwort nicht gefunden",
   "ai.answer_elsewhere": "Diese Antwort wird von einem anderen Server geschrieben",
+  "ai.mcp_token_not_found": "Kein solches Token",
   "metrics.no_metrics": "Quellen dieser Art melden keine Metriken",
   "metrics.agent_not_found": "Metrik-Agent nicht gefunden",
   "metrics.agent_or_connection_required": "Geben Sie einen Agenten und einen Host oder eine Verbindung an",

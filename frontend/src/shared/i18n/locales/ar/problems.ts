@@ -135,6 +135,7 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "ai.file_not_found": "لم يتم العثور على الملف",
   "ai.answer_not_found": "لم يتم العثور على الجواب",
   "ai.answer_elsewhere": "هذا الجواب لا يكتبه هذا الخادم",
+  "ai.mcp_token_not_found": "لا يوجد رمز كهذا",
   "metrics.no_metrics": "هذا النوع من المصادر لا يبلّغ عن مقاييس",
   "metrics.agent_not_found": "لم يتم العثور على الوكيل",
   "metrics.agent_or_connection_required": "حدّد وكيلًا ومضيفًا، أو اتصالًا",

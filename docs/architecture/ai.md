@@ -24,7 +24,9 @@ people as well (D133). What goes into the file is written by in-place editing
 
 The agent answers in the AI application space, reading through the tools of
 D134: `list_connections`, `search`, `browse_catalog`, `describe_node`, `read_rows`,
-`run_query`, `list_actions`, `run_action`, `open_in_workspace` and `ask_user`.
+`run_query`, `list_actions`, `run_action`, `open_in_workspace` and `ask_user`;
+all but the last two are offered to an agent outside DataPlayer at `/mcp` too
+([mcp.md](mcp.md)).
 Every tool call goes through the connection access funnel as the person who
 owns the conversation, and the transfer flag is checked before every call: a
 connection that does not allow transfer answers with a `transfer_not_allowed`

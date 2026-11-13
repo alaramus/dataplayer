@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
 
-import { UsersService } from "@/client"
-import type { PreferencesPublic, PreferencesUpdate } from "@/client"
+import { AiService, UsersService } from "@/client"
+import type { McpTokenCreate, PreferencesPublic, PreferencesUpdate } from "@/client"
 
 /**
  * What this user chose for themselves. Server state, so vue-query and not
@@ -40,4 +40,37 @@ export function useMyStorage() {
     queryKey: ["storage", "me"] as const,
     queryFn: async () => (await UsersService.readMyStorage()).data,
   })
+}
+
+/** The person's MCP access tokens (D358); the token itself is never listed. */
+export const mcpTokensKey = ["ai", "mcp-tokens"] as const
+
+export function useMcpTokens() {
+  return useQuery({
+    queryKey: mcpTokensKey,
+    queryFn: async () => (await AiService.readMcpTokens()).data,
+  })
+}
+
+function useTokenMutation<T, R>(run: (input: T) => Promise<R>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: run,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: mcpTokensKey })
+    },
+  })
+}
+
+/** Its answer is the one place the token itself is seen. */
+export function useCreateMcpToken() {
+  return useTokenMutation(
+    async (body: McpTokenCreate) => (await AiService.createMcpToken({ body })).data
+  )
+}
+
+export function useDeleteMcpToken() {
+  return useTokenMutation(
+    async (tokenId: string) => (await AiService.deleteMcpToken({ path: { token_id: tokenId } })).data
+  )
 }

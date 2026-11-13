@@ -24,6 +24,12 @@ export const PREFERENCE_SECTIONS = [
     icon: appIcons.sshKey,
   },
   {
+    id: "mcp",
+    get title() { return t("preferences.sections.mcp") },
+    get summary() { return t("preferences.sections.mcp_summary") },
+    icon: appIcons.robot2,
+  },
+  {
     id: "tours",
     get title() { return t("preferences.sections.tours") },
     get summary() { return t("preferences.sections.tours_summary") },
