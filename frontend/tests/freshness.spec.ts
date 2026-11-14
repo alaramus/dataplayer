@@ -82,7 +82,7 @@ test("a connection is told how long to keep its answers", async ({ page }) => {
   // What the connection does today, in durations rather than in a policy:
   // "as the source decides" says nothing to somebody who has not read the
   // driver (D105).
-  await expect(page.getByTestId("connector-cache-window")).toContainText(
+  await expect(page.getByTestId("connector-cache-window")).toHaveValue(
     "As this source decides (rows 10s, lists 30s)"
   )
 
@@ -98,7 +98,7 @@ test("a connection is told how long to keep its answers", async ({ page }) => {
   // Saved and read back: the window is on the connection, not on the form.
   await editConnector(page, name)
   await openOptions(page)
-  await expect(page.getByTestId("connector-cache-window")).toContainText(
+  await expect(page.getByTestId("connector-cache-window")).toHaveValue(
     "Never keep answers"
   )
   await page.locator('[data-testid^="window-close-connector"]').first().click()

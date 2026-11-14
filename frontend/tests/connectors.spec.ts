@@ -207,7 +207,7 @@ test("the window separates how to reach a connection from what may be done throu
   // than a default somebody has to go back and correct.
   await editConnector(page, name)
   await openPermissions(page)
-  await expect(page.getByTestId("connector-policy")).toContainText("Read only")
+  await expect(page.getByTestId("connector-policy")).toHaveValue("Read only")
   await expect(page.getByTestId("connector-third-party")).toBeChecked()
   await expect(page.getByTestId("share-connector")).toBeVisible()
 

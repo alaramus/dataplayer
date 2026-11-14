@@ -11,6 +11,19 @@ import { deleteConnector, openConnector } from "./utils/workspace"
 
 type Api = { base: string; headers: Record<string, string> }
 
+/**
+ * Something in the grid's last columns, scrolled to: only the columns in
+ * view are drawn (D24), and a feed is wider than the window.
+ */
+async function atRightEdge(page: Page, testId: string) {
+  const target = page.getByTestId(testId)
+  await expect(async () => {
+    await page.getByTestId("grid-focus").evaluate((el) => { el.scrollLeft = el.scrollWidth })
+    await expect(target).toBeAttached({ timeout: 1000 })
+  }).toPass()
+  return target
+}
+
 /** A Binance connection, or the scenario skipped where the server cannot reach Binance. */
 async function binanceConnection(page: Page, api: Api, name: string): Promise<string> {
   const made = await page.request.post(`${api.base}/connectors/`, {
@@ -62,8 +75,9 @@ test("walks from a market to a symbol and reads its feeds as rows", async ({ pag
 
   // Tickers open as a page of rows, the busiest first.
   await openNode(page, "Tickers")
-  await expect(page.getByTestId("grid-column-quote_volume")).toBeVisible()
   await expect(page.getByTestId("grid-cell-0-symbol")).not.toBeEmpty()
+  await expect(await atRightEdge(page, "grid-column-quote_volume")).toBeVisible()
+  await page.getByTestId("grid-focus").evaluate((el) => { el.scrollLeft = 0 })
 
   await openNode(page, "USDT")
   await openNode(page, "BTCUSDT")
@@ -77,7 +91,7 @@ test("walks from a market to a symbol and reads its feeds as rows", async ({ pag
   await openNode(page, "Candles")
   await openNode(page, "1h")
   await expect(page.getByTestId("grid-column-open_time")).toBeVisible()
-  await expect(page.getByTestId("grid-cell-0-closed")).toBeVisible()
+  await expect(await atRightEdge(page, "grid-cell-0-closed")).toBeVisible()
 
   await deleteConnector(page, name)
 })

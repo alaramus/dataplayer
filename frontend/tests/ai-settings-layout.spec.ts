@@ -38,6 +38,8 @@ for (const theme of ["light", "dark"] as const) {
     await expect.poll(() => settings.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
     await expect(page.getByTestId("ai-model")).toBeInViewport()
     await expect(page.getByTestId("ai-allow-all")).toBeInViewport()
+    // Below the outside MCP servers, so reached by scrolling the settings.
+    await page.getByTestId("ai-restore-layout-archived-2").scrollIntoViewIfNeeded()
     await expect(page.getByTestId("ai-restore-layout-archived-2")).toBeInViewport()
     await page.screenshot({ path: `test-results/ai-settings-${theme}-narrow.png` })
   })

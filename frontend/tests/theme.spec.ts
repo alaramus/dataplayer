@@ -64,7 +64,7 @@ async function choose(page: Page, theme: "Light" | "Dark" | "Dark blue" | "Paper
   // description too, so "Dark" would also match "Dark blue" and every
   // description mentioning darkness.
   await page.getByRole("option").filter({ has: page.getByText(theme, { exact: true }) }).click()
-  await expect(page.getByTestId("preference-theme")).toContainText(theme)
+  await expect(page.getByTestId("preference-theme")).toHaveValue(theme)
 }
 
 async function backToWorkspace(page: Page) {

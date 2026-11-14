@@ -803,7 +803,7 @@ test("brings rows in from a file in personal storage", async ({ page }) => {
     await page.getByTestId(`grid-import-pair-${target}`).click()
     await expect(lists).toHaveCount(1)
     await page.getByRole("option", { name: source, exact: true }).click()
-    await expect(page.getByTestId(`grid-import-pair-${target}`)).toContainText(source)
+    await expect(page.getByTestId(`grid-import-pair-${target}`)).toHaveValue(source)
   }
   await pair("organization_id", "id")
   await pair("label", "name")
@@ -861,7 +861,7 @@ test("brings rows in from a table through another database connection", async ({
     await page.getByTestId(`grid-import-pair-${targetColumn}`).click()
     await expect(lists).toHaveCount(1)
     await page.getByRole("option", { name: sourceColumn, exact: true }).click()
-    await expect(page.getByTestId(`grid-import-pair-${targetColumn}`)).toContainText(
+    await expect(page.getByTestId(`grid-import-pair-${targetColumn}`)).toHaveValue(
       sourceColumn
     )
   }

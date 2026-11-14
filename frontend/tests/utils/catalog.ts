@@ -106,6 +106,7 @@ export async function showOnlySchema(page: Page, schema: string) {
     await setSchema(page, name, false)
   }
   await page.keyboard.press("Escape")
+  await expect(page.getByRole("listbox")).toHaveCount(0)
 }
 
 /**

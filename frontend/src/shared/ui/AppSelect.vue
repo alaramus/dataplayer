@@ -72,14 +72,8 @@ const props = withDefaults(
     options: readonly (string | SelectOption)[]
     label?: string
     /**
-     * The message, not a boolean: an empty string means no error.
-     *
-     * Unlike the other fields of the kit this one is not also announced as
-     * invalid. QSelect writes the combobox's attributes itself and merges the
-     * caller's into it only when it renders a text input, which this never
-     * asks for; anything bound here lands on the wrapper around the combobox,
-     * where no screen reader reads it. An attribute that goes nowhere is
-     * worse than its absence, because a test would then say it is there.
+     * The message, not a boolean: an empty string means no error. QSelect
+     * marks its combobox invalid and points it at the message itself.
      */
     error?: string
     /**
@@ -225,7 +219,7 @@ const summary = computed(() => {
     :model-value="modelValue"
     :options="options"
     :label="label"
-    :aria-label="formLayout ? label : undefined"
+    :aria-label="label"
     :hint="hint"
     :option-value="labelled ? 'value' : undefined"
     :option-label="labelled ? 'label' : undefined"

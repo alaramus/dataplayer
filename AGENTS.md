@@ -281,4 +281,5 @@ a warmed dev server together.
 - psycopg treats a literal `%` as a placeholder whenever parameters are
   supplied. A query with no bindings must pass no parameters, not `()`.
 - Blocking work inside an async handler must go through a thread pool.
-- Quasar forwards `data-testid` on fields to the `<input>` itself.
+- Quasar forwards `data-testid` on fields to the `<input>` itself. A select's is a
+  1px readonly input holding the chosen label: assert it with `toHaveValue`.

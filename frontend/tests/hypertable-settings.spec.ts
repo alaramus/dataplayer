@@ -106,7 +106,7 @@ test("converts a table with rows as a job, settings and all", async ({ page }) =
     await openSettings(page)
 
     await expect(page.getByTestId("hypertable-settings")).toBeVisible()
-    await expect(page.getByTestId("time-column")).toContainText("observed_at")
+    await expect(page.getByTestId("time-column")).toHaveValue("observed_at")
     const plan = page.getByTestId("hypertable-plan")
     await expect(plan).toContainText("move its rows into chunks")
     await expect(plan).toContainText("locked against reads and writes")

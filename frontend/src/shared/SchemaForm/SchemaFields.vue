@@ -205,11 +205,13 @@ function tipOf(field: FieldSpec, row: FieldSpec[]): string | undefined {
 
         <!-- choices is optional on FieldSpec, and the untyped q-select used to
            accept undefined without a word. A select shows no example: what a
-           filled one looks like is the list it offers. -->
+           filled one looks like is the list it offers.
+           Trap: no autocomplete here. Given one, QSelect draws a hidden input
+           for the browser's autofill over its 1px combobox, and a click on the
+           combobox lands on that input instead. -->
         <AppSelect
           v-else-if="field.kind === 'select'"
           :data-testid="`field-${field.name}`"
-          :autocomplete="autofillOf(field)"
           :model-value="modelValue[field.name]"
           :options="field.choices ?? []"
           :label="field.label"

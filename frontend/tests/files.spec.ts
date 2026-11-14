@@ -175,7 +175,7 @@ test("browses a personal directory and opens each implemented viewer", async ({ 
   await openNode(page, "sample.csv")
   const grid = page.getByTestId("row-grid")
   await expect(grid).toContainText("population")
-  await expect(grid.locator("tbody tr")).toHaveCount(100)
+  // Only the rows in view are drawn (D24); the page itself says how many it holds.
   // A file has no row estimate: counting means reading it end to end, so the
   // grid pages without ever claiming a total.
   await expect(grid).toContainText("Rows 1–100")
@@ -474,7 +474,7 @@ test("opens a columnar file and a workbook sheet as datasets", async ({ page }) 
   await openNode(page, "cities.parquet")
   const grid = page.getByTestId("row-grid")
   await expect(grid).toContainText("population")
-  await expect(grid.locator("tbody tr")).toHaveCount(100)
+  await expect(grid).toContainText("Rows 1–100")
 
   // And it has a structure, because it states its own columns. The facts of
   // the format are shown beside them.

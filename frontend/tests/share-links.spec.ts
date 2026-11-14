@@ -99,7 +99,7 @@ test("a link shows nothing to a stranger and the sender's view to a colleague", 
     // The query travelled: the sort is shown as the sender left it, the page
     // size with it, and a column they hid is not here either.
     await expect(colleague.getByTestId("grid-sort-priority-priority")).toBeVisible()
-    await expect(colleague.getByTestId("grid-page-size")).toContainText("250")
+    await expect(colleague.getByTestId("grid-page-size")).toHaveValue("250")
     await expect(colleague.getByTestId("grid-column-status")).toHaveCount(0)
 
     // --- and it lands in the tab they already have open --------------------
@@ -107,11 +107,11 @@ test("a link shows nothing to a stranger and the sender's view to a colleague", 
     // one forward and puts the sender's query back into it (D60).
     await colleague.getByTestId("grid-page-size").click()
     await colleague.getByRole("option", { name: "50", exact: true }).click()
-    await expect(colleague.getByTestId("grid-page-size")).toContainText("50")
+    await expect(colleague.getByTestId("grid-page-size")).toHaveValue("50")
     await colleague.goto(path)
     await colleague.waitForURL("/")
     await expect(rowsTabs(colleague)).toHaveCount(1)
-    await expect(colleague.getByTestId("grid-page-size")).toContainText("250")
+    await expect(colleague.getByTestId("grid-page-size")).toHaveValue("250")
   } finally {
     await theirs.close()
   }
