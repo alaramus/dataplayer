@@ -90,6 +90,8 @@ def test_statements_end_where_the_dialect_says() -> None:
         ("SHOW TABLES", "read"),
         ("DESCRIBE t", "read"),
         ("WITH c AS (SELECT 1) SELECT * FROM c", "read"),
+        # MySQL 8's shorthand for SELECT * FROM t, which the parser reads as one.
+        ("TABLE t", "read"),
         ("EXPLAIN SELECT 1", "explain"),
         ("INSERT INTO t VALUES (1)", "dml"),
         ("REPLACE INTO t VALUES (1)", "dml"),
@@ -104,7 +106,6 @@ def test_statements_end_where_the_dialect_says() -> None:
         ("ANALYZE TABLE t", "maintenance"),
         # What the parser does not model is not run, whatever it looks like.
         ("FLUSH PRIVILEGES", "unknown"),
-        ("TABLE t", "unknown"),
         ("CALL p()", "unknown"),
         ("LOAD DATA INFILE 'x' INTO TABLE t", "unknown"),
         ("SELECT * INTO OUTFILE '/tmp/x' FROM t", "unknown"),

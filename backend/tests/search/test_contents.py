@@ -36,6 +36,7 @@ from app.search import contents
 from app.search.contents import ContentsMemory
 from tests.utils import services
 from tests.utils.ssh import pinned_key
+from tests.utils.state import replace_state
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
 
@@ -271,7 +272,7 @@ async def test_after_a_restart_the_job_is_interrupted_and_its_matches_are_gone(
     await asyncio.wait_for(lingering.wait(), timeout=10)
 
     # What a new process starts with: no matches, and the startup sweep.
-    monkeypatch.setattr(app.state, "contents_memory", ContentsMemory(1800))
+    replace_state(monkeypatch, "contents_memory", ContentsMemory(1800))
     async with async_session_maker() as session:
         await recover_interrupted(session)
     job = (await client.get(f"{API}/jobs/{job_id}", headers=person)).json()

@@ -39,6 +39,13 @@ def test_an_unqualified_name_names_every_schema_it_could_be_in() -> None:
     assert effect.relation_node_ids == ["demo_lab.t", "public.t"]
 
 
+def test_every_table_a_drop_names_is_named_back() -> None:
+    effect = effect_of("drop table demo_lab.a, other.b", search_path=PATH)
+
+    assert effect.reload_node_ids == ["demo_lab", "other"]
+    assert effect.relation_node_ids == ["demo_lab.a", "other.b"]
+
+
 def test_a_new_schema_changes_the_root() -> None:
     assert effect_of("create schema s", search_path=PATH).reload_node_ids == [None]
     assert effect_of("drop schema s cascade", search_path=PATH).reload_node_ids == [None]

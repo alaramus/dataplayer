@@ -58,11 +58,12 @@ def effect_of(text: str, *, search_path: Sequence[str]) -> SchemaEffect:
         return _index(node, search_path)
     if subject in ("TABLE", "VIEW"):
         # An ALTER is asked for every table it names, so a rename reaches both
-        # the old node and the new one; a CREATE is asked only for its subject,
-        # so `CREATE TABLE a AS SELECT ... FROM b` does not claim b changed.
+        # the old node and the new one, and a DROP for every table it drops; a
+        # CREATE is asked only for its subject, so `CREATE TABLE a AS SELECT
+        # ... FROM b` does not claim b changed.
         named = (
             _tables(node)
-            if isinstance(node, exp.Alter)
+            if isinstance(node, exp.Alter | exp.Drop)
             else [table for table in [_subject(node)] if table is not None]
         )
         # Both, and whatever the statement was: a create or a drop changes what
