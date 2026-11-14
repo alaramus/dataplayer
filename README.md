@@ -7,14 +7,16 @@ work to an AI agent that uses the same connections you do.
 DataPlayer runs on your own machine or server with Docker Compose. Credentials
 are encrypted at rest and never leave the backend.
 
-![The workspace: connections, a catalog, tabs of rows, a quick chat answered by Gemini Nano in the browser, the server's log and the activity panel](docs/screenshots/overview.webp)
+![The DataPlayer workspace: a list of connections, the catalog of a MySQL database and a grid of rows from its tasks table](docs/screenshots/overview.webp)
 
 | | |
 | --- | --- |
-| ![A connection's catalog beside a live grid of rows](docs/screenshots/data.webp) | ![A pipeline: a table copied between PostgreSQL connections, then saved as CSV](docs/screenshots/pipelines.webp) |
-| **Data** — a catalog per connection and a grid of rows | **Pipelines** — steps between connections, run as one |
-| ![A dashboard of PostgreSQL metrics](docs/screenshots/dashboards.webp) | ![A conversation with the AI agent](docs/screenshots/ai-agent.webp) |
-| **Dashboards** — metrics from connection polls and agents | **AI agent** — works through the same connections you do |
+| ![A grid of rows being filtered and edited](docs/screenshots/grid.webp) | ![The SQL console with a query and its result](docs/screenshots/query.webp) |
+| **Data** — a grid of rows to sort, filter and edit | **Query** — a console in each source's own language |
+| ![A pipeline: Kafka topics flowing into TimescaleDB and Redis, and a MySQL table saved as CSV](docs/screenshots/pipeline.webp) | ![A dashboard with charts of CPU, memory, load, network and disk activity](docs/screenshots/dashboard.webp) |
+| **Pipelines** — move data between sources on a canvas | **Dashboards** — watch your machines and databases |
+| ![A conversation with the AI agent: a question about tasks answered with a bar chart and a table](docs/screenshots/agent.webp) | ![The search field listing matches across connections, open tabs and the guide](docs/screenshots/search.webp) |
+| **AI agent** — uses your connections, and asks first | **Search** — one search over everything |
 
 ## What it does
 
