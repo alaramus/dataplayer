@@ -70,7 +70,7 @@ class User(UserBase, table=True):
     hashed_password: str
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
-        sa_type=DateTime(timezone=True),  # type: ignore
+        sa_type=DateTime(timezone=True),
     )
     # Not on UserBase: signing up would let a person name their own (D324).
     storage_quota_mb: int | None = Field(default=None, ge=0)

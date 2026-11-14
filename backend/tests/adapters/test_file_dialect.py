@@ -5,6 +5,8 @@ semicolon inside a string, a comment between statements, a CTE that looks like
 a table, and each family that is refused before a run is recorded (D77).
 """
 
+from types import SimpleNamespace
+
 from app.adapters.explorer import dialect
 from app.adapters.explorer.dialect import prepare, shape_of
 
@@ -27,17 +29,37 @@ def test_a_comment_between_statements_belongs_to_the_one_after_it() -> None:
 
 
 def test_ranges_survive_a_statement_the_engine_rewrites() -> None:
-    """`PRAGMA` comes back as the query it stands for, not as the text sent.
+    """A statement handed back rewritten is not found in the text sent.
 
     The offsets after it must still point at the text a person is looking at,
     so the unfound statement takes the gap rather than shifting everything.
     """
     text = "PRAGMA version; SELECT 1"
+    handed_back = [SimpleNamespace(query="CALL pragma_version()"), SimpleNamespace(query="SELECT 1")]
+
+    first, second = dialect._spans(text, handed_back)
+
+    assert first == (0, len("PRAGMA version; "))
+    assert text[second[0] : second[1]] == "SELECT 1"
+
+
+def test_a_statement_ends_at_its_own_semicolon() -> None:
+    text = "PRAGMA version; SELECT 1"
 
     first, second = prepare(text).statements
 
-    assert (first.start, first.end) == (0, 15)
+    assert (first.start, first.end) == (0, 14)
     assert text[second.start : second.end] == " SELECT 1"
+
+
+def test_an_empty_statement_does_not_move_the_next_one() -> None:
+    text = "SELECT 1;; -- a;b\nSELECT 2"
+
+    first, second = prepare(text).statements
+
+    assert first.text == "SELECT 1"
+    assert second.text.startswith(";")
+    assert second.text.endswith("SELECT 2")
 
 
 def test_a_read_is_a_read() -> None:

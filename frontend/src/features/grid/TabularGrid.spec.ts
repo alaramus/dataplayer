@@ -265,7 +265,7 @@ describe("the controlled tabular grid", () => {
       expect(wrapper.get('[data-testid="grid-row-row-a"]').findAllComponents(AppTooltip)).toHaveLength(2)
       expect(wrapper.get('[data-testid="grid-row-row-b"]').findAllComponents(AppTooltip)).toHaveLength(0)
 
-      editable.element.dispatchEvent(new MouseEvent("mouseenter"))
+      editable.element.dispatchEvent(new PointerEvent("pointerenter"))
       await vi.advanceTimersByTimeAsync(500)
       await flushPromises()
       expect(document.body.querySelector(".q-tooltip")?.textContent).toBe(

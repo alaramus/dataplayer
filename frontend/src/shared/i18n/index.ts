@@ -235,7 +235,9 @@ export async function applyLanguage(chosen: Language | null): Promise<void> {
   }
   i18n.global.setLocaleMessage(language, bundle.messages)
   problemDictionaries[language] = bundle.problems
-  Lang.set(bundle.quasar)
+  // Quasar's language packs type formatNumber's argument as required and
+  // Lang.set as optional; the pack is what Quasar itself ships for Lang.set.
+  Lang.set(bundle.quasar as Parameters<typeof Lang.set>[0])
   const changed = i18n.global.locale.value !== language
   i18n.global.locale.value = language
   document.documentElement.lang = language

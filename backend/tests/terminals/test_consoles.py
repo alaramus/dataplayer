@@ -18,6 +18,7 @@ from app.core.config import settings
 from app.main import app
 from app.terminals.consoles import ConsoleRefused
 from tests.utils.socket import hung_up_on, open_socket, token_of
+from tests.utils.state import replace_state
 
 CONNECTORS = f"{settings.API_V1_STR}/connectors"
 TERMINALS = "/terminals"
@@ -235,7 +236,7 @@ async def test_mongosh_runs_signed_in_and_without_its_password_in_the_arguments(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _mongodb(client, normal_user_token_headers)
 
     async with open_socket(TERMINALS) as ws:
@@ -262,7 +263,7 @@ async def test_redis_cli_runs_signed_in_and_without_its_password_in_the_argument
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _redis(client, normal_user_token_headers)
 
     async with open_socket(TERMINALS) as ws:
@@ -283,7 +284,7 @@ async def test_redis_cli_without_a_password_is_given_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _redis(
         client, normal_user_token_headers, auth_method="no_auth", password=None
     )
@@ -304,7 +305,7 @@ async def test_psql_runs_signed_in_and_without_its_password_in_the_arguments(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _postgres(client, normal_user_token_headers)
 
     async with open_socket(TERMINALS) as ws:
@@ -340,7 +341,7 @@ async def test_zkcli_runs_at_the_root_path_and_says_how_to_sign_in(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _zookeeper(client, normal_user_token_headers)
 
     program = await _program_of(normal_user_token_headers, connector_id, runner)
@@ -361,7 +362,7 @@ async def test_zkcli_for_an_anonymous_connection_has_no_note(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _zookeeper(
         client,
         normal_user_token_headers,
@@ -382,7 +383,7 @@ async def test_kafka_s_tools_are_set_up_with_the_password_only_in_the_settings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _kafka(client, normal_user_token_headers)
 
     program = await _program_of(normal_user_token_headers, connector_id, runner)
@@ -410,7 +411,7 @@ async def test_kafka_s_tools_without_a_user_carry_no_sasl(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _kafka(
         client, normal_user_token_headers, auth_method="none", user=None, password=None
     )
@@ -428,7 +429,7 @@ async def test_rabbitmqadmin_is_set_up_with_the_password_only_in_its_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _rabbitmq(client, normal_user_token_headers)
 
     program = await _program_of(normal_user_token_headers, connector_id, runner)
@@ -460,7 +461,7 @@ async def test_rabbitmqadmin_without_a_virtual_host_uses_the_root_one(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await _rabbitmq(
         client,
         normal_user_token_headers,
@@ -498,7 +499,7 @@ async def test_without_a_runner_there_is_no_console(
     normal_user_token_headers: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(app.state, "console_runner", None, raising=False)
+    replace_state(monkeypatch, "console_runner", None)
     connector_id = await _mongodb(client, normal_user_token_headers)
 
     frame = await _refused(_opening(normal_user_token_headers, connector_id))
@@ -514,7 +515,7 @@ async def test_a_console_does_not_go_through_a_tunnel(
     make: Any,
 ) -> None:
     runner = _Runner()
-    monkeypatch.setattr(app.state, "console_runner", runner, raising=False)
+    replace_state(monkeypatch, "console_runner", runner)
     connector_id = await make(
         client, normal_user_token_headers, ssh_tunnel=str(uuid.uuid4())
     )

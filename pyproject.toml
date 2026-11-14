@@ -1,2 +1,10 @@
 [tool.uv.workspace]
 members = ["backend"]
+
+[tool.uv]
+# Development happens on Windows and the image is Linux: a release that ships
+# wheels for one of them only must not be locked (grimp 3.20 had no Windows wheel).
+required-environments = [
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]

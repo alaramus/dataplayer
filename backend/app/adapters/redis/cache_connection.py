@@ -1,6 +1,5 @@
 """The Redis driver boundary for the optional shared application cache."""
 
-import inspect
 from collections.abc import AsyncIterator, Awaitable
 from typing import Any, NamedTuple, Protocol, cast
 
@@ -68,15 +67,9 @@ class SharedCacheConnection(Protocol):
     async def aclose(self) -> None: ...
 
 
-async def _resolved[T](value: Awaitable[T] | T) -> T:
-    if inspect.isawaitable(value):
-        return await value
-    return value
-
-
-async def _command[T](value: Awaitable[T] | T) -> T:
+async def _command[T](value: Awaitable[T]) -> T:
     try:
-        return await _resolved(value)
+        return await value
     except RedisError:
         # A driver message may include the configured address and password.
         raise CacheConnectionError from None

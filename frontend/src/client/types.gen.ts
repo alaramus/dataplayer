@@ -10654,14 +10654,7 @@ export type PreferencesPublic = {
    * Theme
    */
   theme:
-    | "light"
-    | "paper-light"
-    | "dark"
-    | "paper"
-    | "midnight"
-    | "dark-blue"
-    | "dark-purple"
-    | null
+    "light" | "paper-light" | "dark" | "paper" | "midnight" | "dark-blue" | "dark-purple" | null
 }
 
 /**
@@ -10694,14 +10687,7 @@ export type PreferencesUpdate = {
    * Theme
    */
   theme?:
-    | "light"
-    | "paper-light"
-    | "dark"
-    | "paper"
-    | "midnight"
-    | "dark-blue"
-    | "dark-purple"
-    | null
+    "light" | "paper-light" | "dark" | "paper" | "midnight" | "dark-blue" | "dark-purple" | null
 }
 
 /**

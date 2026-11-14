@@ -14,6 +14,42 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = function scrollIntoView() {}
 }
 
+// The same for what Quasar 2.35 reaches for: a scroll container's own
+// `scrollTo`, a size watched through `ResizeObserver`, and an element animated
+// through `animate`, which here finishes at once.
+if (!Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = function scrollTo() {}
+}
+
+if (!("ResizeObserver" in globalThis)) {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+}
+
+if (!Element.prototype.animate) {
+  Element.prototype.animate = function animate() {
+    const animation: Record<string, unknown> = {
+      onfinish: null,
+      cancel() {},
+      finish() {},
+      play() {},
+      pause() {},
+      reverse() {},
+      addEventListener() {},
+      removeEventListener() {},
+    }
+    animation.finished = Promise.resolve(animation)
+    queueMicrotask(() => {
+      const done = animation.onfinish
+      if (typeof done === "function") done()
+    })
+    return animation as unknown as Animation
+  }
+}
+
 if (!navigator.clipboard) {
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,

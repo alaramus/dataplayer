@@ -5,7 +5,7 @@ a key of each type and a folder's listing have one list rather than three that
 could drift (D171).
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from app.adapters.fetch import FetchColumn
@@ -61,11 +61,21 @@ def model_columns(shape: Shape) -> list[Column]:
     ]
 
 
-def stream_fields(fields: Mapping[Any, Any]) -> str:
+def scored(found: Iterable[Any]) -> list[tuple[Any, Any]]:
+    """A sorted set read WITHSCORES, as its pairs.
+
+    redis-py annotates ZRANGE's answer the same with scores and without.
+    """
+    return [(member, score) for member, score in found]
+
+
+def stream_fields(fields: Mapping[Any, Any] | None) -> str:
     """A stream entry's fields as one cell.
 
     One column rather than columns of their own: a stream's entries need not
     agree on what they hold, so a grid built from the first one would hide
     what is in the rest.
     """
+    if not fields:
+        return ""
     return ", ".join(f"{text(key)}={text(value)}" for key, value in fields.items())

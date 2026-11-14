@@ -12,10 +12,10 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
 
-import httpx
+import httpx2
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
-from mcp.types import TextContent
+from mcp.types import PaginatedRequestParams, TextContent
 
 from app.ai.mcp_servers import AddressRefused, McpServer, check_address, request_headers
 from app.core.problems import MESSAGES, ProblemCode
@@ -60,13 +60,30 @@ class CallOutcome:
     is_error: bool
 
 
-def _kind_of(failure: BaseException) -> FailureKind:
+class _Refusals:
+    """Whether the server answered 401 or 403.
+
+    The SDK turns such an answer into a JSON-RPC error of its own that does not
+    say which status it was, so the HTTP client notices it on the way past.
+    """
+
+    def __init__(self) -> None:
+        self.seen = False
+
+    async def __call__(self, response: httpx2.Response) -> None:
+        if response.status_code in (401, 403):
+            self.seen = True
+
+
+def _kind_of(failure: BaseException, refusals: _Refusals) -> FailureKind:
+    if refusals.seen:
+        return "refused"
     found: list[BaseException] = [failure]
     while found:
         one = found.pop()
-        if isinstance(one, httpx.HTTPStatusError) and one.response.status_code in (401, 403):
+        if isinstance(one, httpx2.HTTPStatusError) and one.response.status_code in (401, 403):
             return "refused"
-        if isinstance(one, (httpx.ConnectError, httpx.TimeoutException, TimeoutError)):
+        if isinstance(one, (httpx2.ConnectError, httpx2.TimeoutException, TimeoutError)):
             return "unreachable"
         if isinstance(one, BaseExceptionGroup):
             found.extend(one.exceptions)
@@ -76,15 +93,18 @@ def _kind_of(failure: BaseException) -> FailureKind:
 
 
 @asynccontextmanager
-async def _session(server: McpServer, read_seconds: float) -> AsyncIterator[ClientSession]:
+async def _session(
+    server: McpServer, read_seconds: float, refusals: _Refusals
+) -> AsyncIterator[ClientSession]:
     await check_address(server.url)
     async with (
-        httpx.AsyncClient(
+        httpx2.AsyncClient(
             headers=request_headers(server),
-            timeout=httpx.Timeout(read_seconds, connect=CONNECT_SECONDS),
+            timeout=httpx2.Timeout(read_seconds, connect=CONNECT_SECONDS),
             follow_redirects=False,
+            event_hooks={"response": [refusals]},
         ) as http,
-        streamable_http_client(server.url, http_client=http) as (read, write, _id),
+        streamable_http_client(server.url, http_client=http) as (read, write),
         ClientSession(read, write) as session,
     ):
         await session.initialize()
@@ -92,12 +112,15 @@ async def _session(server: McpServer, read_seconds: float) -> AsyncIterator[Clie
 
 
 async def list_tools(server: McpServer) -> list[RemoteTool]:
+    refusals = _Refusals()
     try:
-        async with _session(server, LIST_SECONDS) as session:
+        async with _session(server, LIST_SECONDS, refusals) as session:
             tools: list[RemoteTool] = []
             cursor: str | None = None
             while len(tools) < MAX_TOOLS:
-                page = await session.list_tools(cursor)
+                page = await session.list_tools(
+                    params=None if cursor is None else PaginatedRequestParams(cursor=cursor)
+                )
                 for tool in page.tools:
                     annotations = tool.annotations
                     tools.append(
@@ -105,18 +128,18 @@ async def list_tools(server: McpServer) -> list[RemoteTool]:
                             name=tool.name,
                             title=tool.title or (annotations.title if annotations else None),
                             description=tool.description,
-                            input_schema=dict(tool.inputSchema or {}),
-                            read_only=bool(annotations and annotations.readOnlyHint),
+                            input_schema=dict(tool.input_schema or {}),
+                            read_only=bool(annotations and annotations.read_only_hint),
                         )
                     )
-                cursor = page.nextCursor
+                cursor = page.next_cursor
                 if cursor is None:
                     break
             return tools[:MAX_TOOLS]
     except AddressRefused as refused:
         raise McpCallFailed("unreachable", refused.code) from refused
     except Exception as failure:  # noqa: BLE001 - reduced to a kind
-        kind = _kind_of(failure)
+        kind = _kind_of(failure, refusals)
         logger.warning("Listing the tools of an MCP server failed: %s", kind)
         raise McpCallFailed(kind) from failure
 
@@ -132,16 +155,17 @@ def _text_of(parts: list[Any]) -> str:
 
 
 async def call_tool(server: McpServer, name: str, arguments: dict[str, Any]) -> CallOutcome:
+    refusals = _Refusals()
     try:
-        async with _session(server, CALL_SECONDS) as session:
+        async with _session(server, CALL_SECONDS, refusals) as session:
             result = await session.call_tool(name, arguments)
     except AddressRefused as refused:
         raise McpCallFailed("unreachable", refused.code) from refused
     except Exception as failure:  # noqa: BLE001 - reduced to a kind
-        kind = _kind_of(failure)
+        kind = _kind_of(failure, refusals)
         logger.warning("A call to an MCP server failed: %s", kind)
         raise McpCallFailed(kind) from failure
     text = _text_of(list(result.content))
-    if not text and result.structuredContent is not None:
-        text = json.dumps(result.structuredContent, ensure_ascii=False, default=str)
-    return CallOutcome(text=text, is_error=bool(result.isError))
+    if not text and result.structured_content is not None:
+        text = json.dumps(result.structured_content, ensure_ascii=False, default=str)
+    return CallOutcome(text=text, is_error=bool(result.is_error))
