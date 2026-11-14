@@ -72,7 +72,10 @@ describe("AppSelect", () => {
 
     const hidden = mountSelect({ options: LABELLED, compact: true, label: "Kind", labelHidden: true })
     expect(hidden.find(".app-select__inline-label").exists()).toBe(false)
-    expect(hidden.get('[role="combobox"]').attributes("aria-label")).toBe("Kind")
+    // Named by the field's own <label>, which holds Quasar's label out of sight.
+    const combobox = hidden.get('[role="combobox"]')
+    const naming = hidden.get(`label[for="${combobox.attributes("id")}"]`)
+    expect(naming.get(".q-field__label").text()).toBe("Kind")
   })
 
   it("draws a framed toolbar field in a form field's box", () => {

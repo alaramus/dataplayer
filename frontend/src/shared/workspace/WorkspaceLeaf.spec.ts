@@ -1,7 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { describe, expect, it } from "vitest"
-import { defineComponent, h, inject, ref } from "vue"
+import { defineComponent, h, inject, nextTick, ref } from "vue"
 import type { PropType } from "vue"
 
 import { workspaceKey } from "./context"
@@ -177,7 +177,10 @@ describe("a section", () => {
     // first (U09).
     expect(wrapper.get('[data-testid="workspace-close-p1"]').attributes("tabindex")).toBe("0")
     expect(close.attributes("tabindex")).toBe("-1")
-    await close.trigger("pointerdown", { button: 0 })
+    // Dispatched by hand: test-utils assigns `button` after building the
+    // event, and on jsdom's own PointerEvent that property is read-only.
+    close.element.dispatchEvent(new PointerEvent("pointerdown", { button: 0, bubbles: true }))
+    await nextTick()
     await close.trigger("keydown", { key })
     expect(closed).toEqual(["p2"])
     expect(activated).toEqual([])
