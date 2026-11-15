@@ -167,6 +167,10 @@ class CatalogFace:
     # What the card fills into a new connection's form, still editable:
     # Gmail's servers on the Gmail card (D373).
     options: Mapping[str, Any] = field(default_factory=dict)
+    # What the connection form tells a person picking this card before they
+    # fill it in, and the page it sends them to: Gmail's app password (D373).
+    note: str | None = None
+    note_link: str | None = None
 
 
 @dataclass(frozen=True)

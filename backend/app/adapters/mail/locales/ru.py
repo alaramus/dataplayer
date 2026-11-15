@@ -58,4 +58,5 @@ MESSAGES: dict[str, str] = {
     "The mail server would not keep the draft": "Почтовый сервер не сохранил черновик",
     "Name at least one recipient": "Укажите хотя бы одного получателя",
     "Gmail": "Gmail",
+    "Gmail needs an app password, not your account's: make one at myaccount.google.com/apppasswords.": "Нужен пароль приложения, а не пароль аккаунта: создайте его на myaccount.google.com/apppasswords.",
 }

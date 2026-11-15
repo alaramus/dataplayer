@@ -166,7 +166,10 @@ Spec: [Mail, the second step](../../decisions/2026-11-15-mail-second-step-design
 `CatalogFace.options` is what a card fills into a new connection's form,
 arriving as the window's draft and still editable. The mail type shows
 **Email** and **Gmail** (TLS 993/465, **Keep a copy in Sent** off). Only the
-card's key is stored. There is no Outlook card: Microsoft 365 and Outlook.com
+card's key is stored. `CatalogFace.note` and `note_link` are shown above the
+connection page of a window of that card, new or stored: Gmail's says its
+account password is refused and sends to the page that makes an app
+password. There is no Outlook card: Microsoft 365 and Outlook.com
 refuse a password over IMAP, and a card that cannot sign in is a promise the
 form breaks; it waits for OAuth.
 

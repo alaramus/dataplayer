@@ -45,6 +45,7 @@ import {
 import type { FieldSpec, JsonSchema } from "@/shared/SchemaForm/jsonSchema"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import {
+  AppBanner,
   AppButton,
   AppColorPicker,
   AppCopyButton,
@@ -284,6 +285,29 @@ const typeName = computed(() => saved.value?.adapter_type ?? props.adapterType ?
 const selectedType = computed(
   () => (adapterTypes.data.value ?? []).find((item) => item.name === typeName.value) ?? null
 )
+
+// What the card this connection was picked by asks a person to know first:
+// Gmail's app password (D373).
+const cardNote = computed(() => {
+  const key = saved.value?.face ?? props.card ?? null
+  return selectedType.value?.faces?.find((face) => face.key === key && face.note) ?? null
+})
+
+// The note names its page without the scheme, in every language; that name
+// becomes the link, so no translation has to carry markup.
+const cardNoteParts = computed<{ text: string; link?: string }[]>(() => {
+  const note = cardNote.value?.note ?? ""
+  const link = cardNote.value?.note_link
+  if (!link) return [{ text: note }]
+  const shown = link.replace(/^https?:\/\//, "")
+  const at = note.indexOf(shown)
+  if (at < 0) return [{ text: note + " " }, { text: shown, link }]
+  return [
+    { text: note.slice(0, at) },
+    { text: shown, link },
+    { text: note.slice(at + shown.length) },
+  ]
+})
 
 const selectedSchema = computed<JsonSchema | null>(
   () => (selectedType.value?.options_schema as unknown as JsonSchema | undefined) ?? null
@@ -761,6 +785,28 @@ async function parseTyped(text: string) {
         class="connector-window__body"
         data-testid="connector-body"
       >
+        <AppBanner
+          v-if="cardNote && activePage === DEFAULT_GROUP"
+          tone="info"
+          class="connector-window__card-note"
+          data-testid="connector-card-note"
+        >
+          <template
+            v-for="(part, index) in cardNoteParts"
+            :key="index"
+          >
+            <a
+              v-if="part.link"
+              :href="part.link"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="connector-card-note-link"
+            >{{ part.text }}</a>
+            <template v-else>
+              {{ part.text }}
+            </template>
+          </template>
+        </AppBanner>
         <SchemaFields
           v-for="group in groups"
           v-show="group.id === activePage"
@@ -1175,6 +1221,14 @@ async function parseTyped(text: string) {
   flex-direction: column;
   gap: var(--dp-space-4);
   padding: var(--dp-space-3) var(--dp-space-4);
+}
+/* The body scrolls as a flex column: a banner allowed to shrink there is
+   squeezed to one line and its text runs over the fields below. */
+.connector-window__card-note {
+  flex: none;
+}
+.connector-window__card-note a {
+  color: var(--dp-link);
 }
 .connector-window__foot-area {
   flex: none;

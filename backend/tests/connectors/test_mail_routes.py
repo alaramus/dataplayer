@@ -15,8 +15,10 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters import registry
 from app.adapters.mailbox import MessageQuery, MessageRef
 from app.core.config import settings
+from app.core.translation import LANGUAGES, in_language, say
 from app.users import crud, storage
 from app.users.models import User
 from tests.adapters.mail_fixture import (
@@ -232,6 +234,19 @@ async def test_the_type_shows_a_gmail_card_with_its_servers(
     assert faces["mail"]["options"] == {}
     assert faces["gmail"]["options"]["imap_host"] == "imap.gmail.com"
     assert faces["gmail"]["options"]["save_sent"] is False
+    # The note names its page without the scheme, which is what the window links.
+    assert faces["mail"]["note"] is None
+    assert faces["gmail"]["note_link"] == "https://myaccount.google.com/apppasswords"
+    assert "myaccount.google.com/apppasswords" in faces["gmail"]["note"]
+
+
+async def test_the_gmail_note_names_its_page_in_every_language() -> None:
+    (face,) = [one for one in registry.get("mail").faces if one.key == "gmail"]
+    assert face.note is not None
+    note = face.note
+    for language in LANGUAGES:
+        said = in_language(language, lambda: say(note))
+        assert "myaccount.google.com/apppasswords" in said, language
 
 
 async def test_a_letter_is_moved_drafted_and_sent_with_a_file_of_ones_folder(

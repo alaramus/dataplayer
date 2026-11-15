@@ -175,8 +175,22 @@ async def test_mysql_shows_a_card_for_each_product_and_its_own_server(
     types = {item["name"]: item for item in response.json()}
     assert "mariadb" not in types
     assert types["mysql"]["faces"] == [
-        {"key": "mysql", "title": "MySQL", "templates": ["mysql"], "options": {}},
-        {"key": "mariadb", "title": "MariaDB", "templates": ["mariadb"], "options": {}},
+        {
+            "key": "mysql",
+            "title": "MySQL",
+            "templates": ["mysql"],
+            "options": {},
+            "note": None,
+            "note_link": None,
+        },
+        {
+            "key": "mariadb",
+            "title": "MariaDB",
+            "templates": ["mariadb"],
+            "options": {},
+            "note": None,
+            "note_link": None,
+        },
     ]
     assert types["postgres"]["faces"] == []
 

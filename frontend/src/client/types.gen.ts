@@ -356,6 +356,14 @@ export type AdapterFaceInfo = {
   options?: {
     [key: string]: unknown
   }
+  /**
+   * Note
+   */
+  note?: string | null
+  /**
+   * Note Link
+   */
+  note_link?: string | null
 }
 
 /**

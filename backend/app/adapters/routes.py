@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.adapters import options, registry
 from app.adapters.cache import SourceCacheWindows
 from app.adapters.protocol import MakesSourceHere
-from app.core.translation import say, say_schema
+from app.core.translation import say, say_if, say_schema
 from app.guide import reader as guide
 from app.users.deps import get_current_user
 
@@ -32,6 +32,9 @@ class AdapterFaceInfo(BaseModel):
     templates: list[str]
     # What the card fills into a new connection's form (D373).
     options: dict[str, Any] = {}
+    # Shown above the connection form, in the reader's language (D373).
+    note: str | None = None
+    note_link: str | None = None
 
 
 class AdapterTypeInfo(BaseModel):
@@ -103,6 +106,8 @@ def info(adapter_type: registry.AdapterType) -> AdapterTypeInfo:
                 title=say(face.title),
                 templates=list(face.templates),
                 options=dict(face.options),
+                note=say_if(face.note),
+                note_link=face.note_link,
             )
             for face in adapter_type.faces
         ],

@@ -200,6 +200,11 @@ class MailAdapter:
                 # Gmail files what it sends by itself; a copy would be a second.
                 "save_sent": False,
             },
+            note=N_(
+                "Gmail needs an app password, not your account's: make one at "
+                "myaccount.google.com/apppasswords."
+            ),
+            note_link="https://myaccount.google.com/apppasswords",
         ),
     ),
 )
