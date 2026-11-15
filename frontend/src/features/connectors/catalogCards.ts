@@ -14,13 +14,21 @@ export interface CatalogCard {
   title: string
   /** The services the card offers to start, or null for every one of its type. */
   templates: string[] | null
+  /** What the card fills into a new connection's form: Gmail's servers (D373). */
+  options: Record<string, unknown>
 }
 
 export function cardsOf(types: AdapterTypeInfo[]): CatalogCard[] {
   return types.flatMap((type): CatalogCard[] =>
     type.faces !== undefined && type.faces.length > 0
-      ? type.faces.map((face) => ({ key: face.key, type, title: face.title, templates: face.templates }))
-      : [{ key: type.name, type, title: type.title, templates: null }]
+      ? type.faces.map((face) => ({
+          key: face.key,
+          type,
+          title: face.title,
+          templates: face.templates,
+          options: face.options ?? {},
+        }))
+      : [{ key: type.name, type, title: type.title, templates: null, options: {} }]
   )
 }
 

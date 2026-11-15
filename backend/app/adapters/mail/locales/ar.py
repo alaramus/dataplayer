@@ -53,4 +53,10 @@ MESSAGES: dict[str, str] = {
     "The mail server refused to send from {address}": "لا يسمح خادم البريد بالإرسال من {address}",
     "The mail server refused the letter": "رفض خادم البريد الرسالة",
     "Attachments come to more than {mb} MB, which is more than a letter may carry": "تتجاوز المرفقات {mb} ميغابايت، وهذا أكثر مما تحمله رسالة",
+    "The mail server would not make a Drafts folder": "لم ينشئ خادم البريد مجلد المسودات",
+    "The mail server would not move the messages": "لم ينقل خادم البريد الرسائل",
+    "The mail server would not keep the draft": "لم يحتفظ خادم البريد بالمسودة",
+    "Name at least one recipient": "اذكر مستلمًا واحدًا على الأقل",
+    "Gmail": "Gmail",
+    "Outlook": "Outlook",
 }

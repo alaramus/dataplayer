@@ -11,6 +11,7 @@ general is on the [Connections](connections.md) page.
 - Letters found by words in the sender, the subject or the text
 - A letter: who it is from and to, its text, and its attachments
 - Images in a letter from the web, once you ask for them
+- A notice when new letters arrive in your inbox
 
 ## What you can change
 
@@ -18,8 +19,16 @@ general is on the [Connections](connections.md) page.
 - Letters marked read or unread
 - Letters moved to Trash, and deleted for good from Trash
 - Attachments saved to your computer or into your own folder
+- Drafts saved, finished later and sent
+- Letters moved to another folder
+- Files from your own folder attached to a letter
 
 ## Connecting
+
+The catalog of new connections has three cards: **Email** for any server,
+and **Gmail** and **Outlook**, which fill in their servers for you. Gmail
+needs an app password. Microsoft 365 and Outlook.com mostly refuse a password
+over IMAP now; the Outlook card works where your organisation still allows it.
 
 The **Connection** page of the window asks for:
 
@@ -53,7 +62,15 @@ of the chosen folder in the middle, the open letter on the right.
   puts it back.
 - **Search** looks for the words in the sender, the subject and the text of
   the letters in the folder.
-- **Refresh** reads the folder again. New letters are not announced yet.
+- **Refresh** reads the folder again.
+- **Move to a folder** moves the open letter to another folder of the mailbox.
+
+## New letters
+
+While you are signed in, your inbox is looked at about once a minute. When
+letters arrive, a notice says who wrote and about what, with **Open**, and an
+open Mail tab shows them. Only your own mailboxes are watched, and only the
+inbox.
 - A letter larger than 32 MB is not opened here.
 
 ## A letter's text
@@ -66,9 +83,14 @@ them that, and when, you read the letter. Links open in a new browser tab.
 
 **New letter**, **Reply**, **Reply all** and **Forward** open a window with
 **To**, **Cc**, **Bcc**, **Subject** and the text. Addresses are separated by
-commas. Files from your computer can be attached, 25 MB in all. A forward
-takes the original's attachments along; an answer is threaded under the
+commas. Files can be attached from your computer or, with **From my folder**,
+from your own storage — 25 MB in all. A forward takes the original's
+attachments along, and each can be removed; an answer is threaded under the
 letter it answers, which is marked answered.
+
+**Save draft** keeps the letter in Drafts, even with nobody to send it to
+yet. Open it there and press **Edit** to go on; saving it again replaces it,
+and sending it removes it from Drafts.
 
 ## Deleting
 
@@ -93,9 +115,8 @@ it.
 
 ## What Email does not do here yet
 
-- Tell you of new letters as they arrive
-- Drafts kept on the server, moving letters between folders, flags, signatures
-- Attaching a file from your own folder
+- Tell you of new letters in folders other than the inbox
+- Flags, signatures, dragging a letter onto a folder
 - Signing in to Gmail or Microsoft 365 without an app password, and Exchange
   without IMAP
 - Reaching the server through an SSH tunnel

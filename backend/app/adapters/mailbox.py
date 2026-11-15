@@ -100,11 +100,15 @@ class MailMessage(BaseModel):
     sender: MailAddress | None
     to: list[MailAddress]
     cc: list[MailAddress]
+    # Only a draft carries one: a sent letter never names its Bcc (D375).
+    bcc: list[MailAddress] = Field(default_factory=list)
     reply_to: list[MailAddress]
     date: datetime | None
     message_id: str | None
     flagged: bool
     answered: bool
+    # Flagged `\Draft`, or lying in Drafts: it opens to be finished (D375).
+    draft: bool = False
     text: str | None
     # As the sender wrote it; sanitised where it is drawn (D369).
     html: str | None
@@ -137,10 +141,24 @@ class MessagesDeleted(BaseModel):
     count: int
 
 
+class MoveRequest(MessageSelection):
+    target: str = Field(min_length=1, max_length=1000)
+
+
+class MessagesMoved(BaseModel):
+    moved_to: str
+    count: int
+
+
+# The most files from the owner's folder one letter names (D374).
+MAX_STORED_FILES = 20
+
+
 class OutgoingMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    to: list[Address] = Field(min_length=1, max_length=MAX_RECIPIENTS)
+    # Empty for a draft; a letter being sent needs one (D375).
+    to: list[Address] = Field(default_factory=list, max_length=MAX_RECIPIENTS)
     cc: list[Address] = Field(default_factory=list, max_length=MAX_RECIPIENTS)
     bcc: list[Address] = Field(default_factory=list, max_length=MAX_RECIPIENTS)
     subject: str = Field(default="", max_length=1000)
@@ -149,6 +167,13 @@ class OutgoingMessage(BaseModel):
     # forward, its attachments are read by the server (D370).
     reply_to: MessageRef | None = None
     forward_of: MessageRef | None = None
+    # The draft this letter replaces: its attachments are carried, and it is
+    # deleted once this one is sent or saved (D375).
+    draft_of: MessageRef | None = None
+    # Which parts of `forward_of` or `draft_of` go along; None is all of them.
+    keep_parts: list[str] | None = Field(default=None, max_length=100)
+    # Files of the owner's own folder, by their path in it (D374).
+    stored_files: list[str] = Field(default_factory=list, max_length=MAX_STORED_FILES)
 
 
 @dataclass(frozen=True)
@@ -161,6 +186,27 @@ class OutgoingFile:
 class MessageSent(BaseModel):
     # Whether a copy went into the Sent folder (D370).
     kept_copy: bool
+
+
+class DraftSaved(BaseModel):
+    folder: str
+    # The new draft's UID, where the server says it (UIDPLUS).
+    uid: int | None
+
+
+class InboxMark(BaseModel):
+    """Where an inbox was: a UID means nothing once UIDVALIDITY changes (D372)."""
+
+    uidvalidity: int
+    uidnext: int
+
+
+class Arrivals(BaseModel):
+    mark: InboxMark
+    unseen: int
+    # Letters that arrived since the mark asked about; none on a first look.
+    count: int
+    newest: list[MessageHeading]
 
 
 @dataclass(frozen=True)
@@ -204,3 +250,11 @@ class SupportsMailbox(Protocol):
     async def send_message(
         self, message: OutgoingMessage, files: list[OutgoingFile]
     ) -> MessageSent: ...
+
+    async def save_draft(
+        self, message: OutgoingMessage, files: list[OutgoingFile]
+    ) -> DraftSaved: ...
+
+    async def move_messages(self, request: MoveRequest) -> MessagesMoved: ...
+
+    async def inbox_arrivals(self, since: InboxMark | None) -> Arrivals: ...

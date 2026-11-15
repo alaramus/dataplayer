@@ -254,4 +254,6 @@ MESSAGES: dict[str, str] = {
     "Only a topic, a stream, a queue, an exchange, or a symbol's trades or candles, is read on from where the link stopped": "Читать дальше с места остановки связи можно только топик, стрим, очередь, exchange или сделки и свечи символа",
     "Tick a topic, a stream, a queue, an exchange, or a symbol's trades or candles": "Отметьте топик, стрим, очередь, exchange или сделки и свечи символа",
     "{said}; the link began reading now, and gets what arrives from here on": "{said}; связь начала читать сейчас и получает то, что приходит с этого момента",
+    "There is no such folder in your storage": "В вашем хранилище нет такой папки",
+    "There is no such file in your storage: {path}": "В вашем хранилище нет такого файла: {path}",
 }

@@ -438,6 +438,15 @@ import type {
   mailMarkMessagesData,
   mailMarkMessagesErrors,
   mailMarkMessagesResponses,
+  mailMoveMessagesData,
+  mailMoveMessagesErrors,
+  mailMoveMessagesResponses,
+  mailMyFilesData,
+  mailMyFilesErrors,
+  mailMyFilesResponses,
+  mailSaveDraftData,
+  mailSaveDraftErrors,
+  mailSaveDraftResponses,
   mailSendMessageData,
   mailSendMessageErrors,
   mailSendMessageResponses,
@@ -3591,7 +3600,7 @@ export class MailService {
   /**
    * Send Message
    *
-   * A letter and the files uploaded with it, 25 MB of them in all (D370).
+   * A letter, its uploads and its files from the owner's folder, 25 MB in all (D370).
    */
   public static sendMessage<ThrowOnError extends boolean = true>(
     options: Options<mailSendMessageData, ThrowOnError>
@@ -3610,6 +3619,74 @@ export class MailService {
         "Content-Type": null,
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Save Draft
+   *
+   * Into Drafts, replacing the draft it was opened from (D375).
+   */
+  public static saveDraft<ThrowOnError extends boolean = true>(
+    options: Options<mailSaveDraftData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      mailSaveDraftResponses,
+      mailSaveDraftErrors,
+      ThrowOnError
+    >({
+      ...formDataBodySerializer,
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/draft",
+      ...options,
+      headers: {
+        "Content-Type": null,
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Move Messages
+   *
+   * To a folder of this mailbox, checked before anything moves (D376).
+   */
+  public static moveMessages<ThrowOnError extends boolean = true>(
+    options: Options<mailMoveMessagesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      mailMoveMessagesResponses,
+      mailMoveMessagesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/move",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * My Files
+   *
+   * One folder of the owner's storage, to attach a file from (D374).
+   *
+   * A mail route, so `own`: the storage listed is the mailbox owner's, who is
+   * the person asking.
+   */
+  public static myFiles<ThrowOnError extends boolean = true>(
+    options: Options<mailMyFilesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<mailMyFilesResponses, mailMyFilesErrors, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/my-files",
+      ...options,
     })
   }
 

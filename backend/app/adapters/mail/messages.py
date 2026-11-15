@@ -16,11 +16,13 @@ from email.headerregistry import Address as HeaderAddress
 from email.message import EmailMessage, Message
 from email.utils import getaddresses, parsedate_to_datetime
 
-from app.adapters.mail.folders import ok, quoted, select, trash
+from app.adapters.mail.folders import checked, ok, quoted, role_of, select, trash
 from app.adapters.mailbox import (
     MAX_INLINE_BYTES,
     MAX_MESSAGE_BYTES,
+    Arrivals,
     AttachmentBytes,
+    InboxMark,
     MailAddress,
     MailAttachment,
     MailboxRefused,
@@ -31,6 +33,8 @@ from app.adapters.mailbox import (
     MessageRef,
     MessagesDeleted,
     MessageSelection,
+    MessagesMoved,
+    MoveRequest,
 )
 from app.core.translation import say
 
@@ -223,11 +227,13 @@ def read(conn: imaplib.IMAP4, ref: MessageRef) -> MailMessage:
         sender=senders[0] if senders else None,
         to=_addresses(message, "To"),
         cc=_addresses(message, "Cc"),
+        bcc=_addresses(message, "Bcc"),
         reply_to=_addresses(message, "Reply-To"),
         date=_date(message),
         message_id=_text(message, "Message-ID") or None,
         flagged="\\flagged" in flags,
         answered="\\answered" in flags,
+        draft="\\draft" in flags or role_of_folder(conn, ref.folder) == "drafts",
         text=_body(message, "plain"),
         html=html,
         inline_images=inline if html else {},
@@ -331,13 +337,13 @@ def attachment_of(message: EmailMessage, part: str) -> AttachmentBytes:
     raise MailboxRefused(say("The message has no such attachment"), status=404)
 
 
-def attachments_of(message: EmailMessage) -> list[AttachmentBytes]:
-    """Every attachment, for a forward to take along (D370)."""
-    found: list[AttachmentBytes] = []
+def attachments_of(message: EmailMessage) -> list[tuple[str, AttachmentBytes]]:
+    """Every attachment by its part, for a forward or a draft to take along (D370)."""
+    found: list[tuple[str, AttachmentBytes]] = []
     for number, part in _numbered(message):
         if part.is_multipart() or not _is_attachment(part):
             continue
-        found.append(attachment_of(message, number))
+        found.append((number, attachment_of(message, number)))
     return found
 
 
@@ -372,6 +378,72 @@ def delete(conn: imaplib.IMAP4, selection: MessageSelection) -> MessagesDeleted:
         ok(status, say("The mail server would not move the messages to Trash"))
         _expunge(conn, uids, capabilities)
     return MessagesDeleted(moved_to=bin_name, count=len(set(selection.uids)))
+
+
+def move(conn: imaplib.IMAP4, request: MoveRequest) -> MessagesMoved:
+    """To a folder the mailbox has, checked before anything moves (D376)."""
+    target = checked(conn, request.target).id
+    select(conn, request.folder, readonly=False)
+    count = len(set(request.uids))
+    if target == request.folder:
+        return MessagesMoved(moved_to=target, count=0)
+    capabilities = {str(one).upper() for one in conn.capabilities}
+    uids = _uid_set(request.uids)
+    if "MOVE" in capabilities:
+        status, _ = conn.uid("MOVE", uids, quoted(target))
+        ok(status, say("The mail server would not move the messages"))
+    else:
+        status, _ = conn.uid("COPY", uids, quoted(target))
+        ok(status, say("The mail server would not move the messages"))
+        _expunge(conn, uids, capabilities)
+    return MessagesMoved(moved_to=target, count=count)
+
+
+def remove_for_good(conn: imaplib.IMAP4, ref: MessageRef) -> None:
+    """One letter gone, not through Trash: a draft replaced by its next (D375)."""
+    select(conn, ref.folder, readonly=False)
+    capabilities = {str(one).upper() for one in conn.capabilities}
+    _expunge(conn, str(ref.uid), capabilities)
+
+
+def role_of_folder(conn: imaplib.IMAP4, folder: str) -> str | None:
+    return role_of(checked(conn, folder))
+
+
+# --- what arrived (D372) ------------------------------------------------------
+
+_STATUS_NUMBER = re.compile(rb"(UIDVALIDITY|UIDNEXT|UNSEEN)\s+(\d+)", re.IGNORECASE)
+NEWEST = 3
+
+
+def arrivals(conn: imaplib.IMAP4, since: InboxMark | None) -> Arrivals:
+    """The inbox's place and what came after `since`, with one STATUS when nothing did."""
+    status, data = conn.status("INBOX", "(UIDVALIDITY UIDNEXT UNSEEN)")
+    ok(status, say("The mail server would not open the folder"))
+    line = data[0] if data and isinstance(data[0], bytes) else b""
+    numbers = {key.upper(): int(value) for key, value in _STATUS_NUMBER.findall(line)}
+    mark_now = InboxMark(
+        uidvalidity=numbers.get(b"UIDVALIDITY", 0), uidnext=numbers.get(b"UIDNEXT", 0)
+    )
+    unseen = numbers.get(b"UNSEEN", 0)
+    if (
+        since is None
+        or since.uidvalidity != mark_now.uidvalidity
+        or mark_now.uidnext <= since.uidnext
+    ):
+        return Arrivals(mark=mark_now, unseen=unseen, count=0, newest=[])
+    conn.select("INBOX", readonly=True)
+    status, data = conn.uid("SEARCH", f"UID {since.uidnext}:*")
+    ok(status, say("The mail server would not search"))
+    found = data[0] if data and isinstance(data[0], bytes) else b""
+    # `n:*` always names the last message, even one older than n.
+    new = sorted(uid for uid in (int(one) for one in found.split() if one.isdigit()) if uid >= since.uidnext)
+    newest = new[-NEWEST:]
+    headings = (
+        _headings(conn, ",".join(str(uid) for uid in newest), by_uid=True) if newest else []
+    )
+    headings.sort(key=lambda heading: heading.uid, reverse=True)
+    return Arrivals(mark=mark_now, unseen=unseen, count=len(new), newest=headings)
 
 
 def _expunge(conn: imaplib.IMAP4, uids: str, capabilities: set[str]) -> None:

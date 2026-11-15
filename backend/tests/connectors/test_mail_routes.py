@@ -5,6 +5,7 @@ same mailbox reached the way a screen reaches it, and the rules only the
 routes hold: who may open it, and where a kept attachment goes.
 """
 
+import asyncio
 import json
 import uuid
 from collections.abc import AsyncIterator, Iterator
@@ -18,7 +19,16 @@ from app.adapters.mailbox import MessageQuery, MessageRef
 from app.core.config import settings
 from app.users import crud, storage
 from app.users.models import User
-from tests.adapters.mail_fixture import ALICE, BOB, adapter, deliver, empty, options
+from tests.adapters.mail_fixture import (
+    ALICE,
+    BOB,
+    adapter,
+    deliver,
+    empty,
+    make_folder,
+    options,
+)
+from tests.utils.socket import authenticated_socket
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
 
@@ -208,3 +218,89 @@ async def test_a_mailbox_has_no_catalog(
 ) -> None:
     response = await client.get(f"{BASE}/{mailbox}/catalog", headers=normal_user_token_headers)
     assert response.status_code == 501
+
+
+async def test_the_type_shows_gmail_and_outlook_with_their_servers(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.get(
+        f"{settings.API_V1_STR}/adapter-types/", headers=normal_user_token_headers
+    )
+    (mail,) = [one for one in response.json() if one["name"] == "mail"]
+    faces = {face["key"]: face for face in mail["faces"]}
+    assert list(faces) == ["mail", "gmail", "outlook"]
+    assert faces["mail"]["options"] == {}
+    assert faces["gmail"]["options"]["imap_host"] == "imap.gmail.com"
+    assert faces["gmail"]["options"]["save_sent"] is False
+    assert faces["outlook"]["options"]["smtp_security"] == "starttls"
+
+
+async def test_a_letter_is_moved_drafted_and_sent_with_a_file_of_ones_folder(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    mailbox: str,
+    db: AsyncSession,
+) -> None:
+    headers = normal_user_token_headers
+    url = f"{BASE}/{mailbox}/mail"
+    owner = await crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
+    assert owner is not None
+    home = storage.home_dir(owner.id)
+    (home / "MailTest").mkdir(parents=True, exist_ok=True)
+    (home / "MailTest" / "plan.txt").write_bytes(b"the plan")
+
+    listed = await _call(client, headers, "GET", f"{url}/my-files", params={"path": "MailTest"})
+    assert [one["path"] for one in listed["entries"]] == ["MailTest/plan.txt"]
+    outside = await client.get(f"{url}/my-files", headers=headers, params={"path": ".."})
+    assert outside.status_code == 422
+
+    make_folder("Projects")
+    deliver(ALICE, "Move me")
+    target = "Projects"
+    (heading,) = (await _call(client, headers, "GET", f"{url}/messages", params={"folder": "INBOX"}))["messages"]
+    moved = await _call(
+        client, headers, "POST", f"{url}/move",
+        json={"folder": "INBOX", "uids": [heading["uid"]], "target": target},
+    )
+    assert moved["moved_to"] == target
+
+    letter = {"to": [BOB], "subject": "With my plan", "stored_files": ["MailTest/plan.txt"]}
+    drafted = await client.post(f"{url}/draft", headers=headers, data={"message": json.dumps(letter)})
+    assert drafted.status_code == 200, drafted.text
+    sent = await client.post(
+        f"{url}/send", headers=headers, data={"message": json.dumps(letter)}
+    )
+    assert sent.status_code == 200, sent.text
+    bob = adapter(BOB)
+    (got,) = (await bob.mail_messages(MessageQuery(folder="INBOX"))).messages
+    received = await bob.mail_message(MessageRef(folder="INBOX", uid=got.uid))
+    assert [one.filename for one in received.attachments] == ["plan.txt"]
+
+    escaping = {"to": [BOB], "stored_files": ["../../etc/passwd"]}
+    refused = await client.post(f"{url}/send", headers=headers, data={"message": json.dumps(escaping)})
+    assert refused.status_code == 422
+
+
+async def test_a_watcher_is_told_of_a_new_letter(
+    normal_user_token_headers: dict[str, str],
+    mailbox: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The first round only learns the inbox; the letter after it is announced (D372)."""
+    monkeypatch.setattr(settings, "MAIL_ARRIVALS_INTERVAL_SECONDS", 0.3)
+    monkeypatch.setattr(settings, "HEALTH_GRACE_SECONDS", 0.0)
+    async with authenticated_socket(normal_user_token_headers) as ws:
+        await ws.send_json({"type": "subscribe", "topic": "mail.arrivals"})
+        await asyncio.sleep(1.5)
+        deliver(ALICE, "Fresh news")
+        for _ in range(50):
+            frame: dict[str, Any] = await ws.receive_json(timeout=15)
+            if frame.get("topic") != "mail.arrivals":
+                continue
+            payload = frame["payload"]
+            if payload["connector_id"] == mailbox and payload["count"] > 0:
+                assert payload["count"] == 1
+                assert payload["newest"][0]["subject"] == "Fresh news"
+                assert payload["unseen"] >= 1
+                return
+        raise AssertionError("no arrival was announced")

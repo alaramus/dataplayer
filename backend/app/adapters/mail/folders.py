@@ -53,6 +53,7 @@ _ROLE_NAMES: dict[str, FolderRole] = {
 
 # A Trash made where the server has none (D370).
 NEW_TRASH = "Trash"
+NEW_DRAFTS = "Drafts"
 
 
 @dataclass(frozen=True)
@@ -209,3 +210,13 @@ def trash(conn: imaplib.IMAP4) -> str:
     status, _ = conn.create(quoted(NEW_TRASH))
     ok(status, say("The mail server would not make a Trash folder"))
     return NEW_TRASH
+
+
+def drafts(conn: imaplib.IMAP4) -> str:
+    """Drafts, made if the server has none, as Trash is (D375)."""
+    found = with_role(conn, "drafts")
+    if found is not None:
+        return found
+    status, _ = conn.create(quoted(NEW_DRAFTS))
+    ok(status, say("The mail server would not make a Drafts folder"))
+    return NEW_DRAFTS

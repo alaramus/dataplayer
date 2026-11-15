@@ -29,7 +29,7 @@ const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
   /** The type, and the card it was picked by: its name and picture (D264). */
-  pick: [adapterType: string, card: { key: string; title: string }]
+  pick: [adapterType: string, card: { key: string; title: string; options: Record<string, unknown> }]
   start: [template: ServiceTemplateInfo]
   makeHere: [type: AdapterTypeInfo]
 }>()
@@ -104,7 +104,7 @@ function selectCategory(id: string) {
 }
 
 function pick(card: CatalogCard) {
-  emit("pick", card.type.name, { key: card.key, title: card.title })
+  emit("pick", card.type.name, { key: card.key, title: card.title, options: card.options })
 }
 
 function start(template: ServiceTemplateInfo) {

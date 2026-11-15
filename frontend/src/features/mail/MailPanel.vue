@@ -30,11 +30,12 @@ import {
   useMailMessage,
   useMailPage,
   useMarkMessages,
+  useMoveMessages,
 } from "./api"
 import type { MessageRef } from "./api"
 import { firstFolder, shownFolders } from "./folders"
 import type { AnswerKind, Draft } from "./letter"
-import { addressText, answerDraft, emptyDraft } from "./letter"
+import { addressText, answerDraft, draftFrom, emptyDraft } from "./letter"
 import MailComposer from "./MailComposer.vue"
 import MailReader from "./MailReader.vue"
 
@@ -59,6 +60,7 @@ const folders = useMailFolders(connectorId)
 const page = useMailPage(connectorId, folder, offset, search)
 const message = useMailMessage(connectorId, selected)
 const mark = useMarkMessages(connectorId)
+const move = useMoveMessages(connectorId)
 const remove = useDeleteMessages(connectorId)
 const download = useDownloadAttachment(connectorId)
 const keep = useKeepAttachment(connectorId)
@@ -81,6 +83,11 @@ const shown = computed(() =>
 )
 const current = computed(() => shown.value.find((one) => one.id === folder.value) ?? null)
 const inTrash = computed(() => current.value?.role === "trash")
+const targets = computed(() =>
+  shown.value
+    .filter((one) => one.selectable && one.id !== folder.value)
+    .map((one) => ({ id: one.id, label: one.label }))
+)
 const headings = computed(() => page.data.value?.messages ?? [])
 const total = computed(() => page.data.value?.total ?? 0)
 
@@ -163,6 +170,25 @@ async function deleteOpen() {
   }
 }
 
+async function moveOpen(target: string) {
+  const chosen = selected.value
+  if (chosen === null) return
+  try {
+    await move.mutateAsync({ folder: chosen.folder, uids: [chosen.uid], target })
+    const label = shown.value.find((one) => one.id === target)?.label ?? target
+    toast.success(t("mail.moved", { folder: label }))
+    selected.value = null
+  } catch (cause) {
+    toast.error(messageOf(cause, t("mail.could_not_do")))
+  }
+}
+
+function editDraft() {
+  const letter = message.data.value
+  if (letter === undefined) return
+  write(t("mail.composer.draft"), draftFrom(letter))
+}
+
 async function markUnread() {
   const chosen = selected.value
   if (chosen === null) return
@@ -230,6 +256,13 @@ function answer(kind: AnswerKind) {
     }),
   })
   write(kind === "forward" ? t("mail.composer.forward") : t("mail.composer.reply"), draft)
+}
+
+/** A draft that was sent or saved anew is no longer there to be read. */
+function forgetDraft(draft: MessageRef) {
+  if (selected.value?.folder === draft.folder && selected.value.uid === draft.uid) {
+    selected.value = null
+  }
 }
 
 function closed(key: number) {
@@ -381,8 +414,11 @@ const mailboxAddress = computed(() => {
           v-else-if="selected && message.data.value"
           :message="message.data.value"
           :in-trash="inTrash"
-          :busy="remove.isPending.value || mark.isPending.value"
+          :busy="remove.isPending.value || mark.isPending.value || move.isPending.value"
+          :targets="targets"
           @answer="answer"
+          @edit="editDraft"
+          @move="moveOpen"
           @delete="deleteOpen"
           @unread="markUnread"
           @download="downloadFile"
@@ -403,6 +439,7 @@ const mailboxAddress = computed(() => {
       :title="one.title"
       :initial="one.draft"
       @closed="closed(one.key)"
+      @replaced="forgetDraft"
     />
   </div>
 </template>

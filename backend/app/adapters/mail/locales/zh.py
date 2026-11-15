@@ -53,4 +53,10 @@ MESSAGES: dict[str, str] = {
     "The mail server refused to send from {address}": "邮件服务器不允许从 {address} 发送",
     "The mail server refused the letter": "邮件服务器拒绝了这封邮件",
     "Attachments come to more than {mb} MB, which is more than a letter may carry": "附件总计超过 {mb} MB，超出一封邮件可携带的大小",
+    "The mail server would not make a Drafts folder": "邮件服务器未创建草稿文件夹",
+    "The mail server would not move the messages": "邮件服务器未移动邮件",
+    "The mail server would not keep the draft": "邮件服务器未保存草稿",
+    "Name at least one recipient": "请至少填写一位收件人",
+    "Gmail": "Gmail",
+    "Outlook": "Outlook",
 }

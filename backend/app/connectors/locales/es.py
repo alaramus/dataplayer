@@ -255,4 +255,6 @@ MESSAGES: dict[str, str] = {
     "Only a topic, a stream, a queue, an exchange, or a symbol's trades or candles, is read on from where the link stopped": "Solo un topic, un stream, una cola, un exchange, o las operaciones o velas de un símbolo se leen desde donde se detuvo el enlace",
     "Tick a topic, a stream, a queue, an exchange, or a symbol's trades or candles": "Marca un topic, un stream, una cola, un exchange, o las operaciones o velas de un símbolo",
     "{said}; the link began reading now, and gets what arrives from here on": "{said}; el enlace empezó a leer ahora y recibe lo que llegue desde aquí",
+    "There is no such folder in your storage": "No existe esa carpeta en tu almacenamiento",
+    "There is no such file in your storage: {path}": "No existe ese archivo en tu almacenamiento: {path}",
 }

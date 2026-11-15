@@ -13,7 +13,10 @@ from app.adapters.mail import folders, messages, sending
 from app.adapters.mail.options import MailOptions
 from app.adapters.mail.session import MailSession
 from app.adapters.mailbox import (
+    Arrivals,
     AttachmentBytes,
+    DraftSaved,
+    InboxMark,
     MailboxRefused,
     MailFolder,
     MailMessage,
@@ -24,11 +27,13 @@ from app.adapters.mailbox import (
     MessagesDeleted,
     MessageSelection,
     MessageSent,
+    MessagesMoved,
+    MoveRequest,
     OutgoingFile,
     OutgoingMessage,
 )
 from app.adapters.protocol import AdapterError, ConnectionCheckResult
-from app.adapters.registry import AdapterContext, register
+from app.adapters.registry import AdapterContext, CatalogFace, register
 from app.core.translation import N_, say
 
 logger = logging.getLogger(__name__)
@@ -64,24 +69,41 @@ class MailAdapter:
     async def delete_messages(self, selection: MessageSelection) -> MessagesDeleted:
         return await self._session.imap(lambda conn: messages.delete(conn, selection))
 
+    async def move_messages(self, request: MoveRequest) -> MessagesMoved:
+        return await self._session.imap(lambda conn: messages.move(conn, request))
+
+    async def inbox_arrivals(self, since: InboxMark | None) -> Arrivals:
+        return await self._session.imap(lambda conn: messages.arrivals(conn, since))
+
+    async def _originals(
+        self, message: OutgoingMessage
+    ) -> tuple[sending.Original | None, sending.Original | None]:
+        """The letter answered, and the one whose attachments are carried.
+
+        A forward carries the forwarded letter's; a draft being finished
+        carries its own (D375).
+        """
+        reply_to = message.reply_to
+        carried = message.draft_of or message.forward_of
+        if reply_to is None and carried is None:
+            return None, None
+
+        def read(conn: imaplib.IMAP4) -> tuple[sending.Original | None, sending.Original | None]:
+            return (
+                None if reply_to is None else sending.original(conn, reply_to),
+                None if carried is None else sending.original(conn, carried),
+            )
+
+        return await self._session.imap(read)
+
     async def send_message(
         self, message: OutgoingMessage, files: list[OutgoingFile]
     ) -> MessageSent:
-        answered = forwarded = None
-        if message.reply_to is not None or message.forward_of is not None:
-            reply_to, forward_of = message.reply_to, message.forward_of
-
-            def originals(
-                conn: imaplib.IMAP4,
-            ) -> tuple[sending.Original | None, sending.Original | None]:
-                return (
-                    None if reply_to is None else sending.original(conn, reply_to),
-                    None if forward_of is None else sending.original(conn, forward_of),
-                )
-
-            answered, forwarded = await self._session.imap(originals)
+        if not message.to and not message.cc and not message.bcc:
+            raise MailboxRefused(say("Name at least one recipient"))
+        answered, carried = await self._originals(message)
         options = self._session.options
-        letter = sending.compose(options, message, files, answered=answered, forwarded=forwarded)
+        letter = sending.compose(options, message, files, answered=answered, carried_from=carried)
         to = sending.recipients(message)
 
         def send(conn: smtplib.SMTP) -> None:
@@ -97,15 +119,40 @@ class MailAdapter:
                 raise MailboxRefused(say("The mail server refused the letter")) from None
 
         await self._session.smtp(send)
-        return MessageSent(kept_copy=await self._after_sending(letter, message.reply_to))
+        return MessageSent(
+            kept_copy=await self._after_sending(letter, message.reply_to, message.draft_of)
+        )
+
+    async def save_draft(
+        self, message: OutgoingMessage, files: list[OutgoingFile]
+    ) -> DraftSaved:
+        """Appended to Drafts; the draft it replaces goes for good (D375)."""
+        answered, carried = await self._originals(message)
+        letter = sending.compose(
+            self._session.options,
+            message,
+            files,
+            answered=answered,
+            carried_from=carried,
+            as_draft=True,
+        )
+        replaced = message.draft_of
+
+        def keep(conn: imaplib.IMAP4) -> DraftSaved:
+            folder, uid = sending.append_draft(conn, letter)
+            if replaced is not None:
+                messages.remove_for_good(conn, replaced)
+            return DraftSaved(folder=folder, uid=uid)
+
+        return await self._session.imap(keep)
 
     async def _after_sending(
-        self, letter: EmailMessage, reply_to: MessageRef | None
+        self, letter: EmailMessage, reply_to: MessageRef | None, draft_of: MessageRef | None
     ) -> bool:
-        """The copy and the original's mark; the letter is gone either way.
+        """The copy, the original's mark and the finished draft gone.
 
-        A failure here is not a failure to send, so it is said as no copy kept
-        rather than as an error a person would answer by sending again.
+        The letter is gone either way, so a failure here is said as no copy
+        kept rather than as an error a person would answer by sending again.
         """
         keep = self._session.options.save_sent
 
@@ -113,12 +160,14 @@ class MailAdapter:
             kept = sending.keep_copy(conn, letter) if keep else False
             if reply_to is not None:
                 sending.mark_answered(conn, reply_to)
+            if draft_of is not None:
+                messages.remove_for_good(conn, draft_of)
             return kept
 
         try:
             return await self._session.imap(finish)
         except (AdapterError, MailboxRefused) as failure:
-            logger.warning("Sent, but not kept in Sent: %s", failure)
+            logger.warning("Sent, but not finished afterwards: %s", failure)
             return False
 
 
@@ -134,6 +183,36 @@ class MailAdapter:
     ),
     options_schema=MailOptions,
     adapter_class=MailAdapter,
+    # One type and one form; Gmail and Outlook only fill in their servers (D373).
+    faces=(
+        CatalogFace(key="mail", title=N_("Email")),
+        CatalogFace(
+            key="gmail",
+            title=N_("Gmail"),
+            options={
+                "imap_host": "imap.gmail.com",
+                "imap_port": 993,
+                "imap_security": "tls",
+                "smtp_host": "smtp.gmail.com",
+                "smtp_port": 465,
+                "smtp_security": "tls",
+                # Gmail files what it sends by itself; a copy would be a second.
+                "save_sent": False,
+            },
+        ),
+        CatalogFace(
+            key="outlook",
+            title=N_("Outlook"),
+            options={
+                "imap_host": "outlook.office365.com",
+                "imap_port": 993,
+                "imap_security": "tls",
+                "smtp_host": "smtp.office365.com",
+                "smtp_port": 587,
+                "smtp_security": "starttls",
+            },
+        ),
+    ),
 )
 def _build(options: MailOptions, context: AdapterContext) -> MailAdapter:
     del context

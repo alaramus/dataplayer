@@ -254,4 +254,6 @@ MESSAGES: dict[str, str] = {
     "Only a topic, a stream, a queue, an exchange, or a symbol's trades or candles, is read on from where the link stopped": "केवल टॉपिक, स्ट्रीम, क्यू, एक्सचेंज, या किसी सिंबल के ट्रेड या कैंडल ही वहाँ से आगे पढ़े जाते हैं जहाँ लिंक रुका था",
     "Tick a topic, a stream, a queue, an exchange, or a symbol's trades or candles": "कोई टॉपिक, स्ट्रीम, क्यू, एक्सचेंज, या किसी सिंबल के ट्रेड या कैंडल चुनें",
     "{said}; the link began reading now, and gets what arrives from here on": "{said}; लिंक ने अभी पढ़ना शुरू किया है, और अब से जो आता है वह पाता है",
+    "There is no such folder in your storage": "आपके संग्रहण में ऐसा कोई फ़ोल्डर नहीं है",
+    "There is no such file in your storage: {path}": "आपके संग्रहण में ऐसी कोई फ़ाइल नहीं है: {path}",
 }

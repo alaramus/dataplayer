@@ -25,6 +25,7 @@ import {
   useMakeConnectorHere,
 } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
+import { useMailArrivals } from "@/features/mail/arrivals"
 import ServiceCredentialsDialog from "@/features/services/ServiceCredentialsDialog.vue"
 import StartServiceDialog from "@/features/services/StartServiceDialog.vue"
 import { useRequestService, useServices } from "@/features/services/api"
@@ -382,6 +383,9 @@ const tabGroups = computed(() =>
 // here and nowhere else: the server probes only while somebody is watching,
 // and the workspace is what "watching" means.
 useConnectorHealth()
+// New letters, while the workspace is open (D372); Open goes where the
+// connection itself goes.
+useMailArrivals((connector) => openCatalog(connector))
 // The work the server owns, watched for as long as this page lives: an
 // event says something moved, and the queries say what it is now (D81).
 useServiceJobs()
@@ -493,9 +497,24 @@ function openConnectorWindow(
  */
 const catalogOpen = ref(false)
 
-function pickAdapterType(adapterType: string, card?: { key: string; title: string }) {
+function pickAdapterType(
+  adapterType: string,
+  card?: { key: string; title: string; options?: Record<string, unknown> }
+) {
   catalogOpen.value = false
-  openConnectorWindow(null, adapterType, undefined, undefined, card)
+  // A card that fills in its servers starts the form as a draft of them (D373).
+  const filled = card?.options
+  const draft =
+    filled !== undefined && Object.keys(filled).length > 0
+      ? { name: card?.title ?? adapterType, adapter_type: adapterType, options: filled }
+      : undefined
+  openConnectorWindow(
+    null,
+    adapterType,
+    undefined,
+    draft,
+    card === undefined ? undefined : { key: card.key, title: card.title }
+  )
 }
 
 /**

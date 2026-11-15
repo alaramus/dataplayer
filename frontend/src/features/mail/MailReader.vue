@@ -5,7 +5,8 @@ import type { MailMessage } from "@/client"
 import { formatSize } from "@/features/catalog/nodes"
 import { t } from "@/shared/i18n"
 import { formatDateTime } from "@/shared/i18n/format"
-import { AppButton, AppIconButton, appIcons } from "@/shared/ui"
+import { AppButton, AppIconButton, AppMenu, appIcons } from "@/shared/ui"
+import type { MenuItem } from "@/shared/ui"
 
 import type { AnswerKind } from "./letter"
 import { addressText, letterDocument } from "./letter"
@@ -16,9 +17,13 @@ const props = defineProps<{
   /** Whether it lies in Trash, where Delete is for good. */
   inTrash: boolean
   busy: boolean
+  /** Where it may be moved: the mailbox's folders but its own (D376). */
+  targets: { id: string; label: string }[]
 }>()
 const emit = defineEmits<{
   answer: [kind: AnswerKind]
+  edit: []
+  move: [target: string]
   delete: []
   unread: []
   download: [part: string, filename: string]
@@ -45,6 +50,10 @@ const sender = computed(() =>
   props.message.sender === null ? t("mail.nobody") : addressText(props.message.sender)
 )
 const recipients = computed(() => props.message.to.map(addressText).join(", "))
+const moving = ref(false)
+const moves = computed<MenuItem[]>(() =>
+  props.targets.map((one) => ({ name: one.id, label: one.label, icon: appIcons.folder }))
+)
 const copies = computed(() => props.message.cc.map(addressText).join(", "))
 </script>
 
@@ -56,33 +65,57 @@ const copies = computed(() => props.message.cc.map(addressText).join(", "))
     <header class="mail-reader__head">
       <div class="mail-reader__commands">
         <AppButton
-          variant="secondary"
+          v-if="message.draft"
           layout="toolbar"
           size="sm"
-          :icon="appIcons.reply"
-          :label="t('mail.reply')"
-          data-testid="mail-reply"
-          @click="emit('answer', 'reply')"
+          :icon="appIcons.edit"
+          :label="t('mail.edit_draft')"
+          data-testid="mail-edit-draft"
+          @click="emit('edit')"
         />
-        <AppButton
-          variant="quiet"
-          layout="toolbar"
-          size="sm"
-          :icon="appIcons.replyAll"
-          :label="t('mail.reply_all')"
-          data-testid="mail-reply-all"
-          @click="emit('answer', 'reply_all')"
-        />
-        <AppButton
-          variant="quiet"
-          layout="toolbar"
-          size="sm"
-          :icon="appIcons.forward"
-          :label="t('mail.forward')"
-          data-testid="mail-forward"
-          @click="emit('answer', 'forward')"
-        />
+        <template v-else>
+          <AppButton
+            variant="secondary"
+            layout="toolbar"
+            size="sm"
+            :icon="appIcons.reply"
+            :label="t('mail.reply')"
+            data-testid="mail-reply"
+            @click="emit('answer', 'reply')"
+          />
+          <AppButton
+            variant="quiet"
+            layout="toolbar"
+            size="sm"
+            :icon="appIcons.replyAll"
+            :label="t('mail.reply_all')"
+            data-testid="mail-reply-all"
+            @click="emit('answer', 'reply_all')"
+          />
+          <AppButton
+            variant="quiet"
+            layout="toolbar"
+            size="sm"
+            :icon="appIcons.forward"
+            :label="t('mail.forward')"
+            data-testid="mail-forward"
+            @click="emit('answer', 'forward')"
+          />
+        </template>
         <span class="mail-reader__spacer" />
+        <span>
+          <AppIconButton
+            :icon="appIcons.moveToFolder"
+            :tooltip="t('mail.move_to')"
+            :disable="busy || targets.length === 0"
+            data-testid="mail-move"
+          />
+          <AppMenu
+            v-model="moving"
+            :items="moves"
+            @select="(target: string) => emit('move', target)"
+          />
+        </span>
         <AppIconButton
           :icon="appIcons.markUnread"
           :tooltip="t('mail.mark_unread')"
@@ -144,7 +177,7 @@ const copies = computed(() => props.message.cc.map(addressText).join(", "))
             @click="emit('download', file.part, file.filename)"
           />
           <AppIconButton
-            :icon="appIcons.moveToFolder"
+            :icon="appIcons.createNewFolder"
             :tooltip="t('mail.keep')"
             data-testid="mail-attachment-keep"
             @click="emit('keep', file.part)"

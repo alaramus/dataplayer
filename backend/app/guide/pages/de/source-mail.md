@@ -11,6 +11,7 @@ steht auf der Seite [Verbindungen](connections.md).
 - Briefe, gefunden nach Wörtern in Absender, Betreff oder Text
 - Einen Brief: von wem, an wen, sein Text und seine Anhänge
 - Bilder aus dem Web in einem Brief, sobald Sie darum bitten
+- Ein Hinweis, wenn neue Briefe im Posteingang ankommen
 
 ## Was Sie ändern können
 
@@ -18,6 +19,9 @@ steht auf der Seite [Verbindungen](connections.md).
 - Briefe als gelesen oder ungelesen markiert
 - Briefe in den Papierkorb verschoben und dort endgültig gelöscht
 - Anhänge auf Ihrem Computer oder in Ihrem eigenen Ordner gespeichert
+- Entwürfe speichern, später fertigstellen und senden
+- Briefe in einen anderen Ordner verschieben
+- Dateien aus Ihrem eigenen Ordner an einen Brief hängen
 
 ## Verbinden
 
@@ -47,9 +51,14 @@ innerhalb Ihres Speicherlimits. Anhänge eines neuen Briefs: bis 25 MB.
 Nur Sie. Wer eine geteilte Verbindung erhält, sieht sie, kann das Postfach
 aber nicht öffnen. Die Suche oben und der Agent lesen keine Post.
 
+## Neues in diesem Postfach
+
+Im Katalog gibt es drei Karten: **E-Mail** für jeden Server sowie **Gmail** und **Outlook**, die ihre Server selbst eintragen. Gmail braucht ein App-Passwort; Microsoft 365 und Outlook.com lehnen ein Passwort über IMAP meist ab.
+
+Solange Sie angemeldet sind, wird der Posteingang etwa einmal pro Minute geprüft; neue Briefe melden sich mit **Öffnen**. **In einen Ordner verschieben** verschiebt den geöffneten Brief. **Aus meinem Ordner** hängt Dateien aus Ihrem Speicher an. **Entwurf speichern** legt den Brief in „Entwürfe“; dort setzt **Bearbeiten** ihn fort.
+
 ## Was E-Mail hier noch nicht kann
 
-- Neue Briefe melden
-- Entwürfe auf dem Server, Verschieben zwischen Ordnern, Markierungen, Signaturen
-- Eine Datei aus Ihrem Ordner anhängen
+- Neue Briefe in anderen Ordnern als dem Posteingang melden
+- Markierungen, Signaturen, einen Brief auf einen Ordner ziehen
 - Gmail und Microsoft 365 ohne App-Passwort, Exchange ohne IMAP, SSH-Tunnel

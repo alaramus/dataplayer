@@ -53,4 +53,10 @@ MESSAGES: dict[str, str] = {
     "The mail server refused to send from {address}": "Le serveur de messagerie refuse l’envoi depuis {address}",
     "The mail server refused the letter": "Le serveur de messagerie a refusé le message",
     "Attachments come to more than {mb} MB, which is more than a letter may carry": "Les pièces jointes dépassent {mb} Mo, plus qu’un message ne peut porter",
+    "The mail server would not make a Drafts folder": "Le serveur de messagerie n’a pas créé de dossier Brouillons",
+    "The mail server would not move the messages": "Le serveur de messagerie n’a pas déplacé les messages",
+    "The mail server would not keep the draft": "Le serveur de messagerie n’a pas gardé le brouillon",
+    "Name at least one recipient": "Indiquez au moins un destinataire",
+    "Gmail": "Gmail",
+    "Outlook": "Outlook",
 }

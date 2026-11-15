@@ -11,6 +11,7 @@ general está en la página [Conexiones](connections.md).
 - Mensajes encontrados por palabras del remitente, el asunto o el texto
 - Un mensaje: de quién, para quién, su texto y sus adjuntos
 - Las imágenes de la web de un mensaje, cuando las pides
+- Un aviso cuando llegan mensajes nuevos a Recibidos
 
 ## Qué puedes cambiar
 
@@ -18,6 +19,9 @@ general está en la página [Conexiones](connections.md).
 - Mensajes marcados como leídos o no leídos
 - Mensajes movidos a la papelera y eliminados de ella para siempre
 - Adjuntos guardados en tu equipo o en tu propia carpeta
+- Borradores guardados, terminados más tarde y enviados
+- Mensajes movidos a otra carpeta
+- Archivos de tu propia carpeta adjuntos a un mensaje
 
 ## Conexión
 
@@ -48,9 +52,14 @@ total.
 Solo tú. Quien recibe la conexión compartida la ve, pero no puede abrir el
 buzón. La búsqueda de arriba y el agente no leen el correo.
 
+## Novedades de este buzón
+
+El catálogo tiene tres tarjetas: **Correo electrónico** para cualquier servidor, y **Gmail** y **Outlook**, que rellenan sus servidores. Gmail necesita una contraseña de aplicación; Microsoft 365 y Outlook.com suelen rechazar una contraseña por IMAP.
+
+Mientras tienes la sesión abierta, Recibidos se consulta más o menos una vez por minuto; los mensajes nuevos se anuncian con **Abrir**. **Mover a una carpeta** mueve el mensaje abierto. **Desde mi carpeta** adjunta archivos de tu almacenamiento. **Guardar borrador** deja el mensaje en Borradores; **Editar** lo retoma.
+
 ## Lo que el correo aún no hace aquí
 
-- Avisar de los mensajes nuevos
-- Borradores en el servidor, mover entre carpetas, marcas, firmas
-- Adjuntar un archivo de tu carpeta
+- Avisar de mensajes nuevos en carpetas que no sean Recibidos
+- Marcas, firmas, arrastrar un mensaje a una carpeta
 - Gmail y Microsoft 365 sin contraseña de aplicación, Exchange sin IMAP, túnel SSH

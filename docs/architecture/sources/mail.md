@@ -1,11 +1,11 @@
 # Email
 
 For changing how a mailbox is reached over IMAP and SMTP, what its tab shows,
-how a letter is read, written, answered, forwarded and put away, and where an
-attachment goes. The contract every source keeps is in
+how a letter is read, written, answered, forwarded, drafted, moved and put
+away, where an attachment goes, and how new letters are announced. The contract every source keeps is in
 [contract.md](contract.md); this one keeps it without a catalog.
 
-Decisions here: D366, D367, D368, D369, D370, D371.
+Decisions here: D366, D367, D368, D369, D370, D371, D372, D373, D374, D375, D376.
 
 ```
 backend/app/adapters/mailbox.py        SupportsMailbox and its models, nothing about IMAP
@@ -18,8 +18,9 @@ backend/app/adapters/mail/
 ├── sending.py     composing, answering, forwarding, the copy in Sent
 └── adapter.py     MailAdapter, registered as `mail`
 backend/app/connectors/mail_routes.py  /connectors/{id}/mail/…, every one `own`
-backend/app/connectors/mail_files.py   an attachment kept under Mail/<address>/
-frontend/src/features/mail/            the Mail tab, the reader, the letter window
+backend/app/connectors/mail_files.py   an attachment kept under Mail/<address>/; files of one's folder
+backend/app/connectors/mail_arrivals.py  the `mail.arrivals` topic
+frontend/src/features/mail/            the Mail tab, the reader, the letter window, arrivals
 ```
 
 ## D366. A mailbox is a source type that opens as a mailbox, not as a catalog
@@ -135,3 +136,76 @@ Spec: [A mailbox as a source](../../decisions/2026-11-15-mail-source-design.md)
   checked first — over it, 507 with the same sentence a file source gives.
 
 Spec: [A mailbox as a source](../../decisions/2026-11-15-mail-source-design.md)
+
+## D372. New letters are watched while their owner is in the application
+
+- `app/connectors/mail_arrivals.py` is the topic `mail.arrivals`, built as
+  `connector.health` is (D19): a monitor per user, started by the first
+  subscriber, stopped after `HEALTH_GRACE_SECONDS` once the last one leaves.
+- A round asks each of the user's own switched-on mailboxes — a type whose
+  driver is `SupportsMailbox`, never a granted one (D367) — for
+  `inbox_arrivals(mark)`: one `STATUS INBOX (UIDVALIDITY UIDNEXT UNSEEN)`,
+  and only when `UIDNEXT` moved, `UID SEARCH UID n:*` and the newest three
+  headings. Every `MAIL_ARRIVALS_INTERVAL_SECONDS`; a failure doubles the
+  wait to `HEALTH_BACKOFF_CAP_SECONDS`.
+- The mark is a `UIDVALIDITY` and a `UIDNEXT`; the first round only learns it,
+  and a changed `UIDVALIDITY` learns it again.
+- An event is sent when letters arrived or the unread count changed; a second
+  socket gets the last counts. The browser (`features/mail/arrivals.ts`)
+  records it with **Open** (D114) and reads that mailbox's lists again.
+
+Known deviations:
+
+- **Only the inbox is watched**; a server's filter that files letters
+  elsewhere announces nothing.
+
+Spec: [Mail, the second step](../../decisions/2026-11-15-mail-second-step-design.md)
+
+## D373. Gmail and Outlook are cards of the mail type with their servers filled in
+
+`CatalogFace.options` is what a card fills into a new connection's form,
+arriving as the window's draft and still editable. The mail type shows
+**Email**, **Gmail** (TLS 993/465, **Keep a copy in Sent** off) and
+**Outlook** (993 TLS, 587 STARTTLS). Only the card's key is stored.
+
+Known deviations:
+
+- **Outlook usually refuses a password over IMAP**: Microsoft 365 and
+  Outlook.com want OAuth, which is not here yet. The card works where an
+  organisation still allows passwords.
+
+Spec: [Mail, the second step](../../decisions/2026-11-15-mail-second-step-design.md)
+
+## D374. A file from one's own folder is attached by its path, read by the server
+
+`/mail/my-files` lists one folder of the owner's storage, folders first, dot
+files and links out left out; a letter names files as `stored_files`, which
+`mail_files.read_stored` resolves through `LocalStorage.place` — the one
+containment rule (D8) — refusing a folder, a missing file and a path out, and
+measuring them against the 25 MB before reading. Their media type comes from
+Python's own table, not the system's: Windows' registry calls a CSV an Excel
+sheet.
+
+Spec: [Mail, the second step](../../decisions/2026-11-15-mail-second-step-design.md)
+
+## D375. A draft is a letter appended to Drafts, and replaced when saved again
+
+- **Save draft** appends to the `drafts` folder, made as `Drafts` if missing,
+  flagged `\Draft \Seen`, without a Date and with its Bcc as a header. The
+  window closes; the draft opens again from Drafts with **Edit**.
+- A letter names `draft_of`: saving it again appends the new one and removes
+  the old for good; sending it removes it. A draft of an answer keeps its
+  `In-Reply-To`.
+- `keep_parts` names the parts of `forward_of` or `draft_of` that go along;
+  the window lists them and drops them one by one.
+- A draft needs no recipient; sending without one is refused.
+
+Spec: [Mail, the second step](../../decisions/2026-11-15-mail-second-step-design.md)
+
+## D376. A letter moves to a folder chosen from the mailbox's own
+
+**Move to a folder** offers the selectable folders but the current one; the
+target is checked against LIST, then UID MOVE, or COPY and expunge of those
+UIDs as delete does.
+
+Spec: [Mail, the second step](../../decisions/2026-11-15-mail-second-step-design.md)

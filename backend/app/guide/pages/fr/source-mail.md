@@ -12,6 +12,7 @@ fonctionnement général des connexions est décrit sur la page
 - Les messages trouvés par des mots de l’expéditeur, de l’objet ou du texte
 - Un message : de qui, à qui, son texte et ses pièces jointes
 - Les images du web dans un message, quand vous les demandez
+- Un avis quand de nouveaux messages arrivent dans la boîte de réception
 
 ## Ce que vous pouvez modifier
 
@@ -19,6 +20,9 @@ fonctionnement général des connexions est décrit sur la page
 - Messages marqués lus ou non lus
 - Messages déplacés vers la corbeille, puis supprimés définitivement
 - Pièces jointes enregistrées sur l’ordinateur ou dans votre dossier
+- Brouillons enregistrés, terminés plus tard et envoyés
+- Messages déplacés vers un autre dossier
+- Fichiers de votre propre dossier joints à un message
 
 ## Connexion
 
@@ -51,9 +55,14 @@ Vous seul. Une personne avec qui la connexion est partagée la voit mais ne
 peut pas ouvrir la boîte. La recherche en haut et l’agent ne lisent pas le
 courrier.
 
+## Nouveautés de cette boîte
+
+Le catalogue propose trois cartes : **E-mail** pour tout serveur, et **Gmail** et **Outlook**, qui remplissent leurs serveurs. Gmail demande un mot de passe d’application ; Microsoft 365 et Outlook.com refusent le plus souvent un mot de passe en IMAP.
+
+Tant que vous êtes connecté, la boîte de réception est relue environ une fois par minute ; les nouveaux messages s’annoncent avec **Ouvrir**. **Déplacer vers un dossier** déplace le message ouvert. **Depuis mon dossier** joint des fichiers de votre stockage. **Enregistrer le brouillon** range le message dans Brouillons ; **Modifier** le reprend.
+
 ## Ce que l’e-mail ne fait pas encore ici
 
-- Annoncer les nouveaux messages
-- Brouillons sur le serveur, déplacement entre dossiers, drapeaux, signatures
-- Joindre un fichier de votre dossier
+- Annoncer les nouveaux messages d’autres dossiers que la boîte de réception
+- Drapeaux, signatures, glisser un message sur un dossier
 - Gmail et Microsoft 365 sans mot de passe d’application, Exchange sans IMAP, tunnel SSH

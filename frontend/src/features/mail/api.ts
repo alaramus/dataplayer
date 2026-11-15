@@ -3,11 +3,11 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { MailService } from "@/client"
-import type { MarkRequest, MessageSelection } from "@/client"
+import type { MarkRequest, MessageSelection, MoveRequest } from "@/client"
 import { filenameFromDisposition, saveBrowserDownload } from "@/shared/download"
 
 import type { Draft } from "./letter"
-import { parseAddresses } from "./letter"
+import { outgoingOf } from "./letter"
 
 export const PAGE_SIZE = 50
 
@@ -16,7 +16,7 @@ export interface MessageRef {
   uid: number
 }
 
-const mailKey = (connectorId: string) => ["mail", connectorId] as const
+export const mailKey = (connectorId: string) => ["mail", connectorId] as const
 
 export function useMailFolders(connectorId: Ref<string>) {
   return useQuery({
@@ -111,23 +111,49 @@ export function useDeleteMessages(connectorId: Ref<string>) {
 }
 
 export function useSendMessage(connectorId: Ref<string>) {
-  return useMailChange(connectorId, async (request: { draft: Draft; files: File[] }) => {
-    const { draft, files } = request
-    const message = {
-      to: parseAddresses(draft.to),
-      cc: parseAddresses(draft.cc),
-      bcc: parseAddresses(draft.bcc),
-      subject: draft.subject,
-      text: draft.text,
-      reply_to: draft.reply_to,
-      forward_of: draft.forward_of,
-    }
-    return (
+  return useMailChange(connectorId, async (request: { draft: Draft; files: File[] }) =>
+    (
       await MailService.sendMessage({
         path: { connector_id: connectorId.value },
-        body: { message: JSON.stringify(message), files },
+        body: { message: JSON.stringify(outgoingOf(request.draft)), files: request.files },
       })
     ).data
+  )
+}
+
+/** Into Drafts, replacing the draft it was opened from (D375). */
+export function useSaveDraft(connectorId: Ref<string>) {
+  return useMailChange(connectorId, async (request: { draft: Draft; files: File[] }) =>
+    (
+      await MailService.saveDraft({
+        path: { connector_id: connectorId.value },
+        body: { message: JSON.stringify(outgoingOf(request.draft)), files: request.files },
+      })
+    ).data
+  )
+}
+
+export function useMoveMessages(connectorId: Ref<string>) {
+  return useMailChange(
+    connectorId,
+    async (body: MoveRequest) =>
+      (await MailService.moveMessages({ path: { connector_id: connectorId.value }, body })).data
+  )
+}
+
+/** One folder of the owner's storage, to attach a file from (D374). */
+export function useMyFiles(connectorId: Ref<string>, path: Ref<string>, enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: computed(() => [...mailKey(connectorId.value), "my-files", path.value] as const),
+    enabled,
+    queryFn: async () =>
+      (
+        await MailService.myFiles({
+          path: { connector_id: connectorId.value },
+          query: { path: path.value },
+        })
+      ).data,
+    retry: false,
   })
 }
 

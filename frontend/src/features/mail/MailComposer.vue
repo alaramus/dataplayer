@@ -16,9 +16,10 @@ import {
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
-import { useSendMessage } from "./api"
-import type { Draft } from "./letter"
+import { useSaveDraft, useSendMessage } from "./api"
+import type { Draft, StoredFile } from "./letter"
 import { isAddress, parseAddresses } from "./letter"
+import MyFilesDialog from "./MyFilesDialog.vue"
 
 /**
  * One letter being written, in a window of its own (D370): several can be
@@ -29,7 +30,11 @@ const props = defineProps<{
   title: string
   initial: Draft
 }>()
-const emit = defineEmits<{ closed: [] }>()
+const emit = defineEmits<{
+  closed: []
+  /** The draft it was finishing is gone: sent, or replaced by a new one (D375). */
+  replaced: [draft: { folder: string; uid: number }]
+}>()
 
 const MAX_BYTES = 25 * 1024 * 1024
 
@@ -39,10 +44,20 @@ const files = ref<File[]>([])
 const showCopies = ref(props.initial.cc !== "" || props.initial.bcc !== "")
 
 const send = useSendMessage(computed(() => props.connectorId))
+const saveDraft = useSaveDraft(computed(() => props.connectorId))
+const picking = ref(false)
 const toast = useToast()
 const confirm = useConfirm()
 
-const total = computed(() => files.value.reduce((sum, file) => sum + file.size, 0))
+const total = computed(
+  () =>
+    files.value.reduce((sum, file) => sum + file.size, 0) +
+    draft.value.carried.reduce((sum, one) => sum + one.size, 0) +
+    draft.value.stored.reduce((sum, one) => sum + one.size, 0)
+)
+const attachedCount = computed(
+  () => files.value.length + draft.value.carried.length + draft.value.stored.length
+)
 
 function wrongAddress(text: string): string {
   const bad = parseAddresses(text).find((one) => !isAddress(one))
@@ -56,11 +71,13 @@ const ccProblem = computed(() => wrongAddress(draft.value.cc))
 const bccProblem = computed(() => wrongAddress(draft.value.bcc))
 const sizeProblem = computed(() => (total.value > MAX_BYTES ? t("mail.composer.too_large") : ""))
 const noRecipient = computed(() => parseAddresses(draft.value.to).length === 0)
-const blocked = computed(
-  () =>
-    noRecipient.value ||
-    Boolean(toProblem.value || ccProblem.value || bccProblem.value || sizeProblem.value)
+const wrong = computed(() =>
+  Boolean(toProblem.value || ccProblem.value || bccProblem.value || sizeProblem.value)
 )
+const blocked = computed(() => noRecipient.value || wrong.value)
+// A draft may have nobody to go to yet (D375).
+const draftBlocked = computed(() => wrong.value)
+const busy = computed(() => send.isPending.value || saveDraft.isPending.value)
 
 const touched = computed(
   () =>
@@ -76,7 +93,7 @@ function close() {
 }
 
 async function mayClose(): Promise<boolean> {
-  if (!touched.value || send.isSuccess.value) return true
+  if (!touched.value || send.isSuccess.value || saveDraft.isSuccess.value) return true
   return confirm({
     title: t("mail.composer.discard.title"),
     message: t("mail.composer.discard.message"),
@@ -93,11 +110,41 @@ function removeFile(index: number) {
   files.value = files.value.filter((_, at) => at !== index)
 }
 
+function removeCarried(part: string) {
+  draft.value = { ...draft.value, carried: draft.value.carried.filter((one) => one.part !== part) }
+}
+
+function removeStored(path: string) {
+  draft.value = { ...draft.value, stored: draft.value.stored.filter((one) => one.path !== path) }
+}
+
+function addStored(chosen: StoredFile[]) {
+  const known = new Set(draft.value.stored.map((one) => one.path))
+  draft.value = {
+    ...draft.value,
+    stored: [...draft.value.stored, ...chosen.filter((one) => !known.has(one.path))],
+  }
+}
+
+/** Into Drafts; the window closes, and the draft opens again from Drafts (D375). */
+async function keepDraft() {
+  if (draftBlocked.value || busy.value) return
+  try {
+    const saved = await saveDraft.mutateAsync({ draft: draft.value, files: files.value })
+    toast.success(t("mail.composer.draft_saved", { folder: saved.folder }))
+    if (draft.value.draft_of !== null) emit("replaced", draft.value.draft_of)
+    close()
+  } catch (cause) {
+    toast.error(messageOf(cause, t("mail.composer.could_not_save")))
+  }
+}
+
 async function submit() {
-  if (blocked.value || send.isPending.value) return
+  if (blocked.value || busy.value) return
   try {
     const sent = await send.mutateAsync({ draft: draft.value, files: files.value })
     toast.success(sent.kept_copy ? t("mail.composer.sent") : t("mail.composer.sent_no_copy"))
+    if (draft.value.draft_of !== null) emit("replaced", draft.value.draft_of)
     close()
   } catch (cause) {
     toast.error(messageOf(cause, t("mail.composer.could_not_send")))
@@ -164,20 +211,23 @@ async function submit() {
         class="mail-composer__text"
         data-testid="mail-text"
       />
-      <p
-        v-if="draft.forward_of"
-        class="mail-composer__note"
-      >
-        {{ t("mail.composer.forwards_files") }}
-      </p>
-      <AppFileInput
-        v-model="files"
-        :label="t('mail.composer.attach')"
-        multiple
-        append
-        listed
-        data-testid="mail-files"
-      />
+      <div class="mail-composer__attach">
+        <AppFileInput
+          v-model="files"
+          :label="t('mail.composer.attach')"
+          multiple
+          append
+          listed
+          data-testid="mail-files"
+        />
+        <AppButton
+          variant="secondary"
+          :icon="appIcons.folder"
+          :label="t('mail.composer.from_my_folder')"
+          data-testid="mail-from-my-folder"
+          @click="picking = true"
+        />
+      </div>
       <p
         v-if="sizeProblem"
         class="mail-composer__problem"
@@ -186,13 +236,53 @@ async function submit() {
         {{ sizeProblem }}
       </p>
       <ul
-        v-if="files.length > 0"
+        v-if="attachedCount > 0"
         class="mail-composer__files"
+        data-testid="mail-attached"
       >
         <li
-          v-for="(file, index) in files"
-          :key="`${file.name}:${index}`"
+          v-for="one in draft.carried"
+          :key="`carried:${one.part}`"
         >
+          <q-icon
+            :name="appIcons.attachFile"
+            size="var(--dp-icon-sm)"
+          />
+          <span class="mail-composer__file-name">{{ one.filename }}</span>
+          <span class="mail-composer__file-size">{{ formatSize(one.size) }}</span>
+          <AppIconButton
+            :icon="appIcons.close"
+            :tooltip="t('mail.composer.remove_file', { name: one.filename })"
+            @click="removeCarried(one.part)"
+          />
+        </li>
+        <li
+          v-for="one in draft.stored"
+          :key="`stored:${one.path}`"
+        >
+          <q-icon
+            :name="appIcons.folder"
+            size="var(--dp-icon-sm)"
+          />
+          <span
+            class="mail-composer__file-name"
+            :title="one.path"
+          >{{ one.name }}</span>
+          <span class="mail-composer__file-size">{{ formatSize(one.size) }}</span>
+          <AppIconButton
+            :icon="appIcons.close"
+            :tooltip="t('mail.composer.remove_file', { name: one.name })"
+            @click="removeStored(one.path)"
+          />
+        </li>
+        <li
+          v-for="(file, index) in files"
+          :key="`upload:${file.name}:${index}`"
+        >
+          <q-icon
+            :name="appIcons.importSshKey"
+            size="var(--dp-icon-sm)"
+          />
           <span class="mail-composer__file-name">{{ file.name }}</span>
           <span class="mail-composer__file-size">{{ formatSize(file.size) }}</span>
           <AppIconButton
@@ -210,15 +300,30 @@ async function submit() {
         @click="cancel"
       />
       <AppButton
+        variant="secondary"
+        :label="t('mail.composer.save_draft')"
+        :icon="appIcons.save"
+        :disable="draftBlocked || busy"
+        :loading="saveDraft.isPending.value"
+        data-testid="mail-save-draft"
+        @click="keepDraft"
+      />
+      <AppButton
         :label="t('mail.composer.send')"
         :icon="appIcons.send"
-        :disable="blocked"
+        :disable="blocked || busy"
         :loading="send.isPending.value"
         data-testid="mail-send"
         @click="submit"
       />
     </template>
   </WindowDialog>
+  <MyFilesDialog
+    v-if="picking"
+    v-model="picking"
+    :connector-id="connectorId"
+    @add="addStored"
+  />
 </template>
 
 <style scoped>
@@ -226,10 +331,14 @@ async function submit() {
   min-height: calc(var(--dp-row-height) * 8);
 }
 
-.mail-composer__note {
-  margin: 0;
-  color: var(--dp-text-muted);
-  font-size: var(--dp-font-size-sm);
+.mail-composer__attach {
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-2);
+}
+
+.mail-composer__attach > :first-child {
+  flex: 1;
 }
 
 .mail-composer__problem {

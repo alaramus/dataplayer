@@ -122,6 +122,20 @@ export function forwardSubject(subject: string): string {
 
 export type AnswerKind = "reply" | "reply_all" | "forward"
 
+/** An attachment a letter takes along from another: a forward's, a draft's (D375). */
+export interface CarriedFile {
+  part: string
+  filename: string
+  size: number
+}
+
+/** A file of the owner's own folder, named by its path there (D374). */
+export interface StoredFile {
+  path: string
+  name: string
+  size: number
+}
+
 export interface Draft {
   to: string
   cc: string
@@ -130,10 +144,61 @@ export interface Draft {
   text: string
   reply_to: { folder: string; uid: number } | null
   forward_of: { folder: string; uid: number } | null
+  /** The draft this letter is finishing, which goes once it is sent or saved. */
+  draft_of: { folder: string; uid: number } | null
+  /** What `forward_of` or `draft_of` brings along, less what was dropped. */
+  carried: CarriedFile[]
+  stored: StoredFile[]
 }
 
 export function emptyDraft(): Draft {
-  return { to: "", cc: "", bcc: "", subject: "", text: "", reply_to: null, forward_of: null }
+  return {
+    to: "",
+    cc: "",
+    bcc: "",
+    subject: "",
+    text: "",
+    reply_to: null,
+    forward_of: null,
+    draft_of: null,
+    carried: [],
+    stored: [],
+  }
+}
+
+function carriedOf(message: MailMessage): CarriedFile[] {
+  return message.attachments.map((one) => ({ part: one.part, filename: one.filename, size: one.size }))
+}
+
+/** A draft from Drafts, opened to be finished (D375). */
+export function draftFrom(message: MailMessage): Draft {
+  return {
+    ...emptyDraft(),
+    to: message.to.map((one) => one.address).join(", "),
+    cc: message.cc.map((one) => one.address).join(", "),
+    bcc: (message.bcc ?? []).map((one) => one.address).join(", "),
+    subject: message.subject,
+    text: message.text ?? textOf(message),
+    draft_of: { folder: message.folder, uid: message.uid },
+    carried: carriedOf(message),
+  }
+}
+
+/** The letter as the server takes it: addresses parsed, files by path and part. */
+export function outgoingOf(draft: Draft) {
+  const carriedFrom = draft.draft_of ?? draft.forward_of
+  return {
+    to: parseAddresses(draft.to),
+    cc: parseAddresses(draft.cc),
+    bcc: parseAddresses(draft.bcc),
+    subject: draft.subject,
+    text: draft.text,
+    reply_to: draft.reply_to,
+    forward_of: draft.forward_of,
+    draft_of: draft.draft_of,
+    keep_parts: carriedFrom === null ? null : draft.carried.map((one) => one.part),
+    stored_files: draft.stored.map((one) => one.path),
+  }
 }
 
 /**
@@ -155,6 +220,7 @@ export function answerDraft(
       subject: forwardSubject(message.subject),
       text: `\n\n${heading.forwarded}\n${body}`,
       forward_of: ref,
+      carried: carriedOf(message),
     }
   }
   const replyTo = message.reply_to.length > 0 ? message.reply_to : message.sender ? [message.sender] : []

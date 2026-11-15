@@ -53,4 +53,10 @@ MESSAGES: dict[str, str] = {
     "The mail server refused to send from {address}": "मेल सर्वर {address} से भेजने की अनुमति नहीं देता",
     "The mail server refused the letter": "मेल सर्वर ने पत्र अस्वीकार किया",
     "Attachments come to more than {mb} MB, which is more than a letter may carry": "अटैचमेंट {mb} MB से अधिक हैं, जितना एक पत्र ले जा सकता है उससे ज़्यादा",
+    "The mail server would not make a Drafts folder": "मेल सर्वर ने ड्राफ़्ट फ़ोल्डर नहीं बनाया",
+    "The mail server would not move the messages": "मेल सर्वर ने संदेशों को नहीं ले जाया",
+    "The mail server would not keep the draft": "मेल सर्वर ने ड्राफ़्ट नहीं रखा",
+    "Name at least one recipient": "कम से कम एक प्राप्तकर्ता बताएँ",
+    "Gmail": "Gmail",
+    "Outlook": "Outlook",
 }

@@ -350,6 +350,12 @@ export type AdapterFaceInfo = {
    * Templates
    */
   templates: Array<string>
+  /**
+   * Options
+   */
+  options?: {
+    [key: string]: unknown
+  }
 }
 
 /**
@@ -1568,6 +1574,20 @@ export type Body_login_login_access_token = {
    * Client Secret
    */
   client_secret?: string | null
+}
+
+/**
+ * Body_mail-save_draft
+ */
+export type Body_mail_save_draft = {
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Files
+   */
+  files?: Array<Blob | File>
 }
 
 /**
@@ -4916,6 +4936,20 @@ export type DownloadPageRequest = {
 }
 
 /**
+ * DraftSaved
+ */
+export type DraftSaved = {
+  /**
+   * Folder
+   */
+  folder: string
+  /**
+   * Uid
+   */
+  uid: number | null
+}
+
+/**
  * DropColumnRequest
  */
 export type DropColumnRequest = {
@@ -5918,6 +5952,20 @@ export type FileNode = {
    * Modified At
    */
   modified_at?: string | null
+}
+
+/**
+ * FolderListing
+ */
+export type FolderListing = {
+  /**
+   * Path
+   */
+  path: string
+  /**
+   * Entries
+   */
+  entries: Array<StoredEntry>
 }
 
 /**
@@ -8480,6 +8528,10 @@ export type MailMessage = {
    */
   cc: Array<MailAddress>
   /**
+   * Bcc
+   */
+  bcc?: Array<MailAddress>
+  /**
    * Reply To
    */
   reply_to: Array<MailAddress>
@@ -8499,6 +8551,10 @@ export type MailMessage = {
    * Answered
    */
   answered: boolean
+  /**
+   * Draft
+   */
+  draft?: boolean
   /**
    * Text
    */
@@ -9063,6 +9119,20 @@ export type MessagesDeleted = {
 }
 
 /**
+ * MessagesMoved
+ */
+export type MessagesMoved = {
+  /**
+   * Moved To
+   */
+  moved_to: string
+  /**
+   * Count
+   */
+  count: number
+}
+
+/**
  * MetricInfo
  */
 export type MetricInfo = {
@@ -9088,6 +9158,24 @@ export type MetricsCatalog = {
    * Connectors
    */
   connectors?: Array<ConnectorSources>
+}
+
+/**
+ * MoveRequest
+ */
+export type MoveRequest = {
+  /**
+   * Folder
+   */
+  folder: string
+  /**
+   * Uids
+   */
+  uids: Array<number>
+  /**
+   * Target
+   */
+  target: string
 }
 
 /**
@@ -15071,6 +15159,28 @@ export type StoreUsage = {
 }
 
 /**
+ * StoredEntry
+ */
+export type StoredEntry = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Path
+   */
+  path: string
+  /**
+   * Is Directory
+   */
+  is_directory: boolean
+  /**
+   * Size
+   */
+  size: number
+}
+
+/**
  * StoredGeneration
  *
  * A value computed from the row and stored with it.
@@ -20596,6 +20706,101 @@ export type mailSendMessageResponses = {
 }
 
 export type mailSendMessageResponse = mailSendMessageResponses[keyof mailSendMessageResponses]
+
+export type mailSaveDraftData = {
+  body: Body_mail_save_draft
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/mail/draft"
+}
+
+export type mailSaveDraftErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailSaveDraftError = mailSaveDraftErrors[keyof mailSaveDraftErrors]
+
+export type mailSaveDraftResponses = {
+  /**
+   * Successful Response
+   */
+  200: DraftSaved
+}
+
+export type mailSaveDraftResponse = mailSaveDraftResponses[keyof mailSaveDraftResponses]
+
+export type mailMoveMessagesData = {
+  body: MoveRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/mail/move"
+}
+
+export type mailMoveMessagesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailMoveMessagesError = mailMoveMessagesErrors[keyof mailMoveMessagesErrors]
+
+export type mailMoveMessagesResponses = {
+  /**
+   * Successful Response
+   */
+  200: MessagesMoved
+}
+
+export type mailMoveMessagesResponse = mailMoveMessagesResponses[keyof mailMoveMessagesResponses]
+
+export type mailMyFilesData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: {
+    /**
+     * Path
+     */
+    path?: string
+  }
+  url: "/api/v1/connectors/{connector_id}/mail/my-files"
+}
+
+export type mailMyFilesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailMyFilesError = mailMyFilesErrors[keyof mailMyFilesErrors]
+
+export type mailMyFilesResponses = {
+  /**
+   * Successful Response
+   */
+  200: FolderListing
+}
+
+export type mailMyFilesResponse = mailMyFilesResponses[keyof mailMyFilesResponses]
 
 export type mailDownloadAttachmentData = {
   body?: never

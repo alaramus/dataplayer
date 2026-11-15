@@ -242,6 +242,9 @@ class Settings(BaseSettings):
     # A reloaded page closes one socket and opens another; without this the
     # monitor would be rebuilt from knowing nothing every time.
     HEALTH_GRACE_SECONDS: float = 5.0
+    # How often a person's own mailboxes are asked what arrived, while that
+    # person has the application open (D372).
+    MAIL_ARRIVALS_INTERVAL_SECONDS: float = 60.0
 
     # A deleted query document waits this long before its body is gone for
     # good, and the sweep that removes the expired ones runs this often. D63.

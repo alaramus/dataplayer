@@ -1,5 +1,5 @@
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
@@ -164,6 +164,9 @@ class CatalogFace:
     title: str
     # The services this card offers to start, by template key.
     templates: tuple[str, ...] = ()
+    # What the card fills into a new connection's form, still editable:
+    # Gmail's servers on the Gmail card (D373).
+    options: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

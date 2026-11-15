@@ -253,4 +253,6 @@ MESSAGES: dict[str, str] = {
     "Only a topic, a stream, a queue, an exchange, or a symbol's trades or candles, is read on from where the link stopped": "只有主题、流、队列、交换器，或交易对的成交或K线，才能从链接停止处继续读取",
     "Tick a topic, a stream, a queue, an exchange, or a symbol's trades or candles": "请勾选一个主题、流、队列、交换器，或交易对的成交或K线",
     "{said}; the link began reading now, and gets what arrives from here on": "{said}；链接现在开始读取，之后到达的内容都会收到",
+    "There is no such folder in your storage": "你的存储中没有这个文件夹",
+    "There is no such file in your storage: {path}": "你的存储中没有这个文件：{path}",
 }

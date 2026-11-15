@@ -4,6 +4,8 @@ import type { MailMessage } from "@/client"
 
 import {
   answerDraft,
+  draftFrom,
+  outgoingOf,
   forwardSubject,
   letterDocument,
   parseAddresses,
@@ -137,5 +139,41 @@ describe("answers", () => {
     expect(textOf(message({ text: null, html: "<p>Hello <b>you</b></p><script>x</script>" }))).toBe(
       "Hello you"
     )
+  })
+})
+
+describe("drafts and carried files", () => {
+  const withFiles = message({
+    attachments: [
+      { part: "2", filename: "a.txt", media_type: "text/plain", size: 3, content_id: null },
+      { part: "3", filename: "b.txt", media_type: "text/plain", size: 4, content_id: null },
+    ],
+  })
+
+  it("forward the original's files, each of which can be dropped", () => {
+    const draft = answerDraft("forward", withFiles, "me@example.com", HEADING)
+    expect(draft.carried.map((one) => one.part)).toEqual(["2", "3"])
+    const kept = { ...draft, carried: draft.carried.filter((one) => one.part !== "2") }
+    expect(outgoingOf(kept).keep_parts).toEqual(["3"])
+  })
+
+  it("name no parts to keep when nothing is carried from", () => {
+    expect(outgoingOf(answerDraft("reply", withFiles, "me@example.com", HEADING)).keep_parts).toBeNull()
+  })
+
+  it("open a draft with its recipients, Bcc, text and files, to replace it", () => {
+    const draft = draftFrom({
+      ...withFiles,
+      folder: "Drafts",
+      bcc: [{ name: "", address: "hidden@example.com" }],
+      draft: true,
+    })
+    expect(draft.to).toBe("me@example.com, bob@example.com")
+    expect(draft.bcc).toBe("hidden@example.com")
+    expect(draft.draft_of).toEqual({ folder: "Drafts", uid: 7 })
+    expect(draft.carried.map((one) => one.filename)).toEqual(["a.txt", "b.txt"])
+    const outgoing = outgoingOf({ ...draft, stored: [{ path: "Reports/q3.csv", name: "q3.csv", size: 1 }] })
+    expect(outgoing.stored_files).toEqual(["Reports/q3.csv"])
+    expect(outgoing.keep_parts).toEqual(["2", "3"])
   })
 })

@@ -30,6 +30,8 @@ class AdapterFaceInfo(BaseModel):
     key: str
     title: str
     templates: list[str]
+    # What the card fills into a new connection's form (D373).
+    options: dict[str, Any] = {}
 
 
 class AdapterTypeInfo(BaseModel):
@@ -96,7 +98,12 @@ def info(adapter_type: registry.AdapterType) -> AdapterTypeInfo:
         options_schema=say_schema(options.json_schema(adapter_type.options_schema)),
         makes_here=issubclass(adapter_type.adapter_class, MakesSourceHere),
         faces=[
-            AdapterFaceInfo(key=face.key, title=say(face.title), templates=list(face.templates))
+            AdapterFaceInfo(
+                key=face.key,
+                title=say(face.title),
+                templates=list(face.templates),
+                options=dict(face.options),
+            )
             for face in adapter_type.faces
         ],
     )

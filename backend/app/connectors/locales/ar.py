@@ -250,4 +250,6 @@ MESSAGES: dict[str, str] = {
     "Only a topic, a stream, a queue, an exchange, or a symbol's trades or candles, is read on from where the link stopped": "لا يُقرأ من حيث توقف الرابط إلا موضوع أو تدفق أو طابور أو مبادلة أو صفقات رمز أو شموعه",
     "Tick a topic, a stream, a queue, an exchange, or a symbol's trades or candles": "حدّد موضوعًا أو تدفقًا أو طابورًا أو مبادلة أو صفقات رمز أو شموعه",
     "{said}; the link began reading now, and gets what arrives from here on": "{said}؛ بدأ الرابط القراءة الآن، ويتلقى ما يصل من الآن فصاعدًا",
+    "There is no such folder in your storage": "لا يوجد مثل هذا المجلد في مساحتك",
+    "There is no such file in your storage: {path}": "لا يوجد مثل هذا الملف في مساحتك: {path}",
 }
