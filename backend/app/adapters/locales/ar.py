@@ -8,6 +8,7 @@ MESSAGES: dict[str, str] = {
     "Market data": "بيانات السوق",
     "Document Databases": "قواعد بيانات المستندات",
     "Files & Storage": "الملفات والتخزين",
+    "Mail": "البريد",
     "Browse the catalog": "تصفح الكتالوج",
     "Locate a node": "تحديد موقع عقدة",
     "Search by name": "البحث بالاسم",

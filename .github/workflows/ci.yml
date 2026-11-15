@@ -172,6 +172,18 @@ jobs:
           ZOO_4LW_COMMANDS_WHITELIST: "*"
         ports:
           - 2182:2181
+      # The mail server the mail source tests read and send through (D368).
+      greenmail:
+        image: greenmail/standalone:2.1.3
+        env:
+          GREENMAIL_OPTS: >-
+            -Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap
+            -Dgreenmail.hostname=0.0.0.0
+            -Dgreenmail.users=alice:dataplayer@example.com,bob:dataplayer@example.com,dave:dataplayer@example.com
+            -Dgreenmail.users.login=email
+        ports:
+          - 3025:3025
+          - 3143:3143
     env:
       PROJECT_NAME: DataPlayer
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
@@ -205,6 +217,7 @@ jobs:
       TEST_RABBITMQ_URL: amqp://dataplayer:dataplayer@127.0.0.1:5673
       TEST_CASSANDRA_URL: cassandra://cassandra:cassandra@127.0.0.1:9043
       TEST_SCYLLA_URL: cassandra://cassandra:cassandra@127.0.0.1:9044
+      TEST_MAIL_URL: imap://127.0.0.1:3143?smtp=3025
       # backend/scripts/test.sh runs the suite this way, and the private routes
       # exist only in development: without it their tests get a 404.
       FASTAPI_ENV: development

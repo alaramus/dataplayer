@@ -79,7 +79,7 @@ Factory = Callable[[Any, AdapterContext], DataAdapter]
 # What kind of thing a source is, for the one screen that groups them. A
 # closed set rather than a free string: a category is a set of values, so a
 # typo has to fail to compile instead of quietly creating a group of one.
-Category = Literal["sql", "document", "keyvalue", "stream", "market", "files"]
+Category = Literal["sql", "document", "keyvalue", "stream", "market", "files", "mail"]
 
 # The wording lives beside the set it names, on the server, so the client is
 # never a second place where a category is called something.
@@ -90,6 +90,7 @@ CATEGORY_TITLES: dict[Category, str] = {
     "stream": N_("Queues & Streams"),
     "market": N_("Market data"),
     "files": N_("Files & Storage"),
+    "mail": N_("Mail"),
 }
 
 
@@ -107,7 +108,10 @@ def category_title(category: Category) -> str:
 # A closed set, so a screen switching on it cannot meet a value it has no
 # panel for, and read off the type rather than branched on by name — no
 # screen says `if adapterType === "redis"` (D62).
-CatalogShape = Literal["levels", "tree"]
+#
+# `mailbox` is not a catalog at all: the source opens as a mail client, in a
+# tab of its own (D366).
+CatalogShape = Literal["levels", "tree", "mailbox"]
 
 # What sort of statement a capability makes: what can be looked at, and what
 # can be changed. Two rather than a finer taxonomy, because two is what the

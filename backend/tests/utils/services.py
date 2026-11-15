@@ -82,6 +82,8 @@ _PROTOCOLS = {
     # CQL's OPTIONS in protocol 4, which a node answers before authentication
     # with SUPPORTED in a response frame of the same version.
     "cassandra": _Protocol(9042, b"\x04\x00\x00\x00\x05\x00\x00\x00\x00", (b"\x84",)),
+    # An IMAP server speaks first, with its `* OK` greeting.
+    "imap": _Protocol(143, b"", (b"*",)),
 }
 
 _required = False
@@ -256,6 +258,16 @@ SCYLLA = Server(
     ),
 )
 
+# The development mail server (`greenmail` in compose.override.yml): IMAP here,
+# SMTP on the port the query names, mailboxes alice@ and bob@example.com with
+# the password `dataplayer` (D368).
+MAIL = Server(
+    name="the mail server",
+    variable="TEST_MAIL_URL",
+    start="docker compose up -d greenmail",
+    read=lambda: os.environ.get("TEST_MAIL_URL", "imap://127.0.0.1:3143?smtp=3025"),
+)
+
 SERVERS = (
     POSTGRES,
     REDIS,
@@ -270,6 +282,7 @@ SERVERS = (
     RABBITMQ,
     CASSANDRA,
     SCYLLA,
+    MAIL,
 )
 
 

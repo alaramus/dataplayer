@@ -879,3 +879,33 @@ source_modules =
     app.ai.routes
 forbidden_modules =
     mcp
+
+# The mail source's protocols (D368). Standard library, and still a driver:
+# what speaks IMAP is the mail adapter and nothing else. smtplib is not named,
+# because the server's own emails go through the `emails` package.
+[importlinter:contract:imaplib-is-contained]
+name = imaplib is imported only by the mail adapter
+type = forbidden
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.pipelines
+    app.transfers
+    app.search
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.ai
+    app.terminals
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.mailbox
+forbidden_modules =
+    imaplib

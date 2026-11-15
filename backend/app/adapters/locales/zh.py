@@ -11,6 +11,7 @@ MESSAGES: dict[str, str] = {
     "Market data": "市场数据",
     "Document Databases": "文档数据库",
     "Files & Storage": "文件与存储",
+    "Mail": "邮件",
     "Browse the catalog": "浏览目录",
     "Locate a node": "定位节点",
     "Search by name": "按名称搜索",

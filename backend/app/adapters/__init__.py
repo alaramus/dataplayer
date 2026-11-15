@@ -5,6 +5,7 @@ from app.adapters import (  # noqa: F401
     clickhouse,
     file,
     kafka,
+    mail,
     mongodb,
     mysql,
     postgres,

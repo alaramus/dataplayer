@@ -68,6 +68,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_browsing": "यह स्रोत ब्राउज़ करने का समर्थन नहीं करता",
   "connectors.no_runtime_features": "यह स्रोत अपनी क्षमताएँ घोषित नहीं करता",
   "connectors.page_not_stored": "पेज सहेजा नहीं जा सका",
+  "mail.not_a_mailbox": "यह कनेक्शन मेलबॉक्स नहीं है",
+  "mail.attachment_not_stored": "अटैचमेंट आपके फ़ोल्डर में नहीं रखा जा सका",
   "connectors.export_not_stored": "निर्यात सहेजा नहीं जा सका",
   "connectors.no_export_all": "यह स्रोत सभी पंक्तियों के निर्यात का समर्थन नहीं करता",
   "connectors.no_row_editing": "यह स्रोत पंक्तियाँ बदलने का समर्थन नहीं करता",

@@ -68,6 +68,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_browsing": "Esta fuente no admite la navegación",
   "connectors.no_runtime_features": "Esta fuente no declara sus capacidades",
   "connectors.page_not_stored": "No se pudo guardar la página",
+  "mail.not_a_mailbox": "Esta conexión no es un buzón",
+  "mail.attachment_not_stored": "No se pudo guardar el adjunto en su carpeta",
   "connectors.export_not_stored": "No se pudo guardar la exportación",
   "connectors.no_export_all": "Esta fuente no admite la exportación de todas las filas",
   "connectors.no_row_editing": "Esta fuente no admite la edición de filas",

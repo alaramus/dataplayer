@@ -367,7 +367,7 @@ export type AdapterTypeInfo = {
   /**
    * Category
    */
-  category: "sql" | "document" | "keyvalue" | "stream" | "market" | "files"
+  category: "sql" | "document" | "keyvalue" | "stream" | "market" | "files" | "mail"
   /**
    * Category Title
    */
@@ -375,7 +375,7 @@ export type AdapterTypeInfo = {
   /**
    * Catalog Shape
    */
-  catalog_shape: "levels" | "tree"
+  catalog_shape: "levels" | "tree" | "mailbox"
   /**
    * Description
    */
@@ -1259,6 +1259,34 @@ export type ArrivingReferencesRequest = {
 }
 
 /**
+ * AttachmentKept
+ */
+export type AttachmentKept = {
+  /**
+   * Path
+   */
+  path: string
+}
+
+/**
+ * AttachmentRequest
+ */
+export type AttachmentRequest = {
+  /**
+   * Folder
+   */
+  folder: string
+  /**
+   * Uid
+   */
+  uid: number
+  /**
+   * Part
+   */
+  part: string
+}
+
+/**
  * AttachmentRules
  *
  * What one message may carry (D142): the composer checks before sending,
@@ -1540,6 +1568,20 @@ export type Body_login_login_access_token = {
    * Client Secret
    */
   client_secret?: string | null
+}
+
+/**
+ * Body_mail-send_message
+ */
+export type Body_mail_send_message = {
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Files
+   */
+  files?: Array<Blob | File>
 }
 
 /**
@@ -8339,6 +8381,145 @@ export type MadeHereRequest = {
 }
 
 /**
+ * MailAddress
+ */
+export type MailAddress = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Address
+   */
+  address: string
+}
+
+/**
+ * MailAttachment
+ */
+export type MailAttachment = {
+  /**
+   * Part
+   */
+  part: string
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Media Type
+   */
+  media_type: string
+  /**
+   * Size
+   */
+  size: number
+  /**
+   * Content Id
+   */
+  content_id: string | null
+}
+
+/**
+ * MailFolder
+ */
+export type MailFolder = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Delimiter
+   */
+  delimiter: string | null
+  /**
+   * Role
+   */
+  role: "inbox" | "sent" | "drafts" | "trash" | "junk" | "archive" | "all" | "flagged" | null
+  /**
+   * Selectable
+   */
+  selectable: boolean
+  /**
+   * Messages
+   */
+  messages: number | null
+  /**
+   * Unseen
+   */
+  unseen: number | null
+}
+
+/**
+ * MailMessage
+ */
+export type MailMessage = {
+  /**
+   * Folder
+   */
+  folder: string
+  /**
+   * Uid
+   */
+  uid: number
+  /**
+   * Subject
+   */
+  subject: string
+  sender: MailAddress | null
+  /**
+   * To
+   */
+  to: Array<MailAddress>
+  /**
+   * Cc
+   */
+  cc: Array<MailAddress>
+  /**
+   * Reply To
+   */
+  reply_to: Array<MailAddress>
+  /**
+   * Date
+   */
+  date: string | null
+  /**
+   * Message Id
+   */
+  message_id: string | null
+  /**
+   * Flagged
+   */
+  flagged: boolean
+  /**
+   * Answered
+   */
+  answered: boolean
+  /**
+   * Text
+   */
+  text: string | null
+  /**
+   * Html
+   */
+  html: string | null
+  /**
+   * Inline Images
+   */
+  inline_images: {
+    [key: string]: string
+  }
+  /**
+   * Attachments
+   */
+  attachments: Array<MailAttachment>
+}
+
+/**
  * MakeChoice
  *
  * What a person chose about a source made here; whatever is left out,
@@ -8361,6 +8542,24 @@ export type MakeChoice = {
    * Wal
    */
   wal?: boolean
+}
+
+/**
+ * MarkRequest
+ */
+export type MarkRequest = {
+  /**
+   * Folder
+   */
+  folder: string
+  /**
+   * Uids
+   */
+  uids: Array<number>
+  /**
+   * Seen
+   */
+  seen: boolean
 }
 
 /**
@@ -8758,6 +8957,109 @@ export type MessageAttachmentPublic = {
    * Size
    */
   size: number
+}
+
+/**
+ * MessageHeading
+ */
+export type MessageHeading = {
+  /**
+   * Uid
+   */
+  uid: number
+  /**
+   * Subject
+   */
+  subject: string
+  sender: MailAddress | null
+  /**
+   * To
+   */
+  to: Array<MailAddress>
+  /**
+   * Date
+   */
+  date: string | null
+  /**
+   * Seen
+   */
+  seen: boolean
+  /**
+   * Flagged
+   */
+  flagged: boolean
+  /**
+   * Answered
+   */
+  answered: boolean
+  /**
+   * Size
+   */
+  size: number
+  /**
+   * Has Attachments
+   */
+  has_attachments: boolean
+}
+
+/**
+ * MessagePage
+ */
+export type MessagePage = {
+  /**
+   * Folder
+   */
+  folder: string
+  /**
+   * Total
+   */
+  total: number
+  /**
+   * Offset
+   */
+  offset: number
+  /**
+   * Messages
+   */
+  messages: Array<MessageHeading>
+}
+
+/**
+ * MessageSelection
+ */
+export type MessageSelection = {
+  /**
+   * Folder
+   */
+  folder: string
+  /**
+   * Uids
+   */
+  uids: Array<number>
+}
+
+/**
+ * MessageSent
+ */
+export type MessageSent = {
+  /**
+   * Kept Copy
+   */
+  kept_copy: boolean
+}
+
+/**
+ * MessagesDeleted
+ */
+export type MessagesDeleted = {
+  /**
+   * Moved To
+   */
+  moved_to: string | null
+  /**
+   * Count
+   */
+  count: number
 }
 
 /**
@@ -10900,6 +11202,8 @@ export type ProblemDetail = {
     | "connectors.no_browsing"
     | "connectors.no_runtime_features"
     | "connectors.page_not_stored"
+    | "mail.not_a_mailbox"
+    | "mail.attachment_not_stored"
     | "connectors.export_not_stored"
     | "connectors.no_export_all"
     | "connectors.no_row_editing"
@@ -20083,6 +20387,288 @@ export type declaredReferencesUndeclareReferenceResponses = {
 
 export type declaredReferencesUndeclareReferenceResponse =
   declaredReferencesUndeclareReferenceResponses[keyof declaredReferencesUndeclareReferenceResponses]
+
+export type mailMailFoldersData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/mail/folders"
+}
+
+export type mailMailFoldersErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailMailFoldersError = mailMailFoldersErrors[keyof mailMailFoldersErrors]
+
+export type mailMailFoldersResponses = {
+  /**
+   * Response Mail-Mail Folders
+   *
+   * Successful Response
+   */
+  200: Array<MailFolder>
+}
+
+export type mailMailFoldersResponse = mailMailFoldersResponses[keyof mailMailFoldersResponses]
+
+export type mailMailMessagesData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query: {
+    /**
+     * Folder
+     */
+    folder: string
+    /**
+     * Offset
+     */
+    offset?: number
+    /**
+     * Limit
+     */
+    limit?: number
+    /**
+     * Search
+     */
+    search?: string | null
+  }
+  url: "/api/v1/connectors/{connector_id}/mail/messages"
+}
+
+export type mailMailMessagesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailMailMessagesError = mailMailMessagesErrors[keyof mailMailMessagesErrors]
+
+export type mailMailMessagesResponses = {
+  /**
+   * Successful Response
+   */
+  200: MessagePage
+}
+
+export type mailMailMessagesResponse = mailMailMessagesResponses[keyof mailMailMessagesResponses]
+
+export type mailMailMessageData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query: {
+    /**
+     * Folder
+     */
+    folder: string
+    /**
+     * Uid
+     */
+    uid: number
+  }
+  url: "/api/v1/connectors/{connector_id}/mail/message"
+}
+
+export type mailMailMessageErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailMailMessageError = mailMailMessageErrors[keyof mailMailMessageErrors]
+
+export type mailMailMessageResponses = {
+  /**
+   * Successful Response
+   */
+  200: MailMessage
+}
+
+export type mailMailMessageResponse = mailMailMessageResponses[keyof mailMailMessageResponses]
+
+export type mailMarkMessagesData = {
+  body: MarkRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/mail/seen"
+}
+
+export type mailMarkMessagesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailMarkMessagesError = mailMarkMessagesErrors[keyof mailMarkMessagesErrors]
+
+export type mailMarkMessagesResponses = {
+  /**
+   * Successful Response
+   */
+  204: void
+}
+
+export type mailMarkMessagesResponse = mailMarkMessagesResponses[keyof mailMarkMessagesResponses]
+
+export type mailDeleteMessagesData = {
+  body: MessageSelection
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/mail/delete"
+}
+
+export type mailDeleteMessagesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailDeleteMessagesError = mailDeleteMessagesErrors[keyof mailDeleteMessagesErrors]
+
+export type mailDeleteMessagesResponses = {
+  /**
+   * Successful Response
+   */
+  200: MessagesDeleted
+}
+
+export type mailDeleteMessagesResponse =
+  mailDeleteMessagesResponses[keyof mailDeleteMessagesResponses]
+
+export type mailSendMessageData = {
+  body: Body_mail_send_message
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/mail/send"
+}
+
+export type mailSendMessageErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailSendMessageError = mailSendMessageErrors[keyof mailSendMessageErrors]
+
+export type mailSendMessageResponses = {
+  /**
+   * Successful Response
+   */
+  200: MessageSent
+}
+
+export type mailSendMessageResponse = mailSendMessageResponses[keyof mailSendMessageResponses]
+
+export type mailDownloadAttachmentData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query: {
+    /**
+     * Folder
+     */
+    folder: string
+    /**
+     * Uid
+     */
+    uid: number
+    /**
+     * Part
+     */
+    part: string
+  }
+  url: "/api/v1/connectors/{connector_id}/mail/attachment"
+}
+
+export type mailDownloadAttachmentErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailDownloadAttachmentError =
+  mailDownloadAttachmentErrors[keyof mailDownloadAttachmentErrors]
+
+export type mailDownloadAttachmentResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown
+}
+
+export type mailKeepAttachmentData = {
+  body: AttachmentRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/mail/attachment/keep"
+}
+
+export type mailKeepAttachmentErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type mailKeepAttachmentError = mailKeepAttachmentErrors[keyof mailKeepAttachmentErrors]
+
+export type mailKeepAttachmentResponses = {
+  /**
+   * Successful Response
+   */
+  200: AttachmentKept
+}
+
+export type mailKeepAttachmentResponse =
+  mailKeepAttachmentResponses[keyof mailKeepAttachmentResponses]
 
 export type connectorsPasteOffersData = {
   body: PastePair

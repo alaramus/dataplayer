@@ -68,6 +68,8 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "connectors.no_browsing": "هذا المصدر لا يدعم التصفح",
   "connectors.no_runtime_features": "هذا المصدر لا يبلّغ عن ميزات التشغيل",
   "connectors.page_not_stored": "تعذّر تخزين الصفحة",
+  "mail.not_a_mailbox": "هذا الاتصال ليس صندوق بريد",
+  "mail.attachment_not_stored": "تعذّر حفظ المرفق في مجلدك",
   "connectors.export_not_stored": "تعذّر تخزين التصدير",
   "connectors.no_export_all": "هذا المصدر لا يدعم تصدير كل الصفوف",
   "connectors.no_row_editing": "هذا المصدر لا يدعم تحرير الصفوف",

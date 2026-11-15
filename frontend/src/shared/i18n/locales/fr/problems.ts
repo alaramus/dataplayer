@@ -68,6 +68,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_browsing": "Cette source ne prend pas en charge la navigation",
   "connectors.no_runtime_features": "Cette source ne déclare pas ses fonctionnalités",
   "connectors.page_not_stored": "La page n'a pas pu être enregistrée",
+  "mail.not_a_mailbox": "Cette connexion n’est pas une boîte aux lettres",
+  "mail.attachment_not_stored": "La pièce jointe n’a pas pu être enregistrée dans votre dossier",
   "connectors.export_not_stored": "L'export n'a pas pu être enregistré",
   "connectors.no_export_all": "Cette source ne prend pas en charge l'export de toutes les lignes",
   "connectors.no_row_editing": "Cette source ne prend pas en charge la modification des lignes",

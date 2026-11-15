@@ -68,6 +68,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_browsing": "Die Quelle unterstützt das Durchsuchen nicht",
   "connectors.no_runtime_features": "Die Quelle meldet ihre Fähigkeiten nicht",
   "connectors.page_not_stored": "Die Seite konnte nicht gespeichert werden",
+  "mail.not_a_mailbox": "Diese Verbindung ist kein Postfach",
+  "mail.attachment_not_stored": "Der Anhang konnte nicht in Ihrem Ordner gespeichert werden",
   "connectors.export_not_stored": "Der Export konnte nicht gespeichert werden",
   "connectors.no_export_all": "Die Quelle unterstützt den Export aller Zeilen nicht",
   "connectors.no_row_editing": "Die Quelle unterstützt das Ändern von Zeilen nicht",

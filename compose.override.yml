@@ -155,6 +155,25 @@ services:
     ports:
       - "127.0.0.1:27018:27017"
 
+  # A mail server for the backend suite and for a person to point a mail
+  # connection at (D368): IMAP on 3143 and SMTP on 3025, no TLS, mailboxes
+  # `alice@`, `bob@` and `dave@example.com`, password `dataplayer`. Held in
+  # memory, so a restart empties it. `dave@` is kept without a Sent folder. 127.0.0.1:3143 and :3025 from this
+  # machine, `greenmail` from the backend. Behind the `tools` profile.
+  greenmail:
+    image: greenmail/standalone:2.1.3
+    profiles: ["tools"]
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.smtp -Dgreenmail.setup.test.imap
+        -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users=alice:dataplayer@example.com,bob:dataplayer@example.com,dave:dataplayer@example.com
+        -Dgreenmail.users.login=email
+        -Dgreenmail.verbose=false
+    ports:
+      - "127.0.0.1:3025:3025"
+      - "127.0.0.1:3143:3143"
+
   # A ZooKeeper for the backend suite and for a person to point a ZooKeeper
   # connection at: no authentication, host `zookeeper` port 2181 from the
   # backend, 127.0.0.1:2182 from this machine. Every four-letter word is

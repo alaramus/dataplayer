@@ -68,6 +68,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_browsing": "Источник не поддерживает обзор",
   "connectors.no_runtime_features": "Источник не сообщает о своих возможностях",
   "connectors.page_not_stored": "Не удалось сохранить страницу",
+  "mail.not_a_mailbox": "Это подключение — не почтовый ящик",
+  "mail.attachment_not_stored": "Не удалось сохранить вложение в вашу папку",
   "connectors.export_not_stored": "Не удалось сохранить выгрузку",
   "connectors.no_export_all": "Источник не поддерживает выгрузку всех строк",
   "connectors.no_row_editing": "Источник не поддерживает изменение строк",

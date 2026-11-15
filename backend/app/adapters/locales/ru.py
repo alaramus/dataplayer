@@ -11,6 +11,7 @@ MESSAGES: dict[str, str] = {
     "Market data": "Рыночные данные",
     "Document Databases": "Документные базы данных",
     "Files & Storage": "Файлы и хранилища",
+    "Mail": "Почта",
     "Browse the catalog": "Просматривать каталог",
     "Locate a node": "Находить узел",
     "Search by name": "Искать по имени",

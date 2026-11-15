@@ -68,6 +68,8 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_browsing": "此数据源不支持浏览",
   "connectors.no_runtime_features": "此数据源未声明其功能",
   "connectors.page_not_stored": "无法保存页面",
+  "mail.not_a_mailbox": "此连接不是邮箱",
+  "mail.attachment_not_stored": "无法将附件保存到您的文件夹",
   "connectors.export_not_stored": "无法保存导出",
   "connectors.no_export_all": "此数据源不支持导出所有行",
   "connectors.no_row_editing": "此数据源不支持修改行",

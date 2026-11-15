@@ -417,6 +417,30 @@ import type {
   logsReadLogsData,
   logsReadLogsErrors,
   logsReadLogsResponses,
+  mailDeleteMessagesData,
+  mailDeleteMessagesErrors,
+  mailDeleteMessagesResponses,
+  mailDownloadAttachmentData,
+  mailDownloadAttachmentErrors,
+  mailDownloadAttachmentResponses,
+  mailKeepAttachmentData,
+  mailKeepAttachmentErrors,
+  mailKeepAttachmentResponses,
+  mailMailFoldersData,
+  mailMailFoldersErrors,
+  mailMailFoldersResponses,
+  mailMailMessageData,
+  mailMailMessageErrors,
+  mailMailMessageResponses,
+  mailMailMessagesData,
+  mailMailMessagesErrors,
+  mailMailMessagesResponses,
+  mailMarkMessagesData,
+  mailMarkMessagesErrors,
+  mailMarkMessagesResponses,
+  mailSendMessageData,
+  mailSendMessageErrors,
+  mailSendMessageResponses,
   metricsConnectStoreData,
   metricsConnectStoreErrors,
   metricsConnectStoreResponses,
@@ -3458,6 +3482,177 @@ export class DeclaredReferencesService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/declared-references/{reference_id}",
       ...options,
+    })
+  }
+}
+
+export class MailService {
+  /**
+   * Mail Folders
+   */
+  public static mailFolders<ThrowOnError extends boolean = true>(
+    options: Options<mailMailFoldersData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      mailMailFoldersResponses,
+      mailMailFoldersErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/folders",
+      ...options,
+    })
+  }
+
+  /**
+   * Mail Messages
+   */
+  public static mailMessages<ThrowOnError extends boolean = true>(
+    options: Options<mailMailMessagesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      mailMailMessagesResponses,
+      mailMailMessagesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/messages",
+      ...options,
+    })
+  }
+
+  /**
+   * Mail Message
+   *
+   * One letter, which opening marks read (D368).
+   */
+  public static mailMessage<ThrowOnError extends boolean = true>(
+    options: Options<mailMailMessageData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      mailMailMessageResponses,
+      mailMailMessageErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/message",
+      ...options,
+    })
+  }
+
+  /**
+   * Mark Messages
+   */
+  public static markMessages<ThrowOnError extends boolean = true>(
+    options: Options<mailMarkMessagesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      mailMarkMessagesResponses,
+      mailMarkMessagesErrors,
+      ThrowOnError
+    >({
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/seen",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Messages
+   *
+   * Into Trash, or for good from Trash itself (D370).
+   */
+  public static deleteMessages<ThrowOnError extends boolean = true>(
+    options: Options<mailDeleteMessagesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      mailDeleteMessagesResponses,
+      mailDeleteMessagesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/delete",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Send Message
+   *
+   * A letter and the files uploaded with it, 25 MB of them in all (D370).
+   */
+  public static sendMessage<ThrowOnError extends boolean = true>(
+    options: Options<mailSendMessageData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      mailSendMessageResponses,
+      mailSendMessageErrors,
+      ThrowOnError
+    >({
+      ...formDataBodySerializer,
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/send",
+      ...options,
+      headers: {
+        "Content-Type": null,
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Download Attachment
+   *
+   * The bytes, under the attachment's own name (D371).
+   */
+  public static downloadAttachment<ThrowOnError extends boolean = true>(
+    options: Options<mailDownloadAttachmentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      mailDownloadAttachmentResponses,
+      mailDownloadAttachmentErrors,
+      ThrowOnError
+    >({
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/attachment",
+      ...options,
+    })
+  }
+
+  /**
+   * Keep Attachment
+   *
+   * Into `Mail/<address>/` of the owner's folder, under their limit (D371).
+   */
+  public static keepAttachment<ThrowOnError extends boolean = true>(
+    options: Options<mailKeepAttachmentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      mailKeepAttachmentResponses,
+      mailKeepAttachmentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/mail/attachment/keep",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 }

@@ -11,6 +11,7 @@ MESSAGES: dict[str, str] = {
     "Market data": "बाज़ार डेटा",
     "Document Databases": "दस्तावेज़ डेटाबेस",
     "Files & Storage": "फ़ाइलें और संग्रहण",
+    "Mail": "मेल",
     "Browse the catalog": "कैटलॉग ब्राउज़ करें",
     "Locate a node": "नोड ढूँढें",
     "Search by name": "नाम से खोजें",

@@ -24,6 +24,7 @@ file holds which decision.
 | [binance.md](binance.md) | change how Binance is reached and kept under its rate limit, what its catalog shows of markets, quote assets, symbols and feeds, or how tickers, symbols, candles, trades and the order book are read as rows, read on by a link, reported, measured and searched |
 | [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read, messages sent, topics and groups changed, its reports, metrics, search and export, its service and lab, or its console |
 | [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed, its fields and indexes, its reports, search or catalog actions, or how its collections are copied, backed up and measured |
+| [mail.md](mail.md) | change how a mailbox is reached over IMAP and SMTP, what its Mail tab shows, how a letter is read, written, answered, forwarded and deleted, who may open it, or where an attachment is kept |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, what its System reports show, or where SSH keys and passphrases are kept |
 
 ## The source types
