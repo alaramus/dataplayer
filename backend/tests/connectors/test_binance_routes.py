@@ -50,6 +50,7 @@ async def test_a_connection_is_checked_browsed_and_read(
     assert (await call("POST", "check", json={}))["ok"]
     assert [node["id"] for node in await call("GET", "catalog")] == [
         "exchange",
+        "markets",
         "spot",
         "usdm",
         "coinm",
