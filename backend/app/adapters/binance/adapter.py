@@ -20,9 +20,16 @@ from app.adapters.binance.catalog import (
     account_children,
     account_node,
     candle_nodes,
+    is_markets,
+    listed_folder,
+    listed_folders,
+    listed_market,
+    listed_node,
+    listed_nodes,
     market_children,
     market_node,
     markets,
+    markets_node,
     place_of,
     quote_node,
     symbol_children,
@@ -175,7 +182,11 @@ class BinanceAdapter:
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
             # The connection's own section first, as Kafka puts its own (D320).
-            return [section_node(), *markets()]
+            return [section_node(), markets_node(), *markets()]
+        if is_markets(node_id):
+            return listed_folders()
+        if (folder := listed_market(node_id)) is not None:
+            return listed_nodes(folder, await self._session.symbols(folder))
         if is_section(node_id):
             return [report_node(report) for report in reports_of(self._session)]
         if in_section(node_id):
@@ -208,6 +219,10 @@ class BinanceAdapter:
         return account_feeds(place.market, self._session.main_hosts)
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
+        if is_markets(node_id):
+            return [markets_node()]
+        if (folder := listed_market(node_id)) is not None:
+            return [markets_node(), listed_folder(folder)]
         if is_section(node_id):
             return [section_node()]
         if in_section(node_id):
@@ -218,6 +233,13 @@ class BinanceAdapter:
         place = place_of(node_id)
         await self._known(place, node_id)
         market = place.market
+        if place.listed:
+            assert place.symbol is not None
+            return [
+                markets_node(),
+                listed_folder(market),
+                listed_node(market, place.symbol),
+            ]
         path: list[CatalogNode] = [market_node(market)]
         if place.what == "market":
             return path

@@ -44,6 +44,8 @@ not help.
 ## The catalog
 
 - **Exchange** first: what Binance and this connection say about themselves.
+- **Markets**: a folder for each of the three markets listing its symbols. A
+  row opens its **Market** chart at once.
 - **Spot**, **USDⓈ-M futures** and **COIN-M futures**. Each holds **Tickers**, **Symbols**, and a
   folder per quote asset — **USDT**, **USDC**, **BTC** and the rest — the one
   with most symbols first.

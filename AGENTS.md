@@ -135,7 +135,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/mongodb](docs/architecture/sources/mongodb.md) | D283–D285, D287–D294, D296 |
 | [sources/zookeeper](docs/architecture/sources/zookeeper.md) | D297–D303 |
 | [sources/kafka](docs/architecture/sources/kafka.md) | D304–D311 |
-| [sources/binance](docs/architecture/sources/binance.md) | D316–D323 |
+| [sources/binance](docs/architecture/sources/binance.md) | D316–D323, D365 |
 | [sources/rabbitmq](docs/architecture/sources/rabbitmq.md) | D325–D332, D334, D335, D337–D339 |
 | [sources/cassandra](docs/architecture/sources/cassandra.md) | D340–D354 |
 | [tour](docs/architecture/tour.md) | D355, D356 |

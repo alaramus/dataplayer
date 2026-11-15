@@ -2,7 +2,8 @@
 
 Node ids, colon-separated: `spot`; `spot:tickers`, `spot:symbols`;
 `spot:quote:USDT`; `spot:symbol:BTCUSDT`, then `:trades`, `:book`, `:candles`
-and `:candles:1h` after it. With a key (D322): `spot:account` and
+and `:candles:1h` after it. Beside the markets, `markets` holds a folder per
+market, `markets:spot`, listing its symbols as `markets:spot:BTCUSDT` (D365). With a key (D322): `spot:account` and
 `spot:account:balances` and its siblings, and a symbol's `:orders` and
 `:my_trades`. A symbol never holds a colon (the symbol list
 leaves one out), and a symbol a client names is looked up among the
@@ -47,6 +48,10 @@ FEED_TITLES: dict[FeedName, str] = {
 
 ACCOUNT_TITLE = N_("Account")
 
+# A folder per market, each listing its symbols as their market views (D365).
+MARKETS_ID = "markets"
+MARKETS_TITLE = N_("Markets")
+
 # A symbol's own feeds by the last part of their id.
 SYMBOL_FEEDS: dict[str, FeedName] = {
     "market": "market",
@@ -81,11 +86,17 @@ class Place:
     symbol: str | None = None
     feed: FeedName | None = None
     interval: str | None = None
+    # Named through the Markets folder rather than through its market (D365).
+    listed: bool = False
 
 
 def place_of(node_id: str) -> Place:
     """The node an id names, or a refusal when it names none of this source."""
     parts = node_id.split(":")
+    if parts[0] == MARKETS_ID and len(parts) == 3 and parts[2] != "":
+        return Place(
+            market_of(parts[1]), "feed", symbol=parts[2], feed="market", listed=True
+        )
     market = market_of(parts[0])
     if len(parts) == 1:
         return Place(market, "market")
@@ -110,6 +121,56 @@ def place_of(node_id: str) -> Place:
                 market, "feed", symbol=symbol, feed="candles", interval=parts[4]
             )
     raise ValueError(say("Not a node of this connection"))
+
+
+def is_markets(node_id: str | None) -> bool:
+    return node_id == MARKETS_ID
+
+
+def markets_node() -> CatalogNode:
+    return DirectoryNode(
+        id=MARKETS_ID, name=say(MARKETS_TITLE), has_children=True, representations=[]
+    )
+
+
+def listed_id(market: Market, name: str) -> str:
+    return f"{MARKETS_ID}:{market.key}:{name}"
+
+
+def listed_market(node_id: str | None) -> Market | None:
+    """The market whose folder inside Markets this id names, if it names one."""
+    parts = (node_id or "").split(":")
+    if len(parts) == 2 and parts[0] == MARKETS_ID:
+        return market_of(parts[1])
+    return None
+
+
+def listed_folder(market: Market) -> CatalogNode:
+    return DirectoryNode(
+        id=f"{MARKETS_ID}:{market.key}",
+        name=say(market.title),
+        has_children=True,
+        representations=[],
+    )
+
+
+def listed_folders() -> list[CatalogNode]:
+    return [listed_folder(BY_KEY[key]) for key in MARKETS]
+
+
+def listed_node(market: Market, name: str) -> CatalogNode:
+    """A symbol of a market's folder in Markets: its market view, opened at once
+    (D365)."""
+    return FeedNode(
+        id=listed_id(market, name),
+        name=name,
+        feed="market",
+        representations=worded_titles([MARKET]),
+    )
+
+
+def listed_nodes(market: Market, symbols: list[Symbol]) -> list[CatalogNode]:
+    return [listed_node(market, name) for name in sorted(one.name for one in symbols)]
 
 
 def market_node(market: Market) -> CatalogNode:

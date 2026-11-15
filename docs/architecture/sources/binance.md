@@ -5,7 +5,7 @@ symbols and feeds, how a feed is read as rows, how a pipeline's link reads
 trades and candles on, or what the connection reports, measures and finds. The contract every source
 keeps is in [contract.md](contract.md).
 
-Decisions here: D316, D317, D318, D319, D320, D321, D322, D323.
+Decisions here: D316, D317, D318, D319, D320, D321, D322, D323, D365.
 
 ## D316. Binance's public market data over REST, one client a connection, under its rate limit
 
@@ -267,3 +267,27 @@ Known deviations:
   down are not shown.
 
 Spec: [A symbol's market, watched live](../../decisions/2026-11-09-binance-market-view-design.md)
+
+## D365. A Markets folder: every symbol's market view two levels down
+
+```
+markets                             directory, beside spot | usdm | coinm
+  :spot | :usdm | :coinm            directory, one a market
+    :spot:BTCUSDT …                 feed, opened as `market` (D323)
+```
+
+- **A folder per market, each a flat list of its trading symbols** by name.
+  A row is the symbol's Market node, so it opens as the chart at once; the
+  candles, trades and book stay under the symbol in its market (D317). One
+  list of all three markets was a few thousand rows.
+- **Ids are `markets:<market>` and `markets:<market>:<symbol>`**, never the
+  walk's: one id under two parents breaks a tree keyed by id and the path to a
+  node. A row's path is the folder, its market's folder and the row. The symbol is looked up among the market's trading
+  symbols first, and a watch of a row is a watch of that symbol's market.
+
+Known deviations:
+
+- **The level is not paged**: spot's folder is about two thousand rows in one
+  list. Finding one is the catalog's search (D320).
+
+Spec: [Binance's Markets folder](../../decisions/2026-11-15-binance-markets-folder-design.md)

@@ -135,7 +135,57 @@ async def test_the_top_is_the_exchange_section_and_the_two_markets(
     del fake_binance
     nodes = await _adapter().list_children(None)
 
-    assert [node.id for node in nodes] == ["exchange", "spot", "usdm", "coinm"]
+    assert [node.id for node in nodes] == [
+        "exchange",
+        "markets",
+        "spot",
+        "usdm",
+        "coinm",
+    ]
+
+
+async def test_the_markets_folder_holds_a_folder_per_market_listing_its_symbols(
+    fake_binance: FakeBinance,
+) -> None:
+    del fake_binance
+    adapter = _adapter()
+    folders = await adapter.list_children("markets")
+    nodes = await adapter.list_children("markets:spot")
+
+    assert [node.id for node in folders] == [
+        "markets:spot",
+        "markets:usdm",
+        "markets:coinm",
+    ]
+    assert all(node.kind == "directory" for node in folders)
+    ids = [node.id for node in nodes]
+    assert ids[0] == "markets:spot:BTCUSDT"
+    assert "markets:spot:ETHBTC" in ids
+    assert all(node.kind == "feed" and node.feed == "market" for node in nodes)
+    assert nodes[0].name == "BTCUSDT"
+    assert nodes[0].representations
+
+
+async def test_a_symbol_of_the_markets_folder_is_live_and_its_path_is_the_folder(
+    fake_binance: FakeBinance,
+) -> None:
+    del fake_binance
+    adapter = _adapter()
+    path = await adapter.path_to("markets:usdm:BTCUSDT")
+    start = await adapter.live_start("markets:usdm:BTCUSDT", None)
+
+    assert [node.id for node in path] == [
+        "markets",
+        "markets:usdm",
+        "markets:usdm:BTCUSDT",
+    ]
+    assert [node.id for node in await adapter.path_to("markets:usdm")] == [
+        "markets",
+        "markets:usdm",
+    ]
+    assert "1m" in start.intervals
+    with pytest.raises(NodeNotFound):
+        await adapter.path_to("markets:spot:GONEUSDT")
 
 
 async def test_a_market_holds_its_lists_then_its_quotes_fullest_first(
