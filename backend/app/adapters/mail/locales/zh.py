@@ -58,5 +58,4 @@ MESSAGES: dict[str, str] = {
     "The mail server would not keep the draft": "邮件服务器未保存草稿",
     "Name at least one recipient": "请至少填写一位收件人",
     "Gmail": "Gmail",
-    "Outlook": "Outlook",
 }

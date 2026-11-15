@@ -211,23 +211,28 @@ async function submit() {
         class="mail-composer__text"
         data-testid="mail-text"
       />
-      <div class="mail-composer__attach">
-        <AppFileInput
-          v-model="files"
-          :label="t('mail.composer.attach')"
-          multiple
-          append
-          listed
-          data-testid="mail-files"
-        />
-        <AppButton
-          variant="secondary"
-          :icon="appIcons.folder"
-          :label="t('mail.composer.from_my_folder')"
-          data-testid="mail-from-my-folder"
-          @click="picking = true"
-        />
-      </div>
+      <!-- The second way to attach beside the field, where To keeps Cc and
+           Bcc: one line, the button centred on the box rather than on the
+           box and its label together. -->
+      <AppFileInput
+        v-model="files"
+        class="mail-composer__attach"
+        :label="t('mail.composer.attach')"
+        multiple
+        append
+        listed
+        data-testid="mail-files"
+      >
+        <template #after>
+          <AppButton
+            variant="secondary"
+            :icon="appIcons.folder"
+            :label="t('mail.composer.from_my_folder')"
+            data-testid="mail-from-my-folder"
+            @click="picking = true"
+          />
+        </template>
+      </AppFileInput>
       <p
         v-if="sizeProblem"
         class="mail-composer__problem"
@@ -332,13 +337,7 @@ async function submit() {
 }
 
 .mail-composer__attach {
-  display: flex;
-  align-items: center;
-  gap: var(--dp-space-2);
-}
-
-.mail-composer__attach > :first-child {
-  flex: 1;
+  max-width: var(--dp-width-text);
 }
 
 .mail-composer__problem {

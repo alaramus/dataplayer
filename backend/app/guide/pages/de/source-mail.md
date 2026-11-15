@@ -53,7 +53,7 @@ aber nicht öffnen. Die Suche oben und der Agent lesen keine Post.
 
 ## Neues in diesem Postfach
 
-Im Katalog gibt es drei Karten: **E-Mail** für jeden Server sowie **Gmail** und **Outlook**, die ihre Server selbst eintragen. Gmail braucht ein App-Passwort; Microsoft 365 und Outlook.com lehnen ein Passwort über IMAP meist ab.
+Im Katalog gibt es zwei Karten: **E-Mail** für jeden Server und **Gmail**, die ihre Server selbst einträgt. Gmail braucht ein App-Passwort; Microsoft 365 und Outlook.com lehnen ein Passwort über IMAP ab und werden noch nicht angeboten.
 
 Solange Sie angemeldet sind, wird der Posteingang etwa einmal pro Minute geprüft; neue Briefe melden sich mit **Öffnen**. **In einen Ordner verschieben** verschiebt den geöffneten Brief. **Aus meinem Ordner** hängt Dateien aus Ihrem Speicher an. **Entwurf speichern** legt den Brief in „Entwürfe“; dort setzt **Bearbeiten** ihn fort.
 

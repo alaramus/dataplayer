@@ -57,7 +57,7 @@ courrier.
 
 ## Nouveautés de cette boîte
 
-Le catalogue propose trois cartes : **E-mail** pour tout serveur, et **Gmail** et **Outlook**, qui remplissent leurs serveurs. Gmail demande un mot de passe d’application ; Microsoft 365 et Outlook.com refusent le plus souvent un mot de passe en IMAP.
+Le catalogue propose deux cartes : **E-mail** pour tout serveur, et **Gmail**, qui remplit ses serveurs. Gmail demande un mot de passe d’application ; Microsoft 365 et Outlook.com refusent un mot de passe en IMAP et ne sont pas encore proposés.
 
 Tant que vous êtes connecté, la boîte de réception est relue environ une fois par minute ; les nouveaux messages s’annoncent avec **Ouvrir**. **Déplacer vers un dossier** déplace le message ouvert. **Depuis mon dossier** joint des fichiers de votre stockage. **Enregistrer le brouillon** range le message dans Brouillons ; **Modifier** le reprend.
 

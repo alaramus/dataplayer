@@ -220,7 +220,7 @@ async def test_a_mailbox_has_no_catalog(
     assert response.status_code == 501
 
 
-async def test_the_type_shows_gmail_and_outlook_with_their_servers(
+async def test_the_type_shows_a_gmail_card_with_its_servers(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     response = await client.get(
@@ -228,11 +228,10 @@ async def test_the_type_shows_gmail_and_outlook_with_their_servers(
     )
     (mail,) = [one for one in response.json() if one["name"] == "mail"]
     faces = {face["key"]: face for face in mail["faces"]}
-    assert list(faces) == ["mail", "gmail", "outlook"]
+    assert list(faces) == ["mail", "gmail"]
     assert faces["mail"]["options"] == {}
     assert faces["gmail"]["options"]["imap_host"] == "imap.gmail.com"
     assert faces["gmail"]["options"]["save_sent"] is False
-    assert faces["outlook"]["options"]["smtp_security"] == "starttls"
 
 
 async def test_a_letter_is_moved_drafted_and_sent_with_a_file_of_ones_folder(

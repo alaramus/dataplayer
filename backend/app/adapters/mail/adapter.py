@@ -183,7 +183,8 @@ class MailAdapter:
     ),
     options_schema=MailOptions,
     adapter_class=MailAdapter,
-    # One type and one form; Gmail and Outlook only fill in their servers (D373).
+    # One type and one form; the Gmail card only fills in its servers (D373).
+    # No Outlook card: Microsoft refuses a password over IMAP without OAuth.
     faces=(
         CatalogFace(key="mail", title=N_("Email")),
         CatalogFace(
@@ -198,18 +199,6 @@ class MailAdapter:
                 "smtp_security": "tls",
                 # Gmail files what it sends by itself; a copy would be a second.
                 "save_sent": False,
-            },
-        ),
-        CatalogFace(
-            key="outlook",
-            title=N_("Outlook"),
-            options={
-                "imap_host": "outlook.office365.com",
-                "imap_port": 993,
-                "imap_security": "tls",
-                "smtp_host": "smtp.office365.com",
-                "smtp_port": 587,
-                "smtp_security": "starttls",
             },
         ),
     ),

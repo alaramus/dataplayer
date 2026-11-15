@@ -27,9 +27,8 @@ const ICONS: Record<string, string> = {
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",
   mail: "img:/icons/services/mail.svg",
-  // Cards of the `mail` type (D373).
+  // A card of the `mail` type (D373).
   gmail: "img:/icons/services/gmail.svg",
-  outlook: "img:/icons/services/outlook.svg",
 }
 
 export const UNKNOWN_ADAPTER_ICON = "cable"

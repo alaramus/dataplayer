@@ -25,10 +25,10 @@ general is on the [Connections](connections.md) page.
 
 ## Connecting
 
-The catalog of new connections has three cards: **Email** for any server,
-and **Gmail** and **Outlook**, which fill in their servers for you. Gmail
-needs an app password. Microsoft 365 and Outlook.com mostly refuse a password
-over IMAP now; the Outlook card works where your organisation still allows it.
+The catalog of new connections has two cards: **Email** for any server, and
+**Gmail**, which fills in its servers for you. Gmail needs an app password.
+Microsoft 365 and Outlook.com refuse a password over IMAP and are not offered
+yet.
 
 The **Connection** page of the window asks for:
 

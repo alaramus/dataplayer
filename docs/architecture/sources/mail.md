@@ -161,18 +161,14 @@ Known deviations:
 
 Spec: [Mail, the second step](../../decisions/2026-11-15-mail-second-step-design.md)
 
-## D373. Gmail and Outlook are cards of the mail type with their servers filled in
+## D373. Gmail is a card of the mail type with its servers filled in
 
 `CatalogFace.options` is what a card fills into a new connection's form,
 arriving as the window's draft and still editable. The mail type shows
-**Email**, **Gmail** (TLS 993/465, **Keep a copy in Sent** off) and
-**Outlook** (993 TLS, 587 STARTTLS). Only the card's key is stored.
-
-Known deviations:
-
-- **Outlook usually refuses a password over IMAP**: Microsoft 365 and
-  Outlook.com want OAuth, which is not here yet. The card works where an
-  organisation still allows passwords.
+**Email** and **Gmail** (TLS 993/465, **Keep a copy in Sent** off). Only the
+card's key is stored. There is no Outlook card: Microsoft 365 and Outlook.com
+refuse a password over IMAP, and a card that cannot sign in is a promise the
+form breaks; it waits for OAuth.
 
 Spec: [Mail, the second step](../../decisions/2026-11-15-mail-second-step-design.md)
 

@@ -54,7 +54,7 @@ buzón. La búsqueda de arriba y el agente no leen el correo.
 
 ## Novedades de este buzón
 
-El catálogo tiene tres tarjetas: **Correo electrónico** para cualquier servidor, y **Gmail** y **Outlook**, que rellenan sus servidores. Gmail necesita una contraseña de aplicación; Microsoft 365 y Outlook.com suelen rechazar una contraseña por IMAP.
+El catálogo tiene dos tarjetas: **Correo electrónico** para cualquier servidor, y **Gmail**, que rellena sus servidores. Gmail necesita una contraseña de aplicación; Microsoft 365 y Outlook.com rechazan una contraseña por IMAP y aún no se ofrecen.
 
 Mientras tienes la sesión abierta, Recibidos se consulta más o menos una vez por minuto; los mensajes nuevos se anuncian con **Abrir**. **Mover a una carpeta** mueve el mensaje abierto. **Desde mi carpeta** adjunta archivos de tu almacenamiento. **Guardar borrador** deja el mensaje en Borradores; **Editar** lo retoma.
 

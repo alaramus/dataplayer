@@ -58,5 +58,4 @@ MESSAGES: dict[str, str] = {
     "The mail server would not keep the draft": "Le serveur de messagerie n’a pas gardé le brouillon",
     "Name at least one recipient": "Indiquez au moins un destinataire",
     "Gmail": "Gmail",
-    "Outlook": "Outlook",
 }

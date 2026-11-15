@@ -1,8 +1,8 @@
 # Mail, the second step
 
 Decisions D372–D376. What the first slice of mail (D366–D371) left for later
-and the user asked for next: being told of new letters, cards for Gmail and
-Outlook, attaching a file from one's own folder, drafts, and moving letters
+and the user asked for next: being told of new letters, a card for Gmail,
+attaching a file from one's own folder, drafts, and moving letters
 between folders.
 
 ## D372. New letters are watched while their owner is in the application
@@ -29,19 +29,19 @@ Rejected: IDLE. It holds a connection per mailbox for as long as somebody is
 signed in, in a server that is one process (D124), and an IMAP server limits
 how many a login may hold. A minute is soon enough for a letter.
 
-## D373. Gmail and Outlook are cards of the mail type with their servers filled in
+## D373. Gmail is a card of the mail type with its servers filled in
 
 - `CatalogFace` gains `options`: what a card fills into a new connection's
-  form. The mail type shows three cards — **Email** (any server), **Gmail**
-  and **Outlook** — one type, one form (D264).
+  form. The mail type shows two cards — **Email** (any server) and **Gmail**
+  — one type, one form (D264).
 - **Gmail**: `imap.gmail.com` 993 and `smtp.gmail.com` 465, both TLS, and
   **Keep a copy in Sent** off, because Gmail keeps one itself. It needs an
   app password.
-- **Outlook**: `outlook.office365.com` 993 TLS and `smtp.office365.com` 587
-  STARTTLS. Microsoft 365 and Outlook.com mostly refuse a password over IMAP
-  now; the card says so in the guide, and it works where an organisation
-  still allows it.
 - The filled values stay editable; nothing about a card is stored but its key.
+
+Rejected: an **Outlook** card. It was made and taken out the same day:
+Microsoft 365 and Outlook.com refuse a password over IMAP, so the card
+filled in servers nobody could sign in to. It comes back with OAuth.
 
 ## D374. A file from one's own folder is attached by its path, read by the server
 

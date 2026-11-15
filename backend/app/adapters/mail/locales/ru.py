@@ -58,5 +58,4 @@ MESSAGES: dict[str, str] = {
     "The mail server would not keep the draft": "Почтовый сервер не сохранил черновик",
     "Name at least one recipient": "Укажите хотя бы одного получателя",
     "Gmail": "Gmail",
-    "Outlook": "Outlook",
 }

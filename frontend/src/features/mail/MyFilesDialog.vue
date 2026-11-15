@@ -59,69 +59,71 @@ function add() {
     sizing="stable"
     data-testid="mail-my-files"
   >
-    <nav class="my-files__trail">
-      <AppButton
-        variant="quiet"
-        size="sm"
-        :icon="appIcons.home"
-        :label="t('mail.my_files.top')"
-        @click="path = ''"
-      />
-      <template
-        v-for="step in trail"
-        :key="step.path"
-      >
-        <span class="my-files__divider">/</span>
+    <div class="my-files">
+      <nav class="my-files__trail">
         <AppButton
           variant="quiet"
           size="sm"
-          :label="step.name"
-          @click="path = step.path"
+          :icon="appIcons.home"
+          :label="t('mail.my_files.top')"
+          @click="path = ''"
         />
-      </template>
-    </nav>
-    <AppSpinner v-if="listing.isLoading.value" />
-    <p
-      v-else-if="listing.isError.value"
-      class="my-files__problem"
-    >
-      {{ messageOf(listing.error.value, t("mail.my_files.could_not_read")) }}
-    </p>
-    <AppEmptyState
-      v-else-if="(listing.data.value?.entries.length ?? 0) === 0"
-      :text="t('mail.my_files.empty')"
-      :icon="appIcons.folder"
-      inset
-    />
-    <ul
-      v-else
-      class="my-files__list"
-    >
-      <li
-        v-for="entry in listing.data.value?.entries ?? []"
-        :key="entry.path"
-        class="my-files__entry"
-      >
-        <AppButton
-          v-if="entry.is_directory"
-          variant="quiet"
-          layout="navigation"
-          :icon="appIcons.folder"
-          :label="entry.name"
-          data-testid="mail-my-folder"
-          @click="path = entry.path"
-        />
-        <template v-else>
-          <AppCheckbox
-            :model-value="ticked.has(entry.path)"
-            :label="entry.name"
-            data-testid="mail-my-file"
-            @update:model-value="(on: boolean) => toggle({ path: entry.path, name: entry.name, size: entry.size }, on)"
+        <template
+          v-for="step in trail"
+          :key="step.path"
+        >
+          <span class="my-files__divider">/</span>
+          <AppButton
+            variant="quiet"
+            size="sm"
+            :label="step.name"
+            @click="path = step.path"
           />
-          <span class="my-files__size">{{ formatSize(entry.size) }}</span>
         </template>
-      </li>
-    </ul>
+      </nav>
+      <AppSpinner v-if="listing.isLoading.value" />
+      <p
+        v-else-if="listing.isError.value"
+        class="my-files__problem"
+      >
+        {{ messageOf(listing.error.value, t("mail.my_files.could_not_read")) }}
+      </p>
+      <AppEmptyState
+        v-else-if="(listing.data.value?.entries.length ?? 0) === 0"
+        :text="t('mail.my_files.empty')"
+        :icon="appIcons.folder"
+        inset
+      />
+      <ul
+        v-else
+        class="my-files__list"
+      >
+        <li
+          v-for="entry in listing.data.value?.entries ?? []"
+          :key="entry.path"
+          class="my-files__entry"
+        >
+          <AppButton
+            v-if="entry.is_directory"
+            variant="quiet"
+            layout="navigation"
+            :icon="appIcons.folder"
+            :label="entry.name"
+            data-testid="mail-my-folder"
+            @click="path = entry.path"
+          />
+          <template v-else>
+            <AppCheckbox
+              :model-value="ticked.has(entry.path)"
+              :label="entry.name"
+              data-testid="mail-my-file"
+              @update:model-value="(on: boolean) => toggle({ path: entry.path, name: entry.name, size: entry.size }, on)"
+            />
+            <span class="my-files__size">{{ formatSize(entry.size) }}</span>
+          </template>
+        </li>
+      </ul>
+    </div>
     <template #actions>
       <AppButton
         variant="quiet"
@@ -139,12 +141,20 @@ function add() {
 </template>
 
 <style scoped>
+/* The padding of a form in a window, so a list here sits off its edges as
+   every other window's contents do. */
+.my-files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-4);
+}
+
 .my-files__trail {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--dp-space-half);
-  margin-bottom: var(--dp-space-2);
 }
 
 .my-files__divider {
