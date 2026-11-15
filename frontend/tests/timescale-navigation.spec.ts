@@ -79,6 +79,18 @@ test("Timescale Details navigation and edited report filters survive workspace r
     await page.getByTestId("grid-filter-delete-0").click()
     await expect.poll(() => requests.filter((request) => request.node_id === chunks.id).at(-1)?.filters)
       .toEqual([filters[1]])
+    // The grid stores an edited filter only once the page it asked for has
+    // arrived, and the request above is seen before the response is. Reloading
+    // on the request alone races that write.
+    await expect.poll(() => page.evaluate((nodeId) => {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i) ?? ""
+        if (!key.includes("dataplayer:grid:") || !key.includes(nodeId)) continue
+        const stored = JSON.parse(localStorage.getItem(key) ?? "null") as { state?: { filters?: unknown[] } } | null
+        return stored?.state?.filters?.length ?? null
+      }
+      return null
+    }, chunks.id)).toBe(1)
     requests.length = 0
     await page.reload()
     await expect.poll(() => requests.filter((request) => request.node_id === chunks.id).at(-1)?.filters)
