@@ -254,6 +254,15 @@ export const panelSchema = z.discriminatedUnion("kind", [
     serviceId: z.string(),
     serviceName: z.string(),
   }),
+  // A mailbox opened as a mail client rather than a catalog (D366). The
+  // connection's name is carried for the tab, as a catalog carries it.
+  z.object({
+    id: z.string(),
+    kind: z.literal("mail"),
+    connectorId: z.string(),
+    connectorName: z.string(),
+    adapterType: z.string(),
+  }),
   // The Search tab (D205). Nothing but its id: the words are handed to it when
   // it is opened and never written into a layout or a tab group, so a tab
   // restored from either comes back empty.
@@ -312,6 +321,7 @@ export const resultPanelId = (resultId: string) => `result:${resultId}`
 export const widgetPanelId = (dashboardId: string, widgetId: string, uid: string) =>
   `widget-tab:${dashboardId}:${widgetId}:${uid}`
 export const serviceLogsPanelId = (serviceId: string) => `service-logs:${serviceId}`
+export const mailPanelId = (connectorId: string) => `mail:${connectorId}`
 /** One Search tab: searching again brings it forward with the new words. */
 export const SEARCH_PANEL_ID = "search"
 
@@ -338,6 +348,8 @@ const WidgetPanelView = defineAsyncComponent(
 const ServiceLogsPanelView = defineAsyncComponent(
   () => import("@/features/services/ServiceLogsPanel.vue")
 )
+
+const MailPanelView = defineAsyncComponent(() => import("@/features/mail/MailPanel.vue"))
 
 /**
  * The PDF renderer is the same kind of cost as the document stack: nobody who
@@ -459,6 +471,7 @@ export function roleOf(panel: Panel): PanelRole {
     case "widget":
     case "service-logs":
     case "relationships":
+    case "mail":
       return "work"
   }
 }
@@ -675,6 +688,12 @@ function baseLookOf(panel: Panel): PanelLook {
         title: t("workspace.look.service_output", { name: panel.serviceName }),
         icon: appIcons.notes,
         reloadTooltip: t("workspace.look.reread_output"),
+      }
+    case "mail":
+      return {
+        title: panel.connectorName,
+        icon: adapterIcon(panel.adapterType),
+        reloadTooltip: t("mail.reread"),
       }
     case "search":
       return {
@@ -940,6 +959,14 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
       return bind(key, () => h(WidgetPanelView, { panelId: panel.id, panel }))
     case "service-logs":
       return bind(key, () => h(ServiceLogsPanelView, { panelId: panel.id, panel }))
+    case "mail":
+      return bind(key, () =>
+        h(MailPanelView, {
+          panelId: panel.id,
+          connectorId: panel.connectorId,
+          title: panel.connectorName,
+        })
+      )
     case "search":
       return bind(key, () => h(SearchTabView, { panelId: panel.id }))
   }

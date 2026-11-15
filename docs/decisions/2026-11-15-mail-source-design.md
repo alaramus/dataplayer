@@ -94,8 +94,9 @@ visible to them, as every shared connection is.
 ### D369. A message's HTML is untrusted and is shown without its scripts, styles reaching out, or remote images
 
 The HTML of a letter is written by a stranger. It is sanitised in the browser
-with DOMPurify, the same one Markdown uses, and drawn in an iframe with an
-empty `sandbox` — no scripts, no forms, no navigation of the page — and a
+with DOMPurify, the same one Markdown uses, and drawn in an iframe whose
+`sandbox` allows only popups — no scripts, no forms, no navigation of the
+page — and a
 Content-Security-Policy that allows images only from `data:` until the reader
 presses **Show images** for that message. A remote image is how a sender
 learns that and when a letter was read. A link opens in a new browser tab, and

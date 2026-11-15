@@ -41,8 +41,9 @@ class _MailBase(BaseModel):
     imap_port: int = Field(
         default=993, title=N_("IMAP port"), ge=1, le=65535, json_schema_extra=layout(row="imap")
     )
+    # Its own line: three fields in one row left the server's name no room.
     imap_security: Security = Field(
-        default="tls", title=N_("IMAP security"), json_schema_extra=layout(row="imap")
+        default="tls", title=N_("IMAP security"), json_schema_extra=layout()
     )
     smtp_host: str = Field(
         title=N_("SMTP server"), min_length=1, max_length=255, json_schema_extra=layout(row="smtp")
@@ -51,7 +52,7 @@ class _MailBase(BaseModel):
         default=465, title=N_("SMTP port"), ge=1, le=65535, json_schema_extra=layout(row="smtp")
     )
     smtp_security: Security = Field(
-        default="tls", title=N_("SMTP security"), json_schema_extra=layout(row="smtp")
+        default="tls", title=N_("SMTP security"), json_schema_extra=layout()
     )
     save_sent: bool = Field(
         default=True,

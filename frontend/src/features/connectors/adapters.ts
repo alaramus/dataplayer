@@ -26,6 +26,7 @@ const ICONS: Record<string, string> = {
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",
+  mail: "img:/icons/services/mail.svg",
 }
 
 export const UNKNOWN_ADAPTER_ICON = "cable"
@@ -57,6 +58,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   stream: "view_stream",
   market: "candlestick_chart",
   files: "folder",
+  mail: "mail",
 }
 
 export const UNKNOWN_CATEGORY_ICON = "category"

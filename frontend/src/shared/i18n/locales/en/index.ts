@@ -24,6 +24,7 @@ import { hypertable_design } from "./hypertable_design"
 import { kit } from "./kit"
 import { layout } from "./layout"
 import { logs } from "./logs"
+import { mail } from "./mail"
 import { notifications } from "./notifications"
 import { onboarding } from "./onboarding"
 import { pipelines } from "./pipelines"
@@ -46,6 +47,6 @@ import { terminals } from "./terminals"
 import { windows } from "./windows"
 import { workspace } from "./workspace"
 
-export const en = { common, language, auth, theme, preferences, workspace, layout, catalog, kit, grid, dashboards, ai, content, queries, connectors, servers, ssh_keys, table_design, hypertable_design, structure, pipelines, services, search, search_index, activity, notifications, shares, terminals, admin, logs, onboarding, charts, summary, relationships, declared, record, graph, windows, freshness, schema_form, shell }
+export const en = { common, language, auth, theme, preferences, workspace, layout, catalog, kit, grid, dashboards, ai, content, queries, connectors, servers, ssh_keys, table_design, hypertable_design, structure, pipelines, services, search, search_index, activity, notifications, shares, terminals, admin, logs, onboarding, charts, summary, relationships, declared, record, graph, windows, freshness, schema_form, shell, mail }
 
 export type Messages = typeof en

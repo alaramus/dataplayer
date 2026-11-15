@@ -18,7 +18,12 @@ import MakeHereDialog from "@/features/connectors/MakeHereDialog.vue"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
 import { connectorIcon } from "@/features/connectors/adapters"
 import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/connectors/windows"
-import { connectorsKey, useConnectors, useMakeConnectorHere } from "@/features/connectors/api"
+import {
+  connectorsKey,
+  useAdapterTypes,
+  useConnectors,
+  useMakeConnectorHere,
+} from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import ServiceCredentialsDialog from "@/features/services/ServiceCredentialsDialog.vue"
 import StartServiceDialog from "@/features/services/StartServiceDialog.vue"
@@ -64,6 +69,7 @@ import {
   emptyOf,
   headOf,
   lookOf,
+  mailPanelId,
   nodesOpenOn,
   openConnectorIds,
   panelsOn,
@@ -142,6 +148,7 @@ import { newId } from "@/shared/ids"
  * and a data tab torn off into a section of its own. See the spec, T5.
  */
 const connectors = useConnectors()
+const adapterTypes = useAdapterTypes()
 const connectorNameFilter = ref("")
 const connectorFilterOpen = ref(false)
 const connectorColors = computed(() => new Map(
@@ -631,6 +638,19 @@ function openCatalog(connector: ConnectorPublic) {
   // and the empty panel.
   if (!connector.enabled) {
     toast.info(t("workspace.page.switched_off", { name: connector.name }))
+    return
+  }
+  // What the source looks like opened is the type's to say: a mailbox opens
+  // as a mail client, not a catalog (D366).
+  const shape = adapterTypes.data.value?.find((one) => one.name === connector.adapter_type)?.catalog_shape
+  if (shape === "mailbox") {
+    openPanel({
+      id: mailPanelId(connector.id),
+      kind: "mail",
+      connectorId: connector.id,
+      connectorName: connector.name,
+      adapterType: connector.adapter_type,
+    })
     return
   }
   // The ordinary catalog keeps one stable identity per connection. Copies

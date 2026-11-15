@@ -27,6 +27,7 @@ import {
   rowsPanelId,
   SEARCH_PANEL_ID,
   serviceLogsPanelId,
+  mailPanelId,
   structurePanelId,
   summaryPanelId,
   widgetPanelId,
@@ -47,6 +48,7 @@ const KINDS: PanelKind[] = [
   "widget",
   "service-logs",
   "search",
+  "mail",
 ]
 
 const samples: Record<PanelKind, Panel> = {
@@ -159,6 +161,13 @@ const samples: Record<PanelKind, Panel> = {
     serviceName: "warehouse",
   },
   search: { id: SEARCH_PANEL_ID, kind: "search" },
+  mail: {
+    id: mailPanelId("c1"),
+    kind: "mail",
+    connectorId: "c1",
+    connectorName: "Work mail",
+    adapterType: "mail",
+  },
 }
 
 describe("the panel registry", () => {

@@ -90,10 +90,14 @@ Spec: [A mailbox as a source](../../decisions/2026-11-15-mail-source-design.md)
 
 ## D369. A message's HTML is untrusted and is shown without its scripts or remote images
 
-The HTML is sanitised in the browser with DOMPurify and drawn in an iframe
-with an empty `sandbox` and a Content-Security-Policy that allows images only
-from `data:` until the reader presses **Show images** for that message. Links
-open in a new browser tab.
+The HTML is sanitised in the browser with DOMPurify (`features/mail/letter.ts`)
+and drawn in an iframe whose `sandbox` allows nothing but popups — no scripts,
+no forms, no same origin, no navigation of the page — so a link opens a tab of
+its own. A Content-Security-Policy inside it allows images only from `data:`
+until the reader presses **Show images** for that message, asked again for each
+letter. The letter's own stylesheet is kept: with no scripts and nothing
+loaded, it only paints. `cid:` images are drawn from what came with the
+letter.
 
 Spec: [A mailbox as a source](../../decisions/2026-11-15-mail-source-design.md)
 

@@ -15,7 +15,7 @@ export interface AiOpenIntent {
   representations: NodeRepresentation[]
 }
 
-function contextLabel(panel: Exclude<Panel, { kind: "connectors" | "widget" | "service-logs" | "search" }>): string {
+function contextLabel(panel: Exclude<Panel, { kind: "connectors" | "widget" | "service-logs" | "search" | "mail" }>): string {
   const look = lookOf(panel)
   const parts = [connectionNameOf(panel), look.title, t(`ai.context.kinds.${panel.kind}`)].filter(
     (part, index, all): part is string => Boolean(part) && all.indexOf(part) === index
@@ -44,7 +44,9 @@ export function screenContexts(panels: readonly Panel[]): ScreenContext[] {
       panel.kind === "connectors" ||
       panel.kind === "widget" ||
       panel.kind === "service-logs" ||
-      panel.kind === "search"
+      panel.kind === "search" ||
+      // A mailbox is its owner's alone and never reaches the agent (D367).
+      panel.kind === "mail"
     ) {
       return []
     }
