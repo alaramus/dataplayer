@@ -292,15 +292,7 @@ jobs:
       # Both CQL servers take a minute or two to listen, and their password
       # store a few seconds more; a sign-in answers only when both are ready.
       - working-directory: backend
-        run: |
-          for port in 9043 9044; do
-            for attempt in $(seq 1 60); do
-              if uv run python -c "from cassandra.cluster import Cluster; from cassandra.auth import PlainTextAuthProvider as P; c = Cluster(['127.0.0.1'], port=$port, auth_provider=P('cassandra', 'cassandra'), connect_timeout=5); c.connect(); c.shutdown()" 2>/dev/null; then
-                break
-              fi
-              sleep 5
-            done
-          done
+        run: uv run python -m tests.utils.wait_for_cql
       # A failure prints one line per test rather than a full traceback, so
       # one broken fixture cannot bury the cause under pages of repeats.
       # --require-services: a developer's run skips the tests of a server that
