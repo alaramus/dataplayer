@@ -44,6 +44,7 @@ are encrypted at rest and never leave the backend.
   order book and trades live, and with a read-only key the account's balances, orders and trades.
 - <img src="frontend/public/icons/services/folder.svg" height="20" alt=""> **Files** on the server, and <img src="frontend/public/icons/services/ssh.svg" height="20" alt=""> **SSH servers**: a file explorer with
   preview, upload and download, and a terminal in the browser.
+- <img src="frontend/public/icons/services/mail.svg" height="20" alt=""> **Email**: Folders, letters, writing and attachments over IMAP and SMTP.
 
 A connection is added through a form generated from the source's own schema,
 or by pasting a connection string, and is checked before it is saved.
