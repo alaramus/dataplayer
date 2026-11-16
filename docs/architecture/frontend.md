@@ -180,12 +180,16 @@ Spec: [The connector registry and the adapter contract](../decisions/2026-08-15-
 
 ## Checking the types at all
 
-`vue-tsc` has two ways of checking nothing while looking clean. Under the bun
-runtime it fails to register the `.vue` extension, so every component drops out
-of the program (4 files under Node, 0 under bun); on Windows the `.cmd` shim
-invokes Node and hides it. And `vue-tsc --noEmit` against `tsconfig.json`, which
-lists project references and `"files": []`, reads no file and exits 0.
-`type-check` therefore runs `vue-tsc -b --force`, under Node.
+`vue-tsc` adds `.vue` to TypeScript by patching Node's `fs.readFileSync` while
+it loads `tsc`. Bun's module loader does not read through it, so under the bun
+runtime every component drops out of the program: as of vue-tsc 3.3 and Bun 1.4
+that fails with `TS2307` on every `.vue` import (280 `.vue` files under Node, 0
+under bun). `bun run` itself follows the `#!/usr/bin/env node` line and runs it
+under Node; `bun --bun` does not. Vitest needs Node as well: under bun its jsdom
+workers fail to start and no test runs. A separate trap: `vue-tsc --noEmit`
+against `tsconfig.json`, which lists project references and `"files": []`,
+reads no file and exits 0. `type-check` therefore runs `vue-tsc -b --force`,
+under Node.
 
 ## D50. Markdown is rendered in the browser, and everything that becomes DOM is sanitised twice
 

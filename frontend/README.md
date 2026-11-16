@@ -17,17 +17,19 @@ bun run test:unit     # Vitest
 bun run test          # Playwright
 ```
 
-## vue-tsc needs Node, not bun
+## vue-tsc and Vitest need Node, not bun
 
 `vue-tsc` does not work under the bun runtime: it fails to register the `.vue`
-extension, so every component silently drops out of the compiler program and
-imports such as `@/App.vue` start to look like they point at nothing. Measured:
-under Node every `.vue` file is in the program, under bun none of them is.
+extension, so every component drops out of the compiler program and every
+import such as `@/App.vue` fails with `TS2307`. Vitest's jsdom workers fail to
+start under bun as well, and no test runs. See
+[frontend.md](../docs/architecture/frontend.md#checking-the-types-at-all).
 
 What follows from that:
 
-- run `type-check` and `build:checked` where a real Node is installed. On
-  Windows this happens by itself: the `.cmd` shim invokes Node.
+- run `type-check`, `build:checked` and `test:unit` where a real Node is
+  installed. `bun run` then runs them under Node by itself, following each
+  tool's `#!/usr/bin/env node` line; `bun --bun` would not.
 - the `oven/bun:1` image has no real Node, so `build` deliberately runs
   `vite build` alone. The bundler does not need the types — it strips them.
 

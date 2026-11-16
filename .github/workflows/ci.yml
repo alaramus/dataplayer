@@ -320,8 +320,8 @@ jobs:
       - working-directory: frontend
         run: bun install --frozen-lockfile
       # Everything below runs under Node on purpose. vue-tsc under the bun
-      # runtime fails to register the .vue extension and checks nothing at all
-      # while exiting 0; the trap is written up in AGENTS.md.
+      # runtime fails to register the .vue extension and Vitest's jsdom workers
+      # fail to start; see docs/architecture/frontend.md.
       - working-directory: frontend
         run: npx eslint .
       - working-directory: frontend
