@@ -24,7 +24,8 @@ from urllib.parse import urlsplit
 import bson
 import pytest
 
-from app.core.config import settings
+from app.core.config import Settings, settings
+from app.prepare_test_database import TEST_SUFFIX, database_name, suite_database_url
 
 # Long enough for a service container on a CI network, short enough that a
 # refused port on Windows — which retries before it gives up — costs a second.
@@ -128,9 +129,37 @@ class Server:
         )
 
 
+def refuse_unless_suite_database(url: str) -> None:
+    """The suite deletes every user when it ends, so it runs only in a
+    database whose name ends in `_test`."""
+    name = database_name(url)
+    if not name.endswith(TEST_SUFFIX):
+        raise pytest.UsageError(
+            f"The suite deletes every user when it ends, so it does not run in {name!r}: "
+            f"give it a database whose name ends in {TEST_SUFFIX}"
+        )
+
+
+def point_at_suite_database() -> None:
+    """Choose the suite's database before anything opens one.
+
+    The application's with `_test` after the name, made by
+    `python -m app.prepare_test_database`, or TEST_DATABASE_URL. Called on
+    import of `tests/utils/suite_database.py`, the first thing the conftest
+    imports: `app.core.db` builds its engine when it is first imported.
+    """
+    wanted = os.environ.get("TEST_DATABASE_URL") or suite_database_url(str(settings.DATABASE_URL))
+    refuse_unless_suite_database(wanted)
+    # Read through Settings, so the address becomes psycopg's as the
+    # application's own does.
+    settings.DATABASE_URL = Settings(DATABASE_URL=wanted).DATABASE_URL
+    # And for any program the suite starts, which reads the environment.
+    os.environ["DATABASE_URL"] = str(settings.DATABASE_URL)
+
+
 POSTGRES = Server(
-    name="the application database",
-    variable="DATABASE_URL",
+    name="the suite's database",
+    variable="TEST_DATABASE_URL",
     start="docker compose up -d db",
     read=lambda: str(settings.DATABASE_URL),
     base=True,

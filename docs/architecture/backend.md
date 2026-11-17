@@ -188,8 +188,16 @@ The suite talks to real servers, and each one is named once, in
 `tests/utils/services.py`: where its address comes from and the command that
 starts it.
 
-- **The application database is the base.** Without it nothing runs, so a run
-  stops at once with one line saying how to start it.
+- **The suite has a database of its own.** It deletes every user and
+  connection when it ends, so it runs in the application's database with
+  `_test` after the name — `app_test` beside `app`, on the same server —
+  chosen in `tests/utils/suite_database.py` before anything opens one, or in
+  `TEST_DATABASE_URL`. A name that does not end in `_test` stops the run.
+  `python -m app.prepare_test_database` creates it, migrates it and loads
+  `demo_lab`; development's prestart and CI both run it.
+- **That database's server is the base.** Without it nothing runs, so a run
+  stops at once with one line saying how to start it, or how to make the
+  database when the server answers and it is not there.
 - **Every other server belongs to the tests of one piece** — Redis to the redis
   adapter and the shared cache, a TimescaleDB to the metrics store. A test gets
   the address from `require()`, and when nothing answers there it is skipped
@@ -200,6 +208,9 @@ starts it.
   skipped tests would pass a server it never had.
 - A server's address has a default that works on a developer machine, and an
   environment variable CI sets (`TEST_REDIS_URL`, `TEST_METRICS_STORE_URL`).
+- **A product card's server is local** (D377, D378). Valkey, TiDB and the rest
+  are not in the workflow, so their entries say `local=True` and their tests
+  are skipped without them even under `--require-services`.
 
 A piece that needs a server of its own — MySQL for an adapter, say — adds an
 entry to `SERVERS`, a service to `compose.override.yml` or its own compose file,

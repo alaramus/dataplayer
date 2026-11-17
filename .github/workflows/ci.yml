@@ -260,27 +260,14 @@ jobs:
         run: uv run mypy app
       - working-directory: backend
         run: uv run lint-imports
-      # The service starts as an empty database. In a running stack the schema
-      # is applied by the prestart container and pytest inherits it; here there
-      # is nothing to inherit, and every test errors with `relation "user"
-      # does not exist`. This is what scripts/prestart.sh does, minus the
-      # first superuser, which the test fixtures create themselves.
+      # The suite runs in its own database, `app_test` beside `app`, and never
+      # in the application's. It is made here exactly as development's
+      # prestart makes it: created, migrated, the agent's tables (D139) and
+      # `demo_lab`, which the query tests read and write.
       - working-directory: backend
         run: uv run python app/tests_pre_start.py
       - working-directory: backend
-        run: uv run alembic upgrade head
-      # LangGraph's tables for the agent, as prestart creates them (D139).
-      - working-directory: backend
-        run: uv run python -m app.prepare_checkpoints
-      # And this is what scripts/prestart-dev.sh adds on top, minus the
-      # personal storage, which the tests build for themselves in a temporary
-      # directory. Everything the query capability is tested against — writing,
-      # DDL and a plan — runs on a real PostgreSQL and reads or writes inside
-      # `demo_lab`; a developer inherits that schema from the prestart
-      # container and CI has nothing to inherit it from.
-      # Use the fixtures bundled with the PostgreSQL adapter.
-      - working-directory: backend
-        run: uv run python -m app.seed_database
+        run: uv run python -m app.prepare_test_database
       # The SSH server ships with AllowTcpForwarding off, and the tunnel tests
       # reach the other services through it (D282). A service starts before
       # the checkout, so it cannot mount the script the compose file does;

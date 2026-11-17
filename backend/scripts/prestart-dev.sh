@@ -21,3 +21,6 @@ python -m app.seed_storage
 python -m app.seed_references
 # The agent of the monitor-agent profile, when METRICS_DEV_AGENT_KEY is set.
 python -m app.seed_metrics_agent
+# The backend suite's own database beside this one, `app_test`: the suite
+# deletes every user when it ends, so it never runs in the one a person uses.
+python -m app.prepare_test_database

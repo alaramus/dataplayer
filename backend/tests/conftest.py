@@ -1,10 +1,17 @@
+# isort: off
+# First of all: the suite deletes every user when it ends, so it is pointed at
+# its own database before anything opens one.
+import tests.utils.suite_database  # noqa: F401 - chooses the database on import
+
+# isort: on
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Generator
 from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlmodel import delete
+from sqlalchemy.exc import OperationalError
+from sqlmodel import delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
@@ -68,8 +75,19 @@ def _user_storage_root(tmp_path_factory: pytest.TempPathFactory) -> Generator[Pa
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _application_database() -> None:
+async def _application_database() -> None:
     services.POSTGRES.require()
+    # The server answers; the suite's own database on it may not be made yet.
+    try:
+        async with async_session_maker() as session:
+            await session.exec(select(1))
+    except OperationalError:
+        pytest.exit(
+            "The suite's database is not there: run `uv run python -m "
+            "app.prepare_test_database` from backend/, or restart the stack "
+            "with `docker compose up -d db backend`, whose prestart makes it",
+            returncode=pytest.ExitCode.USAGE_ERROR,
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)

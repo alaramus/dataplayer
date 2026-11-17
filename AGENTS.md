@@ -261,9 +261,10 @@ a warmed dev server together.
 - The backend is one process (D124). Development's `fastapi dev` is one too, so
   a second worker breaks transactions, result pages and topics where nobody
   working on the code can see it.
-- Backend tests wipe users in the development database. Running
-  `docker compose up -d db backend` afterwards restores the superuser and
-  development samples through prestart.
+- Backend tests delete every user in the database they run in, so they run
+  in `app_test`, never in `app`, and refuse a database whose name does not end
+  in `_test`. Prestart makes `app_test`; without the stack,
+  `uv run python -m app.prepare_test_database` from `backend/` does.
 - Alembic sees only models imported by `app/alembic/env.py`.
 - LangGraph's saver `setup()` builds indexes CONCURRENTLY and waits for ever in
   a process holding a transaction; it runs only in `app.prepare_checkpoints`.
