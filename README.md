@@ -22,20 +22,38 @@ are encrypted at rest and never leave the backend.
 
 **Sources**
 
-- <img src="frontend/public/icons/services/postgresql.svg" height="20" alt=""> **PostgreSQL**, including <img src="frontend/public/icons/services/timescale.svg" height="20" alt=""> TimescaleDB: hypertables, chunks, policies
-  and continuous aggregates.
-- <img src="frontend/public/icons/services/mysql.svg" height="20" alt=""> **MySQL** and <img src="frontend/public/icons/services/mariadb.svg" height="20" alt=""> **MariaDB**: connect to databases and work with their catalogs
+- <img src="frontend/public/icons/services/postgresql.svg" height="20" alt=""> **PostgreSQL**, including
+  <img src="frontend/public/icons/services/timescale.svg" height="20" alt=""> **TimescaleDB** with hypertables, chunks, policies and
+  continuous aggregates, <img src="frontend/public/icons/services/citus.svg" height="20" alt=""> **Citus** and
+  <img src="frontend/public/icons/services/paradedb.svg" height="20" alt=""> **ParadeDB**: connect to databases and work with their
+  catalogs and tables.
+- <img src="frontend/public/icons/services/mysql.svg" height="20" alt=""> **MySQL**,
+  <img src="frontend/public/icons/services/mariadb.svg" height="20" alt=""> **MariaDB**,
+  <img src="frontend/public/icons/services/percona.svg" height="20" alt=""> **Percona Server** and
+  <img src="frontend/public/icons/services/tidb.svg" height="20" alt=""> **TiDB**: connect to databases and work with their catalogs
   and tables.
-- <img src="frontend/public/icons/services/cassandra.svg" height="20" alt=""> **Cassandra** and <img src="frontend/public/icons/services/scylladb.svg" height="20" alt=""> **ScyllaDB**: connect to databases and work with their catalogs
+- <img src="frontend/public/icons/services/cassandra.svg" height="20" alt=""> **Cassandra** and
+  <img src="frontend/public/icons/services/scylladb.svg" height="20" alt=""> **ScyllaDB**: connect to databases and work with their catalogs
   and tables.
+- **Hosted databases**, from a card that fills in what the provider always names
+  the same and says where the rest is found:
+  <img src="frontend/public/icons/services/supabase.svg" height="20" alt=""> **Supabase** and
+  <img src="frontend/public/icons/services/neon.svg" height="20" alt=""> **Neon** for PostgreSQL, and
+  <img src="frontend/public/icons/services/aws.svg" height="20" alt=""> **Amazon RDS**,
+  <img src="frontend/public/icons/services/azure.svg" height="20" alt=""> **Azure Database** and
+  <img src="frontend/public/icons/services/googlecloud.svg" height="20" alt=""> **Cloud SQL** for PostgreSQL and for MySQL.
 - <img src="frontend/public/icons/services/sqlite.svg" height="20" alt=""> **SQLite**: open a database file and browse and edit its tables.
 - <img src="frontend/public/icons/services/clickhouse.svg" height="20" alt=""> **ClickHouse**: A ClickHouse server, over its HTTP interface.
 - <img src="frontend/public/icons/services/mongodb.svg" height="20" alt=""> **MongoDB**: databases and collections, documents read and changed as
   whole rows, fields and indexes, and a console in the shell's own syntax.
-- <img src="frontend/public/icons/services/redis.svg" height="20" alt=""> **Redis**: the key space as a tree grouped by `:`, every value type read
-  as rows.
-- <img src="frontend/public/icons/services/kafka.svg" height="20" alt=""> **Kafka**: topics and consumer groups with their positions and lag, a
-  topic's messages as rows, and new messages sent from the grid.
+- <img src="frontend/public/icons/services/redis.svg" height="20" alt=""> **Redis**,
+  <img src="frontend/public/icons/services/valkey.svg" height="20" alt=""> **Valkey**,
+  <img src="frontend/public/icons/services/keydb.svg" height="20" alt=""> **KeyDB** and
+  <img src="frontend/public/icons/services/dragonfly.svg" height="20" alt=""> **Dragonfly**: the key space as a tree grouped by `:`, every value
+  type read as rows.
+- <img src="frontend/public/icons/services/kafka.svg" height="20" alt=""> **Kafka** and
+  <img src="frontend/public/icons/services/redpanda.svg" height="20" alt=""> **Redpanda**: topics and consumer groups with their positions and
+  lag, a topic's messages as rows, and new messages sent from the grid.
 - <img src="frontend/public/icons/services/rabbitmq.svg" height="20" alt=""> **RabbitMQ**: virtual hosts, queues, streams and exchanges with their counts
   and bindings, a stream's messages as rows, a queue peeked into, and queues read and fed by pipelines.
 - <img src="frontend/public/icons/services/zookeeper.svg" height="20" alt=""> **ZooKeeper**: the znode tree, each znode's data, stat and ACL, and
@@ -44,10 +62,15 @@ are encrypted at rest and never leave the backend.
   order book and trades live, and with a read-only key the account's balances, orders and trades.
 - <img src="frontend/public/icons/services/folder.svg" height="20" alt=""> **Files** on the server, and <img src="frontend/public/icons/services/ssh.svg" height="20" alt=""> **SSH servers**: a file explorer with
   preview, upload and download, and a terminal in the browser.
-- <img src="frontend/public/icons/services/mail.svg" height="20" alt=""> **Email**: Folders, letters, writing and attachments over IMAP and SMTP.
+- <img src="frontend/public/icons/services/mail.svg" height="20" alt=""> **Email**, with a
+  <img src="frontend/public/icons/services/gmail.svg" height="20" alt=""> **Gmail** card: folders, letters, writing and attachments
+  over IMAP and SMTP.
 
-A connection is added through a form generated from the source's own schema,
-or by pasting a connection string, and is checked before it is saved.
+A source type that speaks to several products is offered as a card per
+product, each with its own logo and, where the product can be run here, a
+server to start. A connection is added through a form generated from the
+source's own schema, or by pasting a connection string, and is checked before
+it is saved.
 
 **Working with data**
 
@@ -68,8 +91,8 @@ or by pasting a connection string, and is checked before it is saved.
   with a history of runs.
 - Dashboards fed by connection polls and by a small metrics agent installed on
   your machines.
-- Managed services: start a database, broker or cache in a container from a
-  template, and back up and restore databases.
+- Managed services: start a database, broker or cache in a container from the
+  card of its product, and back up and restore databases.
 - Share links to a tab, with access requests.
 
 **AI agent**
@@ -160,8 +183,10 @@ and its interactive docs at http://localhost:8000/docs. To fill the connections
 panel with examples — the bundled PostgreSQL under several names, file storage
 and Redis — run `bun run seed:connectors` from the repository root. Adminer,
 Mailcatcher and the servers the tests and examples point at — Redis, SSH,
-MySQL, MariaDB, ClickHouse, MongoDB, ZooKeeper, Kafka and RabbitMQ — start on request:
-`docker compose --profile tools up -d`.
+MySQL, MariaDB, ClickHouse, MongoDB, Greenmail, ZooKeeper, Kafka, RabbitMQ,
+Cassandra, ScyllaDB and the other products of those types: Valkey, KeyDB,
+Dragonfly, Redpanda, Percona Server, Citus, ParadeDB and TiDB — start on
+request: `docker compose --profile tools up -d`.
 
 The backend cannot run natively on Windows: psycopg 3 in async mode is
 incompatible with the event loop Python selects there. Use Docker.
