@@ -43,7 +43,7 @@ def test_a_salted_hash_reads_the_password_and_escapes_for_a_shell() -> None:
 
     assert isinstance(hashed, SaltedHash)
     assert "password" in slots_of(shape_of(template, protected=True))
-    value = _credential_value(hashed, {"password": "p"})
+    value = _credential_value(hashed, {"password": "p"}, "dataplayer-scylladb-test")
     assert value.startswith("--auth-superuser-salted-password=\\$6\\$")
     assert value != "--auth-superuser-salted-password=p"
 
