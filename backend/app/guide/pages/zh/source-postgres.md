@@ -190,6 +190,13 @@ PostgreSQL 连接可以向仪表盘报告自己的计数器：按状态划分的
 的行、从磁盘和内存读取的块、冲突、死锁以及数据库大小。所有者会在**仪表盘**
 工作区的**数据源**窗口中启用它，并选择频率。预设布局称为 **PostgreSQL 数据库**。
 
+## 此类型下的其他产品
+
+目录中 PostgreSQL 显示为多张卡片。每张卡片创建的都是同一种连接；卡片只决定它的名称和图标。
+
+- **TimescaleDB**、**Citus** 和 **ParadeDB** 是带扩展的 PostgreSQL。它们的卡片可在此处启动该服务器，数据库打开后即可发现扩展。
+- **Supabase**、**Neon**、**Amazon RDS for PostgreSQL**（也包括 Aurora）、**Azure Database for PostgreSQL** 和 **Cloud SQL for PostgreSQL** 是托管的 PostgreSQL。它们的卡片会填好提供商始终相同的字段，并说明在哪里找到主机和密码。使用密码登录；暂不支持 IAM 和 Microsoft Entra 登录。
+
 ## 限制
 
 - 一页行最多包含 500 行。

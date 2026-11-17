@@ -23,6 +23,7 @@ from app.services.templates import (
     Fixed,
     FromKey,
     Generated,
+    OwnName,
     Published,
     SaltedHash,
     ServiceTemplate,
@@ -290,14 +291,17 @@ def build_container(
     shape: Shape | None = None,
 ) -> ContainerSpec:
     taken = shape if shape is not None else shape_of(template, protected=True)
+    name = container_name(service_id, template)
     return ContainerSpec(
-        name=container_name(service_id, template),
+        name=name,
         image=template.image,
         environment={
-            key: _credential_value(value, credentials)
+            key: _credential_value(value, credentials, name)
             for key, value in taken.environment.items()
         },
-        command=tuple(_credential_value(part, credentials) for part in taken.command),
+        command=tuple(
+            _credential_value(part, credentials, name) for part in taken.command
+        ),
         volume=volume_name(service_id, template),
         data_path=template.data_path,
         container_port=template.container_port,
@@ -362,9 +366,13 @@ def described_options(
     return found
 
 
-def _credential_value(value: CredentialValue, credentials: Credentials) -> str:
+def _credential_value(
+    value: CredentialValue, credentials: Credentials, name: str
+) -> str:
     if isinstance(value, Fixed):
         return value.value
+    if isinstance(value, OwnName):
+        return value.prefix + name + value.suffix
     if isinstance(value, SaltedHash):
         hashed = sha512_crypt(credentials[value.slot])
         if value.escape_dollars:

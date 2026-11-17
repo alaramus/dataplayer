@@ -474,10 +474,44 @@ class MysqlAdapter:
     options_schema=MysqlOptions,
     adapter_class=MysqlAdapter,
     # Two products, one type (D228): a card each, so MariaDB is found as
-    # itself, and each offers to start its own server (D244).
+    # itself, and each offers to start its own server (D244). Percona Server
+    # and the hosted MySQL are cards of it too (D377).
     faces=(
         CatalogFace(key="mysql", title=N_("MySQL"), templates=("mysql",)),
         CatalogFace(key="mariadb", title=N_("MariaDB"), templates=("mariadb",)),
+        CatalogFace(key="percona", title=N_("Percona Server"), templates=("percona",)),
+        CatalogFace(
+            key="aws-rds-mysql",
+            title=N_("Amazon RDS for MySQL"),
+            options={"user": "admin"},
+            note=N_(
+                "Aurora MySQL too. Sign in with a database password; IAM sign-in "
+                "is not supported yet. The instance has to be reachable from "
+                "this server, publicly or through an SSH tunnel."
+            ),
+            note_link="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ConnectToInstance.html",
+        ),
+        CatalogFace(
+            key="azure-mysql",
+            title=N_("Azure Database for MySQL"),
+            note=N_(
+                "Flexible server. Allow this server's address under Networking "
+                "and sign in with a MySQL user; Microsoft Entra sign-in is not "
+                "supported yet."
+            ),
+            note_link="https://learn.microsoft.com/en-us/azure/mysql/flexible-server/quickstart-create-server-portal",
+        ),
+        CatalogFace(
+            key="cloudsql-mysql",
+            title=N_("Cloud SQL for MySQL"),
+            options={"user": "root"},
+            note=N_(
+                "Connect to the instance's public IP with this server among its "
+                "authorised networks, or through an SSH tunnel; IAM sign-in and "
+                "the Auth Proxy are not supported yet."
+            ),
+            note_link="https://cloud.google.com/sql/docs/mysql/connect-overview",
+        ),
     ),
 )
 def _build(options: MysqlOptions, context: AdapterContext) -> MysqlAdapter:

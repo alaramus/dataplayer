@@ -51,7 +51,7 @@ from app.adapters.kafka.writes import KafkaWrites
 from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.reading_on import Bookmark, ReadBlock, ReadStart, UnreadSpan
-from app.adapters.registry import AdapterContext, register
+from app.adapters.registry import AdapterContext, CatalogFace, register
 from app.adapters.search import (
     LastSearch,
     NameBatch,
@@ -288,6 +288,11 @@ class KafkaAdapter:
     ),
     options_schema=KafkaOptions,
     adapter_class=KafkaAdapter,
+    # Redpanda speaks Kafka's protocol, so it is a card of this type (D377).
+    faces=(
+        CatalogFace(key="kafka", title=N_("Kafka"), templates=("kafka",)),
+        CatalogFace(key="redpanda", title=N_("Redpanda"), templates=("redpanda",)),
+    ),
 )
 def _build(options: KafkaOptions, context: AdapterContext) -> KafkaAdapter:
     del context

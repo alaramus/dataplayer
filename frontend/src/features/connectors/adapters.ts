@@ -29,6 +29,23 @@ const ICONS: Record<string, string> = {
   mail: "img:/icons/services/mail.svg",
   // A card of the `mail` type (D373).
   gmail: "img:/icons/services/gmail.svg",
+  // Cards of `postgres`, `mysql`, `redis` and `kafka` (D377). A hosted
+  // server's card wears its cloud's logo, whichever type it is of.
+  timescaledb: "img:/icons/services/timescale.svg",
+  citus: "img:/icons/services/citus.svg",
+  paradedb: "img:/icons/services/paradedb.svg",
+  supabase: "img:/icons/services/supabase.svg",
+  neon: "img:/icons/services/neon.svg",
+  "aws-rds-postgres": "img:/icons/services/aws.svg",
+  "aws-rds-mysql": "img:/icons/services/aws.svg",
+  "azure-postgres": "img:/icons/services/azure.svg",
+  "azure-mysql": "img:/icons/services/azure.svg",
+  "cloudsql-postgres": "img:/icons/services/googlecloud.svg",
+  "cloudsql-mysql": "img:/icons/services/googlecloud.svg",
+  percona: "img:/icons/services/percona.svg",
+  valkey: "img:/icons/services/valkey.svg",
+  keydb: "img:/icons/services/keydb.svg",
+  redpanda: "img:/icons/services/redpanda.svg",
 }
 
 export const UNKNOWN_ADAPTER_ICON = "cable"

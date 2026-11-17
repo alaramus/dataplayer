@@ -294,6 +294,13 @@ etwas für jeden Bildschirm: generierte Spalten, JSON, eine partitionierte
 Tabelle, Volltext- und räumliche Schlüssel, eine Ansicht, ein Trigger und eine
 Tabelle ohne Schlüssel.
 
+## Weitere Produkte dieses Typs
+
+- **Percona Server** ist MySQL. Seine Karte bietet an, ihn hier zu starten,
+  und die Serverversion nennt Percona Server.
+- **Amazon RDS for MySQL** (auch Aurora), **Azure Database for MySQL** und
+  **Cloud SQL for MySQL** sind gehostetes MySQL, mit Passwort angemeldet.
+
 ## Was MySQL hier noch nicht hat
 
 - Eine Datenbank kann nicht umbenannt werden; MySQL hat dafür keinen Weg.

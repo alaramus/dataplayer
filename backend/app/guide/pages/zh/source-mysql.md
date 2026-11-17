@@ -158,6 +158,11 @@ MySQL 连接可以向仪表盘报告。布局名为 **MySQL 服务器**：连接
 
 **新建连接** 提供 **在此处启动 MySQL** 和 **在此处启动 MariaDB**：在本机启动的服务器，保存为以其 root 身份登录的连接。带示例数据时，它会打开在 `demo_lab` 上——组织、人员、项目、数百个任务和测量值——每个界面都有可看的内容：生成列、JSON、分区表、全文键和空间键、视图、触发器，以及一张没有键的表。
 
+## 此类型下的其他产品
+
+- **Percona Server** 就是 MySQL。它的卡片可在此处启动它，服务器版本会显示 Percona Server。
+- **Amazon RDS for MySQL**（也包括 Aurora）、**Azure Database for MySQL** 和 **Cloud SQL for MySQL** 是托管的 MySQL，使用密码登录。
+
 ## MySQL 在这里尚未具备的功能
 
 - 数据库不能重命名；MySQL 没有办法做到这一点。

@@ -104,7 +104,7 @@ from app.adapters.references import (
     FollowReferenceRequest,
     ReferenceTarget,
 )
-from app.adapters.registry import AdapterContext, register
+from app.adapters.registry import AdapterContext, CatalogFace, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -569,6 +569,66 @@ class PostgresAdapter:
     ),
     options_schema=PostgresOptions,
     adapter_class=PostgresAdapter,
+    # The servers that are PostgreSQL under another name, a card each (D377):
+    # an extension's image, or a hosted PostgreSQL whose card fills in what
+    # its provider always names the same and says where the rest is found.
+    faces=(
+        CatalogFace(key="postgres", title=N_("PostgreSQL"), templates=("postgres",)),
+        CatalogFace(key="timescaledb", title=N_("TimescaleDB"), templates=("timescaledb",)),
+        CatalogFace(key="citus", title=N_("Citus"), templates=("citus",)),
+        CatalogFace(key="paradedb", title=N_("ParadeDB"), templates=("paradedb",)),
+        CatalogFace(
+            key="supabase",
+            title=N_("Supabase"),
+            options={"database": "postgres", "user": "postgres"},
+            note=N_(
+                "Copy the host, user and password from Connect on the project's "
+                "page. Its session pooler answers over IPv4; the direct host "
+                "over IPv6 only."
+            ),
+            note_link="https://supabase.com/docs/guides/database/connecting-to-postgres",
+        ),
+        CatalogFace(
+            key="neon",
+            title=N_("Neon"),
+            options={"database": "neondb", "user": "neondb_owner"},
+            note=N_("Copy the host, role and password from Connect on the project's dashboard."),
+            note_link="https://neon.com/docs/connect/connect-from-any-app",
+        ),
+        CatalogFace(
+            key="aws-rds-postgres",
+            title=N_("Amazon RDS for PostgreSQL"),
+            options={"database": "postgres", "user": "postgres"},
+            note=N_(
+                "Aurora PostgreSQL too. Sign in with a database password; IAM "
+                "sign-in is not supported yet. The instance has to be reachable "
+                "from this server, publicly or through an SSH tunnel."
+            ),
+            note_link="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ConnectToPostgreSQLInstance.html",
+        ),
+        CatalogFace(
+            key="azure-postgres",
+            title=N_("Azure Database for PostgreSQL"),
+            options={"database": "postgres"},
+            note=N_(
+                "Flexible server. Allow this server's address under Networking "
+                "and sign in with a PostgreSQL user; Microsoft Entra sign-in is "
+                "not supported yet."
+            ),
+            note_link="https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/quickstart-create-server",
+        ),
+        CatalogFace(
+            key="cloudsql-postgres",
+            title=N_("Cloud SQL for PostgreSQL"),
+            options={"database": "postgres", "user": "postgres"},
+            note=N_(
+                "Connect to the instance's public IP with this server among its "
+                "authorised networks, or through an SSH tunnel; IAM sign-in and "
+                "the Auth Proxy are not supported yet."
+            ),
+            note_link="https://cloud.google.com/sql/docs/postgres/connect-overview",
+        ),
+    ),
 )
 def _build(options: PostgresOptions, context: AdapterContext) -> PostgresAdapter:
     return PostgresAdapter(options, context.pooling, context.tunnels)

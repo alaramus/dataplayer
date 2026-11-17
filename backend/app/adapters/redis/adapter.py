@@ -67,7 +67,7 @@ from app.adapters.redis.url import (
     compose_url_with_password,
     options_from_url,
 )
-from app.adapters.registry import AdapterContext, register
+from app.adapters.registry import AdapterContext, CatalogFace, register
 from app.adapters.relation import RelationModel
 from app.adapters.search import (
     LastSearch,
@@ -326,6 +326,12 @@ class RedisAdapter:
     ),
     options_schema=RedisOptions,
     adapter_class=RedisAdapter,
+    # Forks that answer as Redis does, a card each (D377).
+    faces=(
+        CatalogFace(key="redis", title=N_("Redis"), templates=("redis",)),
+        CatalogFace(key="valkey", title=N_("Valkey"), templates=("valkey",)),
+        CatalogFace(key="keydb", title=N_("KeyDB"), templates=("keydb",)),
+    ),
 )
 def _build(options: Any, context: AdapterContext) -> RedisAdapter:
     # No home directory and no pooling: everything this source does is a

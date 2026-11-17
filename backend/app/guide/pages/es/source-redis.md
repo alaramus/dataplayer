@@ -124,6 +124,12 @@ frecuencia. El diseño preparado para ello se llama **Servidor Redis**.
 sesión de la conexión y en su base de datos, en un contenedor que inicia este
 servidor; no a través de un túnel SSH. Cerrar el terminal o `quit` lo termina.
 
+## Otros productos de este tipo
+
+**Valkey** y **KeyDB** responden como Redis, así que sus tarjetas crean una
+conexión de Redis. Cada una ofrece iniciar su propio servidor aquí, y la
+versión del servidor lo nombra.
+
 ## Lo que Redis no tiene aquí
 
 - Una clave que caduca mientras su pestaña está abierta permanece en pantalla

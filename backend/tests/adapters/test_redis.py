@@ -14,6 +14,7 @@ from app.adapters.protocol import (
 )
 from app.adapters.redis.adapter import RedisAdapter
 from app.adapters.redis.options import RedisNoAuth, RedisPassword
+from app.adapters.redis.session import read_version
 
 
 def _unreachable() -> RedisAdapter:
@@ -157,3 +158,14 @@ async def test_a_server_that_is_not_there_says_nothing_about_its_version() -> No
     # It has none to declare, and answering that is not the same as refusing
     # to answer: a plain server still has a version worth showing.
     assert said.features == []
+
+
+def test_a_fork_is_named_by_what_info_says_of_it() -> None:
+    """Valkey keeps redis_version at 7.2.4 and names itself; KeyDB names itself
+    only by its program (D377)."""
+    assert read_version({"redis_version": "8.2.1", "executable": "/usr/local/bin/redis-server"}) == "8.2.1"
+    assert read_version(
+        {"redis_version": "7.2.4", "server_name": "valkey", "valkey_version": "9.0.7"}
+    ) == "Valkey 9.0.7"
+    assert read_version({"redis_version": "6.3.4", "executable": "/data/keydb-server"}) == "KeyDB 6.3.4"
+    assert read_version({}) is None

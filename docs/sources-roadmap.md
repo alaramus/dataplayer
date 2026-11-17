@@ -12,7 +12,9 @@ file into its own architecture file when it is built.
 
 Built: PostgreSQL with TimescaleDB, MySQL and MariaDB, SQLite, ClickHouse,
 MongoDB, Redis, Cassandra and ScyllaDB, Kafka, RabbitMQ, ZooKeeper, Binance,
-file storage (local and over SFTP) and SSH.
+file storage (local and over SFTP) and SSH. Stage 1, the cards of products
+that are one of these under another name, is done as D377
+([contract](architecture/sources/contract.md)).
 
 ## How cost is judged
 
@@ -29,26 +31,6 @@ file storage (local and over SFTP) and SSH.
 - A new source type follows the shape of the existing ones: six slices
   (catalog, values and pages, row edits, structure, reports and search, actions
   and console), its service and lab, its page in the user's guide.
-
-## Stage 1 — cards only
-
-Products that are the original under another name. Each is a card, a logo, a
-service template where an image exists, and a smoke test against that image.
-
-| Product | Base type | Test server | Notes |
-| --- | --- | --- | --- |
-| Valkey | `redis` | `valkey/valkey` | fork of Redis 7.2 |
-| KeyDB | `redis` | `eqalpha/keydb` | |
-| Redpanda | `kafka` | `redpandadata/redpanda` | Kafka API; admin differs only in reports |
-| Percona Server | `mysql` | `percona/percona-server` | |
-| Citus | `postgres` | `citusdata/citus` | an extension: shards show as ordinary tables |
-| ParadeDB | `postgres` | `paradedb/paradedb` | an extension |
-| Supabase, Neon | `postgres` | plain PostgreSQL | hosted PostgreSQL, password sign-in |
-| AWS RDS and Aurora | `postgres`, `mysql` | plain servers | password sign-in; IAM sign-in is stage 3 |
-| Azure Database, Cloud SQL | `postgres`, `mysql` | plain servers | password sign-in |
-
-Keep the hosted cards to the recognisable few. A dozen logos of the same server
-make the catalog harder to read, not richer.
 
 ## Stage 2 — cards with a quirk list
 

@@ -232,6 +232,12 @@ Ein Broker sagt seinen Clients, wo er ist, und dieser nennt die Adresse, die er
 innerhalb von DataPlayer hat. Katalog, Terminal und Pipelines erreichen ihn
 dort; ein Werkzeug auf Ihrem eigenen Rechner nur über das Terminal.
 
+## Weitere Produkte dieses Typs
+
+**Redpanda** spricht Kafkas Protokoll, daher legt seine Karte eine
+Kafka-Verbindung an und bietet an, einen Redpanda-Broker hier zu starten,
+mit demselben Lab.
+
 ## Was Kafka hier noch nicht hat
 
 Topics in eine andere Verbindung kopieren und Backups werden nicht angeboten.

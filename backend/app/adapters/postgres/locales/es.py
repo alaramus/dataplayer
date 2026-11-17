@@ -583,4 +583,13 @@ MESSAGES: dict[str, str] = {
     # The table designer's engine.
     'A PostgreSQL table is kept one way here; there is no engine to choose': 'Una tabla PostgreSQL se guarda aquí de una sola forma; no hay motor que elegir',
     "A console does not go through an SSH tunnel yet": "Una consola todavía no pasa por un túnel SSH",
+    # Hosted PostgreSQL cards (D377).
+    'Amazon RDS for PostgreSQL': 'Amazon RDS for PostgreSQL',
+    'Azure Database for PostgreSQL': 'Azure Database for PostgreSQL',
+    'Cloud SQL for PostgreSQL': 'Cloud SQL for PostgreSQL',
+    "Copy the host, user and password from Connect on the project's page. Its session pooler answers over IPv4; the direct host over IPv6 only.": 'Copia el host, el usuario y la contraseña desde Connect en la página del proyecto. Su session pooler responde por IPv4; el host directo, solo por IPv6.',
+    "Copy the host, role and password from Connect on the project's dashboard.": 'Copia el host, el rol y la contraseña desde Connect en el panel del proyecto.',
+    'Aurora PostgreSQL too. Sign in with a database password; IAM sign-in is not supported yet. The instance has to be reachable from this server, publicly or through an SSH tunnel.': 'También Aurora PostgreSQL. Inicia sesión con una contraseña de la base de datos; el inicio de sesión con IAM aún no se admite. La instancia tiene que ser accesible desde este servidor, públicamente o a través de un túnel SSH.',
+    "Flexible server. Allow this server's address under Networking and sign in with a PostgreSQL user; Microsoft Entra sign-in is not supported yet.": 'Servidor flexible. Permite la dirección de este servidor en Networking e inicia sesión con un usuario de PostgreSQL; el inicio de sesión con Microsoft Entra aún no se admite.',
+    "Connect to the instance's public IP with this server among its authorised networks, or through an SSH tunnel; IAM sign-in and the Auth Proxy are not supported yet.": 'Conéctate a la IP pública de la instancia con este servidor entre sus redes autorizadas, o a través de un túnel SSH; el inicio de sesión con IAM y el Auth Proxy aún no se admiten.',
 }

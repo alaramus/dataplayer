@@ -243,6 +243,20 @@ base de datos. El propietario lo activa en la ventana **Fuentes** del espacio
 **Cuadros de mando**, y elige la frecuencia. El diseño preparado para ello se
 llama **Base de datos PostgreSQL**.
 
+## Otros productos de este tipo
+
+El catálogo muestra PostgreSQL como varias tarjetas. Cada una crea la misma
+conexión; la tarjeta solo le da nombre y logotipo.
+
+- **TimescaleDB**, **Citus** y **ParadeDB** son PostgreSQL con una
+  extensión. Sus tarjetas ofrecen iniciar ese servidor aquí, y la extensión
+  se encuentra en la base de datos una vez abierta.
+- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (también Aurora),
+  **Azure Database for PostgreSQL** y **Cloud SQL for PostgreSQL** son
+  PostgreSQL alojado. Sus tarjetas rellenan lo que el proveedor siempre
+  llama igual y dicen dónde están el host y la contraseña. Se inicia sesión
+  con contraseña; IAM y Microsoft Entra aún no se admiten.
+
 ## Límites
 
 - Una página de filas contiene como máximo 500 filas.

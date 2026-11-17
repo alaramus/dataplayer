@@ -583,4 +583,13 @@ MESSAGES: dict[str, str] = {
     # The table designer's engine.
     'A PostgreSQL table is kept one way here; there is no engine to choose': 'यहाँ PostgreSQL तालिका एक ही तरह रखी जाती है; चुनने को कोई इंजन नहीं',
     "A console does not go through an SSH tunnel yet": "कंसोल अभी SSH टनल से होकर नहीं चलता",
+    # Hosted PostgreSQL cards (D377).
+    'Amazon RDS for PostgreSQL': 'Amazon RDS for PostgreSQL',
+    'Azure Database for PostgreSQL': 'Azure Database for PostgreSQL',
+    'Cloud SQL for PostgreSQL': 'Cloud SQL for PostgreSQL',
+    "Copy the host, user and password from Connect on the project's page. Its session pooler answers over IPv4; the direct host over IPv6 only.": 'होस्ट, उपयोगकर्ता और पासवर्ड प्रोजेक्ट के पेज पर Connect से कॉपी करें। इसका session pooler IPv4 पर जवाब देता है; सीधा होस्ट केवल IPv6 पर।',
+    "Copy the host, role and password from Connect on the project's dashboard.": 'होस्ट, रोल और पासवर्ड प्रोजेक्ट के डैशबोर्ड पर Connect से कॉपी करें।',
+    'Aurora PostgreSQL too. Sign in with a database password; IAM sign-in is not supported yet. The instance has to be reachable from this server, publicly or through an SSH tunnel.': 'Aurora PostgreSQL भी। डेटाबेस पासवर्ड से साइन इन करें; IAM साइन-इन अभी समर्थित नहीं है। इंस्टेंस इस सर्वर से पहुँच योग्य होना चाहिए, सार्वजनिक रूप से या SSH टनल के ज़रिए।',
+    "Flexible server. Allow this server's address under Networking and sign in with a PostgreSQL user; Microsoft Entra sign-in is not supported yet.": 'फ़्लेक्सिबल सर्वर। Networking में इस सर्वर का पता अनुमति दें और PostgreSQL उपयोगकर्ता से साइन इन करें; Microsoft Entra साइन-इन अभी समर्थित नहीं है।',
+    "Connect to the instance's public IP with this server among its authorised networks, or through an SSH tunnel; IAM sign-in and the Auth Proxy are not supported yet.": 'इंस्टेंस के सार्वजनिक IP से जुड़ें, इस सर्वर को उसके अधिकृत नेटवर्क में जोड़कर, या SSH टनल के ज़रिए; IAM साइन-इन और Auth Proxy अभी समर्थित नहीं हैं।',
 }

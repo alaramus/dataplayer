@@ -127,10 +127,24 @@ class SaltedHash:
     escape_dollars: bool = False
 
 
+@dataclass(frozen=True)
+class OwnName:
+    """The container's own name, between a prefix and a suffix (D377).
+
+    For a server that announces where it is and whose image takes no shell to
+    work that out as it starts, as Redpanda's does not: the name is what the
+    application reaches it by on the service network (D311), and it is the
+    server's to decide, not a request's.
+    """
+
+    prefix: str = ""
+    suffix: str = ""
+
+
 # Either the name of something decided for this service, a constant, or a
 # hash of a credential. Split the same way the slots are: an environment
 # value cannot name a placement, and the compiler is what says so.
-CredentialValue = CredentialSlot | Fixed | SaltedHash
+CredentialValue = CredentialSlot | Fixed | SaltedHash | OwnName
 Value = Slot | Fixed | Address | Published
 
 
@@ -863,6 +877,228 @@ SCYLLA = ServiceTemplate(
 )
 
 
+# Products that are another type's server under their own name (D377): each
+# is a card of that type, and its template starts the product's own image
+# into a connection of the type, the way MariaDB's does for MySQL's (D264).
+
+VALKEY = ServiceTemplate(
+    key="valkey",
+    title=N_("Valkey"),
+    description=N_(
+        "A Valkey server of its own, started on this machine with a password "
+        "nobody has to choose."
+    ),
+    image="valkey/valkey:9.0",
+    container_port=6379,
+    data_path="/data",
+    credentials={PASSWORD: Generated()},
+    choosable=frozenset({PASSWORD}),
+    environment={},
+    command=(Fixed("valkey-server"), Fixed("--requirepass"), PASSWORD),
+    adapter_type="redis",
+    connector_options={
+        "auth_method": Fixed("password"),
+        "host": HOST,
+        "port": PORT,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=60,
+    # As Redis's, and for the same reason.
+    unprotected=Shape(
+        command=(Fixed("valkey-server"),),
+        environment={},
+        connector_options={
+            "auth_method": Fixed("no_auth"),
+            "host": HOST,
+            "port": PORT,
+        },
+    ),
+)
+
+KEYDB = ServiceTemplate(
+    key="keydb",
+    title=N_("KeyDB"),
+    description=N_(
+        "A KeyDB server of its own, started on this machine with a password "
+        "nobody has to choose."
+    ),
+    # KeyDB's last release. Its tags are per machine, and the one pinned tag
+    # for both is not there, so an ARM machine runs this one emulated.
+    image="eqalpha/keydb:x86_64_v6.3.4",
+    container_port=6379,
+    data_path="/data",
+    credentials={PASSWORD: Generated()},
+    choosable=frozenset({PASSWORD}),
+    environment={},
+    # One worker thread: a service is held to one processor (D86).
+    command=(
+        Fixed("keydb-server"),
+        Fixed("--server-threads"),
+        Fixed("1"),
+        Fixed("--requirepass"),
+        PASSWORD,
+    ),
+    adapter_type="redis",
+    connector_options={
+        "auth_method": Fixed("password"),
+        "host": HOST,
+        "port": PORT,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=60,
+    unprotected=Shape(
+        command=(Fixed("keydb-server"), Fixed("--server-threads"), Fixed("1")),
+        environment={},
+        connector_options={
+            "auth_method": Fixed("no_auth"),
+            "host": HOST,
+            "port": PORT,
+        },
+    ),
+)
+
+# One broker, as Kafka's (D311), announcing the address it is reached by. Its
+# image hands the arguments straight to `rpk`, so no shell can read the
+# container's address as Kafka's command does; the name is given instead.
+REDPANDA = ServiceTemplate(
+    key="redpanda",
+    title=N_("Redpanda"),
+    description=N_(
+        "A Redpanda broker of its own, speaking Kafka's protocol, started on "
+        "this machine with a lab of topics and a consumer group."
+    ),
+    image="redpandadata/redpanda:v26.2.7",
+    container_port=9092,
+    data_path="/var/lib/redpanda/data",
+    credentials={},
+    choosable=frozenset(),
+    environment={},
+    command=(
+        Fixed("redpanda"),
+        Fixed("start"),
+        # One core and memory under what every service is given (D86).
+        Fixed("--mode=dev-container"),
+        Fixed("--smp=1"),
+        Fixed("--memory=512M"),
+        Fixed("--kafka-addr=0.0.0.0:9092"),
+        OwnName(prefix="--advertise-kafka-addr=", suffix=":9092"),
+    ),
+    adapter_type="kafka",
+    connector_options={
+        "auth_method": Fixed("none"),
+        "bootstrap_servers": ADDRESS,
+    },
+    startup_timeout_seconds=90,
+)
+
+PERCONA = ServiceTemplate(
+    key="percona",
+    title=N_("Percona Server"),
+    description=N_(
+        "A Percona Server for MySQL of its own, started on this machine with "
+        "a password nobody has to choose."
+    ),
+    # The long-term-support release, the one MySQL's template runs.
+    image="percona/percona-server:8.4",
+    container_port=3306,
+    data_path="/var/lib/mysql",
+    credentials={
+        # As for MySQL, and for the same reason.
+        USER: Fixed("root"),
+        DATABASE: Fixed("dataplayer"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({DATABASE, PASSWORD}),
+    environment={
+        "MYSQL_ROOT_PASSWORD": PASSWORD,
+        "MYSQL_DATABASE": DATABASE,
+    },
+    command=(),
+    adapter_type="mysql",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "database": DATABASE,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=180,
+)
+
+# Citus and ParadeDB are PostgreSQL with an extension the image installs, as
+# TimescaleDB's is: an ordinary PostgreSQL connection, the extension found
+# while it is open (D119).
+CITUS = ServiceTemplate(
+    key="citus",
+    title=N_("Citus"),
+    description=N_(
+        "A PostgreSQL server with Citus already installed in its database, "
+        "started on this machine with credentials nobody has to choose."
+    ),
+    image="citusdata/citus:14.2",
+    container_port=5432,
+    data_path="/var/lib/postgresql",
+    credentials={
+        USER: Fixed("dataplayer"),
+        DATABASE: Fixed("dataplayer"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({USER, DATABASE, PASSWORD}),
+    environment={
+        "POSTGRES_USER": USER,
+        "POSTGRES_PASSWORD": PASSWORD,
+        "POSTGRES_DB": DATABASE,
+    },
+    command=(),
+    adapter_type="postgres",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "database": DATABASE,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=120,
+)
+
+PARADEDB = ServiceTemplate(
+    key="paradedb",
+    title=N_("ParadeDB"),
+    description=N_(
+        "A PostgreSQL server with ParadeDB's search already installed in its "
+        "database, started on this machine with credentials nobody has to "
+        "choose."
+    ),
+    image="paradedb/paradedb:0.26.7-pg18",
+    container_port=5432,
+    data_path="/var/lib/postgresql",
+    credentials={
+        USER: Fixed("dataplayer"),
+        DATABASE: Fixed("dataplayer"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({USER, DATABASE, PASSWORD}),
+    environment={
+        "POSTGRES_USER": USER,
+        "POSTGRES_PASSWORD": PASSWORD,
+        "POSTGRES_DB": DATABASE,
+    },
+    command=(),
+    adapter_type="postgres",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "database": DATABASE,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=120,
+)
+
+
 SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
     POSTGRES,
     TIMESCALE,
@@ -877,6 +1113,12 @@ SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
     CASSANDRA,
     SCYLLA,
     SSH,
+    VALKEY,
+    KEYDB,
+    REDPANDA,
+    PERCONA,
+    CITUS,
+    PARADEDB,
 )
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}
@@ -964,7 +1206,7 @@ def slots_of(shape: Shape) -> frozenset[CredentialSlot]:
     for given in (*shape.command, *shape.environment.values()):
         if isinstance(given, SaltedHash):
             named.add(given.slot)
-        elif not isinstance(given, Fixed):
+        elif not isinstance(given, Fixed | OwnName):
             named.add(given)
     for filled in shape.connector_options.values():
         # A placement is settled when the service is put somewhere; only

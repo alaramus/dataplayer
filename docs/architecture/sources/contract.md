@@ -9,7 +9,7 @@ identity, an instance-level feature answer alongside D13, and typed relation
 specialisations. That file states what is implemented; this one does not keep a
 second copy of it.
 
-Decisions here: D1, D13, D183, D264, D2, D2b, D2a, D98, D21, D2c, D8, D2d, D20.
+Decisions here: D1, D13, D183, D264, D377, D2, D2b, D2a, D98, D21, D2c, D8, D2d, D20.
 
 ## D1. A source type is registered in code
 
@@ -128,6 +128,32 @@ than Cassandra. A connection made before the column, by hand, has none and is
 drawn as its type; one a service made was given its card by the migration.
 
 Spec: [A source type shown as a card per product](../../decisions/2026-10-25-catalog-faces-design.md)
+
+## D377. A product that is the original under another name is a card
+
+Valkey and KeyDB are cards of `redis`, Redpanda of `kafka`, Percona Server of
+`mysql`, and TimescaleDB, Citus and ParadeDB of `postgres`. Each has its logo and
+a service template of its own image. A server that names itself is shown
+by that name in its version: Valkey by `server_name`, KeyDB by its program,
+Percona by `@@version_comment`. Citus and ParadeDB show as extensions (D119).
+Redpanda's version is not shown, as Kafka's is not.
+
+Hosted servers are cards with no template: Supabase and Neon, and Amazon RDS,
+Azure Database and Cloud SQL once for PostgreSQL and once for MySQL. A card
+fills in what its provider always names the same and says where the rest is
+found. Sign-in is by password; a cloud's own sign-in is a later stage.
+
+- **A broker told its own name.** Redpanda's image hands its arguments to
+  `rpk` with no shell, so it cannot read its address as Kafka's command does
+  (D311). A template's command may hold `OwnName`, the container's name that
+  the server decides, and Redpanda announces `<name>:9092`.
+- **Smoke tests run locally.** Each product's image is in
+  `compose.override.yml` behind `tools`, and its tests skip without it, even
+  under `--require-services`. CI does not run them.
+- **Logos.** Citus and KeyDB publish no SVG, so their cards show a letter in
+  a colour of the product's. The colour of Percona's mark is chosen here too.
+
+Spec: [Stage one of the sources roadmap: cards only](../../decisions/2026-11-17-stage-one-cards-design.md)
 
 ## D2. Capabilities are optional protocols
 

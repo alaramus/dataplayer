@@ -426,4 +426,10 @@ MESSAGES: dict[str, str] = {
     '{schema}: {tables} tables': '{schema}: {tables} tablas',
     # The table designer's engine.
     "A MySQL table is made with the server's usual engine here": 'Una tabla MySQL se crea aquí con el motor habitual del servidor',
+    # Hosted MySQL cards (D377).
+    'Amazon RDS for MySQL': 'Amazon RDS for MySQL',
+    'Azure Database for MySQL': 'Azure Database for MySQL',
+    'Cloud SQL for MySQL': 'Cloud SQL for MySQL',
+    'Aurora MySQL too. Sign in with a database password; IAM sign-in is not supported yet. The instance has to be reachable from this server, publicly or through an SSH tunnel.': 'También Aurora MySQL. Inicia sesión con una contraseña de la base de datos; el inicio de sesión con IAM aún no se admite. La instancia tiene que ser accesible desde este servidor, públicamente o a través de un túnel SSH.',
+    "Flexible server. Allow this server's address under Networking and sign in with a MySQL user; Microsoft Entra sign-in is not supported yet.": 'Servidor flexible. Permite la dirección de este servidor en Networking e inicia sesión con un usuario de MySQL; el inicio de sesión con Microsoft Entra aún no se admite.',
 }

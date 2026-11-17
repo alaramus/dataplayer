@@ -361,10 +361,27 @@ async def test_a_card_its_type_does_not_have_is_refused(
 async def test_a_type_of_one_card_is_made_from_its_own_name(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
-    """The window sends the card it was opened from; for postgres that is `postgres` (D264)."""
-    response = await client.post(
-        f"{BASE}/", headers=normal_user_token_headers, json={**_payload("pg"), "face": "postgres"}
-    )
+    """The window sends the card it was opened from; for a type without cards
+    that is its own name, and nothing is kept (D264)."""
+    payload = {
+        "name": "zk",
+        "adapter_type": "zookeeper",
+        "face": "zookeeper",
+        "options": {"auth_method": "anonymous", "host": "localhost", "port": 2181},
+    }
+    response = await client.post(f"{BASE}/", headers=normal_user_token_headers, json=payload)
 
     assert response.status_code == 200, response.text
     assert response.json()["face"] is None
+
+
+async def test_a_hosted_postgres_is_kept_as_its_card(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """PostgreSQL has cards now, Supabase among them (D377)."""
+    response = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={**_payload("sb"), "face": "supabase"}
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["face"] == "supabase"

@@ -583,4 +583,13 @@ MESSAGES: dict[str, str] = {
     # The table designer's engine.
     'A PostgreSQL table is kept one way here; there is no engine to choose': 'Таблица PostgreSQL хранится здесь одним способом; движок выбрать нельзя',
     "A console does not go through an SSH tunnel yet": "Консоль пока не работает через SSH-туннель",
+    # Hosted PostgreSQL cards (D377).
+    'Amazon RDS for PostgreSQL': 'Amazon RDS for PostgreSQL',
+    'Azure Database for PostgreSQL': 'Azure Database for PostgreSQL',
+    'Cloud SQL for PostgreSQL': 'Cloud SQL for PostgreSQL',
+    "Copy the host, user and password from Connect on the project's page. Its session pooler answers over IPv4; the direct host over IPv6 only.": 'Хост, пользователя и пароль скопируйте из Connect на странице проекта. Пул сессий отвечает по IPv4, прямой хост — только по IPv6.',
+    "Copy the host, role and password from Connect on the project's dashboard.": 'Хост, роль и пароль скопируйте из Connect на панели проекта.',
+    'Aurora PostgreSQL too. Sign in with a database password; IAM sign-in is not supported yet. The instance has to be reachable from this server, publicly or through an SSH tunnel.': 'Подходит и для Aurora PostgreSQL. Вход по паролю базы данных; вход через IAM пока не поддерживается. Экземпляр должен быть доступен с этого сервера — публично или через SSH-туннель.',
+    "Flexible server. Allow this server's address under Networking and sign in with a PostgreSQL user; Microsoft Entra sign-in is not supported yet.": 'Гибкий сервер. Разрешите адрес этого сервера в разделе Networking и входите пользователем PostgreSQL; вход через Microsoft Entra пока не поддерживается.',
+    "Connect to the instance's public IP with this server among its authorised networks, or through an SSH tunnel; IAM sign-in and the Auth Proxy are not supported yet.": 'Подключайтесь к публичному IP экземпляра, добавив этот сервер в разрешённые сети, или через SSH-туннель; вход через IAM и Auth Proxy пока не поддерживаются.',
 }

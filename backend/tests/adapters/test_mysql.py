@@ -127,6 +127,15 @@ def test_a_server_is_read_as_its_flavour_and_number() -> None:
     assert not read_profile("10.5.27-MariaDB").supported
 
 
+def test_percona_server_is_mysql_named_by_its_comment() -> None:
+    """Percona says what it is only in @@version_comment (D377)."""
+    percona = read_profile("8.4.11-12", "Percona Server (GPL), Release 12, Revision 76aa4263")
+
+    assert (percona.flavour, percona.text, percona.product) == ("mysql", "8.4.11", "Percona Server")
+    assert read_profile("8.4.11", "MySQL Community Server - GPL").product == "MySQL"
+    assert read_profile("11.4.13-MariaDB", "mariadb.org binary distribution").product == "MariaDB"
+
+
 # --- Addresses -------------------------------------------------------------
 
 

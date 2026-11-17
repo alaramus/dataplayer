@@ -1,5 +1,7 @@
 from httpx import AsyncClient
 
+from app.adapters import options as adapter_options
+from app.adapters import registry
 from app.core.config import settings
 
 BASE = f"{settings.API_V1_STR}/adapter-types"
@@ -174,7 +176,7 @@ async def test_mysql_shows_a_card_for_each_product_and_its_own_server(
 
     types = {item["name"]: item for item in response.json()}
     assert "mariadb" not in types
-    assert types["mysql"]["faces"] == [
+    assert types["mysql"]["faces"][:2] == [
         {
             "key": "mysql",
             "title": "MySQL",
@@ -192,7 +194,50 @@ async def test_mysql_shows_a_card_for_each_product_and_its_own_server(
             "note_link": None,
         },
     ]
-    assert types["postgres"]["faces"] == []
+
+
+async def test_the_products_of_stage_one_are_cards_of_their_types(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Products that are the original under another name are its cards (D377)."""
+    response = await client.get(f"{BASE}/", headers=normal_user_token_headers)
+
+    types = {item["name"]: item for item in response.json()}
+    cards = {name: [face["key"] for face in types[name]["faces"]] for name in types}
+    assert cards["postgres"] == [
+        "postgres",
+        "timescaledb",
+        "citus",
+        "paradedb",
+        "supabase",
+        "neon",
+        "aws-rds-postgres",
+        "azure-postgres",
+        "cloudsql-postgres",
+    ]
+    assert cards["mysql"][2:] == ["percona", "aws-rds-mysql", "azure-mysql", "cloudsql-mysql"]
+    assert cards["redis"] == ["redis", "valkey", "keydb"]
+    assert cards["kafka"] == ["kafka", "redpanda"]
+    for name in ("valkey", "keydb", "redpanda", "percona", "citus", "paradedb", "supabase"):
+        assert name not in types
+    # A hosted server's card starts nothing; it fills the form and says where
+    # the rest is found.
+    supabase = next(face for face in types["postgres"]["faces"] if face["key"] == "supabase")
+    assert supabase["templates"] == []
+    assert supabase["options"] == {"database": "postgres", "user": "postgres"}
+    assert supabase["note_link"].startswith("https://supabase.com/")
+
+
+def test_every_card_fills_only_fields_its_type_has() -> None:
+    """A card's options are fields of the type's form, or the form drops them."""
+    for kind in registry.all_types():
+        fields = {
+            name
+            for variant in adapter_options.variants(kind.options_schema)
+            for name in variant.model_fields
+        }
+        for face in kind.faces:
+            assert set(face.options) <= fields, (kind.name, face.key)
 
 
 async def test_every_type_reads_its_short_lists_from_its_guide_page(

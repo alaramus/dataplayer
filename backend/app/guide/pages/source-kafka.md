@@ -213,6 +213,11 @@ A broker tells its clients where it is, and this one says the address it has
 inside DataPlayer. The catalog, the terminal and pipelines reach it there; a
 tool on your own computer reaches it only through the terminal.
 
+## Other products under this type
+
+**Redpanda** speaks Kafka's protocol, so its card makes a Kafka connection
+and offers to start a Redpanda broker here, with the same lab.
+
 ## What Kafka does not have here yet
 
 Copying topics to another connection and backups are not offered. Kafka's way

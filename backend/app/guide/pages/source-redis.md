@@ -127,6 +127,12 @@ rest.
   tunnel.
 - Closing the terminal ends it. `quit` ends it too.
 
+## Other products under this type
+
+**Valkey** and **KeyDB** answer as Redis does, so their cards make a Redis
+connection. Each offers to start its own server here, and the server's
+version names it.
+
 ## What Redis does not have here
 
 - A key that expires while its tab is open stays on screen until the tab is

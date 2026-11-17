@@ -68,10 +68,20 @@ class ServerProfile:
     version: tuple[int, ...]
     # "8.4.11", "11.4.13": the number and nothing else.
     text: str
+    # Percona Server is MySQL to everything here and says so only in
+    # @@version_comment, so it is a name and not a flavour (D377).
+    percona: bool = False
 
     @property
     def mariadb(self) -> bool:
         return self.flavour == "mariadb"
+
+    @property
+    def product(self) -> str:
+        """What a person calls the server: "MariaDB", "Percona Server", "MySQL"."""
+        if self.mariadb:
+            return "MariaDB"
+        return "Percona Server" if self.percona else "MySQL"
 
     @property
     def supported(self) -> bool:
@@ -82,11 +92,11 @@ class ServerProfile:
 _VERSION = re.compile(r"(\d+(?:\.\d+)*)")
 
 
-def read_profile(version: str) -> ServerProfile:
-    """The server's VERSION(), read as a flavour and a number.
+def read_profile(version: str, comment: str = "") -> ServerProfile:
+    """The server's VERSION() and @@version_comment, read as a flavour and a number.
 
     MariaDB writes its name into the string and MySQL does not; a fork that
-    calls itself MySQL is spoken to as MySQL.
+    calls itself MySQL is spoken to as MySQL, and only named by its comment.
     """
     found = _VERSION.search(version)
     text = found.group(1) if found else "0"
@@ -95,6 +105,7 @@ def read_profile(version: str) -> ServerProfile:
         flavour=flavour,
         version=tuple(int(part) for part in text.split(".")),
         text=text,
+        percona=flavour == "mysql" and "percona" in comment.lower(),
     )
 
 
@@ -530,8 +541,12 @@ class MysqlSession:
     async def profile(self) -> ServerProfile:
         """Which server this is; asked once per session and kept."""
         if self._profile is None:
-            rows = await self.query("SELECT VERSION() AS version")
-            self._profile = read_profile(str(rows[0]["version"]))
+            rows = await self.query(
+                "SELECT VERSION() AS version, @@version_comment AS comment"
+            )
+            self._profile = read_profile(
+                str(rows[0]["version"]), str(rows[0]["comment"] or "")
+            )
         return self._profile
 
     async def check(self) -> ConnectionCheckResult:
@@ -540,8 +555,8 @@ class MysqlSession:
             connection = await self._direct()
             try:
                 async with connection.cursor() as cursor:
-                    await cursor.execute("SELECT VERSION()", ())
-                    version = (await cursor.fetchone())[0]
+                    await cursor.execute("SELECT VERSION(), @@version_comment", ())
+                    version, comment = await cursor.fetchone()
             finally:
                 connection.close()
         except AdapterError as failure:
@@ -551,14 +566,14 @@ class MysqlSession:
         except Exception as exc:
             error_kind, message = classify(exc)
             return ConnectionCheckResult(ok=False, message=message, error_kind=error_kind)
-        profile = read_profile(str(version))
+        profile = read_profile(str(version), str(comment or ""))
         if not profile.supported:
             oldest = ".".join(str(part) for part in OLDEST[profile.flavour])
             return ConnectionCheckResult(
                 ok=False,
                 message=say(
                     "{server} {version} is older than this source supports ({oldest})",
-                    server="MariaDB" if profile.mariadb else "MySQL",
+                    server=profile.product,
                     version=profile.text,
                     oldest=oldest,
                 ),

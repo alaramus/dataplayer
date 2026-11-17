@@ -12,7 +12,7 @@ the connection it failed on, so none of it crosses this boundary.
 
 import logging
 import time
-from collections.abc import AsyncIterator, Awaitable
+from collections.abc import AsyncIterator, Awaitable, Mapping
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -46,6 +46,23 @@ TIMEOUT_SECONDS = 5.0
 # show something, and a replacement character is more honest than a refusal to
 # show a key that happens to hold a JPEG.
 ENCODING = "utf-8"
+
+
+def read_version(info: Mapping[str, object]) -> str | None:
+    """What `INFO server` says the server is, named when it is a fork (D377).
+
+    Valkey keeps `redis_version` at 7.2.4 for clients that read it and names
+    itself in `server_name`; KeyDB names itself only by its program.
+    """
+    if info.get("server_name") == "valkey":
+        valkey = info.get("valkey_version")
+        if isinstance(valkey, str) and valkey:
+            return f"Valkey {valkey}"
+    version = info.get("redis_version")
+    if not isinstance(version, str) or not version:
+        return None
+    program = str(info.get("executable", "")).rsplit("/", 1)[-1]
+    return f"KeyDB {version}" if program == "keydb-server" else version
 
 
 class RedisSession:
@@ -114,9 +131,9 @@ class RedisSession:
     async def server_version(self) -> str | None:
         """What the server says it is running, or nothing when it will not say.
 
-        One field of `INFO server` and no more: the rest of that answer is the
-        machine, the process and the uptime of somebody else's server, none of
-        which was asked for. Never worth failing over — whether the connection
+        The fields of `INFO server` that name the server and no more: the rest
+        of that answer is the machine, the process and the uptime of somebody
+        else's server, none of which was asked for. Never worth failing over — whether the connection
         works is what the caller asked, and this is a line beside the answer.
         """
         try:
@@ -129,8 +146,7 @@ class RedisSession:
             return None
         finally:
             await client.aclose()
-        version = info.get("redis_version")
-        return version if isinstance(version, str) and version else None
+        return read_version(info)
 
     async def check(self) -> ConnectionCheckResult:
         """Say hello, and say what happened in words that name no address."""

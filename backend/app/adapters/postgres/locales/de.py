@@ -583,4 +583,13 @@ MESSAGES: dict[str, str] = {
     # The table designer's engine.
     'A PostgreSQL table is kept one way here; there is no engine to choose': 'Eine PostgreSQL-Tabelle wird hier auf eine Art gespeichert; es gibt keine Engine zu wählen',
     "A console does not go through an SSH tunnel yet": "Eine Konsole läuft noch nicht durch einen SSH-Tunnel",
+    # Hosted PostgreSQL cards (D377).
+    'Amazon RDS for PostgreSQL': 'Amazon RDS for PostgreSQL',
+    'Azure Database for PostgreSQL': 'Azure Database for PostgreSQL',
+    'Cloud SQL for PostgreSQL': 'Cloud SQL for PostgreSQL',
+    "Copy the host, user and password from Connect on the project's page. Its session pooler answers over IPv4; the direct host over IPv6 only.": 'Host, Benutzer und Passwort aus Connect auf der Projektseite kopieren. Sein Session-Pooler antwortet über IPv4, der direkte Host nur über IPv6.',
+    "Copy the host, role and password from Connect on the project's dashboard.": 'Host, Rolle und Passwort aus Connect im Dashboard des Projekts kopieren.',
+    'Aurora PostgreSQL too. Sign in with a database password; IAM sign-in is not supported yet. The instance has to be reachable from this server, publicly or through an SSH tunnel.': 'Auch Aurora PostgreSQL. Mit einem Datenbankpasswort anmelden; die Anmeldung über IAM wird noch nicht unterstützt. Die Instanz muss von diesem Server erreichbar sein, öffentlich oder über einen SSH-Tunnel.',
+    "Flexible server. Allow this server's address under Networking and sign in with a PostgreSQL user; Microsoft Entra sign-in is not supported yet.": 'Flexible Server. Die Adresse dieses Servers unter Networking zulassen und mit einem PostgreSQL-Benutzer anmelden; die Anmeldung über Microsoft Entra wird noch nicht unterstützt.',
+    "Connect to the instance's public IP with this server among its authorised networks, or through an SSH tunnel; IAM sign-in and the Auth Proxy are not supported yet.": 'Mit der öffentlichen IP der Instanz verbinden, mit diesem Server unter ihren autorisierten Netzwerken, oder über einen SSH-Tunnel; die Anmeldung über IAM und der Auth Proxy werden noch nicht unterstützt.',
 }

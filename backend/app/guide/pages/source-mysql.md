@@ -264,6 +264,13 @@ projects, a few hundred tasks and measurements — with something on it for
 every screen: generated columns, JSON, a partitioned table, full-text and
 spatial keys, a view, a trigger, and a table with no key.
 
+## Other products under this type
+
+- **Percona Server** is MySQL. Its card offers to start it here, and the
+  server's version says Percona Server.
+- **Amazon RDS for MySQL** (Aurora too), **Azure Database for MySQL** and
+  **Cloud SQL for MySQL** are hosted MySQL, signed into with a password.
+
 ## What MySQL does not have here yet
 
 - A database cannot be renamed; MySQL has no way to do it.

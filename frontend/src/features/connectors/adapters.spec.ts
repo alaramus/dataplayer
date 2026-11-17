@@ -22,6 +22,15 @@ describe("the icon of a source type", () => {
     expect(adapterIcon("cassandra")).toBe("img:/icons/services/cassandra.svg")
   })
 
+  it("draws each product card of stage one as itself, a hosted one as its cloud (D377)", () => {
+    const own = ["timescaledb", "citus", "paradedb", "supabase", "neon", "percona", "valkey", "keydb", "redpanda"]
+    for (const key of own) expect(adapterIcon(key)).not.toBe(UNKNOWN_ADAPTER_ICON)
+    expect(new Set(own.map(adapterIcon)).size).toBe(own.length)
+    expect(adapterIcon("aws-rds-postgres")).toBe(adapterIcon("aws-rds-mysql"))
+    expect(adapterIcon("azure-postgres")).toBe(adapterIcon("azure-mysql"))
+    expect(adapterIcon("cloudsql-postgres")).toBe(adapterIcon("cloudsql-mysql"))
+  })
+
   it("falls back for a type the backend gained since this build", () => {
     expect(adapterIcon("zeromq")).toBe(UNKNOWN_ADAPTER_ICON)
   })

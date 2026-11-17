@@ -254,6 +254,21 @@ propriétaire l'active dans la fenêtre **Sources** de l'espace **Tableaux de
 bord**, et choisit la fréquence. La disposition prête à l'emploi s'appelle **Base
 de données PostgreSQL**.
 
+## Autres produits de ce type
+
+Le catalogue montre PostgreSQL sous plusieurs cartes. Chacune crée la même
+connexion ; la carte ne fait que la nommer et dessiner son logo.
+
+- **TimescaleDB**, **Citus** et **ParadeDB** sont PostgreSQL avec une
+  extension. Leurs cartes proposent de démarrer ce serveur ici, et
+  l'extension est trouvée dans la base une fois ouverte.
+- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (Aurora aussi),
+  **Azure Database for PostgreSQL** et **Cloud SQL for PostgreSQL** sont du
+  PostgreSQL hébergé. Leurs cartes remplissent ce que le fournisseur nomme
+  toujours de même et disent où trouver l'hôte et le mot de passe.
+  Connexion par mot de passe ; IAM et Microsoft Entra ne sont pas encore
+  pris en charge.
+
 ## Limites
 
 - Une page de lignes contient au plus 500 lignes.

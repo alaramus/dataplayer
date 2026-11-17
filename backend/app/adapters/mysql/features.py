@@ -14,13 +14,12 @@ class MysqlFeatures:
         """The flavour and the number, and no optional features yet.
 
         "MariaDB 11.4.13" rather than the number alone: one source type speaks
-        to both, and which one it is is the first thing a person asks (D228).
+        to several products, and which one it is is the first thing a person
+        asks (D228, D377).
         """
         try:
             profile = await self._session.profile()
-            version: str | None = (
-                f"{'MariaDB' if profile.mariadb else 'MySQL'} {profile.text}"
-            )
+            version: str | None = f"{profile.product} {profile.text}"
         except (AdapterError, ValueError):
             version = None
         return SourceFeatures(

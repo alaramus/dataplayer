@@ -224,6 +224,12 @@ Un broker dice a sus clientes dónde está, y este da la dirección que tiene
 dentro de DataPlayer. El catálogo, el terminal y los pipelines lo alcanzan
 ahí; una herramienta en tu propio equipo, solo a través del terminal.
 
+## Otros productos de este tipo
+
+**Redpanda** habla el protocolo de Kafka, así que su tarjeta crea una
+conexión de Kafka y ofrece iniciar aquí un broker de Redpanda, con el mismo
+laboratorio.
+
 ## Lo que Kafka aún no tiene aquí
 
 No se ofrece copiar topics a otra conexión ni copias de seguridad. Kafka copia

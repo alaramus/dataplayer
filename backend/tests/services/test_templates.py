@@ -10,6 +10,7 @@ from app.services.templates import (
     SERVICE_TEMPLATES,
     Fixed,
     Generated,
+    OwnName,
     Published,
     UnknownServiceTemplate,
     all_templates,
@@ -282,3 +283,57 @@ def test_a_rabbitmq_broker_publishes_its_management_api_too() -> None:
     # Its data is kept under a node name that does not change with the
     # container's hostname.
     assert template.environment["RABBITMQ_NODENAME"] == Fixed("rabbit@localhost")
+
+
+@pytest.mark.parametrize(("key", "program"), [("valkey", "valkey-server"), ("keydb", "keydb-server")])
+def test_a_redis_fork_is_started_as_redis_is(key: str, program: str) -> None:
+    """A card of the redis type (D377): a password on the command line, or none."""
+    template = template_for(key)
+
+    assert template.adapter_type == "redis"
+    assert template.command[0] == Fixed(program)
+    assert template.command[-2:] == (Fixed("--requirepass"), "password")
+    assert generated_slots(template) == ("password",)
+    assert may_run_unprotected(template)
+    assert template.unprotected is not None
+    assert template.unprotected.command[0] == Fixed(program)
+    assert slots_of(template.unprotected) == frozenset()
+
+
+def test_a_redpanda_broker_announces_its_own_name() -> None:
+    """Its image takes no shell, so it is told the name it is reached by (D377)."""
+    template = template_for("redpanda")
+
+    assert template.adapter_type == "kafka"
+    assert template.image.startswith("redpandadata/redpanda:")
+    assert generated_slots(template) == ()
+    assert template.connector_options["bootstrap_servers"] == ADDRESS
+    assert OwnName(prefix="--advertise-kafka-addr=", suffix=":9092") in template.command
+
+
+def test_percona_server_is_signed_into_as_its_root() -> None:
+    template = template_for("percona")
+
+    assert template.image == "percona/percona-server:8.4"
+    assert template.adapter_type == "mysql"
+    assert template.credentials["user"] == Fixed("root")
+    assert template.environment["MYSQL_ROOT_PASSWORD"] == "password"
+    assert not may_run_unprotected(template)
+
+
+@pytest.mark.parametrize("key", ["citus", "paradedb"])
+def test_a_postgres_extension_image_is_an_ordinary_postgres_source(key: str) -> None:
+    """As TimescaleDB's: the extension is found while the database is open (D119)."""
+    template = template_for(key)
+
+    assert template.adapter_type == "postgres"
+    assert template.connector_options == template_for("postgres").connector_options
+    assert template.choosable == template_for("postgres").choosable
+
+
+def test_every_template_is_offered_by_a_card_of_its_type() -> None:
+    """A type with cards offers a service only through one of them (D264)."""
+    for template in SERVICE_TEMPLATES:
+        kind = registry.get(template.adapter_type)
+        if kind.faces:
+            assert any(template.key in face.templates for face in kind.faces), template.key

@@ -426,4 +426,10 @@ MESSAGES: dict[str, str] = {
     '{schema}: {tables} tables': '{schema}：{tables} 个表',
     # The table designer's engine.
     "A MySQL table is made with the server's usual engine here": '此处的 MySQL 表使用服务器的常用引擎创建',
+    # Hosted MySQL cards (D377).
+    'Amazon RDS for MySQL': 'Amazon RDS for MySQL',
+    'Azure Database for MySQL': 'Azure Database for MySQL',
+    'Cloud SQL for MySQL': 'Cloud SQL for MySQL',
+    'Aurora MySQL too. Sign in with a database password; IAM sign-in is not supported yet. The instance has to be reachable from this server, publicly or through an SSH tunnel.': '也适用于 Aurora MySQL。使用数据库密码登录；暂不支持 IAM 登录。实例必须能从本服务器访问，可公开访问或通过 SSH 隧道。',
+    "Flexible server. Allow this server's address under Networking and sign in with a MySQL user; Microsoft Entra sign-in is not supported yet.": '灵活服务器。在 Networking 中允许本服务器的地址，并以 MySQL 用户登录；暂不支持 Microsoft Entra 登录。',
 }

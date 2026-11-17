@@ -300,6 +300,13 @@ et de mesures — avec de quoi montrer sur chaque écran : colonnes générées,
 une table partitionnée, des clés plein texte et spatiales, une vue, un
 déclencheur et une table sans clé.
 
+## Autres produits de ce type
+
+- **Percona Server** est MySQL. Sa carte propose de le démarrer ici, et la
+  version du serveur indique Percona Server.
+- **Amazon RDS for MySQL** (Aurora aussi), **Azure Database for MySQL** et
+  **Cloud SQL for MySQL** sont du MySQL hébergé, avec mot de passe.
+
 ## Ce que MySQL n'a pas encore ici
 
 - Une base de données ne peut pas être renommée ; MySQL n'a aucun moyen de le

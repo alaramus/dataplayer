@@ -99,6 +99,9 @@ class Server:
     read: Callable[[], str]
     # A base server is needed by every test, so its absence stops the run.
     base: bool = False
+    # A server the pipeline does not run: a product card's smoke test (D377).
+    # Its tests are skipped even under --require-services.
+    local: bool = False
 
     def url(self) -> str:
         """The address, without asking whether anything answers there."""
@@ -114,7 +117,7 @@ class Server:
             return url
         if self.base:
             _stop(self.absence())
-        if _required:
+        if _required and not self.local:
             pytest.fail(self.absence(), pytrace=False)
         pytest.skip(self.absence())
 
@@ -268,6 +271,60 @@ MAIL = Server(
     read=lambda: os.environ.get("TEST_MAIL_URL", "imap://127.0.0.1:3143?smtp=3025"),
 )
 
+# Products that are a card of a type (D377), started by
+# `docker compose up -d valkey keydb redpanda percona citus paradedb`.
+VALKEY = Server(
+    name="Valkey",
+    variable="TEST_VALKEY_URL",
+    start="docker compose up -d valkey",
+    read=lambda: os.environ.get("TEST_VALKEY_URL", "redis://:dataplayer@127.0.0.1:6380/15"),
+    local=True,
+)
+
+KEYDB = Server(
+    name="KeyDB",
+    variable="TEST_KEYDB_URL",
+    start="docker compose up -d keydb",
+    read=lambda: os.environ.get("TEST_KEYDB_URL", "redis://:dataplayer@127.0.0.1:6381/15"),
+    local=True,
+)
+
+REDPANDA = Server(
+    name="Redpanda",
+    variable="TEST_REDPANDA_URL",
+    start="docker compose up -d redpanda",
+    read=lambda: os.environ.get("TEST_REDPANDA_URL", "kafka://127.0.0.1:9096"),
+    local=True,
+)
+
+PERCONA = Server(
+    name="Percona Server",
+    variable="TEST_PERCONA_URL",
+    start="docker compose up -d percona",
+    read=lambda: os.environ.get("TEST_PERCONA_URL", "mysql://root:dataplayer@127.0.0.1:3309"),
+    local=True,
+)
+
+CITUS = Server(
+    name="Citus",
+    variable="TEST_CITUS_URL",
+    start="docker compose up -d citus",
+    read=lambda: os.environ.get(
+        "TEST_CITUS_URL", "postgresql://postgres:dataplayer@127.0.0.1:5434/postgres"
+    ),
+    local=True,
+)
+
+PARADEDB = Server(
+    name="ParadeDB",
+    variable="TEST_PARADEDB_URL",
+    start="docker compose up -d paradedb",
+    read=lambda: os.environ.get(
+        "TEST_PARADEDB_URL", "postgresql://postgres:dataplayer@127.0.0.1:5435/postgres"
+    ),
+    local=True,
+)
+
 SERVERS = (
     POSTGRES,
     REDIS,
@@ -283,13 +340,23 @@ SERVERS = (
     CASSANDRA,
     SCYLLA,
     MAIL,
+    VALKEY,
+    KEYDB,
+    REDPANDA,
+    PERCONA,
+    CITUS,
+    PARADEDB,
 )
 
 
 def require_all() -> None:
     """Every server answers for the whole run, or the run does not start."""
     global _required
-    missing = [server.absence() for server in SERVERS if not server.available()]
+    missing = [
+        server.absence()
+        for server in SERVERS
+        if not server.local and not server.available()
+    ]
     if missing:
         _stop("--require-services: " + "; ".join(missing))
     _required = True

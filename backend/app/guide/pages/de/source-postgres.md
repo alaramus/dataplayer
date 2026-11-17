@@ -256,6 +256,20 @@ der Datenbank. Der Eigentümer schaltet dies im Fenster **Quellen** des Bereichs
 **Dashboards** ein und wählt, wie oft. Das fertige Layout dafür heißt
 **PostgreSQL-Datenbank**.
 
+## Weitere Produkte dieses Typs
+
+Der Katalog zeigt PostgreSQL als mehrere Karten. Jede legt dieselbe Art von
+Verbindung an; die Karte gibt ihr nur Namen und Logo.
+
+- **TimescaleDB**, **Citus** und **ParadeDB** sind PostgreSQL mit einer
+  Erweiterung. Ihre Karten bieten an, diesen Server hier zu starten; die
+  Erweiterung wird in der geöffneten Datenbank gefunden.
+- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (auch Aurora),
+  **Azure Database for PostgreSQL** und **Cloud SQL for PostgreSQL** sind
+  gehostetes PostgreSQL. Ihre Karten füllen aus, was beim Anbieter immer
+  gleich heißt, und sagen, wo Host und Passwort zu finden sind. Anmeldung
+  mit Passwort; IAM und Microsoft Entra werden noch nicht unterstützt.
+
 ## Grenzen
 
 - Eine Seite mit Zeilen hält höchstens 500 Zeilen.

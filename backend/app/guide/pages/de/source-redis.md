@@ -135,6 +135,12 @@ Container, den dieser Server dafür startet, und nur dort, wo er Container
 starten darf; nicht über einen SSH-Tunnel. Das Schließen des Terminals oder
 `quit` beendet es.
 
+## Weitere Produkte dieses Typs
+
+**Valkey** und **KeyDB** antworten wie Redis, daher legen ihre Karten eine
+Redis-Verbindung an. Jede bietet an, ihren eigenen Server hier zu starten,
+und die Serverversion nennt ihn.
+
 ## Was Redis hier nicht hat
 
 - Ein Schlüssel, der abläuft, während sein Tab geöffnet ist, bleibt auf dem

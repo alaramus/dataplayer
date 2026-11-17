@@ -149,6 +149,24 @@ def test_the_container_is_started_with_the_password_the_plan_holds() -> None:
     assert plan.container.environment["POSTGRES_DB"] == plan.credentials["database"]
 
 
+def test_a_broker_announces_the_name_of_its_own_container() -> None:
+    """Redpanda is told the name it is reached by, which the server decides
+    when it names the container (D377), and the connector reaches it there."""
+    plan = build_plan(
+        template_for("redpanda"),
+        service_id=uuid4(),
+        owner_id=uuid4(),
+        placement=Placement(network="services"),
+    )
+
+    name = plan.container.name
+    assert f"--advertise-kafka-addr={name}:9092" in plan.container.command
+    assert connector_options(plan, Endpoint(host=name, port=9092)) == {
+        "auth_method": "none",
+        "bootstrap_servers": f"{name}:9092",
+    }
+
+
 def test_neither_the_plan_nor_the_container_prints_the_password() -> None:
     """One traceback with a spec in a local variable would put it in a log."""
     plan = _plan()

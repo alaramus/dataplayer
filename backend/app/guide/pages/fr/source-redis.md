@@ -131,6 +131,12 @@ connecté comme la connexion et dans sa base de données, dans un conteneur que
 ce serveur démarre ; pas à travers un tunnel SSH. Fermer le terminal ou `quit`
 l'arrête.
 
+## Autres produits de ce type
+
+**Valkey** et **KeyDB** répondent comme Redis, leurs cartes créent donc une
+connexion Redis. Chacune propose de démarrer son propre serveur ici, et la
+version du serveur le nomme.
+
 ## Ce que Redis n'a pas ici
 
 - Une clé qui expire alors que son onglet est ouvert reste à l'écran jusqu'à ce

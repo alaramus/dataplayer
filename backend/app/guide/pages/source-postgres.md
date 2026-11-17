@@ -236,6 +236,20 @@ memory, conflicts, deadlocks and the size of the database. The owner switches
 this on in the **Sources** window of the **Dashboards** space, and chooses how
 often. The ready-made layout for it is called **PostgreSQL database**.
 
+## Other products under this type
+
+The catalog shows PostgreSQL as several cards. Each makes the same kind of
+connection; the card names it and draws its logo.
+
+- **TimescaleDB**, **Citus** and **ParadeDB** are PostgreSQL with an
+  extension. Their cards offer to start that server here, and the extension
+  is found in the database once it is open.
+- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (Aurora too),
+  **Azure Database for PostgreSQL** and **Cloud SQL for PostgreSQL** are
+  hosted PostgreSQL. Their cards fill in what the provider always names the
+  same and say where the host and password are found. You sign in with a
+  password; IAM and Microsoft Entra sign-in are not supported yet.
+
 ## Limits
 
 - A page of rows holds at most 500 rows.

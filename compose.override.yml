@@ -280,6 +280,68 @@ services:
     ports:
       - "127.0.0.1:9044:9042"
 
+  # Products that are a card of a type rather than a type (D264, D377), each
+  # for its smoke test and for a person to point a connection at. Published on
+  # the loopback only, because their passwords are in this file. Behind the
+  # `tools` profile. Valkey and KeyDB: password `dataplayer`, 127.0.0.1:6380
+  # and 127.0.0.1:6381.
+  valkey:
+    image: valkey/valkey:9.0
+    profiles: ["tools"]
+    command: ["valkey-server", "--requirepass", "dataplayer"]
+    ports:
+      - "127.0.0.1:6380:6379"
+
+  keydb:
+    image: eqalpha/keydb:x86_64_v6.3.4
+    profiles: ["tools"]
+    command: ["keydb-server", "--requirepass", "dataplayer", "--server-threads", "1"]
+    ports:
+      - "127.0.0.1:6381:6379"
+
+  # Redpanda speaks Kafka's protocol: `redpanda:9092` from the backend,
+  # 127.0.0.1:9096 from this machine, no authentication.
+  redpanda:
+    image: redpandadata/redpanda:v26.2.7
+    profiles: ["tools"]
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:9096
+      - --advertise-kafka-addr=internal://redpanda:9092,external://127.0.0.1:9096
+    ports:
+      - "127.0.0.1:9096:9096"
+
+  # Percona Server: user `root`, password `dataplayer`, 127.0.0.1:3309.
+  percona:
+    image: percona/percona-server:8.4
+    profiles: ["tools"]
+    environment:
+      MYSQL_ROOT_PASSWORD: dataplayer
+    ports:
+      - "127.0.0.1:3309:3306"
+
+  # Citus and ParadeDB are PostgreSQL with an extension: user `postgres`,
+  # password `dataplayer`, 127.0.0.1:5434 and 127.0.0.1:5435.
+  citus:
+    image: citusdata/citus:14.2
+    profiles: ["tools"]
+    environment:
+      POSTGRES_PASSWORD: dataplayer
+    ports:
+      - "127.0.0.1:5434:5432"
+
+  paradedb:
+    image: paradedb/paradedb:0.26.7-pg18
+    profiles: ["tools"]
+    environment:
+      POSTGRES_PASSWORD: dataplayer
+    ports:
+      - "127.0.0.1:5435:5432"
+
   # dataplayer-monitor-agent reporting the machine Docker runs on to the
   # metrics process, started with
   # `docker compose --profile monitor-agent up -d monitor-agent`. It signs
