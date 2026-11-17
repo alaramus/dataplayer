@@ -480,6 +480,8 @@ class MysqlAdapter:
         CatalogFace(key="mysql", title=N_("MySQL"), templates=("mysql",)),
         CatalogFace(key="mariadb", title=N_("MariaDB"), templates=("mariadb",)),
         CatalogFace(key="percona", title=N_("Percona Server"), templates=("percona",)),
+        # A card with a list of what it lacks, kept in the adapter (D378).
+        CatalogFace(key="tidb", title=N_("TiDB"), templates=("tidb",)),
         CatalogFace(
             key="aws-rds-mysql",
             title=N_("Amazon RDS for MySQL"),

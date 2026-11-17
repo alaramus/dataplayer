@@ -141,6 +141,8 @@ starten darf; nicht über einen SSH-Tunnel. Das Schließen des Terminals oder
 Redis-Verbindung an. Jede bietet an, ihren eigenen Server hier zu starten,
 und die Serverversion nennt ihn.
 
+**Dragonfly** antwortet ebenfalls wie Redis, und seine Karte startet hier einen Dragonfly-Server.
+
 ## Was Redis hier nicht hat
 
 - Ein Schlüssel, der abläuft, während sein Tab geöffnet ist, bleibt auf dem

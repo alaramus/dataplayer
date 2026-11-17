@@ -307,6 +307,14 @@ déclencheur et une table sans clé.
 - **Amazon RDS for MySQL** (Aurora aussi), **Azure Database for MySQL** et
   **Cloud SQL for MySQL** sont du MySQL hébergé, avec mot de passe.
 
+**TiDB** parle le protocole de MySQL, et sa carte démarre ici un TiDB unique. Les lignes, les tables et la console fonctionnent comme sur MySQL, avec ces différences :
+
+- Les contrôles d'une table ne sont conservés que si `tidb_enable_check_constraint` est activé sur le serveur, ce qui n'est pas le cas par défaut.
+- Le texte se compare octet par octet, un filtre distingue donc les majuscules.
+- Il n'y a ni colonnes spatiales ni déclencheurs, les données d'exemple ne sont donc pas proposées.
+- Il n'y a pas encore de sauvegardes ici, et le plan d'une requête se lit en exécutant `EXPLAIN` dans la console.
+- Une lecture dans la console n'est pas protégée de l'écriture par le serveur, car TiDB n'a pas de transaction en lecture seule. Elle est annulée à la fin, et DataPlayer refuse une écriture avant qu'elle ne s'exécute.
+
 ## Ce que MySQL n'a pas encore ici
 
 - Une base de données ne peut pas être renommée ; MySQL n'a aucun moyen de le

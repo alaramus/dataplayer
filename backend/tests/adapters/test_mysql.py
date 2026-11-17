@@ -127,6 +127,18 @@ def test_a_server_is_read_as_its_flavour_and_number() -> None:
     assert not read_profile("10.5.27-MariaDB").supported
 
 
+def test_tidb_is_its_own_flavour_numbered_by_its_own_release() -> None:
+    """TiDB calls itself MySQL 8.0.11 first; its own release is what counts (D378)."""
+    tidb = read_profile("8.0.11-TiDB-v8.5.7", "TiDB Server (Apache License 2.0) Community Edition")
+
+    assert (tidb.flavour, tidb.text, tidb.product) == ("tidb", "8.5.7", "TiDB")
+    assert tidb.supported
+    assert not read_profile("8.0.11-TiDB-v7.1.6").supported
+    # READ ONLY is only a word to TiDB, so its read is a transaction rolled back.
+    assert tidb.read_only == "START TRANSACTION"
+    assert read_profile("8.4.11").read_only == "START TRANSACTION READ ONLY"
+
+
 def test_percona_server_is_mysql_named_by_its_comment() -> None:
     """Percona says what it is only in @@version_comment (D377)."""
     percona = read_profile("8.4.11-12", "Percona Server (GPL), Release 12, Revision 76aa4263")

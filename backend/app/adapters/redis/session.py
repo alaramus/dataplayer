@@ -52,12 +52,16 @@ def read_version(info: Mapping[str, object]) -> str | None:
     """What `INFO server` says the server is, named when it is a fork (D377).
 
     Valkey keeps `redis_version` at 7.2.4 for clients that read it and names
-    itself in `server_name`; KeyDB names itself only by its program.
+    itself in `server_name`; KeyDB names itself only by its program; Dragonfly
+    in a field of its own, "df-v2.1" (D378).
     """
     if info.get("server_name") == "valkey":
         valkey = info.get("valkey_version")
         if isinstance(valkey, str) and valkey:
             return f"Valkey {valkey}"
+    dragonfly = info.get("dragonfly_version")
+    if isinstance(dragonfly, str) and dragonfly:
+        return f"Dragonfly {dragonfly.removeprefix('df-').removeprefix('v')}"
     version = info.get("redis_version")
     if not isinstance(version, str) or not version:
         return None
@@ -100,6 +104,10 @@ class RedisSession:
             host=host,
             port=port,
             db=self._options.database if database is None else database,
+            # Named so the driver signs in inside HELLO: Dragonfly refuses a
+            # HELLO sent before AUTH, which Redis answers (D378). RESP3 needs
+            # Redis 6, whose default user this is.
+            username="default" if password is not None else None,
             password=password,
             socket_connect_timeout=TIMEOUT_SECONDS,
             socket_timeout=TIMEOUT_SECONDS,

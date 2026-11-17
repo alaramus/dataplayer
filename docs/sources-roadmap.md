@@ -13,8 +13,12 @@ file into its own architecture file when it is built.
 Built: PostgreSQL with TimescaleDB, MySQL and MariaDB, SQLite, ClickHouse,
 MongoDB, Redis, Cassandra and ScyllaDB, Kafka, RabbitMQ, ZooKeeper, Binance,
 file storage (local and over SFTP) and SSH. Stage 1, the cards of products
-that are one of these under another name, is done as D377
-([contract](architecture/sources/contract.md)).
+that are one of these under another name, is done as D377, and stage 2,
+Dragonfly and TiDB as cards with a list of what they lack, as D378
+([contract](architecture/sources/contract.md)). CockroachDB, YugabyteDB,
+SingleStore and Greenplum were dropped from stage 2: the first needs the
+PostgreSQL adapter's row versions rewritten, the others are heavy, licensed
+or no longer open.
 
 ## How cost is judged
 
@@ -31,21 +35,6 @@ that are one of these under another name, is done as D377
 - A new source type follows the shape of the existing ones: six slices
   (catalog, values and pages, row edits, structure, reports and search, actions
   and console), its service and lab, its page in the user's guide.
-
-## Stage 2 — cards with a quirk list
-
-Same driver, but the server answers differently somewhere: the adapter detects
-the product from the server, and a capability the product lacks answers that it
-is missing rather than failing.
-
-| Product | Base type | Test server | What differs |
-| --- | --- | --- | --- |
-| Dragonfly | `redis` | `dragonflydb/dragonfly` | `INFO`, `MEMORY USAGE`, `OBJECT`, `CONFIG`, Lua and cluster emulation |
-| YugabyteDB | `postgres` | `yugabytedb/yugabyte` | PostgreSQL fork; some DDL and statistics views |
-| TiDB | `mysql` | `pingcap/tidb` | `AUTO_RANDOM`, foreign keys, some `information_schema` |
-| CockroachDB | `postgres` | `cockroachdb/cockroach` | partial `pg_catalog`, limited `ALTER COLUMN TYPE`, no extensions |
-| SingleStore | `mysql` | `singlestore/cluster-in-a-box` | shard and sort keys in DDL |
-| Greenplum | `postgres` | community images only | old PostgreSQL base, `DISTRIBUTED BY` |
 
 ## Stage 3 — cloud sign-in
 

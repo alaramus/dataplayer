@@ -271,6 +271,21 @@ spatial keys, a view, a trigger, and a table with no key.
 - **Amazon RDS for MySQL** (Aurora too), **Azure Database for MySQL** and
   **Cloud SQL for MySQL** are hosted MySQL, signed into with a password.
 
+**TiDB** speaks MySQL's protocol, and its card starts a single TiDB here.
+Rows, tables and the console work as they do on MySQL, with these
+differences:
+
+- A table's checks are kept only while the server's
+  `tidb_enable_check_constraint` is on, which it is not by default.
+- Text compares by its exact bytes, so a filter tells capitals apart.
+- There are no spatial columns and no triggers, so the sample data is
+  not offered.
+- There are no backups here yet, and the plan of a query is read by
+  running `EXPLAIN` in the console.
+- A read in the console is not kept from writing by the server, as
+  TiDB has no read-only transaction. It is rolled back when it ends,
+  and DataPlayer refuses a write in it before it runs.
+
 ## What MySQL does not have here yet
 
 - A database cannot be renamed; MySQL has no way to do it.

@@ -31,6 +31,8 @@ class SystemReport:
     mariadb: str | None = None
     # The statement for a MySQL older than the version it names.
     mysql_before: tuple[tuple[int, ...], str] | None = None
+    # TiDB keeps this where MariaDB does, in information_schema (D378).
+    tidb_as_mariadb: bool = False
     refresh_seconds: int | None = None
     stable_order: tuple[str, ...] = field(default=())
 
@@ -39,7 +41,7 @@ class SystemReport:
         return f"{SECTION_ID}/{self.key}"
 
     def statement_for(self, profile: ServerProfile) -> str:
-        if profile.mariadb:
+        if profile.mariadb or (profile.tidb and self.tidb_as_mariadb):
             return self.mariadb or self.statement
         if self.mysql_before is not None and profile.version < self.mysql_before[0]:
             return self.mysql_before[1]
@@ -74,6 +76,7 @@ REPORTS: tuple[SystemReport, ...] = (
                    COMMAND AS command, TIME AS seconds, STATE AS state, INFO AS query
             FROM information_schema.PROCESSLIST
         """,
+        tidb_as_mariadb=True,
         stable_order=("id",),
     ),
     SystemReport(
@@ -88,6 +91,7 @@ REPORTS: tuple[SystemReport, ...] = (
             SELECT LOWER(VARIABLE_NAME) AS name, VARIABLE_VALUE AS value
             FROM information_schema.GLOBAL_VARIABLES
         """,
+        tidb_as_mariadb=True,
         stable_order=("name",),
     ),
     SystemReport(
@@ -103,6 +107,7 @@ REPORTS: tuple[SystemReport, ...] = (
             SELECT LOWER(VARIABLE_NAME) AS name, VARIABLE_VALUE AS value
             FROM information_schema.GLOBAL_STATUS
         """,
+        tidb_as_mariadb=True,
         stable_order=("name",),
     ),
     SystemReport(

@@ -168,4 +168,7 @@ def test_a_fork_is_named_by_what_info_says_of_it() -> None:
         {"redis_version": "7.2.4", "server_name": "valkey", "valkey_version": "9.0.7"}
     ) == "Valkey 9.0.7"
     assert read_version({"redis_version": "6.3.4", "executable": "/data/keydb-server"}) == "KeyDB 6.3.4"
+    assert read_version(
+        {"redis_version": "7.4.0", "dragonfly_version": "df-v2.1.0"}
+    ) == "Dragonfly 2.1.0"
     assert read_version({}) is None

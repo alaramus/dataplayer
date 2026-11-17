@@ -181,7 +181,8 @@ async def read_service_templates(engine: ServiceEngineDep) -> Any:
             choosable=list(templates.choosable_slots(template)),
             optional_password=templates.may_run_unprotected(template),
             key_sign_in=templates.may_sign_in_with_key(template),
-            offers_sample_data=issubclass(
+            offers_sample_data=template.sample_data
+            and issubclass(
                 registry.get(template.adapter_type).adapter_class, SupportsSampleData
             ),
             available=runtime.available,
@@ -233,7 +234,7 @@ async def request_service(
         placement=_placement(body.start),
         request_id=body.request_id,
         chosen_credentials=chosen,
-        sample_data=_wants_sample_data(body.start),
+        sample_data=_wants_sample_data(template, body.start),
         password_mode=password_mode,
         chosen_password=chosen_password,
     )
@@ -728,8 +729,11 @@ async def _key_to_sign_in_with(
     return {KEY_ID: str(key.id)}
 
 
-def _wants_sample_data(start: StartRequest) -> bool:
-    """An automatic start is a demonstration, so it fills what it starts."""
+def _wants_sample_data(template: templates.ServiceTemplate, start: StartRequest) -> bool:
+    """An automatic start is a demonstration, so it fills what it starts,
+    unless the product has nothing to fill it with (D378)."""
+    if not template.sample_data:
+        return False
     return start.sample_data if isinstance(start, ChosenStart) else True
 
 

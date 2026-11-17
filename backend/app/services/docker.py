@@ -482,6 +482,8 @@ def _creation_body(spec: ContainerSpec) -> dict[str, Any]:
     }
     if spec.command:
         body["Cmd"] = list(spec.command)
+    if spec.entrypoint:
+        body["Entrypoint"] = list(spec.entrypoint)
     if spec.network is not None:
         body["NetworkingConfig"] = {"EndpointsConfig": {spec.network: {}}}
     return body

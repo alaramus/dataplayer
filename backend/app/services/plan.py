@@ -114,6 +114,8 @@ class ContainerSpec:
     image: str
     environment: Mapping[str, str]
     command: tuple[str, ...]
+    # Empty keeps the image's own entrypoint.
+    entrypoint: tuple[str, ...]
     # One named volume per service, mounted where the image keeps its data.
     # Named rather than bound to a host path: a bind mount needs a path on the
     # host, and a path on the host is the thing no part of this may choose.
@@ -302,6 +304,7 @@ def build_container(
         command=tuple(
             _credential_value(part, credentials, name) for part in taken.command
         ),
+        entrypoint=template.entrypoint,
         volume=volume_name(service_id, template),
         data_path=template.data_path,
         container_port=template.container_port,

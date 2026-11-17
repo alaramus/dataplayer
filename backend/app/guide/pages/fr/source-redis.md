@@ -137,6 +137,8 @@ l'arrête.
 connexion Redis. Chacune propose de démarrer son propre serveur ici, et la
 version du serveur le nomme.
 
+**Dragonfly** répond lui aussi comme Redis, et sa carte démarre ici un serveur Dragonfly.
+
 ## Ce que Redis n'a pas ici
 
 - Une clé qui expire alors que son onglet est ouvert reste à l'écran jusqu'à ce

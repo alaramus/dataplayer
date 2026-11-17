@@ -53,10 +53,15 @@ class MysqlBackup:
                 reason=say("A database whose name begins with a dash cannot be backed up here"),
             )
         try:
-            await self._session.profile()
+            profile = await self._session.profile()
         except AdapterError:
             return BackupAvailability(
                 available=False, reason=say("The server could not be asked which it is")
+            )
+        if profile.tidb:
+            # Its own dump program is Dumpling, which no image here runs (D378).
+            return BackupAvailability(
+                available=False, reason=say("TiDB is not backed up here yet")
             )
         return BackupAvailability(available=True)
 

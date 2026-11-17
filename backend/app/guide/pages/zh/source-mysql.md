@@ -163,6 +163,14 @@ MySQL 连接可以向仪表盘报告。布局名为 **MySQL 服务器**：连接
 - **Percona Server** 就是 MySQL。它的卡片可在此处启动它，服务器版本会显示 Percona Server。
 - **Amazon RDS for MySQL**（也包括 Aurora）、**Azure Database for MySQL** 和 **Cloud SQL for MySQL** 是托管的 MySQL，使用密码登录。
 
+**TiDB** 使用 MySQL 协议，它的卡片可在此处启动单节点 TiDB。行、表和控制台的用法与 MySQL 相同，区别如下：
+
+- 只有服务器开启 `tidb_enable_check_constraint` 时才会保存表的检查约束，默认未开启。
+- 文本按字节比较，因此筛选区分大小写。
+- 没有空间列和触发器，因此不提供示例数据。
+- 此处暂不支持备份；查询计划可在控制台中运行 `EXPLAIN` 查看。
+- TiDB 没有只读事务，服务器不会阻止控制台中的读取执行写入。读取结束时会回滚，DataPlayer 也会在执行前拒绝其中的写入。
+
 ## MySQL 在这里尚未具备的功能
 
 - 数据库不能重命名；MySQL 没有办法做到这一点。

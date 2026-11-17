@@ -133,6 +133,9 @@ rest.
 connection. Each offers to start its own server here, and the server's
 version names it.
 
+**Dragonfly** answers as Redis does too, and its card starts a Dragonfly
+server here.
+
 ## What Redis does not have here
 
 - A key that expires while its tab is open stays on screen until the tab is

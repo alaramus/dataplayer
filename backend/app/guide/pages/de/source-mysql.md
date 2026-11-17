@@ -301,6 +301,14 @@ Tabelle ohne Schlüssel.
 - **Amazon RDS for MySQL** (auch Aurora), **Azure Database for MySQL** und
   **Cloud SQL for MySQL** sind gehostetes MySQL, mit Passwort angemeldet.
 
+**TiDB** spricht MySQLs Protokoll, und seine Karte startet hier ein einzelnes TiDB. Zeilen, Tabellen und die Konsole arbeiten wie bei MySQL, mit diesen Unterschieden:
+
+- Prüfungen einer Tabelle werden nur gehalten, solange `tidb_enable_check_constraint` des Servers an ist, was es standardmäßig nicht ist.
+- Text wird nach seinen Bytes verglichen, ein Filter unterscheidet also Groß- und Kleinschreibung.
+- Es gibt keine räumlichen Spalten und keine Trigger, daher werden keine Beispieldaten angeboten.
+- Sicherungen gibt es hier noch nicht, und den Plan einer Abfrage liest man mit `EXPLAIN` in der Konsole.
+- Ein Lesen in der Konsole wird nicht vom Server vor Schreiben geschützt, da TiDB keine Nur-Lese-Transaktion hat. Es wird am Ende zurückgerollt, und DataPlayer lehnt ein Schreiben darin vor dem Start ab.
+
 ## Was MySQL hier noch nicht hat
 
 - Eine Datenbank kann nicht umbenannt werden; MySQL hat dafür keinen Weg.

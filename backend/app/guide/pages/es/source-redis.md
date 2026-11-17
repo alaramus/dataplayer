@@ -130,6 +130,8 @@ servidor; no a través de un túnel SSH. Cerrar el terminal o `quit` lo termina.
 conexión de Redis. Cada una ofrece iniciar su propio servidor aquí, y la
 versión del servidor lo nombra.
 
+**Dragonfly** también responde como Redis, y su tarjeta inicia aquí un servidor Dragonfly.
+
 ## Lo que Redis no tiene aquí
 
 - Una clave que caduca mientras su pestaña está abierta permanece en pantalla

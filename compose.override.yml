@@ -342,6 +342,28 @@ services:
     ports:
       - "127.0.0.1:5435:5432"
 
+  # Products that are a card of a type with a list of what they lack (D378).
+  # Dragonfly: password `dataplayer`, 127.0.0.1:6382. TiDB on its own store:
+  # user `root`, password `dataplayer`, set by a file read on the first start,
+  # 127.0.0.1:4001.
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:v2.1.0
+    profiles: ["tools"]
+    command: ["dragonfly", "--requirepass=dataplayer", "--proactor_threads=1", "--maxmemory=512mb"]
+    ports:
+      - "127.0.0.1:6382:6379"
+
+  tidb:
+    image: pingcap/tidb:v8.5.7
+    profiles: ["tools"]
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        echo "ALTER USER 'root'@'%' IDENTIFIED BY 'dataplayer';" > /tmp/init.sql &&
+        exec /tidb-server --store=unistore --path=/data --initialize-sql-file=/tmp/init.sql
+    ports:
+      - "127.0.0.1:4001:4000"
+
   # dataplayer-monitor-agent reporting the machine Docker runs on to the
   # metrics process, started with
   # `docker compose --profile monitor-agent up -d monitor-agent`. It signs

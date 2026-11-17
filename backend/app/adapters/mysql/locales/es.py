@@ -432,4 +432,8 @@ MESSAGES: dict[str, str] = {
     'Cloud SQL for MySQL': 'Cloud SQL for MySQL',
     'Aurora MySQL too. Sign in with a database password; IAM sign-in is not supported yet. The instance has to be reachable from this server, publicly or through an SSH tunnel.': 'También Aurora MySQL. Inicia sesión con una contraseña de la base de datos; el inicio de sesión con IAM aún no se admite. La instancia tiene que ser accesible desde este servidor, públicamente o a través de un túnel SSH.',
     "Flexible server. Allow this server's address under Networking and sign in with a MySQL user; Microsoft Entra sign-in is not supported yet.": 'Servidor flexible. Permite la dirección de este servidor en Networking e inicia sesión con un usuario de MySQL; el inicio de sesión con Microsoft Entra aún no se admite.',
+    # What TiDB lacks (D378).
+    'The sample data needs spatial columns and triggers, which TiDB does not have': 'Los datos de ejemplo necesitan columnas espaciales y disparadores, que TiDB no tiene',
+    'TiDB is not backed up here yet': 'TiDB aún no se respalda aquí',
+    "TiDB's plan is read by running EXPLAIN in the console": 'El plan de TiDB se lee ejecutando EXPLAIN en la consola',
 }

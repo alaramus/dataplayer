@@ -94,6 +94,21 @@ JOIN information_schema.CHECK_CONSTRAINTS AS cc
 WHERE tc.TABLE_SCHEMA = %s AND tc.TABLE_NAME = %s AND tc.CONSTRAINT_TYPE = 'CHECK'
 """
 
+# TiDB has no ENFORCED column, and enforces checks only while a switch of the
+# whole server is on; off, it does not keep them at all (D378).
+_TIDB_CHECKS = """
+SELECT %s AS requested,
+       cc.CONSTRAINT_NAME AS name,
+       cc.CHECK_CLAUSE AS expression,
+       IF(@@global.tidb_enable_check_constraint, 'YES', 'NO') AS enforced,
+       'Table' AS level
+FROM information_schema.TABLE_CONSTRAINTS AS tc
+JOIN information_schema.CHECK_CONSTRAINTS AS cc
+  ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+ AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+WHERE tc.TABLE_SCHEMA = %s AND tc.TABLE_NAME = %s AND tc.CONSTRAINT_TYPE = 'CHECK'
+"""
+
 _MARIADB_CHECKS = """
 SELECT %s AS requested,
        CONSTRAINT_NAME AS name,
@@ -365,7 +380,11 @@ async def read_relations(
     checks = _by_requested(
         await _read(
             reader,
-            _MARIADB_CHECKS if profile.mariadb else _MYSQL_CHECKS,
+            _MARIADB_CHECKS
+            if profile.mariadb
+            else _TIDB_CHECKS
+            if profile.tidb
+            else _MYSQL_CHECKS,
             _CHECK_ORDER,
             schema,
             found,

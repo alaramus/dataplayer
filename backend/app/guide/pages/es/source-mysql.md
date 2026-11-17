@@ -289,6 +289,14 @@ espaciales, una vista, un disparador y una tabla sin clave.
 - **Amazon RDS for MySQL** (también Aurora), **Azure Database for MySQL** y
   **Cloud SQL for MySQL** son MySQL alojado, con contraseña.
 
+**TiDB** habla el protocolo de MySQL, y su tarjeta inicia aquí un único TiDB. Las filas, las tablas y la consola funcionan como en MySQL, con estas diferencias:
+
+- Las comprobaciones de una tabla solo se guardan mientras `tidb_enable_check_constraint` está activado en el servidor, y por defecto no lo está.
+- El texto se compara byte a byte, así que un filtro distingue mayúsculas.
+- No hay columnas espaciales ni disparadores, así que no se ofrecen datos de ejemplo.
+- Aquí aún no hay copias de seguridad, y el plan de una consulta se lee ejecutando `EXPLAIN` en la consola.
+- El servidor no protege de escrituras una lectura en la consola, porque TiDB no tiene transacciones de solo lectura. Se revierte al terminar, y DataPlayer rechaza una escritura en ella antes de ejecutarla.
+
 ## Lo que MySQL aún no tiene aquí
 
 - Una base de datos no se puede renombrar; MySQL no tiene forma de hacerlo.

@@ -326,11 +326,13 @@ class RedisAdapter:
     ),
     options_schema=RedisOptions,
     adapter_class=RedisAdapter,
-    # Forks that answer as Redis does, a card each (D377).
+    # Forks that answer as Redis does, a card each (D377), and Dragonfly,
+    # which answers so but for how it is signed into (D378).
     faces=(
         CatalogFace(key="redis", title=N_("Redis"), templates=("redis",)),
         CatalogFace(key="valkey", title=N_("Valkey"), templates=("valkey",)),
         CatalogFace(key="keydb", title=N_("KeyDB"), templates=("keydb",)),
+        CatalogFace(key="dragonfly", title=N_("Dragonfly"), templates=("dragonfly",)),
     ),
 )
 def _build(options: Any, context: AdapterContext) -> RedisAdapter:

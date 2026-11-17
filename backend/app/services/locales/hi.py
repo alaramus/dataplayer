@@ -107,4 +107,9 @@ MESSAGES: dict[str, str] = {
     'ParadeDB': 'ParadeDB',
     'Supabase': 'Supabase',
     'Neon': 'Neon',
+    # Products with a list of what they lack (D378).
+    'Dragonfly': 'Dragonfly',
+    'TiDB': 'TiDB',
+    "A Dragonfly server of its own, speaking Redis's protocol, started on this machine with a password nobody has to choose.": 'अपना Dragonfly सर्वर, जो Redis का प्रोटोकॉल बोलता है, इसी मशीन पर शुरू किया गया, ऐसे पासवर्ड के साथ जिसे किसी को चुनना नहीं पड़ता।',
+    "A single TiDB server of its own on its built-in store, speaking MySQL's protocol, started on this machine with a password nobody has to choose.": 'अपने अंतर्निहित स्टोर पर चलने वाला अपना एकल TiDB सर्वर, जो MySQL का प्रोटोकॉल बोलता है, इसी मशीन पर शुरू किया गया, ऐसे पासवर्ड के साथ जिसे किसी को चुनना नहीं पड़ता।',
 }

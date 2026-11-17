@@ -248,7 +248,14 @@ class MysqlTableCopy:
             try:
                 async with connection.cursor() as cursor:
                     await cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ", ())
-                    await cursor.execute("START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY", ())
+                    # TiDB refuses READ ONLY; its snapshot is consistent anyway (D378).
+                    profile = await self._session.profile()
+                    await cursor.execute(
+                        "START TRANSACTION WITH CONSISTENT SNAPSHOT"
+                        if profile.tidb
+                        else "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY",
+                        (),
+                    )
                 yield _Rows(connection)
             finally:
                 connection.close()

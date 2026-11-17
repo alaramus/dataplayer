@@ -35,6 +35,10 @@ class MysqlSamples:
         database with USE, which a pooled connection would keep. Each statement
         is sent without parameters, so a `%` in it is a character.
         """
+        if (await self._session.profile()).tidb:
+            # The lab has spatial columns and triggers, neither of which TiDB
+            # has (D378).
+            raise ValueError(say("The sample data needs spatial columns and triggers, which TiDB does not have"))
         script = await to_thread.run_sync(SCRIPT.read_text, "utf-8")
         async with self._session.acquire() as connection:
             try:

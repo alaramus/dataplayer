@@ -239,6 +239,13 @@ class ServiceTemplate:
     # The ports it listens on besides `container_port`, each published beside
     # it (D333). Never asked for by number: the runtime picks.
     extra_ports: tuple[ServicePort, ...] = ()
+    # Whether its type's sample data fits this product: TiDB has none of the
+    # spatial columns and triggers MySQL's lab is made of (D378).
+    sample_data: bool = True
+    # The program the image is started with, in place of its own entrypoint:
+    # a shell for TiDB's, whose entrypoint is the server and takes no script
+    # that writes its first password (D378). Empty keeps the image's.
+    entrypoint: tuple[str, ...] = ()
 
 
 POSTGRES = ServiceTemplate(
@@ -1098,6 +1105,94 @@ PARADEDB = ServiceTemplate(
     startup_timeout_seconds=120,
 )
 
+# Products that answer as their type does but for a list of what they lack
+# (D378): a card of the type each, the differences kept in the adapter.
+
+DRAGONFLY = ServiceTemplate(
+    key="dragonfly",
+    title=N_("Dragonfly"),
+    description=N_(
+        "A Dragonfly server of its own, speaking Redis's protocol, started on "
+        "this machine with a password nobody has to choose."
+    ),
+    image="docker.dragonflydb.io/dragonflydb/dragonfly:v2.1.0",
+    container_port=6379,
+    data_path="/data",
+    credentials={PASSWORD: Generated()},
+    choosable=frozenset({PASSWORD}),
+    environment={},
+    # One thread and memory under what every service is given (D86).
+    command=(
+        Fixed("dragonfly"),
+        Fixed("--proactor_threads=1"),
+        Fixed("--maxmemory=768mb"),
+        Fixed("--requirepass"),
+        PASSWORD,
+    ),
+    adapter_type="redis",
+    connector_options={
+        "auth_method": Fixed("password"),
+        "host": HOST,
+        "port": PORT,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=60,
+    unprotected=Shape(
+        command=(
+            Fixed("dragonfly"),
+            Fixed("--proactor_threads=1"),
+            Fixed("--maxmemory=768mb"),
+        ),
+        environment={},
+        connector_options={
+            "auth_method": Fixed("no_auth"),
+            "host": HOST,
+            "port": PORT,
+        },
+    ),
+)
+
+# TiDB has no variable for root's password: it is set by a file of SQL read on
+# the first start. The password arrives as the shell's first argument, never in
+# the script, and is quoted for SQL there.
+_TIDB_START = (
+    "p=$(printf '%s' \"$1\" | sed -e 's/\\\\/\\\\\\\\/g' -e \"s/'/''/g\"); "
+    "printf \"ALTER USER 'root'@'%%' IDENTIFIED BY '%s';\\n\" \"$p\" > /tmp/init.sql && "
+    "exec /tidb-server --store=unistore --path=/var/lib/tidb "
+    "--initialize-sql-file=/tmp/init.sql"
+)
+
+TIDB = ServiceTemplate(
+    key="tidb",
+    title=N_("TiDB"),
+    description=N_(
+        "A single TiDB server of its own on its built-in store, speaking "
+        "MySQL's protocol, started on this machine with a password nobody has "
+        "to choose."
+    ),
+    image="pingcap/tidb:v8.5.7",
+    container_port=4000,
+    data_path="/var/lib/tidb",
+    credentials={
+        USER: Fixed("root"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({PASSWORD}),
+    environment={},
+    entrypoint=("sh", "-c"),
+    command=(Fixed(_TIDB_START), Fixed("tidb"), PASSWORD),
+    adapter_type="mysql",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    startup_timeout_seconds=120,
+    sample_data=False,
+)
+
 
 SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
     POSTGRES,
@@ -1119,6 +1214,8 @@ SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (
     PERCONA,
     CITUS,
     PARADEDB,
+    DRAGONFLY,
+    TIDB,
 )
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}

@@ -215,8 +215,14 @@ async def test_the_products_of_stage_one_are_cards_of_their_types(
         "azure-postgres",
         "cloudsql-postgres",
     ]
-    assert cards["mysql"][2:] == ["percona", "aws-rds-mysql", "azure-mysql", "cloudsql-mysql"]
-    assert cards["redis"] == ["redis", "valkey", "keydb"]
+    assert cards["mysql"][2:] == [
+        "percona",
+        "tidb",
+        "aws-rds-mysql",
+        "azure-mysql",
+        "cloudsql-mysql",
+    ]
+    assert cards["redis"] == ["redis", "valkey", "keydb", "dragonfly"]
     assert cards["kafka"] == ["kafka", "redpanda"]
     for name in ("valkey", "keydb", "redpanda", "percona", "citus", "paradedb", "supabase"):
         assert name not in types

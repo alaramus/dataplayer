@@ -337,3 +337,38 @@ def test_every_template_is_offered_by_a_card_of_its_type() -> None:
         kind = registry.get(template.adapter_type)
         if kind.faces:
             assert any(template.key in face.templates for face in kind.faces), template.key
+
+
+def test_a_dragonfly_server_is_started_as_redis_is() -> None:
+    """A card of the redis type (D378): a password on the command line, or none."""
+    template = template_for("dragonfly")
+
+    assert template.adapter_type == "redis"
+    assert template.command[0] == Fixed("dragonfly")
+    assert template.command[-2:] == (Fixed("--requirepass"), "password")
+    assert may_run_unprotected(template)
+    assert template.unprotected is not None
+    assert slots_of(template.unprotected) == frozenset()
+
+
+def test_a_tidb_server_is_given_its_password_as_an_argument_not_in_its_script() -> None:
+    """TiDB reads root's password from a file of SQL on its first start; the
+    script writing it takes the password as its argument, so the script is a
+    constant and the password is quoted for SQL inside it (D378)."""
+    template = template_for("tidb")
+
+    assert template.adapter_type == "mysql"
+    assert template.entrypoint == ("sh", "-c")
+    script, name, password = template.command
+    assert isinstance(script, Fixed)
+    assert "--initialize-sql-file=" in script.value
+    assert "s/'/''/g" in script.value
+    assert name == Fixed("tidb")
+    assert password == "password"
+    assert template.credentials["user"] == Fixed("root")
+    # MySQL's lab is spatial columns and triggers, which TiDB has not got.
+    assert template.sample_data is False
+
+
+def test_only_tidb_starts_with_an_entrypoint_of_its_own() -> None:
+    assert [t.key for t in SERVICE_TEMPLATES if t.entrypoint] == ["tidb"]

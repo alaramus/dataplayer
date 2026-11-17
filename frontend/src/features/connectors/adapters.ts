@@ -46,6 +46,9 @@ const ICONS: Record<string, string> = {
   valkey: "img:/icons/services/valkey.svg",
   keydb: "img:/icons/services/keydb.svg",
   redpanda: "img:/icons/services/redpanda.svg",
+  // Cards of `redis` and `mysql` with a list of what they lack (D378).
+  dragonfly: "img:/icons/services/dragonfly.svg",
+  tidb: "img:/icons/services/tidb.svg",
 }
 
 export const UNKNOWN_ADAPTER_ICON = "cable"

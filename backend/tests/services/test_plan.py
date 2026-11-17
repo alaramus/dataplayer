@@ -167,6 +167,16 @@ def test_a_broker_announces_the_name_of_its_own_container() -> None:
     }
 
 
+def test_the_container_carries_the_template_s_entrypoint() -> None:
+    plan = build_plan(
+        template_for("tidb"), service_id=uuid4(), owner_id=uuid4(), placement=Placement()
+    )
+
+    assert plan.container.entrypoint == ("sh", "-c")
+    assert plan.container.command[-1] == plan.credentials["password"]
+    assert _plan().container.entrypoint == ()
+
+
 def test_neither_the_plan_nor_the_container_prints_the_password() -> None:
     """One traceback with a spec in a local variable would put it in a log."""
     plan = _plan()

@@ -160,6 +160,25 @@ async def test_the_container_is_created_from_the_specification_and_nothing_else(
     )
     assert body["NetworkingConfig"] == {"EndpointsConfig": {"dataplayer_default": {}}}
     assert body["HostConfig"]["RestartPolicy"] == {"Name": RESTART_POLICY}
+    # The image's own entrypoint, unless the template names another (D378).
+    assert "Entrypoint" not in body
+
+
+async def test_a_template_s_entrypoint_replaces_the_image_s() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(201, json={"Id": "abc"})
+
+    spec = build_plan(
+        template_for("tidb"), service_id=uuid4(), owner_id=uuid4(), placement=Placement()
+    ).container
+    await _engine(handler).create(spec)
+
+    body = json.loads(seen[1].content)
+    assert body["Entrypoint"] == ["sh", "-c"]
+    assert body["Cmd"][0].startswith("p=$(printf")
 
 
 async def test_the_only_mount_is_the_service_s_own_named_volume() -> None:

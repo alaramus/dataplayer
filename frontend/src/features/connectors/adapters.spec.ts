@@ -31,6 +31,11 @@ describe("the icon of a source type", () => {
     expect(adapterIcon("cloudsql-postgres")).toBe(adapterIcon("cloudsql-mysql"))
   })
 
+  it("draws Dragonfly and TiDB as themselves (D378)", () => {
+    expect(adapterIcon("dragonfly")).toBe("img:/icons/services/dragonfly.svg")
+    expect(adapterIcon("tidb")).toBe("img:/icons/services/tidb.svg")
+  })
+
   it("falls back for a type the backend gained since this build", () => {
     expect(adapterIcon("zeromq")).toBe(UNKNOWN_ADAPTER_ICON)
   })

@@ -32,12 +32,17 @@ CHECK_TIMEOUT_SECONDS = 5.0
 # How long a plan of several catalog reads may take altogether (D246).
 INSPECTION_SECONDS = 5.0
 
-Flavour = Literal["mysql", "mariadb"]
+Flavour = Literal["mysql", "mariadb", "tidb"]
 
 # The oldest of each that this source speaks to (D228). Below them the
 # catalog's own tables lack what it reads — CHECK_CONSTRAINTS arrived in MySQL
-# 8.0.16 — and a source half working is worse than one that says no.
-OLDEST: dict[Flavour, tuple[int, ...]] = {"mysql": (8, 0, 16), "mariadb": (10, 6)}
+# 8.0.16 — and a source half working is worse than one that says no. TiDB is
+# numbered by its own release, and 7.5 is the oldest one still supported (D378).
+OLDEST: dict[Flavour, tuple[int, ...]] = {
+    "mysql": (8, 0, 16),
+    "mariadb": (10, 6),
+    "tidb": (7, 5),
+}
 
 # MySQL error numbers rather than their text: the text quotes the user, the
 # host and sometimes the statement, and only the number is safe to look at.
@@ -77,11 +82,30 @@ class ServerProfile:
         return self.flavour == "mariadb"
 
     @property
+    def tidb(self) -> bool:
+        return self.flavour == "tidb"
+
+    @property
     def product(self) -> str:
-        """What a person calls the server: "MariaDB", "Percona Server", "MySQL"."""
+        """What a person calls the server: "MariaDB", "TiDB", "Percona Server", "MySQL"."""
         if self.mariadb:
             return "MariaDB"
+        if self.tidb:
+            return "TiDB"
         return "Percona Server" if self.percona else "MySQL"
+
+    @property
+    def read_only(self) -> str:
+        """The statement that opens the transaction a read runs in.
+
+        TiDB refuses READ ONLY, which it has only as a word. A read as of now
+        would refuse writes but misses what was committed a moment before, so
+        TiDB's read is an ordinary transaction that is always rolled back,
+        with the class of a statement keeping writes and DDL out (D378).
+        """
+        if self.tidb:
+            return "START TRANSACTION"
+        return "START TRANSACTION READ ONLY"
 
     @property
     def supported(self) -> bool:
@@ -90,6 +114,8 @@ class ServerProfile:
 
 
 _VERSION = re.compile(r"(\d+(?:\.\d+)*)")
+# "8.0.11-TiDB-v8.5.7": the MySQL it imitates, then its own release.
+_TIDB_VERSION = re.compile(r"TiDB-v(\d+(?:\.\d+)*)", re.IGNORECASE)
 
 
 def read_profile(version: str, comment: str = "") -> ServerProfile:
@@ -98,9 +124,12 @@ def read_profile(version: str, comment: str = "") -> ServerProfile:
     MariaDB writes its name into the string and MySQL does not; a fork that
     calls itself MySQL is spoken to as MySQL, and only named by its comment.
     """
-    found = _VERSION.search(version)
+    tidb = _TIDB_VERSION.search(version)
+    found = tidb or _VERSION.search(version)
     text = found.group(1) if found else "0"
-    flavour: Flavour = "mariadb" if "mariadb" in version.lower() else "mysql"
+    flavour: Flavour = (
+        "tidb" if tidb else "mariadb" if "mariadb" in version.lower() else "mysql"
+    )
     return ServerProfile(
         flavour=flavour,
         version=tuple(int(part) for part in text.split(".")),

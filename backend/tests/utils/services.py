@@ -325,6 +325,24 @@ PARADEDB = Server(
     local=True,
 )
 
+# Products that are a card with a list of what they lack (D378), started by
+# `docker compose up -d dragonfly tidb`.
+DRAGONFLY = Server(
+    name="Dragonfly",
+    variable="TEST_DRAGONFLY_URL",
+    start="docker compose up -d dragonfly",
+    read=lambda: os.environ.get("TEST_DRAGONFLY_URL", "redis://:dataplayer@127.0.0.1:6382/15"),
+    local=True,
+)
+
+TIDB = Server(
+    name="TiDB",
+    variable="TEST_TIDB_URL",
+    start="docker compose up -d tidb",
+    read=lambda: os.environ.get("TEST_TIDB_URL", "mysql://root:dataplayer@127.0.0.1:4001"),
+    local=True,
+)
+
 SERVERS = (
     POSTGRES,
     REDIS,
@@ -346,6 +364,8 @@ SERVERS = (
     PERCONA,
     CITUS,
     PARADEDB,
+    DRAGONFLY,
+    TIDB,
 )
 
 

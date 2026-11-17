@@ -1,7 +1,8 @@
 """Running SQL somebody wrote on a MySQL server (D62, D233).
 
 The defence of a read is MySQL's own: `START TRANSACTION READ ONLY` refuses a
-write to any table. It does not stop a structure change, which MySQL commits
+write to any table. TiDB has no such transaction, so there a read is kept by
+its class and by the rollback it always ends in (D378). It does not stop a structure change, which MySQL commits
 by itself before it runs, so the class of a statement is what keeps DDL out of
 a read here, and what keeps it alone in a run of its own (D233).
 
@@ -516,7 +517,9 @@ class MysqlExecution(_Statements):
                     )
                     if not outside:
                         await connection.query(
-                            "START TRANSACTION READ ONLY" if reading else "START TRANSACTION"
+                            (await self._session.profile()).read_only
+                            if reading
+                            else "START TRANSACTION"
                         )
                     async for event in self._statements(connection, script, started):
                         yield event

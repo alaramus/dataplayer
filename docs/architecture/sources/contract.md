@@ -9,7 +9,7 @@ identity, an instance-level feature answer alongside D13, and typed relation
 specialisations. That file states what is implemented; this one does not keep a
 second copy of it.
 
-Decisions here: D1, D13, D183, D264, D377, D2, D2b, D2a, D98, D21, D2c, D8, D2d, D20.
+Decisions here: D1, D13, D183, D264, D377, D378, D2, D2b, D2a, D98, D21, D2c, D8, D2d, D20.
 
 ## D1. A source type is registered in code
 
@@ -154,6 +154,45 @@ found. Sign-in is by password; a cloud's own sign-in is a later stage.
   card was chosen here.
 
 Spec: [Stage one of the sources roadmap: cards only](../../decisions/2026-11-17-stage-one-cards-design.md)
+
+## D378. A product that answers its type differently is a card with a list
+
+Dragonfly is a card of `redis` and TiDB a card of `mysql`. Each has a
+template of its own image. The adapter recognises the product from what the
+server says, works around what it does differently, and refuses what it
+lacks with a sentence rather than a driver's error. The rule is that the
+basic path works: connecting, the catalog, reading and editing rows, the
+console. Anything else that fails is refused.
+
+- **Dragonfly** refuses a `HELLO` sent before `AUTH`, which Redis answers.
+  The Redis driver speaks RESP3, and so Redis 6 at least. A password is
+  therefore sent with the `default` user inside `HELLO`. Everything else
+  is as on Redis, and the version reads "Dragonfly 2.1.0".
+- **TiDB** is its own flavour of `mysql`, numbered by its own release, 7.5
+  and later. Its checks are read without `ENFORCED`, and are kept only while
+  `tidb_enable_check_constraint` is on. It keeps processes, variables and
+  status in `information_schema`, as MariaDB does. Backups, the plan as JSON
+  and the sample data are refused. Its template's entrypoint is a shell
+  that writes root's password into the file TiDB reads on its first start.
+  The password is passed as an argument and quoted for SQL inside the
+  script. A template that runs a shell rather than the image's own
+  entrypoint names it in `entrypoint`, and one whose product has no sample
+  data says so with `sample_data`.
+
+Known deviations:
+
+- **A read on TiDB is not kept from writing by the server.** TiDB takes
+  `READ ONLY` as a word and nothing more. A read as of now would refuse
+  writes, but it misses what was committed a moment earlier, so a read
+  is an ordinary transaction that is always rolled back. The class of a
+  statement keeps writes and DDL out of it, as before.
+- **Stop does not end a statement on TiDB as it does on MySQL.** TiDB
+  takes the `KILL QUERY`, but what comes back is not the interruption the
+  console reports as cancelled.
+- **TiDB's dashboard shows only the size.** `SHOW GLOBAL STATUS` has few
+  of MySQL's counters; TiDB's own metrics are in Prometheus.
+
+Spec: [Stage two of the sources roadmap: Dragonfly and TiDB](../../decisions/2026-11-17-stage-two-quirks-design.md)
 
 ## D2. Capabilities are optional protocols
 

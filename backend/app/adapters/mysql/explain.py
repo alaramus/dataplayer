@@ -156,11 +156,15 @@ class MysqlExplain:
             given = {parameter.name: parameter.value for parameter in request.parameters}
             values = tuple(given.get(name) for name in bound_names(text))
             text = bind(text)
+        if (await self._session.profile()).tidb:
+            # TiDB prints its plan as rows of its own and has no FORMAT=JSON
+            # (D378); the console's EXPLAIN shows it.
+            raise ValueError(say("TiDB's plan is read by running EXPLAIN in the console"))
         try:
             async with self._session.acquire() as connection:
                 changed = await use_database(self._session, connection, request.search_path)
                 try:
-                    await connection.query("START TRANSACTION READ ONLY")
+                    await connection.query((await self._session.profile()).read_only)
                     async with connection.cursor() as cursor:
                         await asyncio.wait_for(
                             cursor.execute(f"EXPLAIN FORMAT=JSON {text}", values),
