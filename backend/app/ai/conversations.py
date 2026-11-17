@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from typing import cast
 
 from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import QueryableAttribute, defer
 from sqlmodel import col, delete, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -186,7 +187,7 @@ async def latest_statuses(
         await session.exec(
             select(AgentRun.conversation_id, AgentRun.status)
             .where(col(AgentRun.conversation_id).in_(conversation_ids))
-            .distinct(col(AgentRun.conversation_id))
+            .ext(distinct_on(col(AgentRun.conversation_id)))
             .order_by(col(AgentRun.conversation_id), col(AgentRun.created_at).desc())
         )
     ).all()

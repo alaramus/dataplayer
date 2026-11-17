@@ -47,6 +47,23 @@ logging.getLogger("aiormq.connection").setLevel(logging.CRITICAL)
 logging.getLogger("aio_pika.connection").setLevel(logging.CRITICAL)
 
 
+class _ClosingConnection(aio_pika.Connection):
+    """A connection that closes itself when it cannot connect.
+
+    `aio_pika.connect` makes the connection and then connects it; when that
+    fails — a wrong password, a broker that is not there — nothing closes it,
+    and its `__del__` later schedules a close that, collected outside a running
+    loop, is never awaited.
+    """
+
+    async def connect(self, timeout: int | float | None = None) -> None:  # noqa: ASYNC109 - aio_pika's signature
+        try:
+            await super().connect(timeout=timeout)
+        except BaseException:
+            await self.close()
+            raise
+
+
 def segment(name: str) -> str:
     """A virtual host or a name as one segment of the API's path."""
     return quote(name, safe="")
@@ -188,6 +205,7 @@ class RabbitmqSession:
                 ssl_context=self._ssl_context() if options.tls else None,
                 timeout=TIMEOUT_SECONDS,
                 client_properties={"connection_name": "DataPlayer"},
+                connection_class=_ClosingConnection,
             )
         except (amqp.AMQPError, OSError, TimeoutError) as failure:
             raise reduced(failure, node_id) from None
