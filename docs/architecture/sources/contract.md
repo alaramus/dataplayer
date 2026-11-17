@@ -150,8 +150,8 @@ found. Sign-in is by password; a cloud's own sign-in is a later stage.
 - **Smoke tests run locally.** Each product's image is in
   `compose.override.yml` behind `tools`, and its tests skip without it, even
   under `--require-services`. CI does not run them.
-- **Logos.** Citus and KeyDB publish no SVG, so their cards show a letter in
-  a colour of the product's. The colour of Percona's mark is chosen here too.
+- **Logos.** Percona's mark is published in one colour, so the colour on its
+  card was chosen here.
 
 Spec: [Stage one of the sources roadmap: cards only](../../decisions/2026-11-17-stage-one-cards-design.md)
 
