@@ -610,7 +610,9 @@ test("a guide page and a source type open where they live", async ({ page }) => 
   await login(page)
   await openSearch(page)
   await searchField(page).fill("TimescaleDB")
-  await searchList(page).getByRole("group", { name: "Source types" }).getByRole("option", { name: /PostgreSQL/ }).click()
+  // TimescaleDB is a card of the postgres type, found as itself and, by its
+  // whole name, among the best matches (D264, D377).
+  await searchList(page).getByRole("option", { name: /^TimescaleDB/ }).click()
   await expect(page.getByTestId("connector-name")).toBeVisible()
   await closeConnectionWindows(page)
 
@@ -1207,19 +1209,20 @@ async function frameFocus(frame: Locator): Promise<{ focused: boolean; ringed: b
 
 test("a window opened from the search is not ringed whole, by a press or by the keys", async ({ page }) => {
   await login(page)
-  const postgres = () =>
-    searchList(page).getByRole("group", { name: "Source types" }).getByRole("option", { name: /PostgreSQL/ })
+  // A card of the postgres type, found as itself and, by its whole name,
+  // among the best matches (D264, D377).
+  const timescale = () => searchList(page).getByRole("option", { name: /^TimescaleDB/ })
 
   await openSearch(page)
   await searchField(page).fill("TimescaleDB")
-  await postgres().click()
+  await timescale().click()
   await expect(connectionFrame(page)).toBeVisible()
   expect(await frameFocus(connectionFrame(page))).toEqual({ focused: true, ringed: false, outline: "none" })
   await closeConnectionWindows(page)
 
   await openSearch(page)
   await searchField(page).fill("TimescaleDB")
-  const id = await postgres().getAttribute("id")
+  const id = await timescale().getAttribute("id")
   for (let step = 0; step < 20 && (await searchField(page).getAttribute("aria-activedescendant")) !== id; step += 1) {
     await page.keyboard.press("ArrowDown")
   }
