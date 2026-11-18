@@ -156,7 +156,7 @@ services:
       - "127.0.0.1:27018:27017"
 
   # An S3 store for the backend suite and for a person to point an S3
-  # connection at (D379): RustFS, open source, which answers the S3 API.
+  # connection at (D382): RustFS, open source, which answers the S3 API.
   # Access key `dataplayer`, secret `dataplayer-secret`, path-style, no TLS;
   # http://rustfs:9000 from the backend, http://127.0.0.1:9010 from this
   # machine. Its data is the container's own, so removing it empties the

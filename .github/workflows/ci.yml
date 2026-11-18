@@ -184,7 +184,7 @@ jobs:
         ports:
           - 3025:3025
           - 3143:3143
-      # The S3 store the S3 source tests read (D379); it starts with no
+      # The S3 store the S3 source tests read (D382); it starts with no
       # arguments, so a service container can run it.
       rustfs:
         image: rustfs/rustfs:1.0.6

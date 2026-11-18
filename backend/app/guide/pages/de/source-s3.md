@@ -38,6 +38,16 @@ Die Seite **Verbindung** des Fensters fragt nach:
 - **Zertifikat prüfen**: nur ausschalten für einen Speicher, dessen Zertifikat
   Sie selbst ausgestellt haben.
 
+Eine Adresse wie `s3://reports/2026`, eine Amazon-S3-URL oder
+`https://host:9000/reports`, in **URL** eingefügt, füllt Endpunkt, Region,
+Bucket und Ordner. Die Schlüssel sind nie Teil davon.
+
+Der Katalog der Typen zeigt für jeden Anbieter eine Karte: Amazon S3, MinIO,
+Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud Storage,
+Yandex Object Storage, VK Cloud, Selectel und Hetzner Object Storage. Jede Karte
+ist dieses eine Formular: Sie füllt aus, was der Anbieter immer gleich nennt,
+und sagt, wo der Rest steht. Keine startet einen Server.
+
 ## Der Katalog und die Objekte
 
 Eine S3-Verbindung wird wie eine [Dateien](source-file.md)-Verbindung

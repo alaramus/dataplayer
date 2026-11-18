@@ -303,7 +303,7 @@ MAIL = Server(
 )
 
 # The development S3 store (`rustfs` in compose.override.yml), with the access
-# key and secret in the address and plain HTTP (D379).
+# key and secret in the address and plain HTTP (D382).
 S3 = Server(
     name="the S3 store",
     variable="TEST_S3_URL",

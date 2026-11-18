@@ -34,6 +34,14 @@ Amazon S3，或任何兼容其 API 的存储。你可以浏览存储桶和文件
   所有兼容存储都接受；
 - **验证证书**：仅当存储的证书是你自己制作的时才关闭。
 
+在 **URL** 中粘贴 `s3://reports/2026`、Amazon S3 URL 或 `https://host:9000/reports`
+这样的地址，会填入接入点、区域、存储桶和文件夹。密钥永远不在其中。
+
+类型目录为每个提供商显示一张卡片：Amazon S3、MinIO、Cloudflare R2、Backblaze B2、
+Wasabi、DigitalOcean Spaces、Google Cloud Storage、Yandex Object Storage、VK Cloud、
+Selectel 和 Hetzner Object Storage。每张卡片都是同一个表单：它填入提供商始终相同的
+内容，并说明其余内容在哪里找到。它们都不会启动服务器。
+
 ## 目录与对象
 
 S3 连接的浏览方式与[文件](source-file.md)连接相同：相同的目录、相同的按名称和在文件

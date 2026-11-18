@@ -49,6 +49,18 @@ const ICONS: Record<string, string> = {
   // Cards of `redis` and `mysql` with a list of what they lack (D378).
   dragonfly: "img:/icons/services/dragonfly.svg",
   tidb: "img:/icons/services/tidb.svg",
+  // The `s3` type and its cards (D382). Amazon S3 wears its cloud's logo.
+  s3: "img:/icons/services/aws.svg",
+  minio: "img:/icons/services/minio.svg",
+  "cloudflare-r2": "img:/icons/services/cloudflare.svg",
+  "backblaze-b2": "img:/icons/services/backblaze.svg",
+  wasabi: "img:/icons/services/wasabi.svg",
+  "digitalocean-spaces": "img:/icons/services/digitalocean.svg",
+  gcs: "img:/icons/services/googlecloud.svg",
+  "yandex-object-storage": "img:/icons/services/yandexcloud.svg",
+  "vk-cloud": "img:/icons/services/vk.svg",
+  selectel: "img:/icons/services/selectel.svg",
+  hetzner: "img:/icons/services/hetzner.svg",
 }
 
 export const UNKNOWN_ADAPTER_ICON = "cable"

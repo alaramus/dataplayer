@@ -38,6 +38,16 @@ La page **Connexion** de la fenêtre demande :
 - **Vérifier le certificat** : à désactiver seulement pour un stockage dont vous
   avez fait le certificat vous-même.
 
+Une adresse comme `s3://reports/2026`, une URL Amazon S3 ou
+`https://host:9000/reports` collée dans **URL** remplit le point d'accès, la
+région, le bucket et le dossier. Les clés n'en font jamais partie.
+
+Le catalogue des types montre une carte par fournisseur : Amazon S3, MinIO,
+Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud Storage,
+Yandex Object Storage, VK Cloud, Selectel et Hetzner Object Storage. Chaque carte
+est ce même formulaire : elle remplit ce que le fournisseur nomme toujours de la
+même façon et indique où trouver le reste. Aucune ne démarre de serveur.
+
 ## Le catalogue et les objets
 
 Une connexion S3 se parcourt comme une connexion [Fichiers](source-file.md) : le

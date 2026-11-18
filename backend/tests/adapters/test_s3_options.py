@@ -4,7 +4,10 @@ import pytest
 from botocore.exceptions import ClientError, EndpointConnectionError
 from pydantic import ValidationError
 
+import app.adapters  # noqa: F401 - registers the source types
+from app.adapters import registry
 from app.adapters.protocol import AdapterError
+from app.adapters.s3.adapter import S3Adapter
 from app.adapters.s3.client import reduced
 from app.adapters.s3.options import S3Options
 
@@ -131,3 +134,103 @@ def test_an_unreachable_endpoint_is_a_network_failure_that_names_no_address() ->
 
     assert failure.error_kind == "network"
     assert "s3.internal.example" not in failure.message
+
+
+# --- the address, and the cards (D382) -------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("s3://reports", {"bucket": "reports"}),
+        ("s3://reports/2026/q1", {"bucket": "reports", "prefix": "2026/q1"}),
+        (
+            "https://reports.s3.eu-central-1.amazonaws.com/2026",
+            {
+                "endpoint": "",
+                "region": "eu-central-1",
+                "bucket": "reports",
+                "prefix": "2026",
+            },
+        ),
+        (
+            "https://s3.eu-west-2.amazonaws.com/reports",
+            {"endpoint": "", "region": "eu-west-2", "bucket": "reports"},
+        ),
+        ("https://reports.s3.amazonaws.com", {"endpoint": "", "bucket": "reports"}),
+        (
+            "http://127.0.0.1:9000/reports/2026",
+            {
+                "endpoint": "http://127.0.0.1:9000",
+                "addressing": "path",
+                "bucket": "reports",
+                "prefix": "2026",
+            },
+        ),
+        (
+            "https://storage.yandexcloud.net",
+            {"endpoint": "https://storage.yandexcloud.net"},
+        ),
+    ],
+)
+def test_an_address_fills_where_the_objects_are(
+    url: str, expected: dict[str, str]
+) -> None:
+    found = S3Adapter.options_from_url(url)
+
+    assert found == expected
+    _options(**found)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "s3://key:secret@reports",
+        "https://key@s3.example.com/reports",
+        "https://s3.example.com/reports?X-Amz-Signature=abc",
+        "ftp://s3.example.com/reports",
+        "https://ec2.eu-central-1.amazonaws.com/",
+        "not an address",
+    ],
+)
+def test_an_address_with_a_key_or_not_of_s3_is_refused(url: str) -> None:
+    with pytest.raises(ValueError):
+        S3Adapter.options_from_url(url)
+
+
+def test_the_address_shown_carries_no_key() -> None:
+    aws = _options(bucket="reports", prefix="2026/q1")
+    elsewhere = _options(endpoint="http://127.0.0.1:9000", bucket="reports")
+
+    assert S3Adapter.draft_connection_string(aws.model_dump()) == "s3://reports/2026/q1"
+    assert (
+        S3Adapter.draft_connection_string(elsewhere.model_dump())
+        == "http://127.0.0.1:9000/reports"
+    )
+    assert S3Adapter.draft_connection_string(_options().model_dump()) is None
+    for options in (aws, elsewhere):
+        text = S3Adapter.draft_connection_string(options.model_dump()) or ""
+        assert SECRET not in text and KEY_ID not in text
+        assert S3Adapter.options_from_url(text)["bucket"] == "reports"
+
+
+def test_every_card_is_one_form_filled_in_and_starts_nothing() -> None:
+    kind = registry.get("s3")
+
+    assert [face.key for face in kind.faces] == [
+        "s3",
+        "minio",
+        "cloudflare-r2",
+        "backblaze-b2",
+        "wasabi",
+        "digitalocean-spaces",
+        "gcs",
+        "yandex-object-storage",
+        "vk-cloud",
+        "selectel",
+        "hetzner",
+    ]
+    for face in kind.faces:
+        assert face.templates == ()
+        assert face.note and face.note_link and face.note_link.startswith("https://")
+        _options(**face.options)

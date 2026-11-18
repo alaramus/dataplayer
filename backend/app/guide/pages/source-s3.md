@@ -37,6 +37,16 @@ The **Connection** page of the window asks for:
 - **Verify the certificate**: switch it off only for a store whose certificate
   you made yourself.
 
+An address such as `s3://reports/2026`, an Amazon S3 URL or
+`https://host:9000/reports` pasted into **URL** fills the endpoint, region,
+bucket and folder. The keys are never part of it.
+
+The catalog of types shows a card for each provider: Amazon S3, MinIO,
+Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud Storage,
+Yandex Object Storage, VK Cloud, Selectel and Hetzner Object Storage. Every
+card is this same form: it fills in what the provider always names the same and
+says where to find the rest. None of them starts a server.
+
 ## The catalog and the objects
 
 An S3 connection is browsed like a [Files](source-file.md) connection: the same
