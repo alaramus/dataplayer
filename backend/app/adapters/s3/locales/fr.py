@@ -6,7 +6,7 @@ store, its form and its refusals.
 
 MESSAGES: dict[str, str] = {
     "S3": "S3",
-    "Amazon S3 or a store that speaks its API. Browse buckets and folders and work with objects as with your own files: tables, SQL over files, the viewers and search. Signs in with an access key.": "Amazon S3 ou un stockage qui parle son API. Parcourez les buckets et les dossiers et travaillez avec les objets comme avec vos propres fichiers : tableaux, SQL sur fichiers, visionneuses et recherche. Connexion par clé d'accès.",
+    "Amazon S3 or a store that speaks its API. Browse buckets and folders and work with objects as with your own files: tables, SQL over files, the editor, archives, search and copying between connections. Buckets are made and deleted here too. Signs in with an access key.": "Amazon S3 ou un stockage qui parle son API. Parcourez les buckets et les dossiers et travaillez avec les objets comme avec vos propres fichiers : tableaux, SQL sur fichiers, l'éditeur, les archives, la recherche et la copie entre connexions. Les buckets se créent et se suppriment ici aussi. Connexion par clé d'accès.",
     "The store's address, such as https://s3.example.com; empty for Amazon S3": "L'adresse du stockage, par exemple https://s3.example.com ; vide pour Amazon S3",
     "Region": "Région",
     "Empty is us-east-1": "Vide signifie us-east-1",
@@ -33,4 +33,10 @@ MESSAGES: dict[str, str] = {
     "The store did not answer in time": "Le stockage n'a pas répondu à temps",
     "Could not reach the store": "Impossible de joindre le stockage",
     "The store could not do that": "Le stockage n'a pas pu faire cela",
+    "Only buckets are kept at the root of the store": "Seuls des buckets sont rangés à la racine du stockage",
+    "{name} holds more than {count} objects; this store changes them one by one, so it is refused": "{name} contient plus de {count} objets ; ce stockage les modifie un par un, c'est donc refusé",
+    "The store did not delete every object": "Le stockage n'a pas supprimé tous les objets",
+    "A bucket is not renamed or copied as a whole": "Un bucket ne se renomme ni ne se copie en entier",
+    "A bucket's name is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending with a letter or a digit": "Le nom d'un bucket compte 3 à 63 lettres minuscules, chiffres, points et tirets, et commence et finit par une lettre ou un chiffre",
+    "{name} keeps old versions of its objects; empty it with a lifecycle rule, then delete it": "{name} conserve d'anciennes versions de ses objets ; videz-le par une règle de cycle de vie, puis supprimez-le",
 }

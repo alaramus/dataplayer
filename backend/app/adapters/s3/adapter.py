@@ -6,7 +6,11 @@ here is the store: how it is reached and which actions it offers.
 
 from typing import ClassVar
 
-from app.adapters.explorer.actions import Download, ExplorerActionType
+from app.adapters.explorer.actions import (
+    EXPLORER_ACTION_TYPES,
+    ConnectFolder,
+    ExplorerActionType,
+)
 from app.adapters.explorer.explorer import Explorer
 from app.adapters.registry import AdapterContext, register
 from app.adapters.s3.options import S3Options
@@ -17,9 +21,13 @@ from app.core.translation import N_
 class S3Adapter(Explorer):
     """The explorer over one bucket, or over every bucket a key may list."""
 
-    # Reading only, until writing is in place. A folder never becomes a
-    # connection of its own: the draft would carry the key to the browser.
-    explorer_action_types: ClassVar[tuple[ExplorerActionType, ...]] = (Download,)
+    # A folder never becomes a connection of its own: the draft would carry
+    # the key to the browser, as an SSH folder's would carry its password.
+    explorer_action_types: ClassVar[tuple[ExplorerActionType, ...]] = tuple(
+        action_type
+        for action_type in EXPLORER_ACTION_TYPES
+        if action_type is not ConnectFolder
+    )
 
     def __init__(self, options: S3Options, context: AdapterContext) -> None:
         self._options = options
@@ -33,7 +41,8 @@ class S3Adapter(Explorer):
     description=N_(
         "Amazon S3 or a store that speaks its API. Browse buckets and folders "
         "and work with objects as with your own files: tables, SQL over files, "
-        "the viewers and search. Signs in with an access key."
+        "the editor, archives, search and copying between connections. Buckets "
+        "are made and deleted here too. Signs in with an access key."
     ),
     options_schema=S3Options,
     adapter_class=S3Adapter,

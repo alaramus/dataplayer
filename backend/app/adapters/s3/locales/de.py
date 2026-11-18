@@ -6,7 +6,7 @@ store, its form and its refusals.
 
 MESSAGES: dict[str, str] = {
     "S3": "S3",
-    "Amazon S3 or a store that speaks its API. Browse buckets and folders and work with objects as with your own files: tables, SQL over files, the viewers and search. Signs in with an access key.": "Amazon S3 oder ein Speicher, der dessen API spricht. Buckets und Ordner durchsuchen und mit Objekten wie mit eigenen Dateien arbeiten: Tabellen, SQL über Dateien, die Ansichten und die Suche. Anmeldung mit einem Zugriffsschlüssel.",
+    "Amazon S3 or a store that speaks its API. Browse buckets and folders and work with objects as with your own files: tables, SQL over files, the editor, archives, search and copying between connections. Buckets are made and deleted here too. Signs in with an access key.": "Amazon S3 oder ein Speicher, der dessen API spricht. Buckets und Ordner durchsuchen und mit Objekten wie mit eigenen Dateien arbeiten: Tabellen, SQL über Dateien, der Editor, Archive, die Suche und Kopieren zwischen Verbindungen. Buckets werden hier auch angelegt und gelöscht. Anmeldung mit einem Zugriffsschlüssel.",
     "The store's address, such as https://s3.example.com; empty for Amazon S3": "Die Adresse des Speichers, etwa https://s3.example.com; leer für Amazon S3",
     "Region": "Region",
     "Empty is us-east-1": "Leer ist us-east-1",
@@ -33,4 +33,10 @@ MESSAGES: dict[str, str] = {
     "The store did not answer in time": "Der Speicher hat nicht rechtzeitig geantwortet",
     "Could not reach the store": "Der Speicher war nicht erreichbar",
     "The store could not do that": "Der Speicher konnte das nicht ausführen",
+    "Only buckets are kept at the root of the store": "Im Stamm des Speichers liegen nur Buckets",
+    "{name} holds more than {count} objects; this store changes them one by one, so it is refused": "{name} enthält mehr als {count} Objekte; dieser Speicher ändert sie einzeln, deshalb wird es abgelehnt",
+    "The store did not delete every object": "Der Speicher hat nicht jedes Objekt gelöscht",
+    "A bucket is not renamed or copied as a whole": "Ein Bucket wird nicht als Ganzes umbenannt oder kopiert",
+    "A bucket's name is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending with a letter or a digit": "Der Name eines Buckets besteht aus 3 bis 63 Kleinbuchstaben, Ziffern, Punkten und Bindestrichen und beginnt und endet mit einem Buchstaben oder einer Ziffer",
+    "{name} keeps old versions of its objects; empty it with a lifecycle rule, then delete it": "{name} bewahrt alte Versionen seiner Objekte auf; leeren Sie ihn mit einer Lebenszyklusregel und löschen Sie ihn dann",
 }

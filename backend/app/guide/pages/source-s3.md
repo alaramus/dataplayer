@@ -13,6 +13,15 @@ on the [Connections](connections.md) page.
 - Objects found by name, or by the text inside them
 - SQL run over tables kept in objects
 
+## What you can change
+
+- Objects in a text editor
+- The rows and columns of CSV and TSV files
+- Objects and folders: create, upload, rename, delete, download
+- Archives: pack objects into one, or unpack one
+- Objects copied or moved between folders and connections
+- Buckets: make one, or delete one with what it holds
+
 ## Connecting
 
 The **Connection** page of the window asks for:
@@ -32,7 +41,9 @@ The **Connection** page of the window asks for:
 
 An S3 connection is browsed like a [Files](source-file.md) connection: the same
 catalog, the same search by name and inside files, the same viewers and the same
-SQL over files. **Download** fetches an object, or a folder as an archive.
+SQL over files. The same actions too: **New folder**, **New file**, **Upload files**,
+**Rename**, **Delete**, **Download**, **Archive**, **Extract**, **Copy**, **Cut**
+and **Paste**.
 
 How a store differs from a disk:
 
@@ -48,3 +59,21 @@ How a store differs from a disk:
   because every byte crosses the network.
 - An object in an archive storage class has to be restored before it can be
   read.
+- Renaming or moving a folder copies every object in it and removes the old
+  ones: the store has no rename. Up to 10,000 objects are moved, copied or
+  deleted at once; a larger folder is refused.
+- A file saved over one that changed meanwhile is refused rather than
+  overwritten.
+
+### Buckets
+
+When **Bucket** is empty, the top of the catalog lists buckets.
+
+- **New folder** there makes a bucket, in the connection's region. Its name
+  is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending
+  with a letter or a digit.
+- **Delete** removes a bucket with everything in it, up to 10,000 objects. A
+  bucket that keeps old versions of its objects is refused: empty it with a
+  lifecycle rule first.
+- A bucket cannot be renamed or copied, and no file is kept beside the
+  buckets.

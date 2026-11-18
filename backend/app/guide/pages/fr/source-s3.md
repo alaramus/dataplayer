@@ -14,6 +14,15 @@ clé d'accès. Le fonctionnement des connexions en général est décrit sur la 
 - Les objets trouvés par nom, ou par le texte qu'ils contiennent
 - Le SQL exécuté sur des tableaux rangés dans des objets
 
+## Ce que vous pouvez modifier
+
+- Les objets dans un éditeur de texte
+- Les lignes et colonnes des fichiers CSV et TSV
+- Objets et dossiers : créer, téléverser, renommer, supprimer, télécharger
+- Archives : regrouper des objets en une, ou en décompresser une
+- Les objets copiés ou déplacés entre dossiers et connexions
+- Buckets : en créer un, ou en supprimer un avec son contenu
+
 ## Se connecter
 
 La page **Connexion** de la fenêtre demande :
@@ -33,8 +42,9 @@ La page **Connexion** de la fenêtre demande :
 
 Une connexion S3 se parcourt comme une connexion [Fichiers](source-file.md) : le
 même catalogue, la même recherche par nom et dans les fichiers, les mêmes
-visionneuses et le même SQL sur fichiers. **Télécharger** récupère un objet, ou
-un dossier sous forme d'archive.
+visionneuses et le même SQL sur fichiers. Les mêmes actions aussi : **Nouveau dossier**, **Nouveau fichier**,
+**Téléverser des fichiers**, **Renommer**, **Supprimer**, **Télécharger**,
+**Archiver**, **Extraire**, **Copier**, **Couper** et **Coller**.
 
 En quoi un stockage diffère d'un disque :
 
@@ -51,3 +61,22 @@ En quoi un stockage diffère d'un disque :
   32 Mo au total, car chaque octet traverse le réseau.
 - Un objet dans une classe de stockage d'archive doit être restauré avant de
   pouvoir être lu.
+- Renommer ou déplacer un dossier copie chaque objet qu'il contient puis
+  supprime les anciens : le stockage ne sait pas renommer. Jusqu'à 10 000
+  objets sont déplacés, copiés ou supprimés d'un coup ; un dossier plus grand
+  est refusé.
+- Un fichier modifié entre-temps n'est pas écrasé : l'enregistrement est
+  refusé.
+
+### Buckets
+
+Quand **Bucket** est vide, le haut du catalogue liste les buckets.
+
+- **Nouveau dossier** y crée un bucket, dans la région de la connexion. Son
+  nom compte 3 à 63 lettres minuscules, chiffres, points et tirets, et commence
+  et finit par une lettre ou un chiffre.
+- **Supprimer** retire un bucket avec tout son contenu, jusqu'à 10 000 objets.
+  Un bucket qui conserve d'anciennes versions de ses objets est refusé :
+  videz-le d'abord par une règle de cycle de vie.
+- Un bucket ne se renomme ni ne se copie, et aucun fichier n'est rangé à côté
+  des buckets.

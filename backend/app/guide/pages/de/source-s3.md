@@ -14,6 +14,15 @@ Zugriffsschlüssel. Wie Verbindungen allgemein funktionieren, steht auf der Seit
 - Objekte, gefunden nach Namen oder nach dem Text darin
 - SQL über Tabellen, die in Objekten liegen
 
+## Was Sie ändern können
+
+- Objekte in einem Texteditor
+- Die Zeilen und Spalten von CSV- und TSV-Dateien
+- Objekte und Ordner: anlegen, hochladen, umbenennen, löschen, herunterladen
+- Archive: Objekte in eines packen oder eines entpacken
+- Objekte, kopiert oder verschoben zwischen Ordnern und Verbindungen
+- Buckets: einen anlegen oder einen mit seinem Inhalt löschen
+
 ## Verbinden
 
 Die Seite **Verbindung** des Fensters fragt nach:
@@ -33,8 +42,9 @@ Die Seite **Verbindung** des Fensters fragt nach:
 
 Eine S3-Verbindung wird wie eine [Dateien](source-file.md)-Verbindung
 durchsucht: derselbe Katalog, dieselbe Suche nach Namen und in Dateien,
-dieselben Ansichten und dasselbe SQL über Dateien. **Download** holt ein Objekt,
-einen Ordner als Archiv.
+dieselben Ansichten und dasselbe SQL über Dateien. Auch dieselben Aktionen: **Neuer Ordner**, **Neue Datei**,
+**Dateien hochladen**, **Umbenennen**, **Löschen**, **Download**, **Archivieren**,
+**Entpacken**, **Kopieren**, **Ausschneiden** und **Einfügen**.
 
 Worin sich ein Speicher von einer Festplatte unterscheidet:
 
@@ -51,3 +61,22 @@ Worin sich ein Speicher von einer Festplatte unterscheidet:
   32 MB auf, weil jedes Byte über das Netz geht.
 - Ein Objekt in einer Archiv-Speicherklasse muss erst wiederhergestellt werden,
   bevor es gelesen werden kann.
+- Einen Ordner umzubenennen oder zu verschieben kopiert jedes Objekt darin und
+  entfernt die alten: Der Speicher kann nicht umbenennen. Bis zu 10.000
+  Objekte werden auf einmal verschoben, kopiert oder gelöscht; ein größerer
+  Ordner wird abgelehnt.
+- Eine Datei, die sich inzwischen geändert hat, wird nicht überschrieben: Das
+  Speichern wird abgelehnt.
+
+### Buckets
+
+Ist **Bucket** leer, listet die oberste Ebene des Katalogs die Buckets.
+
+- **Neuer Ordner** legt dort einen Bucket in der Region der Verbindung an. Sein
+  Name hat 3 bis 63 Kleinbuchstaben, Ziffern, Punkte und Bindestriche und
+  beginnt und endet mit einem Buchstaben oder einer Ziffer.
+- **Löschen** entfernt einen Bucket mit allem darin, bis zu 10.000 Objekte. Ein
+  Bucket, der alte Versionen seiner Objekte aufbewahrt, wird abgelehnt: Leeren
+  Sie ihn zuerst mit einer Lebenszyklusregel.
+- Ein Bucket kann nicht umbenannt oder kopiert werden, und neben den Buckets
+  liegt keine Datei.

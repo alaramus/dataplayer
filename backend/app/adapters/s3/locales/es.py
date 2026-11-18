@@ -6,7 +6,7 @@ store, its form and its refusals.
 
 MESSAGES: dict[str, str] = {
     "S3": "S3",
-    "Amazon S3 or a store that speaks its API. Browse buckets and folders and work with objects as with your own files: tables, SQL over files, the viewers and search. Signs in with an access key.": "Amazon S3 o un almacenamiento que habla su API. Explora buckets y carpetas y trabaja con los objetos como con tus propios archivos: tablas, SQL sobre archivos, los visores y la búsqueda. Inicia sesión con una clave de acceso.",
+    "Amazon S3 or a store that speaks its API. Browse buckets and folders and work with objects as with your own files: tables, SQL over files, the editor, archives, search and copying between connections. Buckets are made and deleted here too. Signs in with an access key.": "Amazon S3 o un almacenamiento que habla su API. Explora buckets y carpetas y trabaja con los objetos como con tus propios archivos: tablas, SQL sobre archivos, el editor, archivos comprimidos, la búsqueda y la copia entre conexiones. Aquí también se crean y eliminan buckets. Inicia sesión con una clave de acceso.",
     "The store's address, such as https://s3.example.com; empty for Amazon S3": "La dirección del almacenamiento, como https://s3.example.com; vacío para Amazon S3",
     "Region": "Región",
     "Empty is us-east-1": "Vacío es us-east-1",
@@ -33,4 +33,10 @@ MESSAGES: dict[str, str] = {
     "The store did not answer in time": "El almacenamiento no respondió a tiempo",
     "Could not reach the store": "No se pudo contactar con el almacenamiento",
     "The store could not do that": "El almacenamiento no pudo hacer eso",
+    "Only buckets are kept at the root of the store": "En la raíz del almacenamiento solo hay buckets",
+    "{name} holds more than {count} objects; this store changes them one by one, so it is refused": "{name} contiene más de {count} objetos; este almacenamiento los cambia uno a uno, así que se rechaza",
+    "The store did not delete every object": "El almacenamiento no eliminó todos los objetos",
+    "A bucket is not renamed or copied as a whole": "Un bucket no se renombra ni se copia entero",
+    "A bucket's name is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending with a letter or a digit": "El nombre de un bucket tiene de 3 a 63 letras minúsculas, dígitos, puntos y guiones, y empieza y termina con una letra o un dígito",
+    "{name} keeps old versions of its objects; empty it with a lifecycle rule, then delete it": "{name} guarda versiones antiguas de sus objetos; vacíalo con una regla de ciclo de vida y luego elimínalo",
 }

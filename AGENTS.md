@@ -45,7 +45,7 @@ documentation.
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
 | A source action too long for a request: its plan, review and outcomes | [sources/operations.md](docs/architecture/sources/operations.md) |
 | A source made of files, the storage it brings, the explorer over it, the limit on a person's storage | [sources/explorer.md](docs/architecture/sources/explorer.md) |
-| Amazon S3 and stores that speak its API, a bucket and its keys as folders and files, keys left out of a listing, the client and its failures | [sources/s3.md](docs/architecture/sources/s3.md) |
+| Amazon S3 and stores that speak its API, a bucket and its keys as folders and files, keys left out of a listing, the client and its failures, conditional and multipart writes, rename as copy and delete, making and removing buckets | [sources/s3.md](docs/architecture/sources/s3.md) |
 | An SSH server, the server key it trusts, SSH keys and their passphrases, a database reached through an SSH tunnel | [sources/ssh.md](docs/architecture/sources/ssh.md) |
 | A terminal, its socket, who may open one, a client program run in a container as one | [terminals.md](docs/architecture/terminals.md) |
 | Reading a relation, changing the rows in it | [sources/relations.md](docs/architecture/sources/relations.md) |
@@ -143,7 +143,7 @@ file; `D247–D262` is every number between, all in that file.
 | [tour](docs/architecture/tour.md) | D355, D356 |
 | [mcp](docs/architecture/mcp.md) | D357, D358, D360, D361 |
 | [sources/mail](docs/architecture/sources/mail.md) | D366–D376 |
-| [sources/s3](docs/architecture/sources/s3.md) | D379 |
+| [sources/s3](docs/architecture/sources/s3.md) | D379–D381 |
 
 ## Working rules
 

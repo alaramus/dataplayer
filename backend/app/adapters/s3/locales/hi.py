@@ -6,7 +6,7 @@ store, its form and its refusals.
 
 MESSAGES: dict[str, str] = {
     "S3": "S3",
-    "Amazon S3 or a store that speaks its API. Browse buckets and folders and work with objects as with your own files: tables, SQL over files, the viewers and search. Signs in with an access key.": "Amazon S3 या उसका API समझने वाला स्टोर। बकेट और फ़ोल्डर देखें और ऑब्जेक्ट के साथ अपनी फ़ाइलों की तरह काम करें: तालिकाएँ, फ़ाइलों पर SQL, व्यूअर और खोज। एक्सेस कुंजी से साइन इन होता है।",
+    "Amazon S3 or a store that speaks its API. Browse buckets and folders and work with objects as with your own files: tables, SQL over files, the editor, archives, search and copying between connections. Buckets are made and deleted here too. Signs in with an access key.": "Amazon S3 या उसका API समझने वाला स्टोर। बकेट और फ़ोल्डर देखें और ऑब्जेक्ट के साथ अपनी फ़ाइलों की तरह काम करें: तालिकाएँ, फ़ाइलों पर SQL, एडिटर, संग्रह, खोज और कनेक्शनों के बीच कॉपी। बकेट भी यहीं बनाए और हटाए जाते हैं। एक्सेस कुंजी से साइन इन होता है।",
     "The store's address, such as https://s3.example.com; empty for Amazon S3": "स्टोर का पता, जैसे https://s3.example.com; Amazon S3 के लिए खाली",
     "Region": "क्षेत्र",
     "Empty is us-east-1": "खाली का अर्थ us-east-1",
@@ -33,4 +33,10 @@ MESSAGES: dict[str, str] = {
     "The store did not answer in time": "स्टोर ने समय पर उत्तर नहीं दिया",
     "Could not reach the store": "स्टोर तक नहीं पहुँचा जा सका",
     "The store could not do that": "स्टोर यह नहीं कर सका",
+    "Only buckets are kept at the root of the store": "स्टोर के रूट में केवल बकेट रखे जाते हैं",
+    "{name} holds more than {count} objects; this store changes them one by one, so it is refused": "{name} में {count} से अधिक ऑब्जेक्ट हैं; यह स्टोर उन्हें एक-एक करके बदलता है, इसलिए इसे अस्वीकार किया गया",
+    "The store did not delete every object": "स्टोर ने हर ऑब्जेक्ट नहीं हटाया",
+    "A bucket is not renamed or copied as a whole": "बकेट को पूरा का पूरा नाम बदला या कॉपी नहीं किया जाता",
+    "A bucket's name is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending with a letter or a digit": "बकेट का नाम 3 से 63 छोटे अक्षरों, अंकों, बिंदुओं और हाइफ़न का होता है, और अक्षर या अंक से शुरू और खत्म होता है",
+    "{name} keeps old versions of its objects; empty it with a lifecycle rule, then delete it": "{name} अपने ऑब्जेक्ट के पुराने संस्करण रखता है; पहले उसे लाइफ़साइकल नियम से खाली करें, फिर हटाएँ",
 }

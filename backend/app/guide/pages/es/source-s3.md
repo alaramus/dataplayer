@@ -14,6 +14,15 @@ acceso. Cómo funcionan las conexiones en general está en la página
 - Objetos encontrados por nombre, o por el texto que contienen
 - SQL ejecutado sobre tablas guardadas en objetos
 
+## Qué puedes cambiar
+
+- Objetos en un editor de texto
+- Las filas y columnas de archivos CSV y TSV
+- Objetos y carpetas: crear, subir, renombrar, eliminar, descargar
+- Archivos comprimidos: empaquetar objetos en uno o desempaquetar uno
+- Objetos copiados o movidos entre carpetas y conexiones
+- Buckets: crear uno, o eliminar uno con lo que contiene
+
 ## Conectar
 
 La página **Conexión** de la ventana pide:
@@ -33,8 +42,9 @@ La página **Conexión** de la ventana pide:
 
 Una conexión S3 se explora como una conexión [Archivos](source-file.md): el
 mismo catálogo, la misma búsqueda por nombre y dentro de los archivos, los mismos
-visores y el mismo SQL sobre archivos. **Descargar** trae un objeto, o una
-carpeta como archivo comprimido.
+visores y el mismo SQL sobre archivos. También las mismas acciones: **Nueva carpeta**, **Nuevo archivo**,
+**Subir archivos**, **Renombrar**, **Eliminar**, **Descargar**, **Archivar**,
+**Extraer**, **Copiar**, **Cortar** y **Pegar**.
 
 En qué se diferencia un almacenamiento de un disco:
 
@@ -51,3 +61,22 @@ En qué se diferencia un almacenamiento de un disco:
   32 MB en total, porque cada byte cruza la red.
 - Un objeto en una clase de almacenamiento de archivo debe restaurarse antes de
   poder leerse.
+- Renombrar o mover una carpeta copia cada objeto que contiene y elimina los
+  antiguos: el almacenamiento no sabe renombrar. Se mueven, copian o eliminan
+  hasta 10.000 objetos de una vez; una carpeta mayor se rechaza.
+- Un archivo que cambió mientras tanto no se sobrescribe: el guardado se
+  rechaza.
+
+### Buckets
+
+Cuando **Bucket** está vacío, el nivel superior del catálogo lista los
+buckets.
+
+- **Nueva carpeta** allí crea un bucket, en la región de la conexión. Su nombre
+  tiene de 3 a 63 letras minúsculas, dígitos, puntos y guiones, y empieza y
+  termina con una letra o un dígito.
+- **Eliminar** quita un bucket con todo lo que contiene, hasta 10.000 objetos.
+  Un bucket que guarda versiones antiguas de sus objetos se rechaza: vacíalo
+  antes con una regla de ciclo de vida.
+- Un bucket no se renombra ni se copia, y junto a los buckets no se guarda
+  ningún archivo.
