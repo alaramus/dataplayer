@@ -52,6 +52,7 @@ const ICONS: Record<string, string> = {
   // The `s3` type and its cards (D382). Amazon S3 wears its cloud's logo.
   s3: "img:/icons/services/aws.svg",
   minio: "img:/icons/services/minio.svg",
+  rustfs: "img:/icons/services/rustfs.svg",
   "cloudflare-r2": "img:/icons/services/cloudflare.svg",
   "backblaze-b2": "img:/icons/services/backblaze.svg",
   wasabi: "img:/icons/services/wasabi.svg",

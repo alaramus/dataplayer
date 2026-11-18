@@ -39,7 +39,7 @@ Amazon S3، أو أي مخزن يتحدث واجهته البرمجية. تتص�
 يُلصق في **URL** يملأ نقطة الوصول والمنطقة والحاوية والمجلد. ولا تكون المفاتيح
 جزءًا منه أبدًا.
 
-يعرض كتالوج الأنواع بطاقة لكل مزود: Amazon S3 و MinIO و Cloudflare R2 و
+يعرض كتالوج الأنواع بطاقة لكل مزود: Amazon S3 و MinIO و RustFS و Cloudflare R2 و
 Backblaze B2 و Wasabi و DigitalOcean Spaces و Google Cloud Storage و Yandex
 Object Storage و VK Cloud و Selectel و Hetzner Object Storage. كل بطاقة هي
 النموذج نفسه: تملأ ما يسميه المزود دائمًا بالاسم نفسه وتقول أين تجد الباقي. ولا

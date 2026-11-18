@@ -43,10 +43,10 @@ Una dirección como `s3://reports/2026`, una URL de Amazon S3 o
 región, el bucket y la carpeta. Las claves nunca forman parte de ella.
 
 El catálogo de tipos muestra una tarjeta por proveedor: Amazon S3, MinIO,
-Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud Storage,
-Yandex Object Storage, VK Cloud, Selectel y Hetzner Object Storage. Cada tarjeta
-es este mismo formulario: rellena lo que el proveedor siempre nombra igual y
-dice dónde encontrar el resto. Ninguna inicia un servidor.
+RustFS, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud
+Storage, Yandex Object Storage, VK Cloud, Selectel y Hetzner Object Storage.
+Cada tarjeta es este mismo formulario: rellena lo que el proveedor siempre
+nombra igual y dice dónde encontrar el resto. Ninguna inicia un servidor.
 
 ## El catálogo y los objetos
 

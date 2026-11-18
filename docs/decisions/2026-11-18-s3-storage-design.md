@@ -128,6 +128,7 @@ When a connection names no bucket, the root is where buckets live.
   | --- | --- | --- |
   | Amazon S3 | no endpoint, virtual | an IAM access key |
   | MinIO | path | the server's address, usually port 9000 |
+  | RustFS | path | the server's address, usually port 9000, and the credentials it was started with |
   | Cloudflare R2 | region `auto`, path | `https://<account>.r2.cloudflarestorage.com`, an R2 API token |
   | Backblaze B2 | | `https://s3.<region>.backblazeb2.com`, an application key |
   | Wasabi | | `https://s3.<region>.wasabisys.com` |

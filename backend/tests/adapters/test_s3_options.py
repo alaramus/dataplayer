@@ -220,6 +220,7 @@ def test_every_card_is_one_form_filled_in_and_starts_nothing() -> None:
     assert [face.key for face in kind.faces] == [
         "s3",
         "minio",
+        "rustfs",
         "cloudflare-r2",
         "backblaze-b2",
         "wasabi",

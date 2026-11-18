@@ -33,7 +33,7 @@ Amazon S3, या उसका API समझने वाला कोई भी
 
 **URL** में चिपकाया गया `s3://reports/2026`, Amazon S3 URL या `https://host:9000/reports` जैसा पता एंडपॉइंट, क्षेत्र, बकेट और फ़ोल्डर भर देता है। कुंजियाँ कभी इसका हिस्सा नहीं होतीं।
 
-प्रकारों का कैटलॉग हर प्रदाता के लिए एक कार्ड दिखाता है: Amazon S3, MinIO, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud Storage, Yandex Object Storage, VK Cloud, Selectel और Hetzner Object Storage। हर कार्ड यही एक फ़ॉर्म है: वह भरता है जो प्रदाता हमेशा एक जैसा रखता है और बताता है कि बाकी कहाँ मिलेगा। कोई भी कार्ड सर्वर शुरू नहीं करता।
+प्रकारों का कैटलॉग हर प्रदाता के लिए एक कार्ड दिखाता है: Amazon S3, MinIO, RustFS, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud Storage, Yandex Object Storage, VK Cloud, Selectel और Hetzner Object Storage। हर कार्ड यही एक फ़ॉर्म है: वह भरता है जो प्रदाता हमेशा एक जैसा रखता है और बताता है कि बाकी कहाँ मिलेगा। कोई भी कार्ड सर्वर शुरू नहीं करता।
 
 ## कैटलॉग और ऑब्जेक्ट
 

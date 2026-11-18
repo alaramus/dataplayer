@@ -158,6 +158,16 @@ def _text(value: object) -> str:
             note_link="https://docs.min.io/",
         ),
         CatalogFace(
+            key="rustfs",
+            title=N_("RustFS"),
+            options={"addressing": "path"},
+            note=N_(
+                "The server's S3 address, usually http://host:9000, and the "
+                "access key and secret it was started with."
+            ),
+            note_link="https://docs.rustfs.com/en/operations/credentials",
+        ),
+        CatalogFace(
             key="cloudflare-r2",
             title=N_("Cloudflare R2"),
             options={"region": "auto", "addressing": "path"},
