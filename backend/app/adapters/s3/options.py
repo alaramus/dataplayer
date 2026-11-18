@@ -54,10 +54,10 @@ class S3Options(BaseModel):
         min_length=1,
         max_length=256,
         title=N_("Access key"),
-        json_schema_extra=layout(row="key"),
+        json_schema_extra=layout(),
     )
     secret_access_key: SecretStr = Field(
-        title=N_("Secret key"), json_schema_extra=layout(row="key")
+        title=N_("Secret key"), json_schema_extra=layout()
     )
     bucket: str = Field(
         default="",
