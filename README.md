@@ -62,6 +62,19 @@ are encrypted at rest and never leave the backend.
   order book and trades live, and with a read-only key the account's balances, orders and trades.
 - <img src="frontend/public/icons/services/folder.svg" height="20" alt=""> **Files** on the server, and <img src="frontend/public/icons/services/ssh.svg" height="20" alt=""> **SSH servers**: a file explorer with
   preview, upload and download, and a terminal in the browser.
+- <img src="frontend/public/icons/services/aws.svg" height="20" alt=""> **Amazon S3** and the stores that speak its API —
+  <img src="frontend/public/icons/services/minio.svg" height="20" alt=""> **MinIO**,
+  <img src="frontend/public/icons/services/rustfs.svg" height="20" alt=""> **RustFS**,
+  <img src="frontend/public/icons/services/cloudflare.svg" height="20" alt=""> **Cloudflare R2**,
+  <img src="frontend/public/icons/services/backblaze.svg" height="20" alt=""> **Backblaze B2**,
+  <img src="frontend/public/icons/services/wasabi.svg" height="20" alt=""> **Wasabi**,
+  <img src="frontend/public/icons/services/digitalocean.svg" height="20" alt=""> **DigitalOcean Spaces**,
+  <img src="frontend/public/icons/services/googlecloud.svg" height="20" alt=""> **Google Cloud Storage**,
+  <img src="frontend/public/icons/services/yandexcloud.svg" height="20" alt=""> **Yandex Object Storage**,
+  <img src="frontend/public/icons/services/vk.svg" height="20" alt=""> **VK Cloud**,
+  <img src="frontend/public/icons/services/selectel.svg" height="20" alt=""> **Selectel** and
+  <img src="frontend/public/icons/services/hetzner.svg" height="20" alt=""> **Hetzner Object Storage**: buckets and keys
+  browsed as folders and files in the same explorer, written, copied, renamed, with SQL over them.
 - <img src="frontend/public/icons/services/mail.svg" height="20" alt=""> **Email**, with a
   <img src="frontend/public/icons/services/gmail.svg" height="20" alt=""> **Gmail** card: folders, letters, writing and attachments
   over IMAP and SMTP.
@@ -184,7 +197,7 @@ panel with examples — the bundled PostgreSQL under several names, file storage
 and Redis — run `bun run seed:connectors` from the repository root. Adminer,
 Mailcatcher and the servers the tests and examples point at — Redis, SSH,
 MySQL, MariaDB, ClickHouse, MongoDB, Greenmail, ZooKeeper, Kafka, RabbitMQ,
-Cassandra, ScyllaDB and the other products of those types: Valkey, KeyDB,
+Cassandra, ScyllaDB, the RustFS S3 store and the other products of those types: Valkey, KeyDB,
 Dragonfly, Redpanda, Percona Server, Citus, ParadeDB and TiDB — start on
 request: `docker compose --profile tools up -d`.
 
