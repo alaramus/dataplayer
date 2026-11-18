@@ -7,7 +7,7 @@ cuadros de mando funcionan todos a través de conexiones.
 
 Cada tipo de fuente tiene su propia página: [Archivos](source-file.md),
 [PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md),
-[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md) y [SSH](source-ssh.md).
+[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [SSH](source-ssh.md) y [S3](source-s3.md).
 
 ## La lista de conexiones
 
