@@ -129,36 +129,73 @@ class Reading:
         return None if row is None else row[0]
 
 
-class _Call:
-    """One open, its work and its close, which the event loop may stop."""
+class Handle:
+    """One open connection, worked on from worker threads, one call at a time.
 
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._connection: duckdb.DuckDBPyConnection | None = None
-        self._stopped = False
-        # Whether the work was stopped by its clock rather than by its caller.
+    A statement is stopped by `interrupt`, which DuckDB allows from any thread:
+    by `stop`, by its clock running out, or by the request that waits for it
+    going away. A stop that comes between two statements stops the next one
+    before it starts.
+    """
+
+    def __init__(self, connection: duckdb.DuckDBPyConnection) -> None:
+        self._connection = connection
+        self._lock = asyncio.Lock()
+        self._stopped = threading.Event()
+        # Whether the last call was stopped by its clock rather than by `stop`.
         self.timed_out = False
 
-    def opened(self, connection: duckdb.DuckDBPyConnection) -> None:
-        with self._lock:
-            self._connection = connection
-            stopped = self._stopped
-        if stopped:
-            connection.interrupt()
+    def stop(self) -> None:
+        """Stop what runs now, and every call after it until `resume`."""
+        self._stopped.set()
+        self._connection.interrupt()
 
-    def stop(self, *, timed_out: bool = False) -> None:
-        """Interrupt the statement running now; `interrupt` works from any thread."""
-        with self._lock:
-            self._stopped = True
-            self.timed_out = self.timed_out or timed_out
-            connection = self._connection
-        if connection is not None:
-            connection.interrupt()
+    def resume(self) -> None:
+        self._stopped.clear()
 
-    @property
-    def stopped(self) -> bool:
-        with self._lock:
-            return self._stopped
+    def _expire(self) -> None:
+        self.timed_out = True
+        self._connection.interrupt()
+
+    async def call[T](
+        self, work: Callable[[duckdb.DuckDBPyConnection], T], *, seconds: float | None = None
+    ) -> T:
+        """Run `work` on the connection in a worker thread."""
+
+        def job() -> T:
+            if self._stopped.is_set():
+                raise duckdb.InterruptException("stopped before it started")
+            return work(self._connection)
+
+        async with self._lock:
+            self.timed_out = False
+            loop = asyncio.get_running_loop()
+            # run_in_executor carries no context variables, and the request's
+            # language is one: a refusal worded in the thread would be English.
+            context = contextvars.copy_context()
+            future = loop.run_in_executor(None, context.run, job)
+            timer = None if seconds is None else loop.call_later(seconds, self._expire)
+            try:
+                return await asyncio.shield(future)
+            except asyncio.CancelledError:
+                self.stop()
+                # Nothing of the thread is wanted, its failure included, which
+                # is read so that it is not reported as never retrieved.
+                await asyncio.wait([future])
+                if not future.cancelled():
+                    future.exception()
+                raise
+            finally:
+                if timer is not None:
+                    timer.cancel()
+
+    async def close(self) -> None:
+        # A statement still running is stopped first, so closing does not
+        # wait for it; closing rolls back whatever was left open.
+        self._stopped.set()
+        self._connection.interrupt()
+        async with self._lock:
+            await asyncio.get_running_loop().run_in_executor(None, self._connection.close)
 
 
 class DuckdbSession:
@@ -171,6 +208,11 @@ class DuckdbSession:
     @property
     def options(self) -> DuckdbOptions:
         return self._options
+
+    @property
+    def home(self) -> Path:
+        """The owner's home as the engine knows it, `~` (D388)."""
+        return self._home_file.home
 
     def _open(self) -> duckdb.DuckDBPyConnection:
         """The file opened and sealed, each time anew (D387).
@@ -203,6 +245,14 @@ class DuckdbSession:
                 raise
         return connection
 
+    async def handle(self) -> Handle:
+        """A connection kept open by the caller, who closes it."""
+        context = contextvars.copy_context()
+        connection = await asyncio.get_running_loop().run_in_executor(
+            None, context.run, self._open
+        )
+        return Handle(connection)
+
     async def read[T](
         self,
         work: Callable[[Reading], T],
@@ -215,44 +265,16 @@ class DuckdbSession:
         A request that goes away interrupts the statement rather than leaving
         it to run to its end in a thread nobody waits for.
         """
-        call = _Call()
-
-        def job() -> T:
-            connection = self._open()
-            try:
-                call.opened(connection)
-                if call.stopped:
-                    raise duckdb.InterruptException("stopped before it started")
-                return work(Reading(connection))
-            finally:
-                connection.close()
-
-        loop = asyncio.get_running_loop()
-        # run_in_executor carries no context variables, and the request's
-        # language is one: a refusal worded in the thread would be English.
-        context = contextvars.copy_context()
-        future = loop.run_in_executor(None, context.run, job)
-        timer = (
-            None if seconds is None else loop.call_later(seconds, lambda: call.stop(timed_out=True))
-        )
+        handle = await self.handle()
         try:
-            return await asyncio.shield(future)
-        except asyncio.CancelledError:
-            call.stop()
-            # Nothing of the thread is wanted, its failure included, which is
-            # read so that it is not reported as never retrieved.
-            await asyncio.wait([future])
-            if not future.cancelled():
-                future.exception()
-            raise
+            return await handle.call(lambda connection: work(Reading(connection)), seconds=seconds)
         except (AdapterError, ValueError):
             raise
         except duckdb.Error as exc:
             error_kind, message = classify(exc, fallback_message=fallback_message)
             raise AdapterError(error_kind, message) from None
         finally:
-            if timer is not None:
-                timer.cancel()
+            await handle.close()
 
     async def inspection[T](self, work: Callable[[Reading], T]) -> T:
         """Several catalog reads on one connection, under one clock (D246)."""

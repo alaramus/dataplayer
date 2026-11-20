@@ -1,14 +1,14 @@
 # DuckDB
 
 What a DuckDB source is, how it opens its file and locks the engine to the
-owner's storage, how it reads its catalog, and how its values and pages cross
-to the grid. The contract every source type follows is in
+owner's storage, how it reads its catalog, how its values and pages cross
+to the grid, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md); the other DuckDB in the server, the sandbox
 behind SQL over files, is in [file-sql.md](file-sql.md). Read this before
 changing the `duckdb` adapter.
 
-Decisions here: D387, D388, D389, D390, D391.
+Decisions here: D387, D388, D389, D390, D391, D392, D393, D394.
 
 ## D387. A DuckDB source is one file of its owner's storage, opened per call
 
@@ -97,3 +97,60 @@ gives an updated row a new `rowid`, so it orders pages and never names a row:
 a table without a primary key is read only.
 
 Spec: [A DuckDB source](../../decisions/2026-11-20-duckdb-source-design.md)
+
+## D392. Statements are read with DuckDB's own parser
+
+Boundaries come from `duckdb.tokenize`: a semicolon ends a statement unless it
+is inside a string, a dollar-quoted body, a quoted name or a comment. Each
+statement's class comes from the type `duckdb.extract_statements` names, and
+from its first word where one type covers several things: `SELECT`, `PIVOT`,
+`CALL` and a reporting `PRAGMA` read; `CHECKPOINT`, `VACUUM` and `ANALYZE` are
+maintenance; `EXPLAIN ANALYZE` is the class of what it runs. A statement that
+does not parse is refused with DuckDB's sentence before anything runs.
+
+`ATTACH`, `DETACH`, `COPY`, `EXPORT` and `IMPORT DATABASE`, `INSTALL`, `LOAD`,
+`SET`, `RESET`, `USE`, a setting pragma, `PREPARE`, `EXECUTE`, `DEALLOCATE` and
+a secret are refused by family, each with its reason. Structure changes are
+tables, views, indexes, schemas, sequences, types and macros. Parameters are
+`$name`.
+
+Spec: [The DuckDB console](../../decisions/2026-11-20-duckdb-console-design.md)
+
+## D393. Runs and transactions are PostgreSQL's, without savepoints
+
+DuckDB changes structure inside a transaction, so a run is one transaction, a
+held one may change structure, and a destructive change is rehearsed and
+rolled back. A read is its class plus a transaction rolled back: one
+connection cannot be made read-only without a second configuration. Every run
+is on the catalog's engine, locked to the owner's home (D388). The search path
+is DuckDB's `search_path`, each name checked against the file's schemas.
+
+Any failed statement aborts the transaction, which is then broken. A held
+transaction keeps the file open, so no other program can open it meanwhile.
+
+Known deviations:
+
+- DuckDB has no savepoints, so a change is not rehearsed inside a held
+  transaction; the rehearsal is refused, and a destructive change runs in
+  auto-commit.
+
+Spec: [The DuckDB console](../../decisions/2026-11-20-duckdb-console-design.md)
+
+## D394. A result crosses as DuckDB's text; a failure in DuckDB's words
+
+A `SELECT` is bound once for its column types and run wrapped, each column
+cast by position as the grid's are (D390). Any other statement with a result is
+read as the driver gives it and written as text here; one holding a moment
+with a time zone asks for a `SELECT`, which the driver cannot convert without
+`pytz`. A row change answers with its affected rows. A failure is DuckDB's
+sentence without its `LINE` excerpt, the owner's home written as `~`, its
+category from the exception's class. Explain reads `EXPLAIN (FORMAT JSON)` as
+a tree, with DuckDB's own drawing as the raw text.
+
+Known deviations:
+
+- A result that is not a `SELECT` is written by Python's types rather than
+  DuckDB's: an interval as a duration, `1 day, 3:00:00`, and a nested value as
+  JSON of what the driver handed over.
+
+Spec: [The DuckDB console](../../decisions/2026-11-20-duckdb-console-design.md)

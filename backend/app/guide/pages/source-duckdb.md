@@ -11,6 +11,11 @@ How connections work in general is on the [Connections](connections.md) page.
 - A table's columns, keys, checks and indexes, and the tables it refers to
 - A relation's DDL, as the file keeps it, with its indexes
 - Lists, structs and maps, shown as JSON
+- The results of SQL you write, and DuckDB's plan for a query
+
+## What you can change
+
+- Data and structure, through SQL in the console
 
 ## Connecting
 
@@ -73,10 +78,36 @@ How values are shown, as DuckDB writes them:
 - an interval as `1 year 2 days 03:00:00`;
 - a list, a struct, a map or a union as JSON.
 
+## SQL console
+
+**New query** under **Queries** on the left rail starts one on the connection,
+and **Open as a query** above a table starts one on that table. It works as
+the PostgreSQL console does — reads, changes committed at once or held in a
+**Manual** transaction, **Explain**, completion and formatting. DuckDB changes
+structure inside a transaction, so a `CREATE`, `ALTER` or `DROP` is part of the
+transaction around it, and a drop is tried out first and undone before the
+console asks you about it.
+
+- Files of your storage are read as `~/…`, such as
+  `SELECT * FROM '~/data/sales.parquet'`. Load one into a table with
+  `INSERT INTO t SELECT * FROM '~/data/sales.csv'`.
+- Parameters are written `$name`.
+- The schema is chosen above the editor; `USE` and `SET` are not run.
+- Not run, each with its reason: `ATTACH`, `COPY`, `EXPORT` and
+  `IMPORT DATABASE`, `INSTALL` and `LOAD`, `PREPARE`, and secrets.
+- A failed statement inside a transaction you hold ends it: only **Rollback**
+  is left.
+- While you hold a transaction the file stays open, and no other program can
+  open it.
+- Inside a held transaction a drop cannot be tried out first, since DuckDB has
+  no savepoints; run it in auto-commit.
+- **Explain** shows DuckDB's plan: its operators and the rows it expects.
+- **Stop** and the time limit end a statement where it is.
+
 ## What DuckDB does not have here yet
 
-- Editing rows, the SQL console, changing the structure, catalog actions,
-  downloading every row, backups and copying tables. They come later.
+- Editing rows, changing the structure, catalog actions, downloading every
+  row, backups and copying tables. They come later.
 - A table without a primary key will be read only even then: DuckDB moves a
   row when it is updated, so nothing else names it.
 - A file on an SSH server, or inside another connection, cannot be opened as a

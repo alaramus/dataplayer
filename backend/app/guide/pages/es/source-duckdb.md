@@ -12,6 +12,11 @@ Cómo funcionan las conexiones en general está en la página
 - Columnas, claves, comprobaciones e índices de una tabla, y las tablas que cita
 - El DDL de una relación, como lo guarda el archivo, con sus índices
 - Listas, structs y maps, mostrados como JSON
+- Los resultados del SQL que escribes y el plan de DuckDB
+
+## Qué puedes cambiar
+
+- Datos y estructura, mediante SQL en la consola
 
 ## Conectarse
 
@@ -80,11 +85,39 @@ Cómo se muestran los valores, como los escribe DuckDB:
 - un intervalo como `1 year 2 days 03:00:00`;
 - una lista, un struct, un map o una union como JSON.
 
+## Consola SQL
+
+**Nueva consulta** en **Consultas** de la barra izquierda inicia una en la
+conexión, y **Abrir como consulta** sobre una tabla inicia una en esa tabla.
+Funciona como la consola de PostgreSQL — lecturas, cambios confirmados en el
+acto o retenidos en una transacción **Manual**, **Explicar**, autocompletado y
+formato. DuckDB cambia la estructura dentro de una transacción, así que un
+`CREATE`, `ALTER` o `DROP` forma parte de la transacción que lo rodea, y un
+borrado se prueba primero y se deshace antes de que la consola te pregunte.
+
+- Los archivos de tu almacenamiento se leen como `~/…`, por ejemplo
+  `SELECT * FROM '~/data/sales.parquet'`. Carga uno en una tabla con
+  `INSERT INTO t SELECT * FROM '~/data/sales.csv'`.
+- Los parámetros se escriben `$name`.
+- El esquema se elige encima del editor; `USE` y `SET` no se ejecutan.
+- No se ejecutan, cada uno con su motivo: `ATTACH`, `COPY`, `EXPORT` e
+  `IMPORT DATABASE`, `INSTALL` y `LOAD`, `PREPARE` y los secretos.
+- Una sentencia que falla dentro de una transacción retenida la termina: solo
+  queda **Revertir**.
+- Mientras retienes una transacción, el archivo sigue abierto y ningún otro
+  programa puede abrirlo.
+- Dentro de una transacción retenida un borrado no se puede probar primero,
+  porque DuckDB no tiene puntos de guardado; ejecútalo en confirmación
+  automática.
+- **Explicar** muestra el plan de DuckDB: sus operadores y las filas que
+  espera.
+- **Detener** y el límite de tiempo terminan una sentencia donde esté.
+
 ## Lo que DuckDB aún no tiene aquí
 
-- Editar filas, la consola SQL, cambiar la estructura, las acciones del
-  catálogo, descargar todas las filas, las copias de seguridad y copiar
-  tablas. Llegarán más adelante.
+- Editar filas, cambiar la estructura, las acciones del catálogo, descargar
+  todas las filas, las copias de seguridad y copiar tablas. Llegarán más
+  adelante.
 - Una tabla sin clave primaria seguirá siendo de solo lectura incluso
   entonces: DuckDB mueve una fila al actualizarla, y nada más la identifica.
 - Un archivo en un servidor SSH, o dentro de otra conexión, no se puede abrir

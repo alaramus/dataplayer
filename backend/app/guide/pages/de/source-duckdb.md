@@ -12,6 +12,11 @@ Wie Verbindungen allgemein funktionieren, steht auf der Seite
 - Spalten, Schlüssel, Prüfungen, Indizes und verwiesene Tabellen einer Tabelle
 - Die DDL einer Relation, wie die Datei sie aufbewahrt, mit ihren Indizes
 - Listen, Structs und Maps, als JSON gezeigt
+- Die Ergebnisse Ihres SQL und DuckDBs Plan für eine Abfrage
+
+## Was Sie ändern können
+
+- Daten und Struktur, über SQL in der Konsole
 
 ## Verbinden
 
@@ -80,11 +85,39 @@ Wie Werte gezeigt werden, so wie DuckDB sie schreibt:
 - ein Intervall als `1 year 2 days 03:00:00`;
 - eine Liste, ein Struct, eine Map oder eine Union als JSON.
 
+## SQL-Konsole
+
+**Neue Abfrage** unter **Abfragen** in der linken Leiste startet eine auf der
+Verbindung, und **Als Abfrage öffnen** über einer Tabelle startet eine auf
+dieser Tabelle. Sie funktioniert wie die PostgreSQL-Konsole — Lesen,
+Änderungen sofort festgeschrieben oder in einer Transaktion **Manuell**
+gehalten, **Erklären**, Vervollständigung und Formatierung. DuckDB ändert die
+Struktur innerhalb einer Transaktion, deshalb ist ein `CREATE`, `ALTER` oder
+`DROP` Teil der Transaktion um ihn herum, und ein Löschen wird zuerst
+ausprobiert und rückgängig gemacht, bevor die Konsole Sie danach fragt.
+
+- Dateien Ihres Speichers werden als `~/…` gelesen, etwa
+  `SELECT * FROM '~/data/sales.parquet'`. Laden Sie eine in eine Tabelle mit
+  `INSERT INTO t SELECT * FROM '~/data/sales.csv'`.
+- Parameter werden `$name` geschrieben.
+- Das Schema wird über dem Editor gewählt; `USE` und `SET` werden nicht
+  ausgeführt.
+- Nicht ausgeführt, jeweils mit Grund: `ATTACH`, `COPY`, `EXPORT` und
+  `IMPORT DATABASE`, `INSTALL` und `LOAD`, `PREPARE` und Geheimnisse.
+- Eine fehlgeschlagene Anweisung in einer gehaltenen Transaktion beendet sie:
+  Es bleibt nur **Zurückrollen**.
+- Solange Sie eine Transaktion halten, bleibt die Datei offen, und kein anderes
+  Programm kann sie öffnen.
+- In einer gehaltenen Transaktion lässt sich ein Löschen nicht zuerst
+  ausprobieren, da DuckDB keine Sicherungspunkte hat; führen Sie es im
+  Auto-Commit aus.
+- **Erklären** zeigt DuckDBs Plan: seine Operatoren und die erwarteten Zeilen.
+- **Stoppen** und das Zeitlimit beenden eine Anweisung dort, wo sie ist.
+
 ## Was DuckDB hier noch nicht hat
 
-- Zeilen bearbeiten, die SQL-Konsole, die Struktur ändern, Katalogaktionen,
-  alle Zeilen herunterladen, Sicherungen und Tabellen kopieren. Sie kommen
-  später.
+- Zeilen bearbeiten, die Struktur ändern, Katalogaktionen, alle Zeilen
+  herunterladen, Sicherungen und Tabellen kopieren. Sie kommen später.
 - Eine Tabelle ohne Primärschlüssel bleibt auch dann schreibgeschützt: DuckDB
   verschiebt eine Zeile beim Ändern, und nichts anderes benennt sie.
 - Eine Datei auf einem SSH-Server oder in einer anderen Verbindung lässt sich

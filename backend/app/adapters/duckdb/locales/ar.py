@@ -2,7 +2,6 @@
 
 MESSAGES: dict[str, str] = {
     'DuckDB': 'DuckDB',
-    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, and read rows a page at a time with sorting and filtering.': 'ملف قاعدة بيانات DuckDB في مساحة تخزينك الشخصية. تصفّح مخططاته وجداوله وطرق العرض فيه، واقرأ الصفوف صفحةً بصفحة مع الفرز والتصفية.',
     'Path of the file inside your personal storage, such as data/shop.duckdb': 'مسار الملف داخل مساحة تخزينك الشخصية، مثل data/shop.duckdb',
     'The database file is in use by another program': 'ملف قاعدة البيانات قيد الاستخدام من برنامج آخر',
     'The database reaches past your personal storage, which is refused': 'قاعدة البيانات تصل إلى ما وراء مساحة تخزينك الشخصية، وهذا مرفوض',
@@ -10,4 +9,15 @@ MESSAGES: dict[str, str] = {
     'This DuckDB source does not offer the "{representation}" content representation': 'مصدر DuckDB هذا لا يوفّر تمثيل المحتوى "{representation}"',
     "A filter value does not fit its column's type": 'قيمة عامل التصفية لا تناسب نوع عمودها',
     'Rows of a DuckDB file are read only for now': 'صفوف ملف DuckDB للقراءة فقط حاليًا',
+    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'ملف قاعدة بيانات DuckDB في مساحة تخزينك الشخصية. تصفّح مخططاته وجداوله وطرق العرض فيه، واقرأ الصفوف صفحةً بصفحة مع الفرز والتصفية، وشغّل SQL على الملف وعلى ملفات مساحة تخزينك الأخرى.',
+    'A connection to this file opens no other database': 'الاتصال بهذا الملف لا يفتح أي قاعدة بيانات أخرى',
+    'DuckDB has no savepoints, so a change cannot be tried out inside a held transaction; run it in auto-commit, where it is tried out first': 'لا توجد في DuckDB نقاط حفظ، لذا لا يمكن تجربة تغيير داخل معاملة محتجزة؛ شغّله في وضع الالتزام التلقائي حيث يُجرَّب أولًا',
+    'Extensions are not installed or loaded here': 'لا تُثبَّت الامتدادات هنا ولا تُحمَّل',
+    "Files are not written or loaded from the query editor; load one with INSERT … SELECT * FROM '~/file.csv'": "لا تُكتب الملفات ولا تُحمَّل من محرر الاستعلامات؛ حمّل ملفًا عبر INSERT … SELECT * FROM '~/file.csv'",
+    'Secrets are of no use here: this engine reaches no network': 'لا فائدة من الأسرار هنا: هذا المحرك لا يصل إلى أي شبكة',
+    'Statements are not prepared here; write parameters as $name': 'لا تُجهَّز العبارات هنا؛ اكتب المعاملات بصيغة $name',
+    "The engine's settings are fixed; the schema is chosen above the editor": 'إعدادات المحرك ثابتة؛ يُختار المخطط فوق المحرر',
+    'The query editor changes tables, views, indexes, schemas, sequences, types and macros; this is something else': 'يغيّر محرر الاستعلامات الجداول وطرق العرض والفهارس والمخططات والتسلسلات والأنواع والماكرو؛ وهذا شيء آخر',
+    'The statement could not be read': 'تعذّرت قراءة العبارة',
+    'This result holds a moment with a time zone; select it with SELECT to see it': 'تحتوي هذه النتيجة على لحظة ذات منطقة زمنية؛ اخترها باستخدام SELECT لرؤيتها',
 }

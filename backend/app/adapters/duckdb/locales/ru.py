@@ -2,7 +2,6 @@
 
 MESSAGES: dict[str, str] = {
     'DuckDB': 'DuckDB',
-    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, and read rows a page at a time with sorting and filtering.': 'Файл базы данных DuckDB в вашем личном хранилище. Просмотр схем, таблиц и представлений и чтение строк постранично с сортировкой и фильтрацией.',
     'Path of the file inside your personal storage, such as data/shop.duckdb': 'Путь к файлу внутри вашего личного хранилища, например data/shop.duckdb',
     'The database file is in use by another program': 'Файл базы данных занят другой программой',
     'The database reaches past your personal storage, which is refused': 'База данных обращается за пределы вашего личного хранилища, это запрещено',
@@ -10,4 +9,15 @@ MESSAGES: dict[str, str] = {
     'This DuckDB source does not offer the "{representation}" content representation': 'Этот источник DuckDB не предлагает представление содержимого «{representation}»',
     "A filter value does not fit its column's type": 'Значение фильтра не подходит к типу колонки',
     'Rows of a DuckDB file are read only for now': 'Строки файла DuckDB пока доступны только для чтения',
+    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'Файл базы данных DuckDB в вашем личном хранилище. Просмотр схем, таблиц и представлений, чтение строк постранично с сортировкой и фильтрацией и выполнение SQL над файлом и другими файлами вашего хранилища.',
+    'A connection to this file opens no other database': 'Подключение к этому файлу не открывает другие базы данных',
+    'DuckDB has no savepoints, so a change cannot be tried out inside a held transaction; run it in auto-commit, where it is tried out first': 'В DuckDB нет точек сохранения, поэтому изменение нельзя опробовать внутри удерживаемой транзакции; выполните его в режиме автофиксации, где оно сначала опробуется',
+    'Extensions are not installed or loaded here': 'Расширения здесь не устанавливаются и не загружаются',
+    "Files are not written or loaded from the query editor; load one with INSERT … SELECT * FROM '~/file.csv'": "Файлы не записываются и не загружаются из редактора запросов; загрузите файл через INSERT … SELECT * FROM '~/file.csv'",
+    'Secrets are of no use here: this engine reaches no network': 'Секреты здесь бесполезны: этот движок не выходит в сеть',
+    'Statements are not prepared here; write parameters as $name': 'Операторы здесь не подготавливаются; пишите параметры как $name',
+    "The engine's settings are fixed; the schema is chosen above the editor": 'Настройки движка неизменны; схема выбирается над редактором',
+    'The query editor changes tables, views, indexes, schemas, sequences, types and macros; this is something else': 'Редактор запросов изменяет таблицы, представления, индексы, схемы, последовательности, типы и макросы; это что-то другое',
+    'The statement could not be read': 'Не удалось прочитать оператор',
+    'This result holds a moment with a time zone; select it with SELECT to see it': 'В этом результате есть момент времени с часовым поясом; получите его через SELECT',
 }

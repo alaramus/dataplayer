@@ -31,7 +31,6 @@ from app.adapters.protocol import (
     SupportsRelationModelBatch,
     SupportsUpdate,
 )
-from app.adapters.query import SupportsQuery
 from app.adapters.relation import (
     CheckConstraint,
     ForeignKey,
@@ -90,9 +89,8 @@ def test_it_claims_only_what_it_does(home: Path) -> None:
         SupportsContent,
     ):
         assert isinstance(adapter, capability)
-    # Rows are read only and there is no console in this slice (D2).
+    # Rows are read only for now (D2).
     assert not isinstance(adapter, SupportsUpdate)
-    assert not isinstance(adapter, SupportsQuery)
 
 
 # --- The file -------------------------------------------------------------

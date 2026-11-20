@@ -2,7 +2,6 @@
 
 MESSAGES: dict[str, str] = {
     'DuckDB': 'DuckDB',
-    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, and read rows a page at a time with sorting and filtering.': 'Un archivo de base de datos DuckDB en su almacenamiento personal. Explore sus esquemas, tablas y vistas, y lea filas página a página con ordenación y filtrado.',
     'Path of the file inside your personal storage, such as data/shop.duckdb': 'Ruta del archivo dentro de su almacenamiento personal, por ejemplo data/shop.duckdb',
     'The database file is in use by another program': 'Otro programa está usando el archivo de base de datos',
     'The database reaches past your personal storage, which is refused': 'La base de datos accede más allá de su almacenamiento personal, y eso se rechaza',
@@ -10,4 +9,15 @@ MESSAGES: dict[str, str] = {
     'This DuckDB source does not offer the "{representation}" content representation': 'Esta fuente DuckDB no ofrece la representación de contenido «{representation}»',
     "A filter value does not fit its column's type": 'Un valor de filtro no corresponde al tipo de su columna',
     'Rows of a DuckDB file are read only for now': 'Las filas de un archivo DuckDB son de solo lectura por ahora',
+    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'Un archivo de base de datos DuckDB en su almacenamiento personal. Explore sus esquemas, tablas y vistas, lea filas página a página con ordenación y filtrado, y ejecute SQL sobre el archivo y los demás archivos de su almacenamiento.',
+    'A connection to this file opens no other database': 'Una conexión a este archivo no abre ninguna otra base de datos',
+    'DuckDB has no savepoints, so a change cannot be tried out inside a held transaction; run it in auto-commit, where it is tried out first': 'DuckDB no tiene puntos de guardado, así que un cambio no puede probarse dentro de una transacción mantenida; ejecútelo en confirmación automática, donde se prueba primero',
+    'Extensions are not installed or loaded here': 'Aquí no se instalan ni se cargan extensiones',
+    "Files are not written or loaded from the query editor; load one with INSERT … SELECT * FROM '~/file.csv'": "El editor de consultas no escribe ni carga archivos; cargue uno con INSERT … SELECT * FROM '~/file.csv'",
+    'Secrets are of no use here: this engine reaches no network': 'Los secretos no sirven de nada aquí: este motor no accede a ninguna red',
+    'Statements are not prepared here; write parameters as $name': 'Aquí no se preparan sentencias; escriba los parámetros como $name',
+    "The engine's settings are fixed; the schema is chosen above the editor": 'Los ajustes del motor son fijos; el esquema se elige encima del editor',
+    'The query editor changes tables, views, indexes, schemas, sequences, types and macros; this is something else': 'El editor de consultas cambia tablas, vistas, índices, esquemas, secuencias, tipos y macros; esto es otra cosa',
+    'The statement could not be read': 'No se pudo leer la sentencia',
+    'This result holds a moment with a time zone; select it with SELECT to see it': 'Este resultado contiene un instante con zona horaria; selecciónelo con SELECT para verlo',
 }

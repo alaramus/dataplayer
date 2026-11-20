@@ -13,6 +13,11 @@ Le fonctionnement général des connexions est décrit à la page
 - Colonnes, clés, contrôles et index d'une table, et les tables qu'elle cite
 - Le DDL d'une relation, tel que le fichier le garde, avec ses index
 - Listes, structs et maps, affichés en JSON
+- Les résultats du SQL que vous écrivez, et le plan de DuckDB
+
+## Ce que vous pouvez modifier
+
+- Les données et la structure, par le SQL de la console
 
 ## Se connecter
 
@@ -81,11 +86,41 @@ Comment les valeurs sont affichées, telles que DuckDB les écrit :
 - un intervalle comme `1 year 2 days 03:00:00` ;
 - une liste, un struct, une map ou une union en JSON.
 
+## Console SQL
+
+**Nouvelle requête** sous **Requêtes** dans la barre de gauche en lance une sur
+la connexion, et **Ouvrir comme requête** au-dessus d'une table en lance une sur
+cette table. Elle fonctionne comme la console PostgreSQL — lectures,
+modifications validées aussitôt ou tenues dans une transaction **Manuel**,
+**Expliquer**, complétion et mise en forme. DuckDB modifie la structure dans une
+transaction, donc un `CREATE`, un `ALTER` ou un `DROP` fait partie de la
+transaction qui l'entoure, et une suppression est d'abord essayée puis annulée
+avant que la console vous pose la question.
+
+- Les fichiers de votre stockage se lisent comme `~/…`, par exemple
+  `SELECT * FROM '~/data/sales.parquet'`. Chargez-en un dans une table avec
+  `INSERT INTO t SELECT * FROM '~/data/sales.csv'`.
+- Les paramètres s'écrivent `$name`.
+- Le schéma se choisit au-dessus de l'éditeur ; `USE` et `SET` ne sont pas
+  exécutés.
+- Non exécutés, chacun avec sa raison : `ATTACH`, `COPY`, `EXPORT` et
+  `IMPORT DATABASE`, `INSTALL` et `LOAD`, `PREPARE`, et les secrets.
+- Une instruction en échec dans une transaction maintenue y met fin : il ne
+  reste que **Annuler**.
+- Tant que vous maintenez une transaction, le fichier reste ouvert et aucun
+  autre programme ne peut l'ouvrir.
+- Dans une transaction maintenue, une suppression ne peut pas être essayée
+  d'abord, faute de points de sauvegarde dans DuckDB ; exécutez-la en
+  validation automatique.
+- **Expliquer** montre le plan de DuckDB : ses opérateurs et les lignes qu'il
+  prévoit.
+- **Arrêter** et la limite de temps arrêtent une instruction là où elle en est.
+
 ## Ce que DuckDB n'a pas encore ici
 
-- Modifier les lignes, la console SQL, changer la structure, les actions du
-  catalogue, télécharger toutes les lignes, les sauvegardes et la copie de
-  tables. Ils viendront plus tard.
+- Modifier les lignes, changer la structure, les actions du catalogue,
+  télécharger toutes les lignes, les sauvegardes et la copie de tables. Ils
+  viendront plus tard.
 - Une table sans clé primaire restera en lecture seule même alors : DuckDB
   déplace une ligne quand elle est modifiée, et rien d'autre ne la désigne.
 - Un fichier sur un serveur SSH, ou dans une autre connexion, ne peut pas être
