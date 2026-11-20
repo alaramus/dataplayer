@@ -5,10 +5,12 @@ import socket
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
+import app.adapters  # noqa: F401 - registers every catalog the test reads
 from app.adapters.ftp.adapter import FtpAdapter
 from app.adapters.ftp.client import connected
 from app.adapters.ftp.options import FtpOptions
 from app.adapters.protocol import AdapterError
+from app.core.translation import LANGUAGES, Language, catalog
 
 OPTIONS: TypeAdapter[FtpOptions] = TypeAdapter(FtpOptions)
 
@@ -147,3 +149,17 @@ def test_an_unreachable_server_is_a_network_failure_that_names_no_address() -> N
     assert raised.value.error_kind == "network"
     assert "127.0.0.1" not in raised.value.message
     assert "hunter2" not in raised.value.message
+
+
+@pytest.mark.parametrize("language", [code for code in LANGUAGES if code != "en"])
+def test_each_encryption_is_named_as_itself_in_every_language(
+    language: Language,
+) -> None:
+    """A label translated as another choice sends the server what the person
+    did not pick: implicit TLS once read as no encryption."""
+    words = catalog(language)
+
+    assert "TLS" in words["TLS, explicit"]
+    assert "TLS" in words["TLS, implicit"]
+    assert "TLS" not in words["No encryption"]
+    assert words["TLS, explicit"] != words["TLS, implicit"]
