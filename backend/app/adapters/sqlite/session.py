@@ -17,7 +17,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
-from app.adapters.file.storage import LocalStorage
+from app.adapters.home_file import HomeFile
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.sqlite.options import SqliteOptions
 from app.core.logs import record_failure, with_ref
@@ -248,7 +248,7 @@ class SqliteSession:
 
     def __init__(self, options: SqliteOptions, home_dir: Path) -> None:
         self._options = options
-        self._storage = LocalStorage(home_dir)
+        self._home_file = HomeFile(home_dir, options.path, create=options.create)
 
     @property
     def options(self) -> SqliteOptions:
@@ -270,29 +270,10 @@ class SqliteSession:
             return self._options.path
 
     def _file(self) -> Path:
-        """Where the file is, judged by the file source's own rule (D8).
-
-        Judged on every open rather than once, so a link put in place of the
-        file afterwards is caught as well.
-        """
-        try:
-            return self._storage.path_of(self._storage.place(self._options.path))
-        except ValueError:
-            raise AdapterError(
-                "config", say("The path must stay inside your personal storage")
-            ) from None
+        return self._home_file.path()
 
     def _open(self, *, writes: bool, busy_seconds: float) -> sqlite3.Connection:
-        path = self._file()
-        if path.is_dir():
-            raise AdapterError("config", say("The path names a folder, not a file"))
-        if not path.exists():
-            if not self._options.create:
-                raise AdapterError("config", say("The database file does not exist"))
-            if not path.parent.is_dir():
-                raise AdapterError(
-                    "config", say("The folder for the database file does not exist")
-                )
+        path = self._home_file.to_open()
         # rwc makes the file on first open, and only where the person asked.
         mode = "rwc" if self._options.create else "rw"
         connection = sqlite3.connect(

@@ -19,6 +19,7 @@ file holds which decision.
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
+| [duckdb.md](duckdb.md) | change how a DuckDB file is opened, how the engine is locked to the owner's storage, what its catalog shows, or how its values and pages are read |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
 | [binance.md](binance.md) | change how Binance is reached and kept under its rate limit, what its catalog shows of markets, quote assets, symbols and feeds, or how tickers, symbols, candles, trades and the order book are read as rows, read on by a link, reported, measured and searched |
@@ -120,6 +121,14 @@ identity the rowid (D256). The file's pragmas are reports in a System section,
 the catalog is searched by name and column, and every matching row is
 exported (D257). Relations are renamed and dropped — a drop rehearsed first —
 and a CSV file loaded (D258).
+
+**DuckDB** — a database file of the owner's storage, opened per call and
+closed so that no other program is locked out (D387), on an engine locked to
+the owner's home: files named `~/…`, no network, no extension installed or
+loaded, no spill to disk (D388). Its schemas, tables and views come from
+DuckDB's catalog functions (D389); every value crosses as text DuckDB writes,
+nested ones as JSON (D390), in the order of the primary key or a rowid that
+only breaks ties (D391).
 
 **ClickHouse** — a server reached over its HTTP interface with the
 application's own client, every value one of the server's parameters and every
@@ -280,6 +289,11 @@ backend/app/adapters/
 │                       export.py, table_copy.py, backup.py, samples.py +
 │                       sample_data/ (the lab, a file),
 │                       adapter.py
+├── duckdb/             session.py (opening and sealing the file, in a
+│                       thread), inspection.py (catalog functions), catalog.py,
+│                       relation.py, fetch.py, types.py (values as DuckDB's
+│                       text), sql.py, content.py, summary.py, features.py,
+│                       options.py, adapter.py
 ├── clickhouse/         session.py (the HTTP interface, its errors, addresses)
 │                       and pool.py (a kept client), sql.py (names and
 │                       parameters), inspection.py (system.tables, once),

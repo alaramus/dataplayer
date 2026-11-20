@@ -48,9 +48,11 @@ wait.
 A file DuckDB cannot read — not a database, written by a newer DuckDB, damaged
 — is a configuration failure naming what it is, never the driver's text: the
 driver's message for a SQLite file names an extension path on the server
-(*checked*). The library version is the server's own and is shown in the
-summary; a file written by DuckDB 2.x may not open in 1.x, which the user's
-guide says.
+(*checked*). Handed a path ending in `.csv` or `.parquet`, DuckDB does not
+refuse but opens an empty database in memory (*checked*); a database with no
+file behind it is refused the same way. The library version is the server's
+own and is the source's version; a file written by DuckDB 2.x may not open in
+1.x, which the user's guide says.
 
 A cancelled request interrupts its statement from the event loop through the
 connection's `interrupt()`, which works from another thread (*checked*); a
@@ -62,10 +64,13 @@ The file's content is untrusted, and from the second slice so is the
 console's text. DuckDB has no authorizer like SQLite's; what it has is a
 configuration that can be closed and locked. Every connection is opened with
 extensions neither installed nor loaded automatically, community and unsigned
-extensions refused, and then, before anything from the file runs:
+extensions refused, `extension_directory` outside every allowed directory,
+and then, before anything from the file runs:
 
 - `home_directory` is the owner's home, so `~/sales/2026.parquet` names a file
-  of their storage;
+  of their storage; it and the time zone, UTC, are set globally, because a
+  second connection to the same instance cannot set them once the
+  configuration is locked (*checked*);
 - `allowed_directories` is the owner's home and nothing else;
 - the HTTP and S3 filesystems are disabled;
 - `enable_external_access` is off — what turns the allowed directory from a
@@ -76,9 +81,14 @@ extensions refused, and then, before anything from the file runs:
 - `lock_configuration` is on, so nothing the file or the user's SQL says can
   reopen any of the above.
 
+`INSTALL` downloads from the network whatever `enable_external_access`
+says: with `~` the home it put 83 MB of `spatial` into
+`~/.duckdb/extensions`, the person's storage (*checked*). An extension
+directory the engine may not touch refuses it before anything is fetched.
+
 *Checked* with this configuration: a file under the home reads through `~/`;
-a path outside it, a `..` out of it, an HTTPS address, `INSTALL` and `LOAD`
-are all refused; `SET enable_external_access=true` is refused as locked; and
+a path outside it, a `..` out of it, an HTTPS address, `INSTALL`, `INSTALL …
+FROM` a folder of the home and `LOAD` are all refused; `SET enable_external_access=true` is refused as locked; and
 `json`, `parquet` and time zones work, being built into the package. A
 relative path is refused even with `file_search_path` set, so `~/` is the one
 way to name a file, and the guide says so.
@@ -106,9 +116,8 @@ Known deviations:
 
 The catalog's first level is the file's schemas from `duckdb_schemas()`,
 `main` included even when empty: the screens that pick a schema read the
-first level. `information_schema` and `pg_catalog` are DuckDB's own views and
-are system schemas. The `system` and `temp` databases are not the file's and
-are not listed.
+first level. `information_schema` and `pg_catalog` belong to DuckDB's `system`
+database, which, like `temp`, is not the file's and is not listed.
 
 Relations are tables from `duckdb_tables()` and views from `duckdb_views()`,
 internal ones left out. A row estimate is `estimated_size`, which DuckDB keeps
@@ -117,7 +126,9 @@ dots escaped, the first unescaped dot the separator.
 
 Columns, their defaults and nullability come from `duckdb_columns()`;
 constraints — primary key, unique, foreign key, check, not null — from
-`duckdb_constraints()`, with the text DuckDB keeps for each; indexes from
+`duckdb_constraints()`, under the names DuckDB gives them — it drops a name the
+statement gave (*checked*) — and a foreign key's target is in the same schema,
+since DuckDB refuses one into another (*checked*); indexes from
 `duckdb_indexes()`. A relation's DDL is the `sql` DuckDB keeps for it.
 Sequences, types and macros are catalog nodes of the actions slice.
 
@@ -129,19 +140,24 @@ widths up to `HUGEINT` and `UHUGEINT`, `DECIMAL`, floats, text, `BLOB`,
 `UUID`, `JSON`, `ENUM`, `BIT`, and the nested types `LIST`, `ARRAY`, `STRUCT`,
 `MAP` and `UNION`.
 
-A value crosses as what it is: a 128-bit integer and a decimal exactly, as
-text; a float as the shortest text that reads back; a blob in hexadecimal; an
-interval in DuckDB's own text; an enum as its label; a nested value as compact
-JSON with its numbers as written, as ClickHouse's arrays, maps and tuples
-cross. A map is a JSON object when
-every key is text and a list of `{key, value}` pairs otherwise, since JSON has
-no other keys.
+A value crosses as text DuckDB writes itself, so nothing is converted twice: a
+128-bit integer and a decimal to the last digit, a float as the shortest text
+that reads back, a moment with a time zone in UTC, an interval and an enum in
+DuckDB's own text, a blob as `0x` and its hexadecimal. The driver could not
+even hand over a moment with a time zone without `pytz`, which the server does
+not have (*checked*). A nested value is DuckDB's `to_json`, compact, as
+ClickHouse's arrays, maps and tuples cross; a map's keys become JSON's text
+keys there, `{"1":"one"}`, and a union is its member as `{"tag":value}`.
 
 Every column sorts but a nested one, whose order DuckDB defines and nobody
-reading a grid expects. A filter binds its value as text and casts it to the
-column's type in SQL, so DuckDB parses the date, the decimal or the UUID by its
-own rules and a bad one is the reader's error rather than a wrong match;
-`contains` on a nested column compares its text. Names are double-quoted after
+reading a grid expects. A filter binds its value as text, which DuckDB reads
+as the column's type, so DuckDB parses the date, the decimal or the UUID by its
+own rules and a bad one is the reader's error rather than a wrong match.
+The type is the one DuckDB infers for the placeholder from the column it is
+compared with (*checked*), so no type's text is written into the statement. A
+boolean is spelt `true` or `false`, since DuckDB's cast would also take `t`
+and `yes`. `contains` compares the text a value is shown as, so what matches is
+what is seen. Names are double-quoted after
 they are found among the relation's columns. `ILIKE` names its escape
 character.
 
