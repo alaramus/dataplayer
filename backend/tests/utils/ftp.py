@@ -14,11 +14,11 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal
 
-from pyftpdlib.authorizers import DummyAuthorizer
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
+from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler, TLS_FTPHandler
 from pyftpdlib.servers import ThreadedFTPServer
 
