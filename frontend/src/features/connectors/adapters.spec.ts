@@ -54,6 +54,13 @@ describe("the icon of a source type", () => {
     expect(adapterIcon("s3")).toBe(adapterIcon("aws-rds-postgres"))
   })
 
+  it("draws FTP apart from the other sources of files (D386)", () => {
+    const files = ["file", "ssh", "s3", "ftp"].map(adapterIcon)
+
+    expect(adapterIcon("ftp")).not.toBe(UNKNOWN_ADAPTER_ICON)
+    expect(new Set(files).size).toBe(files.length)
+  })
+
   it("falls back for a type the backend gained since this build", () => {
     expect(adapterIcon("zeromq")).toBe(UNKNOWN_ADAPTER_ICON)
   })

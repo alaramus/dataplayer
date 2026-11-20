@@ -4,6 +4,7 @@ from app.adapters import (  # noqa: F401
     cassandra,
     clickhouse,
     file,
+    ftp,
     kafka,
     mail,
     mongodb,

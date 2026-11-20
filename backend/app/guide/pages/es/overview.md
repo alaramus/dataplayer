@@ -23,7 +23,7 @@ Cambiar de espacio conserva lo que estaba abierto: al volver a **Datos** encuent
 
 ## Dónde leer sobre cada tema
 
-- un tipo de fuente — su propia página: [PostgreSQL](source-postgres.md), [MySQL y MariaDB](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md), [Cassandra y ScyllaDB](source-cassandra.md), [MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md), [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md), [Archivos](source-file.md), [SSH](source-ssh.md) y [S3](source-s3.md). Allí se describen, para esa fuente, la lectura y edición de filas, los cambios de estructura, la consola SQL y los informes;
+- un tipo de fuente — su propia página: [PostgreSQL](source-postgres.md), [MySQL y MariaDB](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md), [Cassandra y ScyllaDB](source-cassandra.md), [MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md), [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md), [Archivos](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md) y [S3](source-s3.md). Allí se describen, para esa fuente, la lectura y edición de filas, los cambios de estructura, la consola SQL y los informes;
 - añadir, compartir y configurar una conexión — [Conexiones](connections.md);
 - columnas, pestañas, ventanas y grupos de pestañas — [El espacio de trabajo](workspace.md);
 - mover datos según un horario — [Flujos](pipelines.md);

@@ -27,9 +27,12 @@ backend/app/adapters/
 ├── ssh/
 │   ├── storage.py      SftpStorage: a server's files over SFTP (ssh.md)
 │   └── adapter.py      SshAdapter(Explorer) without ConnectFolder, and a terminal
-└── s3/
-    ├── storage.py      S3Storage: a bucket's keys as files and folders (s3.md)
-    └── adapter.py      S3Adapter(Explorer)
+├── s3/
+│   ├── storage.py      S3Storage: a bucket's keys as files and folders (s3.md)
+│   └── adapter.py      S3Adapter(Explorer)
+└── ftp/
+    ├── storage.py      FtpStorage: a server's files over FTP or FTPS (ftp.md)
+    └── adapter.py      FtpAdapter(Explorer) without ConnectFolder
 ```
 
 ## D150. A source made of files is a storage under one explorer

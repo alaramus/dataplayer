@@ -47,7 +47,7 @@ zurückkehren, finden Sie dieselben Tabs.
   [MongoDB](source-mongodb.md), [Redis](source-redis.md),
   [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md),
   [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md),
-  [Dateien](source-file.md), [SSH](source-ssh.md) und [S3](source-s3.md). Dort stehen das Lesen und Bearbeiten
+  [Dateien](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md) und [S3](source-s3.md). Dort stehen das Lesen und Bearbeiten
   von Zeilen, Strukturänderungen, die SQL-Konsole und Berichte, jeweils für diese Quelle;
 - Hinzufügen, Teilen und Einrichten einer Verbindung — [Verbindungen](connections.md);
 - Spalten, Tabs, Fenster und Tab-Gruppen — [Der Arbeitsbereich](workspace.md);

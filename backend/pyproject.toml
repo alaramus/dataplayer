@@ -78,6 +78,8 @@ dev = [
     "types-openpyxl>=3.1",
     "types-pymysql>=1.1",
     "types-boto3[s3]>=1.44",
+    "pyftpdlib>=2.0",
+    "pyopenssl>=25",
 ]
 
 [build-system]
@@ -231,4 +233,7 @@ filterwarnings = [
     # langsmith, which LangChain brings and nothing here uses, calls an asyncio
     # function Python 3.14 deprecated. Only that message from only that module.
     "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning:langsmith._internal._beta_decorator",
+    # pyftpdlib, the FTP server of the FTP source's tests, answers MFMT with a
+    # function Python 3.12 deprecated. Only that message from only that module.
+    "ignore:datetime.datetime.utcfromtimestamp:DeprecationWarning:pyftpdlib.handlers.ftp.control",
 ]

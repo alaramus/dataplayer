@@ -26,6 +26,7 @@ const ICONS: Record<string, string> = {
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",
+  ftp: "img:/icons/services/ftp.svg",
   mail: "img:/icons/services/mail.svg",
   // A card of the `mail` type (D373).
   gmail: "img:/icons/services/gmail.svg",

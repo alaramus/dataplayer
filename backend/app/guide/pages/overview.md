@@ -46,7 +46,7 @@ Switching spaces keeps what was open: coming back to Data finds the same tabs.
   [MongoDB](source-mongodb.md), [Redis](source-redis.md),
   [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md),
   [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md),
-  [Files](source-file.md), [SSH](source-ssh.md) and [S3](source-s3.md). Reading rows, editing
+  [Files](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md) and [S3](source-s3.md). Reading rows, editing
   them, changing structure, the SQL console and reports are described there,
   for that source;
 - adding, sharing and setting up a connection — [Connections](connections.md);

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="FTP icon">
+  <defs>
+    <linearGradient id="folder" x1="0" y1="56" x2="0" y2="216" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <path d="M28 72 a16 16 0 0 1 16 -16 h52 l20 20 h96 a16 16 0 0 1 16 16 v108 a16 16 0 0 1 -16 16 H44 a16 16 0 0 1 -16 -16 Z" fill="url(#folder)" filter="url(#shadow)"/>
+  <path d="M28 96 h200" stroke="#93c5fd" stroke-width="6" opacity="0.6"/>
+  <path d="M100 196 V124 M76 148 L100 124 L124 148" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M156 124 V196 M132 172 L156 196 L180 172" fill="none" stroke="#fde68a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

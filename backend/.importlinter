@@ -732,8 +732,58 @@ source_modules =
 forbidden_modules =
     asyncssh
 
-# A client socket to a market's streams, by the rule every driver follows:
-# the Binance adapter owns it (D323).
+# The standard library's FTP client, by the rule every driver follows: the
+# FTP adapter owns it (D384).
+[importlinter:contract:ftplib-is-contained]
+name = ftplib is imported only by the ftp adapter
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.pipelines
+    app.transfers
+    app.search
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.ai
+    app.terminals
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.credentials
+    app.adapters.fetch
+    app.adapters.routes
+    app.adapters.actions
+    app.adapters.operations
+    app.adapters.resources
+    app.adapters.file
+    app.adapters.explorer
+    app.adapters.ssh
+    app.adapters.postgres
+    app.adapters.redis
+    app.adapters.mysql
+    app.adapters.sqlite
+    app.adapters.clickhouse
+    app.adapters.mongodb
+    app.adapters.zookeeper
+    app.adapters.kafka
+    app.adapters.rabbitmq
+    app.adapters.cassandra
+    app.adapters.binance
+    app.adapters.mail
+    app.adapters.s3
+forbidden_modules =
+    ftplib
+
 [importlinter:contract:s3-sdk-is-contained]
 name = boto3, botocore and s3transfer are imported only by the s3 adapter
 type = forbidden
@@ -780,11 +830,14 @@ source_modules =
     app.adapters.cassandra
     app.adapters.binance
     app.adapters.mail
+    app.adapters.ftp
 forbidden_modules =
     boto3
     botocore
     s3transfer
 
+# A client socket to a market's streams, by the rule every driver follows:
+# the Binance adapter owns it (D323).
 [importlinter:contract:websocket-client-is-contained]
 name = the websockets client is imported only by the binance adapter
 type = forbidden
