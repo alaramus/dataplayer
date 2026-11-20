@@ -15,6 +15,7 @@ How connections work in general is on the [Connections](connections.md) page.
 
 ## What you can change
 
+- Table data: edit cells, paste blocks, insert and delete rows
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -78,6 +79,30 @@ How values are shown, as DuckDB writes them:
 - an interval as `1 year 2 days 03:00:00`;
 - a list, a struct, a map or a union as JSON.
 
+## Changing rows
+
+With **Edit rows** access, a table is edited in its grid as a PostgreSQL table
+is: double-click a cell, paste a block, **Insert row**, tick rows and
+**Delete selected rows**.
+
+- A row is found again by its primary key. A table without one takes new rows
+  and is otherwise read only, since DuckDB moves a row when it is updated and
+  may hold two identical rows. A view is read only.
+- If somebody changed a row after you read it, your change is refused rather
+  than written over theirs. Reload and try again.
+- Write values the way the grid shows them: a date as `2026-01-02`, a moment
+  with its time zone, binary as `0x…`. DuckDB reads them by the column's type,
+  and a value it cannot read is refused; in a pasted block the refused cells
+  are named and nothing lands.
+- Lists, structs, maps and generated columns are not edited in the grid; change
+  them with SQL in the console.
+- A change the table's keys, checks or required columns refuse is not made,
+  and says which rule refused it.
+- DuckDB cannot change a key or a unique column of a row that other rows refer
+  to, even to a value nobody holds; other columns of that row change.
+- A cell in a foreign key has an arrow that opens the row it points at, and
+  **What points at this row** opens the rows that point here.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -106,9 +131,7 @@ console asks you about it.
 
 ## What DuckDB does not have here yet
 
-- Editing rows, changing the structure, catalog actions, downloading every
-  row, backups and copying tables. They come later.
-- A table without a primary key will be read only even then: DuckDB moves a
-  row when it is updated, so nothing else names it.
+- Changing the structure, catalog actions, downloading every row, backups and
+  copying tables. They come later.
 - A file on an SSH server, or inside another connection, cannot be opened as a
   database.

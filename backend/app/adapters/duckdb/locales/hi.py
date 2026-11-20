@@ -9,7 +9,6 @@ MESSAGES: dict[str, str] = {
     'This DuckDB source does not offer the "{representation}" content representation': 'यह DuckDB स्रोत "{representation}" सामग्री प्रस्तुति नहीं देता',
     "A filter value does not fit its column's type": 'फ़िल्टर का मान उसके कॉलम के प्रकार से मेल नहीं खाता',
     'Rows of a DuckDB file are read only for now': 'DuckDB फ़ाइल की पंक्तियाँ अभी केवल पढ़ने के लिए हैं',
-    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'आपके निजी स्टोरेज में एक DuckDB डेटाबेस फ़ाइल। इसके स्कीमा, टेबल और व्यू देखें, सॉर्टिंग व फ़िल्टरिंग के साथ पंक्तियाँ एक पेज करके पढ़ें, और फ़ाइल व आपके स्टोरेज की अन्य फ़ाइलों पर SQL चलाएँ।',
     'A connection to this file opens no other database': 'इस फ़ाइल से कनेक्शन कोई दूसरा डेटाबेस नहीं खोलता',
     'DuckDB has no savepoints, so a change cannot be tried out inside a held transaction; run it in auto-commit, where it is tried out first': 'DuckDB में सेवपॉइंट नहीं हैं, इसलिए रोके गए ट्रांज़ैक्शन के भीतर बदलाव को आज़माया नहीं जा सकता; इसे ऑटो-कमिट में चलाएँ, जहाँ इसे पहले आज़माया जाता है',
     'Extensions are not installed or loaded here': 'यहाँ एक्सटेंशन न इंस्टॉल होते हैं न लोड',
@@ -20,4 +19,7 @@ MESSAGES: dict[str, str] = {
     'The query editor changes tables, views, indexes, schemas, sequences, types and macros; this is something else': 'क्वेरी एडिटर टेबल, व्यू, इंडेक्स, स्कीमा, सीक्वेंस, टाइप और मैक्रो बदलता है; यह कुछ और है',
     'The statement could not be read': 'कथन पढ़ा नहीं जा सका',
     'This result holds a moment with a time zone; select it with SELECT to see it': 'इस परिणाम में टाइम ज़ोन वाला समय-बिंदु है; उसे देखने के लिए SELECT से चुनें',
+    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read and edit rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'आपके निजी स्टोरेज में एक DuckDB डेटाबेस फ़ाइल। इसके स्कीमा, टेबल और व्यू देखें, सॉर्टिंग व फ़िल्टरिंग के साथ पंक्तियाँ एक पेज करके पढ़ें और संपादित करें, और फ़ाइल व आपके स्टोरेज की अन्य फ़ाइलों पर SQL चलाएँ।',
+    'A table without a primary key is read only: DuckDB moves a row when it is updated': 'प्राथमिक कुंजी के बिना टेबल केवल पढ़ने के लिए है: अपडेट होने पर DuckDB पंक्ति को खिसका देता है',
+    'DuckDB cannot change a key or unique column of a row other rows refer to': 'जिस पंक्ति को दूसरी पंक्तियाँ संदर्भित करती हैं, उसकी कुंजी या अद्वितीय कॉलम DuckDB नहीं बदल सकता',
 }

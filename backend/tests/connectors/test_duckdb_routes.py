@@ -69,7 +69,7 @@ async def test_a_file_is_checked_browsed_read_and_described(
     page = await post("fetch", {"node_id": "main.items", "limit": 2})
     assert [row[0] for row in page["rows"]] == ["1", "2"]
     assert page["has_more"] is True
-    assert page["update_supported"] is False
+    assert page["update_supported"] is True
 
     model = await get("relation-model", node_id="main.items")
     assert model["kind"] == "table"
@@ -104,14 +104,13 @@ async def test_what_it_does_not_do_is_refused_as_not_implemented(
 ) -> None:
     connector = await _connector(client, normal_user_token_headers, {"path": FILE})
 
-    response = await client.request(
-        "DELETE",
-        f"{BASE}/{connector}/rows",
+    response = await client.post(
+        f"{BASE}/{connector}/actions",
         headers=normal_user_token_headers,
-        json={"node_id": "main.items", "row_handles": ["x"]},
+        json={"node_id": "main"},
     )
 
-    # Rows are read only in this slice, and the capability is not claimed (D2).
+    # Catalog actions come in a later slice, and the capability is not claimed (D2).
     assert response.status_code == 501, response.text
 
 

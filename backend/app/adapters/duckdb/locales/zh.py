@@ -9,7 +9,6 @@ MESSAGES: dict[str, str] = {
     'This DuckDB source does not offer the "{representation}" content representation': '此 DuckDB 数据源不提供“{representation}”内容表示',
     "A filter value does not fit its column's type": '筛选值与其列的类型不符',
     'Rows of a DuckDB file are read only for now': 'DuckDB 文件的行目前为只读',
-    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': '您个人存储中的 DuckDB 数据库文件。浏览其模式、表和视图，按页读取行并支持排序和筛选，还可对该文件及存储中的其他文件运行 SQL。',
     'A connection to this file opens no other database': '连接到此文件不会打开其他数据库',
     'DuckDB has no savepoints, so a change cannot be tried out inside a held transaction; run it in auto-commit, where it is tried out first': 'DuckDB 没有保存点，因此无法在保持的事务中试运行更改；请在自动提交模式下运行，那里会先试运行',
     'Extensions are not installed or loaded here': '此处不安装也不加载扩展',
@@ -20,4 +19,7 @@ MESSAGES: dict[str, str] = {
     'The query editor changes tables, views, indexes, schemas, sequences, types and macros; this is something else': '查询编辑器可更改表、视图、索引、模式、序列、类型和宏；这是别的东西',
     'The statement could not be read': '无法读取该语句',
     'This result holds a moment with a time zone; select it with SELECT to see it': '此结果包含带时区的时刻；请用 SELECT 选择它以查看',
+    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read and edit rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': '您个人存储中的 DuckDB 数据库文件。浏览其模式、表和视图，按页读取和编辑行并支持排序和筛选，还可对该文件及存储中的其他文件运行 SQL。',
+    'A table without a primary key is read only: DuckDB moves a row when it is updated': '没有主键的表是只读的：DuckDB 在更新时会移动行',
+    'DuckDB cannot change a key or unique column of a row other rows refer to': '对于被其他行引用的行，DuckDB 无法更改其键列或唯一列',
 }

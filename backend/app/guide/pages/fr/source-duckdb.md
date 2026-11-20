@@ -17,6 +17,7 @@ Le fonctionnement général des connexions est décrit à la page
 
 ## Ce que vous pouvez modifier
 
+- Données des tables : cellules, blocs collés, lignes ajoutées ou supprimées
 - Les données et la structure, par le SQL de la console
 
 ## Se connecter
@@ -86,6 +87,35 @@ Comment les valeurs sont affichées, telles que DuckDB les écrit :
 - un intervalle comme `1 year 2 days 03:00:00` ;
 - une liste, un struct, une map ou une union en JSON.
 
+## Modifier les lignes
+
+Avec l'accès **Modifier les lignes**, une table se modifie dans sa grille comme
+une table PostgreSQL : double-cliquez sur une cellule, collez un bloc,
+**Insérer une ligne**, cochez des lignes et **Supprimer les lignes
+sélectionnées**.
+
+- Une ligne est retrouvée par sa clé primaire. Une table sans clé accepte de
+  nouvelles lignes et est sinon en lecture seule, car DuckDB déplace une ligne
+  quand elle est modifiée et peut garder deux lignes identiques. Une vue est en
+  lecture seule.
+- Si quelqu'un a modifié une ligne après votre lecture, votre modification est
+  refusée plutôt qu'écrite par-dessus la sienne. Rechargez et réessayez.
+- Écrivez les valeurs comme la grille les montre : une date comme
+  `2026-01-02`, un instant avec son fuseau horaire, le binaire comme `0x…`.
+  DuckDB les lit selon le type de la colonne, et une valeur qu'il ne peut pas
+  lire est refusée ; dans un bloc collé, les cellules refusées sont nommées et
+  rien n'est écrit.
+- Les listes, structs, maps et colonnes générées ne se modifient pas dans la
+  grille ; changez-les avec du SQL dans la console.
+- Une modification que refusent les clés, contrôles ou colonnes obligatoires de
+  la table n'est pas faite, et la règle qui l'a refusée est indiquée.
+- DuckDB ne peut pas modifier une clé ou une colonne unique d'une ligne à
+  laquelle d'autres lignes font référence, même vers une valeur que personne
+  n'a ; les autres colonnes de cette ligne se modifient.
+- Une cellule d'une clé étrangère a une flèche qui ouvre la ligne qu'elle
+  désigne, et **Ce qui pointe vers cette ligne** ouvre les lignes qui pointent
+  ici.
+
 ## Console SQL
 
 **Nouvelle requête** sous **Requêtes** dans la barre de gauche en lance une sur
@@ -118,10 +148,7 @@ avant que la console vous pose la question.
 
 ## Ce que DuckDB n'a pas encore ici
 
-- Modifier les lignes, changer la structure, les actions du catalogue,
-  télécharger toutes les lignes, les sauvegardes et la copie de tables. Ils
-  viendront plus tard.
-- Une table sans clé primaire restera en lecture seule même alors : DuckDB
-  déplace une ligne quand elle est modifiée, et rien d'autre ne la désigne.
+- Changer la structure, les actions du catalogue, télécharger toutes les
+  lignes, les sauvegardes et la copie de tables. Ils viendront plus tard.
 - Un fichier sur un serveur SSH, ou dans une autre connexion, ne peut pas être
   ouvert comme base de données.

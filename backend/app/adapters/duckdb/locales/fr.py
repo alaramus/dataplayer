@@ -9,7 +9,6 @@ MESSAGES: dict[str, str] = {
     'This DuckDB source does not offer the "{representation}" content representation': 'Cette source DuckDB ne propose pas la représentation de contenu « {representation} »',
     "A filter value does not fit its column's type": 'Une valeur de filtre ne correspond pas au type de sa colonne',
     'Rows of a DuckDB file are read only for now': "Les lignes d'un fichier DuckDB sont en lecture seule pour l'instant",
-    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'Un fichier de base de données DuckDB dans votre stockage personnel. Parcourez ses schémas, tables et vues, lisez les lignes page par page avec tri et filtrage, et exécutez du SQL sur le fichier et les autres fichiers de votre stockage.',
     'A connection to this file opens no other database': "Une connexion à ce fichier n'ouvre aucune autre base de données",
     'DuckDB has no savepoints, so a change cannot be tried out inside a held transaction; run it in auto-commit, where it is tried out first': "DuckDB n'a pas de points de sauvegarde : une modification ne peut pas être essayée dans une transaction maintenue ; exécutez-la en validation automatique, où elle est d'abord essayée",
     'Extensions are not installed or loaded here': 'Les extensions ne sont ni installées ni chargées ici',
@@ -20,4 +19,7 @@ MESSAGES: dict[str, str] = {
     'The query editor changes tables, views, indexes, schemas, sequences, types and macros; this is something else': "L'éditeur de requêtes modifie les tables, vues, index, schémas, séquences, types et macros ; ceci est autre chose",
     'The statement could not be read': "L'instruction n'a pas pu être lue",
     'This result holds a moment with a time zone; select it with SELECT to see it': 'Ce résultat contient un instant avec fuseau horaire ; sélectionnez-le avec SELECT pour le voir',
+    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read and edit rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'Un fichier de base de données DuckDB dans votre stockage personnel. Parcourez ses schémas, tables et vues, lisez et modifiez les lignes page par page avec tri et filtrage, et exécutez du SQL sur le fichier et les autres fichiers de votre stockage.',
+    'A table without a primary key is read only: DuckDB moves a row when it is updated': 'Une table sans clé primaire est en lecture seule : DuckDB déplace une ligne quand elle est modifiée',
+    'DuckDB cannot change a key or unique column of a row other rows refer to': "DuckDB ne peut pas modifier une clé ou une colonne unique d'une ligne à laquelle d'autres lignes font référence",
 }

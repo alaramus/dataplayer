@@ -16,6 +16,7 @@ Wie Verbindungen allgemein funktionieren, steht auf der Seite
 
 ## Was Sie ändern können
 
+- Tabellendaten: Zellen, eingefügte Blöcke, neue und gelöschte Zeilen
 - Daten und Struktur, über SQL in der Konsole
 
 ## Verbinden
@@ -85,6 +86,35 @@ Wie Werte gezeigt werden, so wie DuckDB sie schreibt:
 - ein Intervall als `1 year 2 days 03:00:00`;
 - eine Liste, ein Struct, eine Map oder eine Union als JSON.
 
+## Zeilen bearbeiten
+
+Mit dem Zugriff **Zeilen bearbeiten** wird eine Tabelle in ihrem Raster
+bearbeitet wie eine PostgreSQL-Tabelle: Doppelklick auf eine Zelle, einen Block
+einfügen, **Zeile einfügen**, Zeilen ankreuzen und **Ausgewählte Zeilen
+löschen**.
+
+- Eine Zeile wird über ihren Primärschlüssel wiedergefunden. Eine Tabelle ohne
+  Schlüssel nimmt neue Zeilen an und ist sonst schreibgeschützt, da DuckDB eine
+  Zeile beim Ändern verschiebt und zwei gleiche Zeilen halten kann. Eine Sicht
+  ist schreibgeschützt.
+- Hat jemand eine Zeile nach Ihrem Lesen geändert, wird Ihre Änderung
+  abgelehnt, statt seine zu überschreiben. Neu laden und erneut versuchen.
+- Schreiben Sie Werte so, wie das Raster sie zeigt: ein Datum als
+  `2026-01-02`, einen Zeitpunkt mit seiner Zeitzone, Binärdaten als `0x…`.
+  DuckDB liest sie nach dem Typ der Spalte, und ein Wert, den es nicht lesen
+  kann, wird abgelehnt; in einem eingefügten Block werden die abgelehnten
+  Zellen genannt, und nichts wird geschrieben.
+- Listen, Structs, Maps und berechnete Spalten werden nicht im Raster
+  bearbeitet; ändern Sie sie mit SQL in der Konsole.
+- Eine Änderung, die Schlüssel, Prüfungen oder Pflichtspalten der Tabelle
+  ablehnen, wird nicht ausgeführt, und die Regel wird genannt.
+- DuckDB kann einen Schlüssel oder eine eindeutige Spalte einer Zeile, auf die
+  andere Zeilen verweisen, nicht ändern, auch nicht auf einen freien Wert;
+  andere Spalten dieser Zeile ändern sich.
+- Eine Zelle eines Fremdschlüssels hat einen Pfeil, der die Zeile öffnet, auf
+  die er zeigt, und **Was auf diese Zeile zeigt** öffnet die Zeilen, die hierher
+  zeigen.
+
 ## SQL-Konsole
 
 **Neue Abfrage** unter **Abfragen** in der linken Leiste startet eine auf der
@@ -116,9 +146,7 @@ ausprobiert und rückgängig gemacht, bevor die Konsole Sie danach fragt.
 
 ## Was DuckDB hier noch nicht hat
 
-- Zeilen bearbeiten, die Struktur ändern, Katalogaktionen, alle Zeilen
-  herunterladen, Sicherungen und Tabellen kopieren. Sie kommen später.
-- Eine Tabelle ohne Primärschlüssel bleibt auch dann schreibgeschützt: DuckDB
-  verschiebt eine Zeile beim Ändern, und nichts anderes benennt sie.
+- Die Struktur ändern, Katalogaktionen, alle Zeilen herunterladen, Sicherungen
+  und Tabellen kopieren. Sie kommen später.
 - Eine Datei auf einem SSH-Server oder in einer anderen Verbindung lässt sich
   nicht als Datenbank öffnen.

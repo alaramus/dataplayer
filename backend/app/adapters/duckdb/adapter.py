@@ -10,10 +10,12 @@ from app.adapters.duckdb.fetch import DuckdbFetch
 from app.adapters.duckdb.metadata import DuckdbGeneration, DuckdbMetadata
 from app.adapters.duckdb.options import DuckdbOptions
 from app.adapters.duckdb.query import DuckdbExecution, DuckdbQuery, DuckdbTransaction
+from app.adapters.duckdb.references import DuckdbReferences
 from app.adapters.duckdb.relation import DuckdbRelation
 from app.adapters.duckdb.session import DuckdbSession
 from app.adapters.duckdb.statements import format_text
 from app.adapters.duckdb.summary import DuckdbSummaries
+from app.adapters.duckdb.update import DuckdbUpdate
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import ConnectionCheckResult
@@ -30,9 +32,26 @@ from app.adapters.query import (
     QueryRequest,
     TransactionContext,
 )
+from app.adapters.references import (
+    ArrivingReference,
+    FollowReferenceRequest,
+    ReferenceTarget,
+)
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.summary import NodeSummary
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
+)
 from app.core.translation import N_
 
 
@@ -57,6 +76,8 @@ class DuckdbAdapter:
         self._explain = DuckdbExplain(self._session)
         self._metadata = DuckdbMetadata(self._session)
         self._generation = DuckdbGeneration(self._session)
+        self._update = DuckdbUpdate(self._session, self._relation)
+        self._references = DuckdbReferences(self._session, self._catalog, self._relation)
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -86,6 +107,31 @@ class DuckdbAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        return await self._update.update_cell(request)
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        return await self._update.update_cells(request)
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._update.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request)
+
+    async def insert_rows_skipping(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request, skipping=True)
+
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        """Rows named by their primary key and checked against what was read (D395)."""
+        return await self._update.delete_rows(request)
+
+    async def follow_reference(self, request: FollowReferenceRequest) -> ReferenceTarget:
+        return await self._references.follow_reference(request)
+
+    async def arriving_references(self, node_id: str) -> list[ArrivingReference]:
+        return await self._references.arriving_references(node_id)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62, D392)."""
@@ -124,7 +170,7 @@ class DuckdbAdapter:
     category="sql",
     description=N_(
         "A DuckDB database file in your personal storage. Browse its schemas, "
-        "tables and views, read rows a page at a time with sorting and filtering, and run SQL "
+        "tables and views, read and edit rows a page at a time with sorting and filtering, and run SQL "
         "over the file and the other files of your storage."
     ),
     options_schema=DuckdbOptions,

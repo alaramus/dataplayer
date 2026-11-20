@@ -89,8 +89,7 @@ def test_it_claims_only_what_it_does(home: Path) -> None:
         SupportsContent,
     ):
         assert isinstance(adapter, capability)
-    # Rows are read only for now (D2).
-    assert not isinstance(adapter, SupportsUpdate)
+    assert isinstance(adapter, SupportsUpdate)
 
 
 # --- The file -------------------------------------------------------------
@@ -428,8 +427,7 @@ async def test_values_cross_as_duckdbs_own_text(home: Path) -> None:
     assert first["counts"] == '{"1":"one"}'
     assert first["doc"] == '{"k": [1, 2.50]}'
     assert all(value is None for value in result.rows[1][1:])
-    assert result.update_supported is False
-    assert result.update_reason == "Rows of a DuckDB file are read only for now"
+    assert result.update_supported is True
 
 
 async def test_a_nested_column_does_not_sort(home: Path) -> None:

@@ -9,7 +9,6 @@ MESSAGES: dict[str, str] = {
     'This DuckDB source does not offer the "{representation}" content representation': 'مصدر DuckDB هذا لا يوفّر تمثيل المحتوى "{representation}"',
     "A filter value does not fit its column's type": 'قيمة عامل التصفية لا تناسب نوع عمودها',
     'Rows of a DuckDB file are read only for now': 'صفوف ملف DuckDB للقراءة فقط حاليًا',
-    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'ملف قاعدة بيانات DuckDB في مساحة تخزينك الشخصية. تصفّح مخططاته وجداوله وطرق العرض فيه، واقرأ الصفوف صفحةً بصفحة مع الفرز والتصفية، وشغّل SQL على الملف وعلى ملفات مساحة تخزينك الأخرى.',
     'A connection to this file opens no other database': 'الاتصال بهذا الملف لا يفتح أي قاعدة بيانات أخرى',
     'DuckDB has no savepoints, so a change cannot be tried out inside a held transaction; run it in auto-commit, where it is tried out first': 'لا توجد في DuckDB نقاط حفظ، لذا لا يمكن تجربة تغيير داخل معاملة محتجزة؛ شغّله في وضع الالتزام التلقائي حيث يُجرَّب أولًا',
     'Extensions are not installed or loaded here': 'لا تُثبَّت الامتدادات هنا ولا تُحمَّل',
@@ -20,4 +19,7 @@ MESSAGES: dict[str, str] = {
     'The query editor changes tables, views, indexes, schemas, sequences, types and macros; this is something else': 'يغيّر محرر الاستعلامات الجداول وطرق العرض والفهارس والمخططات والتسلسلات والأنواع والماكرو؛ وهذا شيء آخر',
     'The statement could not be read': 'تعذّرت قراءة العبارة',
     'This result holds a moment with a time zone; select it with SELECT to see it': 'تحتوي هذه النتيجة على لحظة ذات منطقة زمنية؛ اخترها باستخدام SELECT لرؤيتها',
+    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read and edit rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'ملف قاعدة بيانات DuckDB في مساحة تخزينك الشخصية. تصفّح مخططاته وجداوله وطرق العرض فيه، واقرأ الصفوف وعدّلها صفحةً بصفحة مع الفرز والتصفية، وشغّل SQL على الملف وعلى ملفات مساحة تخزينك الأخرى.',
+    'A table without a primary key is read only: DuckDB moves a row when it is updated': 'الجدول الذي بلا مفتاح أساسي للقراءة فقط: ينقل DuckDB الصف عند تحديثه',
+    'DuckDB cannot change a key or unique column of a row other rows refer to': 'لا يستطيع DuckDB تغيير مفتاح أو عمود فريد في صف تشير إليه صفوف أخرى',
 }

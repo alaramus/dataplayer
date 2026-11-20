@@ -16,6 +16,7 @@ Cómo funcionan las conexiones en general está en la página
 
 ## Qué puedes cambiar
 
+- Datos de tablas: editar celdas, pegar bloques, insertar y borrar filas
 - Datos y estructura, mediante SQL en la consola
 
 ## Conectarse
@@ -85,6 +86,32 @@ Cómo se muestran los valores, como los escribe DuckDB:
 - un intervalo como `1 year 2 days 03:00:00`;
 - una lista, un struct, un map o una union como JSON.
 
+## Cambiar filas
+
+Con acceso **Editar filas**, una tabla se edita en su cuadrícula como una
+tabla de PostgreSQL: doble clic en una celda, pegar un bloque, **Insertar
+fila**, marcar filas y **Eliminar las filas seleccionadas**.
+
+- Una fila se vuelve a encontrar por su clave primaria. Una tabla sin clave
+  acepta filas nuevas y por lo demás es de solo lectura, porque DuckDB mueve
+  una fila al actualizarla y puede guardar dos filas idénticas. Una vista es de
+  solo lectura.
+- Si alguien cambió una fila después de que la leyeras, tu cambio se rechaza en
+  vez de sobrescribir el suyo. Recarga y vuelve a intentarlo.
+- Escribe los valores como los muestra la cuadrícula: una fecha como
+  `2026-01-02`, un instante con su zona horaria, binario como `0x…`. DuckDB los
+  lee según el tipo de la columna, y un valor que no puede leer se rechaza; en
+  un bloque pegado se nombran las celdas rechazadas y no se escribe nada.
+- Las listas, structs, maps y columnas generadas no se editan en la cuadrícula;
+  cámbialas con SQL en la consola.
+- Un cambio que rechazan las claves, comprobaciones o columnas obligatorias de
+  la tabla no se hace, y se dice qué regla lo rechazó.
+- DuckDB no puede cambiar una clave ni una columna única de una fila a la que
+  hacen referencia otras filas, ni siquiera a un valor que nadie tiene; las
+  demás columnas de esa fila sí cambian.
+- Una celda de una clave foránea tiene una flecha que abre la fila a la que
+  apunta, y **Qué apunta a esta fila** abre las filas que apuntan aquí.
+
 ## Consola SQL
 
 **Nueva consulta** en **Consultas** de la barra izquierda inicia una en la
@@ -115,10 +142,7 @@ borrado se prueba primero y se deshace antes de que la consola te pregunte.
 
 ## Lo que DuckDB aún no tiene aquí
 
-- Editar filas, cambiar la estructura, las acciones del catálogo, descargar
-  todas las filas, las copias de seguridad y copiar tablas. Llegarán más
-  adelante.
-- Una tabla sin clave primaria seguirá siendo de solo lectura incluso
-  entonces: DuckDB mueve una fila al actualizarla, y nada más la identifica.
+- Cambiar la estructura, las acciones del catálogo, descargar todas las filas,
+  las copias de seguridad y copiar tablas. Llegarán más adelante.
 - Un archivo en un servidor SSH, o dentro de otra conexión, no se puede abrir
   como base de datos.

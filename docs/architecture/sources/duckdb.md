@@ -2,13 +2,14 @@
 
 What a DuckDB source is, how it opens its file and locks the engine to the
 owner's storage, how it reads its catalog, how its values and pages cross
-to the grid, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
+to the grid and how its rows are changed there, and how its SQL console
+differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md); the other DuckDB in the server, the sandbox
 behind SQL over files, is in [file-sql.md](file-sql.md). Read this before
 changing the `duckdb` adapter.
 
-Decisions here: D387, D388, D389, D390, D391, D392, D393, D394.
+Decisions here: D387, D388, D389, D390, D391, D392, D393, D394, D395.
 
 ## D387. A DuckDB source is one file of its owner's storage, opened per call
 
@@ -154,3 +155,31 @@ Known deviations:
   JSON of what the driver handed over.
 
 Spec: [The DuckDB console](../../decisions/2026-11-20-duckdb-console-design.md)
+
+## D395. A row is named by its primary key alone, and checked by a digest
+
+A row's handle carries its primary key's values as the page shows them, and a
+row is found by `key = ?` with that text bound, which DuckDB casts to the
+key's type; a binary key is compared as its text. A table without a primary
+key takes new rows and is otherwise read only: DuckDB moves an updated row
+(D391), and a table may hold two identical rows. A view is read only.
+
+The version is a digest of the row as shown, checked in the change's own
+transaction; DuckDB refuses a second writer of the same row as a conflict,
+and `RETURNING` hands back the row as written. A value is bound as its shown
+text and DuckDB converts it, a binary one as bytes from `0x…`. A list, a struct,
+a map, a union, a variant, a geometry and a generated column are not written.
+
+A value DuckDB cannot read fails the whole change, since any failure aborts
+the transaction; only then is each value tried alone in a temporary table of
+the target's column types, outside any transaction, to name the refused
+cells. A refused change is named by DuckDB's sentence, read and not shown.
+Keys arriving at a table are read from `duckdb_constraints()` in its schema.
+
+Known deviations:
+
+- DuckDB carries out a change to a key or unique column as a delete and an
+  insert, so a row other rows refer to cannot have one changed at all; the
+  refusal says so.
+
+Spec: [Editing DuckDB rows](../../decisions/2026-11-20-duckdb-rows-design.md)

@@ -11,11 +11,13 @@ import duckdb
 
 from app.adapters.duckdb.inspection import RelationFacts
 from app.adapters.duckdb.relation import DuckdbRelation
+from app.adapters.duckdb.rows import RowShape, selected, writable
 from app.adapters.duckdb.session import DuckdbSession, Reading
 from app.adapters.duckdb.sql import SQL, Composable, Composed, Identifier
 from app.adapters.duckdb.types import is_nested, shown
 from app.adapters.fetch import (
     FetchColumn,
+    FetchReference,
     FetchRequest,
     FetchResult,
     Filter,
@@ -86,20 +88,47 @@ def _like(value: str, *, starts: bool) -> str:
     return f"{escaped}%" if starts else f"%{escaped}%"
 
 
-def shape_of(facts: RelationFacts) -> list[FetchColumn]:
-    """The columns of a page. Nothing is written through it in this slice."""
-    return [
-        FetchColumn(
-            name=column.name,
-            type=column.type,
-            # The order DuckDB defines for a list or a struct is nobody's
-            # expectation of a sorted grid.
-            sortable=not is_nested(column.type),
-            filter_operators=column_capabilities(column.type),
-            nullable=column.nullable,
+def refusals_of(facts: RelationFacts) -> tuple[str | None, str | None]:
+    """Why rows cannot be changed, and why none can be added, or nothing (D395)."""
+    if facts.is_view:
+        return say("Only tables can be edited"), say("Only tables accept inserted rows")
+    if not facts.primary_key:
+        return (
+            say("A table without a primary key is read only: DuckDB moves a row when it is updated"),
+            None,
         )
-        for column in facts.columns
-    ]
+    return None, None
+
+
+def shape_of(facts: RelationFacts) -> RowShape:
+    """The columns of a page and what may be done to its rows (D395)."""
+    update_reason, insert_reason = refusals_of(facts)
+    columns: list[FetchColumn] = []
+    for column in facts.columns:
+        stored = column.generated is None and writable(column.type)
+        insertable = insert_reason is None and stored
+        has_default = column.default is not None
+        columns.append(
+            FetchColumn(
+                name=column.name,
+                type=column.type,
+                # The order DuckDB defines for a list or a struct is nobody's
+                # expectation of a sorted grid.
+                sortable=not is_nested(column.type),
+                filter_operators=column_capabilities(column.type),
+                editable=update_reason is None and stored,
+                nullable=column.nullable,
+                insertable=insertable,
+                insert_required=insertable and not column.nullable and not has_default,
+                has_default=has_default,
+            )
+        )
+    return RowShape(
+        columns=columns,
+        key=facts.primary_key,
+        update_reason=update_reason,
+        insert_reason=insert_reason,
+    )
 
 
 def ordering_of(facts: RelationFacts) -> list[Composable]:
@@ -115,16 +144,19 @@ class PreparedRead:
     """One validated read, shared by a page and, later, an export."""
 
     facts: RelationFacts
-    columns: list[FetchColumn]
+    shape: RowShape
     request: FetchRequest
+
+    @property
+    def columns(self) -> list[FetchColumn]:
+        return self.shape.columns
 
     def statement(self, params: list[Any]) -> Composed:
         """SELECT, WHERE and ORDER BY, without a page."""
         known = {column.name: column for column in self.columns}
         conditions = [_condition(filter_, known, params) for filter_ in self.request.filters]
         statement: Composed = SQL("SELECT {} FROM {}").format(
-            SQL(", ").join(shown(Identifier(column.name), column.type) for column in self.columns),
-            Identifier(self.facts.schema, self.facts.name),
+            selected(self.shape), Identifier(self.facts.schema, self.facts.name)
         )
         if conditions:
             statement += SQL(" WHERE ") + SQL(" AND ").join(conditions)
@@ -145,7 +177,7 @@ class DuckdbFetch:
 
     async def prepare(self, request: FetchRequest) -> PreparedRead:
         facts = await self._relation.facts(request.node_id, structure=False)
-        prepared = PreparedRead(facts=facts, columns=shape_of(facts), request=request)
+        prepared = PreparedRead(facts=facts, shape=shape_of(facts), request=request)
         known = {column.name: column for column in prepared.columns}
         for used in [item.column for item in request.filters] + [
             item.column for item in request.sort
@@ -176,17 +208,28 @@ class DuckdbFetch:
                 raise ValueError(say("A filter value does not fit its column's type")) from None
 
         rows = await self._session.read(read, fallback_message=N_("Query failed"))
-        refused = say("Rows of a DuckDB file are read only for now")
+        shape = prepared.shape
+        page = [[None if cell is None else str(cell) for cell in row] for row in rows[: request.limit]]
+        facts = prepared.facts
         return FetchResult(
-            columns=prepared.columns,
-            rows=[
-                [None if cell is None else str(cell) for cell in row]
-                for row in rows[: request.limit]
-            ],
+            columns=shape.columns,
+            rows=page,
             has_more=len(rows) > request.limit,
-            update_reason=refused,
-            insert_reason=refused,
-            delete_reason=refused,
+            row_handles=[shape.handle_of(cells) for cells in page],
+            references=[
+                FetchReference(
+                    name=key.name,
+                    columns=key.columns,
+                    target_title=f"{facts.schema}.{key.target_table}",
+                )
+                for key in facts.foreign_keys
+            ],
+            update_supported=shape.update_supported,
+            update_reason=shape.update_reason,
+            insert_supported=shape.insert_supported,
+            insert_reason=shape.insert_reason,
+            delete_supported=shape.update_supported,
+            delete_reason=shape.update_reason,
         )
 
 

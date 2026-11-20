@@ -9,7 +9,6 @@ MESSAGES: dict[str, str] = {
     'This DuckDB source does not offer the "{representation}" content representation': 'Этот источник DuckDB не предлагает представление содержимого «{representation}»',
     "A filter value does not fit its column's type": 'Значение фильтра не подходит к типу колонки',
     'Rows of a DuckDB file are read only for now': 'Строки файла DuckDB пока доступны только для чтения',
-    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'Файл базы данных DuckDB в вашем личном хранилище. Просмотр схем, таблиц и представлений, чтение строк постранично с сортировкой и фильтрацией и выполнение SQL над файлом и другими файлами вашего хранилища.',
     'A connection to this file opens no other database': 'Подключение к этому файлу не открывает другие базы данных',
     'DuckDB has no savepoints, so a change cannot be tried out inside a held transaction; run it in auto-commit, where it is tried out first': 'В DuckDB нет точек сохранения, поэтому изменение нельзя опробовать внутри удерживаемой транзакции; выполните его в режиме автофиксации, где оно сначала опробуется',
     'Extensions are not installed or loaded here': 'Расширения здесь не устанавливаются и не загружаются',
@@ -20,4 +19,7 @@ MESSAGES: dict[str, str] = {
     'The query editor changes tables, views, indexes, schemas, sequences, types and macros; this is something else': 'Редактор запросов изменяет таблицы, представления, индексы, схемы, последовательности, типы и макросы; это что-то другое',
     'The statement could not be read': 'Не удалось прочитать оператор',
     'This result holds a moment with a time zone; select it with SELECT to see it': 'В этом результате есть момент времени с часовым поясом; получите его через SELECT',
+    'A DuckDB database file in your personal storage. Browse its schemas, tables and views, read and edit rows a page at a time with sorting and filtering, and run SQL over the file and the other files of your storage.': 'Файл базы данных DuckDB в вашем личном хранилище. Просмотр схем, таблиц и представлений, чтение и правка строк постранично с сортировкой и фильтрацией и выполнение SQL над файлом и другими файлами вашего хранилища.',
+    'A table without a primary key is read only: DuckDB moves a row when it is updated': 'Таблица без первичного ключа доступна только для чтения: DuckDB перемещает строку при обновлении',
+    'DuckDB cannot change a key or unique column of a row other rows refer to': 'DuckDB не может изменить ключ или уникальную колонку строки, на которую ссылаются другие строки',
 }
