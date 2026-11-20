@@ -6,7 +6,7 @@
 
 每种数据源类型都有自己的页面：[文件](source-file.md)、
 [PostgreSQL](source-postgres.md)、[MySQL](source-mysql.md)、[SQLite](source-sqlite.md)、[ClickHouse](source-clickhouse.md)、
-[MongoDB](source-mongodb.md)、[Redis](source-redis.md)、[ZooKeeper](source-zookeeper.md) 和 [SSH](source-ssh.md)。
+[MongoDB](source-mongodb.md)、[Redis](source-redis.md)、[ZooKeeper](source-zookeeper.md)、[SSH](source-ssh.md) 和 [S3](source-s3.md)。
 
 ## 连接列表
 

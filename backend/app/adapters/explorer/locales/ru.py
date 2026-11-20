@@ -25,6 +25,8 @@ MESSAGES: dict[str, str] = {
     "Off puts the contents beside the archive, which is what an archive of one file usually wants": "Если выключено, содержимое окажется рядом с архивом — обычно так удобнее для архива из одного файла",
     # What an action did.
     "Folder {name} created": "Папка {name} создана",
+    "New bucket": "Новый бакет",
+    "Bucket {name} created": "Бакет {name} создан",
     "{name} created": "{name}: создано",
     "Renamed to {name}": "Переименовано в {name}",
     "{name} deleted": "{name}: удалено",

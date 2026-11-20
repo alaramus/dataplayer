@@ -36,6 +36,24 @@ describe("the icon of a source type", () => {
     expect(adapterIcon("tidb")).toBe("img:/icons/services/tidb.svg")
   })
 
+  it("draws the S3 cards as their providers, Amazon S3 as AWS (D382)", () => {
+    const own = [
+      "minio",
+      "rustfs",
+      "cloudflare-r2",
+      "backblaze-b2",
+      "wasabi",
+      "digitalocean-spaces",
+      "yandex-object-storage",
+      "vk-cloud",
+      "selectel",
+      "hetzner",
+    ]
+    for (const key of own) expect(adapterIcon(key)).not.toBe(UNKNOWN_ADAPTER_ICON)
+    expect(new Set(own.map(adapterIcon)).size).toBe(own.length)
+    expect(adapterIcon("s3")).toBe(adapterIcon("aws-rds-postgres"))
+  })
+
   it("falls back for a type the backend gained since this build", () => {
     expect(adapterIcon("zeromq")).toBe(UNKNOWN_ADAPTER_ICON)
   })

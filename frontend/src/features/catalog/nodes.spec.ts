@@ -916,6 +916,19 @@ describe("file sources", () => {
   })
 })
 
+describe("a bucket", () => {
+  it("is drawn apart from the folders in it (D381)", () => {
+    const folder = { kind: "directory" as const, id: "b/x", name: "x", has_children: true, representations: [] }
+    const bucket = { ...folder, kind: "bucket" as const, id: "b", name: "b" }
+
+    const [top, inner] = toListNodes([bucket, folder])
+
+    expect(top?.icon).toBe(ICONS.bucket)
+    expect(top?.icon).not.toBe(inner?.icon)
+    expect(top?.role).toBe("container")
+  })
+})
+
 describe("the icons a catalog row draws", () => {
   /**
    * Every name must exist in the Symbols Outlined font.

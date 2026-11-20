@@ -11,6 +11,7 @@ from app.adapters import (  # noqa: F401
     postgres,
     rabbitmq,
     redis,
+    s3,
     sqlite,
     ssh,
     zookeeper,

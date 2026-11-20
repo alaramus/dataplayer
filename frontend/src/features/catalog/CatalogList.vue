@@ -2,7 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed, nextTick, ref, watch } from "vue"
 
-import { levelPath } from "@/features/catalog/nodes"
+import { isFolderKind, levelPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import { copyText } from "@/shared/clipboard"
 import { t } from "@/shared/i18n"
@@ -71,7 +71,7 @@ function copiesPath(node: ListNode): boolean {
   // A list with no tick column is a source nothing can be done to, and every
   // source of files renames and deletes: its folders are a market's or a
   // quote asset's, named rather than placed (D323).
-  return !props.noTicks && (node.kind === "file" || node.kind === "directory")
+  return !props.noTicks && (node.kind === "file" || isFolderKind(node.kind))
 }
 
 function copiedText(node: ListNode): string {

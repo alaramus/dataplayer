@@ -83,6 +83,8 @@ _PROTOCOLS = {
     # CQL's OPTIONS in protocol 4, which a node answers before authentication
     # with SUPPORTED in a response frame of the same version.
     "cassandra": _Protocol(9042, b"\x04\x00\x00\x00\x05\x00\x00\x00\x00", (b"\x84",)),
+    # An S3 store answers HTTP, if only with a refusal of an unsigned request.
+    "s3": _Protocol(9000, b"GET / HTTP/1.0\r\n\r\n", (b"H",)),
     # An IMAP server speaks first, with its `* OK` greeting.
     "imap": _Protocol(143, b"", (b"*",)),
 }
@@ -300,6 +302,17 @@ MAIL = Server(
     read=lambda: os.environ.get("TEST_MAIL_URL", "imap://127.0.0.1:3143?smtp=3025"),
 )
 
+# The development S3 store (`rustfs` in compose.override.yml), with the access
+# key and secret in the address and plain HTTP (D382).
+S3 = Server(
+    name="the S3 store",
+    variable="TEST_S3_URL",
+    start="docker compose up -d rustfs",
+    read=lambda: os.environ.get(
+        "TEST_S3_URL", "s3://dataplayer:dataplayer-secret@127.0.0.1:9010"
+    ),
+)
+
 # Products that are a card of a type (D377), started by
 # `docker compose up -d valkey keydb redpanda percona citus paradedb`.
 VALKEY = Server(
@@ -387,6 +400,7 @@ SERVERS = (
     CASSANDRA,
     SCYLLA,
     MAIL,
+    S3,
     VALKEY,
     KEYDB,
     REDPANDA,

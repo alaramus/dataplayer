@@ -24,9 +24,12 @@ backend/app/adapters/
 │   ├── storage.py      LocalStorage: the server's own disk below a home
 │   ├── options.py      the folder inside the home
 │   └── adapter.py      FileAdapter(Explorer), registered as `file`
-└── ssh/
-    ├── storage.py      SftpStorage: a server's files over SFTP (ssh.md)
-    └── adapter.py      SshAdapter(Explorer) without ConnectFolder, and a terminal
+├── ssh/
+│   ├── storage.py      SftpStorage: a server's files over SFTP (ssh.md)
+│   └── adapter.py      SshAdapter(Explorer) without ConnectFolder, and a terminal
+└── s3/
+    ├── storage.py      S3Storage: a bucket's keys as files and folders (s3.md)
+    └── adapter.py      S3Adapter(Explorer)
 ```
 
 ## D150. A source made of files is a storage under one explorer

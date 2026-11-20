@@ -80,6 +80,7 @@ export const pipelines = {
       table: "table",
       view: "view",
       directory: "folder",
+      bucket: "bucket",
       file: "file",
       dataset: "dataset",
       entry: "entry",

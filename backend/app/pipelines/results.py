@@ -23,7 +23,7 @@ type Root = Callable[[Card, CardRow], Foreseen]
 
 def foreseen_kind(kind: NodeKind | None) -> ForeseenKind:
     """A ticked node as a chain takes it: a place, a file, or rows."""
-    if kind is None or kind in ("directory", "schema", "database"):
+    if kind is None or kind in ("directory", "bucket", "schema", "database"):
         return "folder"
     return "file" if kind == "file" else "table"
 

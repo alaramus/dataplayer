@@ -12,6 +12,7 @@ export const summary: Messages["summary"] = {
     table: "表",
     view: "视图",
     directory: "文件夹",
+    bucket: "存储桶",
     file: "文件",
     dataset: "数据集",
     entry: "压缩包条目",

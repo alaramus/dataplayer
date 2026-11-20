@@ -184,6 +184,15 @@ jobs:
         ports:
           - 3025:3025
           - 3143:3143
+      # The S3 store the S3 source tests read (D382); it starts with no
+      # arguments, so a service container can run it.
+      rustfs:
+        image: rustfs/rustfs:1.0.6
+        env:
+          RUSTFS_ACCESS_KEY: dataplayer
+          RUSTFS_SECRET_KEY: dataplayer-secret
+        ports:
+          - 9010:9000
     env:
       PROJECT_NAME: DataPlayer
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app

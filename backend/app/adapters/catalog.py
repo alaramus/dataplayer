@@ -79,6 +79,19 @@ class DirectoryNode(BaseNode):
     modified_at: datetime | None = None
 
 
+class BucketNode(BaseNode):
+    """An object store's top folder (D381).
+
+    Walked into as a folder is, and a kind of its own because what can be done
+    to it is not what can be done to a folder: it is made and removed apart
+    from the rest and never renamed. Actions say so by the kinds they apply
+    to, which is the one thing a client reads about a ticked node.
+    """
+
+    kind: Literal["bucket"] = "bucket"
+    created_at: datetime | None = None
+
+
 class FileNode(BaseNode):
     kind: Literal["file"] = "file"
     has_children: bool = False
@@ -346,6 +359,7 @@ CatalogNode = Annotated[
     | TableNode
     | ViewNode
     | DirectoryNode
+    | BucketNode
     | FileNode
     | DatasetNode
     | EntryNode
@@ -373,6 +387,7 @@ NodeKind = Literal[
     "table",
     "view",
     "directory",
+    "bucket",
     "file",
     "dataset",
     "entry",

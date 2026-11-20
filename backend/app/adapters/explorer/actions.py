@@ -51,10 +51,13 @@ from app.adapters.explorer.packing import (
     unpacked_name,
 )
 from app.adapters.explorer.storage import (
+    FOLDER_KINDS,
     ROOT,
     DraftsConnections,
     Place,
     Storage,
+    holds_buckets,
+    is_bucket,
     is_plain_name,
     node_id_of,
     walk_iterator,
@@ -160,6 +163,13 @@ class ExtractParams(BaseModel):
 
 class _Bound:
     """Common to every action here: the storage it works through."""
+
+    # Whether it is offered where buckets are made (D381): nothing but buckets
+    # lives there, so a file or a folder is not made or put there. What can be
+    # done to a bucket itself is said by the kinds an action applies to.
+    among_buckets: ClassVar[bool] = False
+    # Offered where buckets are made and nowhere else.
+    only_among_buckets: ClassVar[bool] = False
 
     def __init__(self, storage: Storage) -> None:
         self._storage = storage
@@ -274,7 +284,7 @@ class ConnectSqlite(_ActsOnNode, Action[ConnectFolderParams]):
 class CreateFolder(_Bound, JsonAction[NameParams]):
     name: ClassVar[str] = "create_folder"
     title: ClassVar[str] = N_("New folder")
-    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    applies_to: ClassVar[frozenset[NodeKind]] = FOLDER_KINDS
     acts_on: ClassVar[ActsOn] = "children"
     params_model = NameParams
 
@@ -296,6 +306,37 @@ class CreateFolder(_Bound, JsonAction[NameParams]):
         return target
 
 
+class CreateBucket(CreateFolder):
+    """A bucket, where a storage keeps its buckets (D381).
+
+    A taken name is refused rather than numbered: "reports (1)" is not a name
+    a bucket may have.
+    """
+
+    name: ClassVar[str] = "create_bucket"
+    title: ClassVar[str] = N_("New bucket")
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    among_buckets: ClassVar[bool] = True
+    only_among_buckets: ClassVar[bool] = True
+
+    async def run(self, node_id: str | None, params: NameParams) -> ActionResult:
+        made = await to_thread.run_sync(self._make, node_id, params.name)
+        return ActionResult(
+            message=say("Bucket {name} created", name=made.name),
+            reload_node_ids=[node_id or None],
+        )
+
+    def _make(self, node_id: str | None, name: str) -> Place:
+        target = self._storage.child(self._directory(node_id), name)
+        try:
+            self._storage.make_directory(target)
+        except FileExistsError:
+            raise ActionRefused(
+                "conflict", say("{name} is already there", name=target.name)
+            ) from None
+        return target
+
+
 class CreateFile(_Bound, JsonAction[FileNameParams]):
     """An empty file under the name typed, in the folder being looked at.
 
@@ -307,7 +348,7 @@ class CreateFile(_Bound, JsonAction[FileNameParams]):
 
     name: ClassVar[str] = "create_file"
     title: ClassVar[str] = N_("New file")
-    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    applies_to: ClassVar[frozenset[NodeKind]] = FOLDER_KINDS
     acts_on: ClassVar[ActsOn] = "children"
     params_model = FileNameParams
 
@@ -357,7 +398,7 @@ class Rename(_ActsOnNode, JsonAction[RenameParams]):
 class Delete(_ActsOnNode, JsonAction[DeleteParams]):
     name: ClassVar[str] = "delete"
     title: ClassVar[str] = N_("Delete")
-    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory", "file"})
+    applies_to: ClassVar[frozenset[NodeKind]] = FOLDER_KINDS | {"file"}
     destructive: ClassVar[bool] = True
     # One form, many files: the parameters of a delete say nothing about which
     # file they are for.
@@ -384,9 +425,7 @@ class Download(_ActsOnNode, Action[DownloadParams]):
     # An entry too, because a file inside an archive is exactly what a reader
     # wants out of it (D53); everything that changes a node keeps to the two
     # kinds that exist in the storage.
-    applies_to: ClassVar[frozenset[NodeKind]] = frozenset(
-        {"directory", "file", "entry"}
-    )
+    applies_to: ClassVar[frozenset[NodeKind]] = FOLDER_KINDS | {"file", "entry"}
     requires: ClassVar[Access] = "read"
     bulk: ClassVar[bool] = True
     params_model = DownloadParams
@@ -432,7 +471,7 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
 
     name: ClassVar[str] = "paste"
     title: ClassVar[str] = N_("Paste")
-    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    applies_to: ClassVar[frozenset[NodeKind]] = FOLDER_KINDS
     acts_on: ClassVar[ActsOn] = "children"
     requires: ClassVar[Access] = "write"
     params_model = PasteParams
@@ -710,7 +749,7 @@ def _extracted(entries: int, made: Place | None) -> str:
 class Upload(_Bound, FileAction[UploadParams]):
     name: ClassVar[str] = "upload"
     title: ClassVar[str] = N_("Upload files")
-    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    applies_to: ClassVar[frozenset[NodeKind]] = FOLDER_KINDS
     acts_on: ClassVar[ActsOn] = "children"
     # A folder takes as many files as are handed to it, and each one is a
     # whole upload of its own: one refused name does not spoil the rest.
@@ -868,11 +907,21 @@ class ExplorerActions:
         return self._actions.get(name)
 
     async def all_actions(self) -> list[Action[Any]]:
-        return list(self._actions)
+        # A storage whose root is one bucket makes none: New bucket would be
+        # a greyed line in every menu of it.
+        makes_buckets = holds_buckets(self._storage, ROOT)
+        return [
+            action
+            for action in self._actions
+            if makes_buckets
+            or not (isinstance(action, _Bound) and action.only_among_buckets)
+        ]
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         place, kind = await to_thread.run_sync(self._look_at, node_id)
-        offered = self._actions.for_kind(kind)
+        offered = await to_thread.run_sync(
+            self._among_buckets, place, self._actions.for_kind(kind)
+        )
         if place == ROOT:
             # The root is an ordinary directory, and its state — not its kind —
             # is what rules the two actions out.
@@ -903,6 +952,23 @@ class ExplorerActions:
             refusals=[ActionUnavailability(name=ConnectSqlite.name, reason=say(NOT_IN_PERSONAL_STORAGE))],
         )
 
+    def _among_buckets(
+        self, place: Place, offered: list[Action[Any]]
+    ) -> list[Action[Any]]:
+        """What is left where buckets are made (D381). Blocking, as `_look_at`
+        is: a storage may be asked what a place is."""
+        made_here = holds_buckets(self._storage, place)
+        return [
+            action
+            for action in offered
+            if not isinstance(action, _Bound)
+            or (
+                action.among_buckets
+                if made_here and action.acts_on == "children"
+                else not action.only_among_buckets
+            )
+        ]
+
     def _look_at(self, node_id: str | None) -> tuple[Place, NodeKind]:
         """What the id names, and of what kind. Blocking: it asks the storage.
 
@@ -921,4 +987,8 @@ class ExplorerActions:
             return resolved.place, kind
         if resolved.entry is None:
             raise ValueError(say("No such node: {node_id}", node_id=node_id))
-        return resolved.place, "directory" if resolved.entry.is_directory else "file"
+        if not resolved.entry.is_directory:
+            return resolved.place, "file"
+        if is_bucket(self._storage, resolved.place):
+            return resolved.place, "bucket"
+        return resolved.place, "directory"
