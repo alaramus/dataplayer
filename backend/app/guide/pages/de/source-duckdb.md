@@ -17,6 +17,8 @@ Wie Verbindungen allgemein funktionieren, steht auf der Seite
 ## Was Sie ändern können
 
 - Tabellendaten: Zellen, eingefügte Blöcke, neue und gelöschte Zeilen
+- Spalten, Indizes und eindeutige Schlüssel
+- Neue Tabellen, Objekt für Objekt entworfen oder aus Zeilen erstellt
 - Daten und Struktur, über SQL in der Konsole
 
 ## Verbinden
@@ -115,6 +117,69 @@ löschen**.
   die er zeigt, und **Was auf diese Zeile zeigt** öffnet die Zeilen, die hierher
   zeigen.
 
+## Die Struktur ändern
+
+**Struktur** einer Tabelle ändert sie wie eine PostgreSQL-Tabelle: eine Spalte
+hinzufügen, umbenennen und löschen, ihren Standardwert setzen oder entfernen,
+einen Wert verlangen oder nicht mehr verlangen, ihren Typ ändern, Indizes
+hinzufügen und löschen, einen eindeutigen Schlüssel hinzufügen.
+
+- DuckDB nimmt jede Änderung an Ort und Stelle vor, in einer Transaktion;
+  nichts wird neu aufgebaut.
+- Eine Änderung, der die Zeilen schon widersprechen, wird nicht vorgenommen,
+  und die Anzahl wird gezeigt: Zeilen ohne Wert, Werte, die sich nicht in den
+  neuen Typ umwandeln lassen, Werte, die sich wiederholen.
+- Ein Standardwert wird vor dem Setzen gegen den Typ der Spalte geprüft.
+- DuckDB kann einer bestehenden Tabelle keinen Fremdschlüssel und keine Prüfung
+  hinzufügen und keine ihrer Einschränkungen entfernen, auch den
+  Primärschlüssel nicht. Kopieren Sie die Tabelle stattdessen in eine, die so
+  entworfen ist, wie Sie sie wollen.
+- Eine Tabelle mit eigenem Index oder eine, auf die der Fremdschlüssel einer
+  anderen Tabelle zeigt, nimmt nur eine neue Spalte, einen Standardwert und
+  einen neuen Index an. Eine Spalte umbenennen, löschen oder ihren Typ ändern,
+  einen Wert verlangen und einen eindeutigen Schlüssel hinzufügen wird
+  abgelehnt.
+- DuckDB benennt und löscht eine Spalte, ohne auf die Sichten zu achten, die
+  sie lesen. Deshalb wird nach der Änderung jede Sicht neu gelesen, und eine,
+  die die Änderung zerbrechen würde, lehnt sie mit ihrem Namen ab.
+- Was DuckDB selbst ablehnt, etwa eine Spalte zu löschen, die ein Index
+  abdeckt, wird mit DuckDBs eigenen Worten gesagt.
+- Angeboten werden DuckDBs Typen: Text, Ganzzahlen in vier Breiten,
+  Gleitkommazahl, Dezimalzahl, Wahrheitswert, Datum, Uhrzeit, Datum und Uhrzeit
+  mit oder ohne Zeitzone, Intervall, UUID, JSON und Binärdaten.
+- DuckDB baut eine Art Index, einen adaptiven Radix-Baum, benannt nach der
+  Tabelle und ihren Spalten. Einschränkungen benennt DuckDB selbst.
+
+## Eine Tabelle erstellen
+
+**Tabelle erstellen** im Aktionsmenü eines Schemas öffnet den Tabellen-Designer
+wie bei PostgreSQL. Der Plan ist ein `CREATE TABLE`, ein `CREATE INDEX` je
+Index und die Kommentare, zusammen ausgeführt: Die Tabelle entsteht ganz oder
+gar nicht.
+
+- Eine Identitätsspalte ist eine eigene Sequenz, `<Tabelle>_<Spalte>_seq`, die
+  vor der Tabelle angelegt wird; der Standardwert der Spalte nimmt ihren
+  nächsten Wert. Sie kann bei jedem Wert beginnen und um jeden Betrag
+  weiterzählen. Sie übernimmt einen Wert, den Sie hineinschreiben, und kann
+  deshalb nicht ALWAYS sein.
+- Eine generierte Spalte wird bei jedem Lesen berechnet; eine, die gespeichert
+  werden soll, wird so angelegt, mit einer Warnung.
+- Was DuckDB nicht hat, wird an dem Objekt markiert, das danach fragt, bevor
+  Sie den Plan prüfen können: eine nicht protokollierte oder partitionierte
+  Tabelle, ein Fremdschlüssel, der kaskadiert, auf null oder auf einen
+  Standardwert setzt oder in ein anderes Schema zeigt, ein beim Commit
+  geprüfter Schlüssel, ein Index über einen Teil der Zeilen oder mit
+  zusätzlichen Spalten.
+- Ein Standardwert wird beim Erstellen des Plans gegen den Typ seiner Spalte
+  geprüft.
+- Angegebene Namen von Einschränkungen werden nicht übernommen; DuckDB benennt
+  Einschränkungen selbst.
+- Kommentare zur Tabelle und zu ihren Spalten bleiben erhalten.
+- Sortierungen sind DuckDBs eigene: `NOCASE`, `NOACCENT` und `NFC`.
+- Als Tabelle behaltene Zeilen oder eine in eine Tabelle geladene Datei kommen
+  in einem Zug mit der Tabelle. Ein Wert, den DuckDB nicht als Typ seiner
+  Spalte lesen kann, lässt die Tabelle unerstellt.
+
 ## SQL-Konsole
 
 **Neue Abfrage** unter **Abfragen** in der linken Leiste startet eine auf der
@@ -146,7 +211,7 @@ ausprobiert und rückgängig gemacht, bevor die Konsole Sie danach fragt.
 
 ## Was DuckDB hier noch nicht hat
 
-- Die Struktur ändern, Katalogaktionen, alle Zeilen herunterladen, Sicherungen
-  und Tabellen kopieren. Sie kommen später.
+- Katalogaktionen, alle Zeilen herunterladen, Sicherungen und Tabellen
+  kopieren. Sie kommen später.
 - Eine Datei auf einem SSH-Server oder in einer anderen Verbindung lässt sich
   nicht als Datenbank öffnen.

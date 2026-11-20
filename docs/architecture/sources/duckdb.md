@@ -2,14 +2,14 @@
 
 What a DuckDB source is, how it opens its file and locks the engine to the
 owner's storage, how it reads its catalog, how its values and pages cross
-to the grid and how its rows are changed there, and how its SQL console
-differs from PostgreSQL's. The contract every source type follows is in
+to the grid and how its rows are changed there, how its structure is changed and
+tables designed, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md); the other DuckDB in the server, the sandbox
 behind SQL over files, is in [file-sql.md](file-sql.md). Read this before
 changing the `duckdb` adapter.
 
-Decisions here: D387, D388, D389, D390, D391, D392, D393, D394, D395.
+Decisions here: D387, D388, D389, D390, D391, D392, D393, D394, D395, D396, D397.
 
 ## D387. A DuckDB source is one file of its owner's storage, opened per call
 
@@ -183,3 +183,66 @@ Known deviations:
   refusal says so.
 
 Spec: [Editing DuckDB rows](../../decisions/2026-11-20-duckdb-rows-design.md)
+
+## D396. A structure change is DuckDB's ALTER TABLE in place, views bound after
+
+DuckDB's ALTER TABLE adds, drops, renames and retypes a column, sets and
+drops its default and `NOT NULL`, and adds a primary or unique key in place,
+so every change is one statement in a transaction (D393) and nothing is
+rebuilt. What the rows contradict is counted first, up to 1000: rows with no
+value before `SET NOT NULL`, values `TRY_CAST` cannot convert before a type
+change, repeating groups before a unique key or unique index. A default is
+tried with `TRY_CAST` to the column's type before it is set, since DuckDB
+stores one it cannot convert, and is written `CAST('…' AS type)`.
+
+DuckDB renames and drops a column without looking at the views that read it,
+so inside the change's transaction every view of the file is bound with
+`SELECT * FROM … LIMIT 0`, and one that bound before and does not after
+refuses the change by name. What DuckDB refuses itself is said in its own
+sentence; its "entries that depend on it", which names nothing, is reworded
+to say that the table's index or another table's foreign key is in the way.
+
+Indexes are DuckDB's ART, named `<table>_<columns>_idx` and made unique in
+the schema; constraints are named by DuckDB (D389). The types offered are a
+closed vocabulary of DuckDB's own, spelt as `duckdb_columns()` reads them
+back.
+
+Known deviations:
+
+- **No foreign key or check is added to an existing table, and no constraint
+  is dropped**, the primary key included: DuckDB's ALTER TABLE has neither.
+  A rebuild as SQLite's (D255) was rejected, because DuckDB refuses to drop a
+  table a view or a foreign key depends on, so it would fail exactly where
+  keys matter. The refusal says to copy the table into one designed with the
+  structure wanted.
+- **A table with an index of its own, or one another table's foreign key
+  names, takes only a new column, a default and an index.** Every other
+  change is refused by DuckDB.
+- **No partial index.**
+
+Spec: [Changing DuckDB structure](../../decisions/2026-11-20-duckdb-structure-design.md)
+
+## D397. A designed table is PostgreSQL's plan, its identity a sequence
+
+The designer's plan is a `CREATE TABLE`, one `CREATE INDEX` per index and
+`COMMENT ON` the table and its columns, run in one transaction; a table made
+from rows is the table and its rows in one transaction, the values bound as
+text and converted by DuckDB (D395), one it cannot read leaving the table
+unmade.
+
+DuckDB has no identity column, so an identity is a sequence of its own,
+`<table>_<column>_seq`, made first, the column's default `nextval` of it; it
+starts anywhere and steps by any non-zero amount, and ALWAYS is a plan
+problem, since DuckDB takes a value written into the column. A stored
+generated column is made as DuckDB's virtual one, with a warning. A literal
+default is tried with `TRY_CAST` while planning.
+
+What DuckDB lacks is a plan problem on the object asking for it (D117): an
+unlogged or partitioned table, a hypertable, a foreign key that cascades,
+sets null or a default, is deferrable, matches fully or points into another
+schema (D389), a deferrable unique key, nulls not distinct, INCLUDE, an
+operator class, a predicate. A constraint name given is a warning, since
+DuckDB names constraints itself. Collations are DuckDB's built-in `NOCASE`,
+`NOACCENT` and `NFC`.
+
+Spec: [Changing DuckDB structure](../../decisions/2026-11-20-duckdb-structure-design.md)

@@ -19,7 +19,7 @@ file holds which decision.
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
-| [duckdb.md](duckdb.md) | change how a DuckDB file is opened, how the engine is locked to the owner's storage, what its catalog shows, how its values and pages are read and its rows changed, or its console |
+| [duckdb.md](duckdb.md) | change how a DuckDB file is opened, how the engine is locked to the owner's storage, what its catalog shows, how its values and pages are read, its rows and structure changed and its tables designed, or its console |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
 | [binance.md](binance.md) | change how Binance is reached and kept under its rate limit, what its catalog shows of markets, quote assets, symbols and feeds, or how tickers, symbols, candles, trades and the order book are read as rows, read on by a link, reported, measured and searched |
@@ -133,7 +133,10 @@ parser and refuses what reaches past the file by family (D392), runs and holds
 transactions as PostgreSQL's console does, without savepoints (D393), and
 answers in DuckDB's text and DuckDB's words (D394). Rows are edited, inserted
 and deleted in the grid, named by their primary key alone and checked against
-a digest of what was shown, and keys are followed both ways (D395).
+a digest of what was shown, and keys are followed both ways (D395). Structure
+is changed by DuckDB's ALTER TABLE in place, counted first and every view bound
+after; a foreign key, a check or a dropped constraint is refused (D396). The
+designer's identity is a sequence and a generated column is virtual (D397).
 
 **ClickHouse** — a server reached over its HTTP interface with the
 application's own client, every value one of the server's parameters and every
@@ -301,7 +304,11 @@ backend/app/adapters/
 │                       options.py, statements.py (DuckDB's parser),
 │                       query.py (runs, transactions, rehearsals),
 │                       explain.py, metadata.py, rows.py (handles),
-│                       update.py, references.py, adapter.py
+│                       update.py, references.py, structure.py (a change
+│                       in a transaction, views bound after), columns.py +
+│                       keys.py (structure), vocabulary.py, design.py (the
+│                       designer), relation_changes.py, actions.py,
+│                       adapter.py
 ├── clickhouse/         session.py (the HTTP interface, its errors, addresses)
 │                       and pool.py (a kept client), sql.py (names and
 │                       parameters), inspection.py (system.tables, once),

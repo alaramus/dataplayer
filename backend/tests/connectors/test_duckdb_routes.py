@@ -104,13 +104,13 @@ async def test_what_it_does_not_do_is_refused_as_not_implemented(
 ) -> None:
     connector = await _connector(client, normal_user_token_headers, {"path": FILE})
 
-    response = await client.post(
-        f"{BASE}/{connector}/actions",
+    response = await client.get(
+        f"{BASE}/{connector}/catalog/search",
         headers=normal_user_token_headers,
-        json={"node_id": "main"},
+        params={"query": "items"},
     )
 
-    # Catalog actions come in a later slice, and the capability is not claimed (D2).
+    # Searching the catalog comes in a later slice, and the capability is not claimed (D2).
     assert response.status_code == 501, response.text
 
 

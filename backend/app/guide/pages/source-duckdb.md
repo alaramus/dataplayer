@@ -16,6 +16,8 @@ How connections work in general is on the [Connections](connections.md) page.
 ## What you can change
 
 - Table data: edit cells, paste blocks, insert and delete rows
+- Columns, indexes and unique keys
+- New tables, designed object by object or made from rows
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -103,6 +105,58 @@ is: double-click a cell, paste a block, **Insert row**, tick rows and
 - A cell in a foreign key has an arrow that opens the row it points at, and
   **What points at this row** opens the rows that point here.
 
+## Changing the structure
+
+**Structure** of a table changes it as it changes a PostgreSQL table: add,
+rename and drop a column, set or remove its default, require a value or stop
+requiring one, change its type, add and drop indexes, add a unique key.
+
+- DuckDB makes each change in place, in one transaction; nothing is rebuilt.
+- A change the rows already contradict is not made, and the count is shown:
+  rows with no value, values that would not convert to the new type, values
+  that repeat.
+- A default is checked against the column's type before it is set.
+- DuckDB cannot add a foreign key or a check to a table that already exists,
+  and cannot drop any constraint of one, the primary key included. Copy the
+  table into one designed the way you want instead.
+- A table with an index of its own, or one that another table's foreign key
+  points at, takes only a new column, a default and a new index. Renaming,
+  dropping or retyping a column, requiring a value and adding a unique key are
+  refused.
+- DuckDB renames and drops a column without looking at the views that read it,
+  so every view is read again after the change, and one the change would break
+  refuses it by name.
+- What DuckDB refuses itself, such as dropping a column an index covers, is
+  said in DuckDB's own words.
+- The types offered are DuckDB's: text, integers of four widths, floating
+  point, decimal, boolean, date, time, date and time with or without a time
+  zone, interval, UUID, JSON and binary.
+- DuckDB builds one kind of index, an adaptive radix tree, named after the
+  table and its columns. Constraints are named by DuckDB itself.
+
+## Creating a table
+
+**Create table** in the actions menu of a schema opens the table designer, as
+for PostgreSQL. The plan is a `CREATE TABLE`, one `CREATE INDEX` per index and
+the comments, run together: the table is made whole or not at all.
+
+- An identity column is a sequence of its own, `<table>_<column>_seq`, made
+  before the table, and the column's default takes the next value of it. It may
+  start anywhere and step by any amount. It takes a value you write into it, so
+  it cannot be ALWAYS.
+- A generated column is computed whenever it is read; one asked to be stored is
+  made that way, with a warning.
+- What DuckDB does not have is marked on the object that asks for it before you
+  can review the plan: an unlogged or partitioned table, a foreign key that
+  cascades, sets null or sets a default, or points into another schema, a key
+  checked at commit, an index on part of the rows or carrying extra columns.
+- A default is checked against its column's type while the plan is made.
+- Constraint names you give are not kept; DuckDB names constraints itself.
+- Comments on the table and its columns are kept.
+- Collations are DuckDB's own: `NOCASE`, `NOACCENT` and `NFC`.
+- Rows kept as a table, or a file loaded into one, arrive with the table in one
+  go. A value DuckDB cannot read as its column's type leaves the table unmade.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -131,7 +185,7 @@ console asks you about it.
 
 ## What DuckDB does not have here yet
 
-- Changing the structure, catalog actions, downloading every row, backups and
-  copying tables. They come later.
+- Catalog actions, downloading every row, backups and copying tables. They come
+  later.
 - A file on an SSH server, or inside another connection, cannot be opened as a
   database.

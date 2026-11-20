@@ -18,6 +18,8 @@ Le fonctionnement général des connexions est décrit à la page
 ## Ce que vous pouvez modifier
 
 - Données des tables : cellules, blocs collés, lignes ajoutées ou supprimées
+- Les colonnes, index et clés uniques
+- De nouvelles tables, conçues objet par objet ou créées à partir de lignes
 - Les données et la structure, par le SQL de la console
 
 ## Se connecter
@@ -116,6 +118,67 @@ sélectionnées**.
   désigne, et **Ce qui pointe vers cette ligne** ouvre les lignes qui pointent
   ici.
 
+## Modifier la structure
+
+**Structure** d'une table la modifie comme une table PostgreSQL : ajouter,
+renommer et supprimer une colonne, définir ou retirer sa valeur par défaut,
+exiger une valeur ou ne plus l'exiger, changer son type, ajouter et supprimer
+des index, ajouter une clé unique.
+
+- DuckDB fait chaque modification sur place, dans une transaction ; rien n'est
+  reconstruit.
+- Une modification que les lignes contredisent déjà n'est pas faite, et le
+  nombre est affiché : lignes sans valeur, valeurs qui ne se convertiraient pas
+  dans le nouveau type, valeurs qui se répètent.
+- Une valeur par défaut est vérifiée selon le type de la colonne avant d'être
+  définie.
+- DuckDB ne peut pas ajouter de clé étrangère ni de contrôle à une table
+  existante, ni supprimer l'une de ses contraintes, clé primaire comprise.
+  Copiez plutôt la table dans une table conçue comme vous le voulez.
+- Une table qui a son propre index, ou vers laquelle pointe la clé étrangère
+  d'une autre table, n'accepte qu'une nouvelle colonne, une valeur par défaut
+  et un nouvel index. Renommer, supprimer ou changer le type d'une colonne,
+  exiger une valeur et ajouter une clé unique sont refusés.
+- DuckDB renomme et supprime une colonne sans regarder les vues qui la lisent ;
+  chaque vue est donc relue après la modification, et une vue que la
+  modification casserait la refuse en se nommant.
+- Ce que DuckDB refuse lui-même, comme supprimer une colonne couverte par un
+  index, est dit avec les mots de DuckDB.
+- Les types proposés sont ceux de DuckDB : texte, entiers de quatre tailles,
+  virgule flottante, décimal, booléen, date, heure, date et heure avec ou sans
+  fuseau horaire, intervalle, UUID, JSON et binaire.
+- DuckDB construit un seul type d'index, un arbre radix adaptatif, nommé
+  d'après la table et ses colonnes. DuckDB nomme lui-même les contraintes.
+
+## Créer une table
+
+**Créer une table** dans le menu d'actions d'un schéma ouvre le concepteur de
+tables, comme pour PostgreSQL. Le plan est un `CREATE TABLE`, un `CREATE INDEX`
+par index et les commentaires, exécutés ensemble : la table est créée entière
+ou pas du tout.
+
+- Une colonne d'identité est une séquence à elle, `<table>_<colonne>_seq`,
+  créée avant la table, et la valeur par défaut de la colonne en prend la
+  valeur suivante. Elle peut commencer n'importe où et avancer de n'importe
+  quel pas. Elle accepte une valeur que vous y écrivez, elle ne peut donc pas
+  être ALWAYS.
+- Une colonne générée est calculée à chaque lecture ; une colonne demandée
+  stockée est créée ainsi, avec un avertissement.
+- Ce que DuckDB n'a pas est signalé sur l'objet qui le demande avant que vous
+  puissiez relire le plan : une table non journalisée ou partitionnée, une clé
+  étrangère qui se propage en cascade, met à null ou met une valeur par défaut,
+  ou pointe vers un autre schéma, une clé vérifiée à la validation, un index
+  sur une partie des lignes ou portant des colonnes supplémentaires.
+- Une valeur par défaut est vérifiée selon le type de sa colonne pendant
+  l'établissement du plan.
+- Les noms de contraintes donnés ne sont pas conservés ; DuckDB nomme lui-même
+  les contraintes.
+- Les commentaires de la table et de ses colonnes sont conservés.
+- Les collations sont celles de DuckDB : `NOCASE`, `NOACCENT` et `NFC`.
+- Des lignes gardées comme table, ou un fichier chargé dans une table, arrivent
+  avec la table d'un seul coup. Une valeur que DuckDB ne peut pas lire dans le
+  type de sa colonne laisse la table non créée.
+
 ## Console SQL
 
 **Nouvelle requête** sous **Requêtes** dans la barre de gauche en lance une sur
@@ -148,7 +211,7 @@ avant que la console vous pose la question.
 
 ## Ce que DuckDB n'a pas encore ici
 
-- Changer la structure, les actions du catalogue, télécharger toutes les
-  lignes, les sauvegardes et la copie de tables. Ils viendront plus tard.
+- Les actions du catalogue, télécharger toutes les lignes, les sauvegardes et
+  la copie de tables. Ils viendront plus tard.
 - Un fichier sur un serveur SSH, ou dans une autre connexion, ne peut pas être
   ouvert comme base de données.

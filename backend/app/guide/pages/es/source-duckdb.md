@@ -17,6 +17,8 @@ Cómo funcionan las conexiones en general está en la página
 ## Qué puedes cambiar
 
 - Datos de tablas: editar celdas, pegar bloques, insertar y borrar filas
+- Columnas, índices y claves únicas
+- Tablas nuevas, diseñadas objeto por objeto o creadas a partir de filas
 - Datos y estructura, mediante SQL en la consola
 
 ## Conectarse
@@ -112,6 +114,66 @@ fila**, marcar filas y **Eliminar las filas seleccionadas**.
 - Una celda de una clave foránea tiene una flecha que abre la fila a la que
   apunta, y **Qué apunta a esta fila** abre las filas que apuntan aquí.
 
+## Cambiar la estructura
+
+**Estructura** de una tabla la cambia como cambia una tabla de PostgreSQL:
+añadir, renombrar y eliminar una columna, fijar o quitar su valor por defecto,
+exigir un valor o dejar de exigirlo, cambiar su tipo, añadir y eliminar
+índices, añadir una clave única.
+
+- DuckDB hace cada cambio en el sitio, en una transacción; no se reconstruye
+  nada.
+- Un cambio que las filas ya contradicen no se hace, y se muestra el recuento:
+  filas sin valor, valores que no se convertirían al nuevo tipo, valores que se
+  repiten.
+- Un valor por defecto se comprueba con el tipo de la columna antes de fijarlo.
+- DuckDB no puede añadir una clave foránea ni una comprobación a una tabla que
+  ya existe, ni eliminar ninguna de sus restricciones, tampoco la clave
+  primaria. En su lugar, copia la tabla en otra diseñada como quieras.
+- Una tabla con un índice propio, o a la que apunta la clave foránea de otra
+  tabla, solo admite una columna nueva, un valor por defecto y un índice nuevo.
+  Renombrar, eliminar o cambiar el tipo de una columna, exigir un valor y
+  añadir una clave única se rechazan.
+- DuckDB renombra y elimina una columna sin mirar las vistas que la leen, así
+  que tras el cambio se vuelve a leer cada vista, y una que el cambio rompería
+  lo rechaza por su nombre.
+- Lo que DuckDB rechaza por sí mismo, como eliminar una columna que cubre un
+  índice, se dice con las palabras de DuckDB.
+- Los tipos ofrecidos son los de DuckDB: texto, enteros de cuatro tamaños, coma
+  flotante, decimal, booleano, fecha, hora, fecha y hora con o sin zona
+  horaria, intervalo, UUID, JSON y binario.
+- DuckDB construye un solo tipo de índice, un árbol radix adaptativo, con el
+  nombre de la tabla y sus columnas. Las restricciones las nombra el propio
+  DuckDB.
+
+## Crear una tabla
+
+**Crear tabla** en el menú de acciones de un esquema abre el diseñador de
+tablas, como en PostgreSQL. El plan es un `CREATE TABLE`, un `CREATE INDEX` por
+índice y los comentarios, ejecutados juntos: la tabla se crea entera o no se
+crea.
+
+- Una columna de identidad es una secuencia propia, `<tabla>_<columna>_seq`,
+  creada antes que la tabla, y el valor por defecto de la columna toma su
+  siguiente valor. Puede empezar en cualquier número y avanzar de cualquier
+  paso. Acepta un valor que escribas en ella, por lo que no puede ser ALWAYS.
+- Una columna generada se calcula cada vez que se lee; una que se pide
+  almacenada se crea así, con un aviso.
+- Lo que DuckDB no tiene se marca en el objeto que lo pide antes de que puedas
+  revisar el plan: una tabla sin registro o particionada, una clave foránea en
+  cascada, que pone nulo o un valor por defecto, o que apunta a otro esquema,
+  una clave comprobada al confirmar, un índice sobre parte de las filas o con
+  columnas adicionales.
+- Un valor por defecto se comprueba con el tipo de su columna mientras se hace
+  el plan.
+- Los nombres de restricciones que des no se conservan; DuckDB nombra las
+  restricciones por sí mismo.
+- Los comentarios de la tabla y sus columnas se conservan.
+- Las intercalaciones son las propias de DuckDB: `NOCASE`, `NOACCENT` y `NFC`.
+- Las filas guardadas como tabla, o un archivo cargado en una, llegan con la
+  tabla de una vez. Un valor que DuckDB no puede leer como el tipo de su
+  columna deja la tabla sin crear.
+
 ## Consola SQL
 
 **Nueva consulta** en **Consultas** de la barra izquierda inicia una en la
@@ -142,7 +204,7 @@ borrado se prueba primero y se deshace antes de que la consola te pregunte.
 
 ## Lo que DuckDB aún no tiene aquí
 
-- Cambiar la estructura, las acciones del catálogo, descargar todas las filas,
-  las copias de seguridad y copiar tablas. Llegarán más adelante.
+- Las acciones del catálogo, descargar todas las filas, las copias de seguridad
+  y copiar tablas. Llegarán más adelante.
 - Un archivo en un servidor SSH, o dentro de otra conexión, no se puede abrir
   como base de datos.

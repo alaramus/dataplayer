@@ -3,6 +3,7 @@
 from app.adapters import database_ids as ids
 from app.adapters.duckdb.inspection import RelationFacts, read_relation
 from app.adapters.duckdb.session import DuckdbSession, Reading
+from app.adapters.duckdb.vocabulary import COLUMN_TYPE_OPTIONS, INDEX_METHODS
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import (
     CandidateKey,
@@ -15,6 +16,7 @@ from app.adapters.relation import (
     RelationModel,
     UniqueConstraint,
 )
+from app.adapters.words import worded_titles
 from app.core.translation import say
 
 
@@ -65,7 +67,8 @@ def _indexes(facts: RelationFacts) -> list[Index]:
 
 
 def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
-    # Structure is changed in a later slice; until then nothing claims it.
+    refused = None if not facts.is_view else say("Only a table's structure can be changed")
+    changeable = refused is None
     return RelationModel(
         node_id=node_id,
         schema_name=facts.schema,
@@ -88,6 +91,17 @@ def model_of(node_id: str, facts: RelationFacts) -> RelationModel:
         ],
         constraints=_constraints(facts),
         indexes=_indexes(facts),
+        column_changes_supported=changeable,
+        column_changes_reason=refused,
+        column_operations=(
+            ["add", "drop", "rename", "default", "nullability", "type"] if changeable else []
+        ),
+        column_type_options=worded_titles(COLUMN_TYPE_OPTIONS) if changeable else [],
+        index_changes_supported=changeable,
+        index_changes_reason=refused,
+        index_methods=worded_titles(INDEX_METHODS) if changeable else [],
+        constraint_changes_supported=changeable,
+        constraint_changes_reason=refused,
         candidate_keys=[
             CandidateKey(name=key.name, columns=key.columns)
             for key in facts.keys
