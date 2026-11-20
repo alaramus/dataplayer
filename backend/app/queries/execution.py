@@ -21,6 +21,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters.cache import DataCache
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
+    ALONE,
     PreparedScript,
     QueryExecution,
     QueryLimits,
@@ -103,6 +104,7 @@ def admit(
     scope: str = "script",
     given: Iterable[str] = (),
     mode: str = "read",
+    unclassified: bool = False,
 ) -> list[tuple[int, str]]:
     """Check what was asked for before a run exists, and say what is wrong.
 
@@ -147,16 +149,33 @@ def admit(
                     refusal=statement.refused,
                 ),
             )
-    if mode != "read" and any(one.kind == "maintenance" for one in script.statements):
+    if not unclassified:
+        for statement in script.statements:
+            if statement.kind == "unknown":
+                raise RunRefused(
+                    422,
+                    say(
+                        "Statement {at}: this source could not establish what it is",
+                        at=statement.ordinal + 1,
+                    ),
+                )
+    alone = [one.kind for one in script.statements if one.kind in ALONE]
+    if mode != "read" and alone:
         # Outside a transaction, so nothing shares its run: a failure after it
         # could not undo it, and the run would say rolled back of something
-        # the server had already kept (D206).
+        # the server had already kept (D206, D383).
+        maintenance = alone[0] == "maintenance"
         if mode == "manual":
             raise RunRefused(
                 422,
                 say(
                     "Maintenance commands run outside a transaction; "
                     "turn the manual transaction off to run this"
+                )
+                if maintenance
+                else say(
+                    "A statement DataPlayer cannot classify runs outside a transaction; "
+                    "turn the manual transaction off to run it"
                 ),
             )
         if len(script.statements) > 1:
@@ -164,6 +183,11 @@ def admit(
                 422,
                 say(
                     "A maintenance command runs outside a transaction, "
+                    "so run it on its own"
+                )
+                if maintenance
+                else say(
+                    "A statement DataPlayer cannot classify runs outside a transaction, "
                     "so run it on its own"
                 ),
             )
@@ -203,7 +227,7 @@ _NOT_ADMITTED = {
 # read, an auto-commit and a transaction are for.
 _ADMITTED: dict[str, frozenset[str]] = {
     "read": frozenset({"read"}),
-    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance"}),
+    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance", "unknown"}),
     "manual": frozenset({"read", "dml", "ddl"}),
 }
 

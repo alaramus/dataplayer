@@ -119,6 +119,14 @@ describe("what the editor dares mark", () => {
     expect(found[0]?.message).toContain("could not be read")
   })
 
+  it("says how a source that runs it anyway will run what it cannot classify", () => {
+    const found = marks(script({ kind: "unknown" }), METADATA, true, true)
+
+    expect(found).toHaveLength(1)
+    expect(found[0]).toMatchObject({ severity: "warning" })
+    expect(found[0]?.message).toContain("cannot tell what this statement does")
+  })
+
   it("marks a qualified name the source does not have", () => {
     const found = marks(script({ kind: "read", targets: ["public.nothing"] }), METADATA)
 

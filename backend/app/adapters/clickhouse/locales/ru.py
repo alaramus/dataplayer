@@ -143,4 +143,7 @@ MESSAGES: dict[str, str] = {
     '{parameter} is one column': '«{parameter}» — это один столбец',
     # Reaching a server through an SSH connection (D282).
     "Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already": "Через SSH-туннель подключайтесь без HTTPS: туннель уже шифрует соединение",
+    # Statements the console cannot classify (D383).
+    "The console owns the transaction and the session; this statement would change them": "Транзакцией и сеансом управляет консоль; эта инструкция изменила бы их",
+    "Backups are not made or restored from the query editor": "Резервные копии не создаются и не восстанавливаются из редактора запросов",
 }

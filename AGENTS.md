@@ -108,7 +108,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/content](docs/architecture/sources/content.md) | D47, D48, D51–D53, D57, D71, D295 |
 | [sources/downloads](docs/architecture/sources/downloads.md) | D49, D55, D73 |
 | [sharing](docs/architecture/sharing.md) | D58–D61 |
-| [querying](docs/architecture/querying.md) | D62–D66, D160, D206 |
+| [querying](docs/architecture/querying.md) | D62–D66, D160, D206, D383 |
 | [sources/catalog](docs/architecture/sources/catalog.md) | D75, D76, D91, D265 |
 | [sources/file-sql](docs/architecture/sources/file-sql.md) | D77, D78, D96 |
 | [services](docs/architecture/services.md) | D80, D83–D85, D88–D90, D333 |

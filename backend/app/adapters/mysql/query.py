@@ -92,7 +92,7 @@ _SERVER_ERRORS = range(1000, 2000)
 
 _ADMITTED: dict[str, frozenset[str]] = {
     "read": frozenset({"read"}),
-    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance"}),
+    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance", "unknown"}),
     # MySQL commits a structure change, and everything before it, the moment
     # it runs: inside a transaction somebody means to end later it would end
     # that transaction behind their back (D233).
@@ -100,7 +100,7 @@ _ADMITTED: dict[str, frozenset[str]] = {
 }
 
 # Classes MySQL commits on their own, so a run holding one holds nothing else.
-_COMMITTED_ALONE = frozenset({"ddl", "maintenance"})
+_COMMITTED_ALONE = frozenset({"ddl", "maintenance", "unknown"})
 
 _UNSAFE = {ord(char): None for char in ("\r", "\n", "\t", "\x00")}
 
@@ -397,7 +397,7 @@ class _Statements:
                 notices=notices,
                 diagnostic=diagnostic,
             )
-        self.mutating += 1 if statement.kind in ("dml", "ddl") else 0
+        self.mutating += 1 if statement.kind in ("dml", "ddl", "unknown") else 0
         self.affected += affected or 0
         for target in statement.targets:
             if target not in self.targets:
@@ -406,6 +406,10 @@ class _Statements:
         if statement.kind == "ddl":
             self.ddl += 1
             effect = effect_of(statement, self._default_database)
+            self.effect = self.effect.with_(effect)
+        elif statement.kind == "unknown":
+            # Nothing says what it changed, so anything may have (D383).
+            effect = SchemaEffect(scope="connection")
             self.effect = self.effect.with_(effect)
         return StatementFinished(
             ordinal=statement.ordinal,
@@ -504,6 +508,9 @@ class MysqlExecution(_Statements):
         reading = self._request.mode == "read"
         kinds = [statement.kind for statement in script.statements]
         outside = not reading and len(kinds) == 1 and kinds[0] in _COMMITTED_ALONE
+        # It may have set anything in the session, so its connection is
+        # closed rather than pooled (D383).
+        unclassified = outside and kinds[0] == "unknown"
         changed = False
         try:
             async with self._session.acquire() as connection:
@@ -523,16 +530,22 @@ class MysqlExecution(_Statements):
                         )
                     async for event in self._statements(connection, script, started):
                         yield event
-                    if not outside:
+                    if not outside or unclassified:
+                        # A statement nobody classified may not commit by
+                        # itself, and the connection is not in autocommit, so
+                        # what it did is kept only by saying so.
                         if self.failed or reading:
                             await connection.rollback()
                         else:
                             await connection.commit()
                 finally:
                     self._connection = None
-                    if not outside and connection.get_transaction_status():
+                    if (not outside or unclassified) and connection.get_transaction_status():
                         await connection.rollback()
-                    await restore_database(self._session, connection, changed)
+                    if unclassified:
+                        connection.close()
+                    else:
+                        await restore_database(self._session, connection, changed)
         except AdapterError:
             raise
         except Exception as exc:
@@ -706,6 +719,8 @@ class MysqlQuery:
             dialect="mysql",
             parameter_syntax="named_colon",
             statement_modes=["read", "auto_commit", "manual"],
+            # The server's role stands behind every run (D383).
+            runs_unclassified=True,
             supports_cancel=True,
             default_timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
             max_timeout_seconds=MAX_TIMEOUT_SECONDS,

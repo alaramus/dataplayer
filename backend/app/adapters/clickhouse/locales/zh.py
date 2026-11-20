@@ -144,4 +144,7 @@ MESSAGES: dict[str, str] = {
     '{parameter} is one column': '{parameter}只能是一列',
     # Reaching a server through an SSH connection (D282).
     "Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already": "经 SSH 隧道连接时请勿使用 HTTPS：隧道本身已加密连接",
+    # Statements the console cannot classify (D383).
+    "The console owns the transaction and the session; this statement would change them": "事务和会话由控制台管理；此语句会改变它们",
+    "Backups are not made or restored from the query editor": "备份不在查询编辑器中创建或恢复",
 }

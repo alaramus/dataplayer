@@ -104,7 +104,7 @@ def test_statements_end_where_the_dialect_says() -> None:
         ("USE d", "session"),
         ("SELECT a INTO @v FROM t", "session"),
         ("ANALYZE TABLE t", "maintenance"),
-        # What the parser does not model is not run, whatever it looks like.
+        # What the parser does not model is `unknown`, whatever it looks like.
         ("FLUSH PRIVILEGES", "unknown"),
         ("CALL p()", "unknown"),
         ("LOAD DATA INFILE 'x' INTO TABLE t", "unknown"),
@@ -113,6 +113,43 @@ def test_statements_end_where_the_dialect_says() -> None:
 )
 def test_a_statement_is_classed_by_the_parser(text: str, kind: str) -> None:
     assert prepare(text).statements[0].kind == kind
+
+
+@pytest.mark.parametrize("text", ["KILL QUERY 5", "CALL p()", "FLUSH TABLES", "DO SLEEP(1)"])
+def test_what_the_parser_cannot_class_runs_behind_the_strictest_gate(text: str) -> None:
+    """Unknown, high risk, a change, and not refused for being unknown (D383)."""
+    [statement] = prepare(text).statements
+
+    assert statement.kind == "unknown"
+    assert statement.risk == "high"
+    assert statement.changes is True
+    assert statement.refused is None
+
+
+@pytest.mark.parametrize(
+    ("text", "says"),
+    [
+        ("DROP USER u", "Roles"),
+        ("DROP ROLE r", "Roles"),
+        ("INSTALL PLUGIN p SONAME 'p.so'", "server"),
+        ("SHUTDOWN", "server"),
+        ("CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h'", "server"),
+        ("PURGE BINARY LOGS TO 'x'", "server"),
+        ("XA START 'x'", "session"),
+        ("LOCK TABLES t READ", "session"),
+        ("UNLOCK TABLES", "session"),
+        ("HANDLER t OPEN", "session"),
+    ],
+)
+def test_a_closed_family_the_parser_cannot_class_is_refused_by_its_words(
+    text: str, says: str
+) -> None:
+    """Left `unknown` these would run behind D383's gate; D66 keeps them out."""
+    [statement] = prepare(text).statements
+
+    assert statement.kind == "unknown"
+    assert statement.refused is not None
+    assert says in statement.refused
 
 
 def test_the_vocabulary_of_structure_changes_is_closed() -> None:

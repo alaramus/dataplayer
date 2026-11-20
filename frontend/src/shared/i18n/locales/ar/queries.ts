@@ -56,6 +56,7 @@ export const queries: Messages["queries"] = {
   },
   marks: {
     unreadable: "تعذّرت قراءة هذه العبارة، ولن يتم تشغيلها",
+    unclassified: "لا يستطيع DataPlayer معرفة ما تفعله هذه العبارة؛ تُنفَّذ وحدها فقط، بصلاحية المالك وبعد تأكيدك",
     not_in_read: "عبارة {kind} لا يمكن تشغيلها في قراءة",
     unknown_relation: "لا شيء باسم {name} في {schema}",
     reading: "جارٍ قراءة ما يحويه هذا الاتصال…",
@@ -193,6 +194,7 @@ export const queries: Messages["queries"] = {
     fill_parameters: "املأ المعاملات التي يطلبها هذا الاستعلام",
     tried_out: "تمت تجربته على المصدر ثم تم التراجع عنه:",
     not_tried: "هذا المصدر لا يمكنه تجربة التغيير أولًا: يتم تنفيذه فورًا ولا يمكن التراجع عنه.",
+    unclassified_note: "لا يستطيع DataPlayer معرفة ما تفعله هذه العبارة؛ القرار لقاعدة البيانات. تُنفَّذ وحدها، خارج أي معاملة.",
     risky_title: "تشغيل شيء لا يمكن التراجع عنه؟",
     write_title: "تأكيد هذه الكتابة؟",
     changes_named: "هذا يعدّل {name}.",

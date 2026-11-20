@@ -25,6 +25,7 @@ from app.adapters.postgres.session import PostgresSession, classify
 from app.adapters.postgres.statements import bind, prepare
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
+    ALONE,
     MaterialisedResult,
     PreparedScript,
     PreparedStatement,
@@ -200,7 +201,7 @@ local: bool = True,
 # arrives already carrying the sentence that refuses it.
 _ADMITTED: dict[str, frozenset[str]] = {
     "read": frozenset({"read"}),
-    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance"}),
+    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance", "unknown"}),
     "manual": frozenset({"read", "dml", "ddl"}),
 }
 
@@ -372,7 +373,7 @@ class _Statements:
                     if statement.kind in ("dml", "ddl") and cursor.rowcount >= 0
                     else None
                 )
-                self.mutating += 1 if statement.kind in ("dml", "ddl") else 0
+                self.mutating += 1 if statement.kind in ("dml", "ddl", "unknown") else 0
                 self.affected += affected or 0
                 for target in statement.targets:
                     if target not in self.targets:
@@ -387,6 +388,10 @@ class _Statements:
                         statement.text,
                         search_path=await self._effective_path(connection),
                     )
+                    self.effect = self.effect.with_(effect)
+                elif statement.kind == "unknown":
+                    # Nothing says what it changed, so anything may have (D383).
+                    effect = SchemaEffect(scope="connection")
                     self.effect = self.effect.with_(effect)
                 return StatementFinished(
                     ordinal=statement.ordinal,
@@ -551,7 +556,8 @@ class PostgresExecution(_Statements):
         script = prepare(self._request.text)
         started = time.monotonic()
         reading = self._request.mode == "read"
-        if not reading and [one.kind for one in script.statements] == ["maintenance"]:
+        kinds = [one.kind for one in script.statements]
+        if not reading and len(kinds) == 1 and kinds[0] in ALONE:
             async for event in self._outside_transaction(script, started):
                 yield event
             return
@@ -594,14 +600,17 @@ class PostgresExecution(_Statements):
     async def _outside_transaction(
         self, script: PreparedScript, started: float
     ) -> AsyncIterator[QueryEvent]:
-        """One maintenance command, kept by the server as it finishes.
+        """One statement with no transaction, kept by the server as it finishes.
 
         VACUUM, CLUSTER and a concurrent REINDEX refuse to run inside a
         transaction block, so this runs with none; the run's admission made
         sure nothing else shares it (D206). The pool keeps a connection's
         session as it was left, so what was set is reset before it goes back.
+        A statement nobody could classify may have set anything — a `DO` block
+        can `SET ROLE` — so its connection is closed instead (D383).
         """
         limits = self._request.limits
+        unclassified = script.statements[0].kind == "unknown"
         try:
             async with self._session.acquire() as connection:
                 self._connection = connection
@@ -621,14 +630,17 @@ class PostgresExecution(_Statements):
                 finally:
                     self._connection = None
                     connection.remove_notice_handler(self._note)
-                    try:
-                        await connection.execute("RESET statement_timeout")
-                        await connection.execute("RESET search_path")
-                        await connection.set_autocommit(False)
-                    except psycopg.Error:
-                        # A connection that cannot be put back as it was is
-                        # not put back: the pool discards a closed one.
+                    if unclassified:
                         await connection.close()
+                    else:
+                        try:
+                            await connection.execute("RESET statement_timeout")
+                            await connection.execute("RESET search_path")
+                            await connection.set_autocommit(False)
+                        except psycopg.Error:
+                            # A connection that cannot be put back as it was
+                            # is not put back: the pool discards a closed one.
+                            await connection.close()
         except PoolTimeout:
             raise AdapterError("timeout", say("No connection was free for this query")) from None
         except AdapterError:
@@ -1008,6 +1020,8 @@ class PostgresQuery:
             parameter_syntax="named_colon",
             statement_modes=["read", "auto_commit", "manual"],
             supports_cancel=True,
+            # The server's role stands behind every run (D383).
+            runs_unclassified=True,
             # What else this source can do is derived from what it implements,
             # by whoever answers the profile. Restating it here would be the
             # second handwritten capability list D62 refuses.

@@ -734,6 +734,13 @@ def shared_tools(host: ToolHost, *, change_note: str) -> list[ToolDefinition]:
             profile = adapter.query_profile()
             prepared = adapter.prepare_query(sql)
             kinds = [statement.kind for statement in prepared.statements]
+            if "unknown" in kinds:
+                # The gate an unclassified statement passes is a person who
+                # read it; one confirming the agent's run did not (D383).
+                return {
+                    "error": "The agent does not run a statement DataPlayer cannot classify; "
+                    "the person can run it in the query console"
+                }
             changing: list[StatementClass] = [kind for kind in kinds if kind in CHANGING]
             refusal = write_refusal(connector, held, changing)
             if refusal is not None:

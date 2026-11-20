@@ -96,6 +96,8 @@ _FOREIGN_SUBJECTS: dict[str, str] = {
     "CreateExtensionStmt": "EXTENSION",
     "AlterExtensionStmt": "EXTENSION",
     "CreateTrigStmt": "TRIGGER",
+    "LoadStmt": "EXTENSION",
+    "CompositeTypeStmt": "TYPE",
 }
 
 # What an object type of the engine is, in the same words. A materialized view
@@ -120,6 +122,55 @@ _OBJECT_SUBJECTS: dict[ObjectType, str] = {
 }
 
 _PERMISSIONS = N_("Permissions are not administered from the query editor")
+
+# The catalog actions own these two subjects (D62).
+_CATALOG = N_(
+    "Renaming a schema and moving a relation between schemas are done from the catalog"
+)
+
+# Permission administration in every shape the grammar has for it, refused the
+# way a grant is.
+_PERMISSION_NODES = (
+    pgast.GrantStmt,
+    pgast.GrantRoleStmt,
+    pgast.AlterOwnerStmt,
+    pgast.ReassignOwnedStmt,
+    pgast.DropOwnedStmt,
+    pgast.AlterDefaultPrivilegesStmt,
+    pgast.SecLabelStmt,
+)
+
+# Shapes the grammar reads exactly that this module refuses rather than leaves
+# `unknown`, which runs behind D383's gate: each is classed so that the refusal
+# below can name its family.
+_REFUSED_NODES = (
+    pgast.GrantRoleStmt,
+    pgast.ReassignOwnedStmt,
+    pgast.SecLabelStmt,
+    pgast.LoadStmt,
+    pgast.ImportForeignSchemaStmt,
+    pgast.CompositeTypeStmt,
+    pgast.DefineStmt,
+    pgast.RuleStmt,
+)
+
+# A cursor is session state, and locking or deferring constraints is the
+# transaction's; the console owns both (D66).
+_SESSION_NODES = (
+    pgast.VariableSetStmt,
+    pgast.VariableShowStmt,
+    pgast.DiscardStmt,
+    pgast.ListenStmt,
+    pgast.UnlistenStmt,
+    pgast.NotifyStmt,
+    pgast.PrepareStmt,
+    pgast.ExecuteStmt,
+    pgast.DeallocateStmt,
+    pgast.DeclareCursorStmt,
+    pgast.FetchStmt,
+    pgast.ClosePortalStmt,
+)
+_TRANSACTION_NODES = (pgast.TransactionStmt, pgast.LockStmt, pgast.ConstraintsSetStmt)
 
 # The closed vocabulary of structure changes this source will carry out (D66).
 # Schemas, tables, views and indexes, their comments, and emptying a table.
@@ -290,8 +341,9 @@ def _classify(node: pgast.Node | None) -> StatementClass:
     before writing, because a structure change may contain one:
     `CREATE TABLE t AS WITH x AS (INSERT ... RETURNING *) SELECT * FROM x`
     creates a relation, and reading the INSERT first would have called it a
-    DML statement and let it run on `write` access alone. Whatever the parser
-    has never seen stays `unknown` rather than becoming a read.
+    DML statement and let it run on `write` access alone. Whatever says
+    nothing of its effect — `DO`, `CALL`, a text the grammar does not read —
+    stays `unknown` rather than becoming a read (D383).
     """
     if node is None:
         return "unknown"
@@ -309,22 +361,9 @@ def _classify(node: pgast.Node | None) -> StatementClass:
         return "copy"
     if isinstance(node, pgast.ExplainStmt):
         return "explain"
-    if isinstance(node, pgast.TransactionStmt):
+    if isinstance(node, _TRANSACTION_NODES):
         return "transaction"
-    if isinstance(
-        node,
-        (
-            pgast.VariableSetStmt,
-            pgast.VariableShowStmt,
-            pgast.DiscardStmt,
-            pgast.ListenStmt,
-            pgast.UnlistenStmt,
-            pgast.NotifyStmt,
-            pgast.PrepareStmt,
-            pgast.ExecuteStmt,
-            pgast.DeallocateStmt,
-        ),
-    ):
+    if isinstance(node, _SESSION_NODES):
         return "session"
     if isinstance(
         node,
@@ -338,22 +377,12 @@ def _classify(node: pgast.Node | None) -> StatementClass:
     ):
         # Maintenance runs outside a transaction and with write access (D206).
         return "maintenance"
-    if isinstance(node, _DDL_NODES):
+    if isinstance(node, (*_DDL_NODES, *_REFUSED_NODES, pgast.RenameStmt)):
         return "ddl"
-    if isinstance(node, pgast.RenameStmt):
-        # Renaming a schema, or moving a relation into one, belongs to the
-        # catalog actions that own those subjects — the screen that renames
-        # what it is looking at is not this text box.
-        if _renamed_subject(node) in ("TABLE", "VIEW", "INDEX"):
-            return "ddl"
-        return "unknown"
     if type(node).__name__.startswith(("Create", "Alter", "Drop")):
         # Whatever shape of structure change the vocabulary names below; a
         # form named here is refused with a sentence rather than admitted by
-        # omission, and only the two subjects the catalog owns stay unknown.
-        # `AlterObjectSchemaStmt` — moving a relation — is one of them.
-        if isinstance(node, pgast.AlterObjectSchemaStmt):
-            return "unknown"
+        # omission.
         return "ddl"
     return "unknown"
 
@@ -460,10 +489,17 @@ def _refusal(node: pgast.Node | None, kind: StatementClass) -> str | None:
     """
     if kind != "ddl" or node is None:
         return None
-    if isinstance(node, (pgast.GrantStmt, pgast.AlterOwnerStmt)):
+    if isinstance(node, _PERMISSION_NODES):
         return _PERMISSIONS
     if isinstance(node, pgast.TruncateStmt):
         return None
+    if isinstance(node, pgast.AlterObjectSchemaStmt):
+        moved = _object_subject(node.objectType)
+        if moved in _ALLOWED_KINDS:
+            return _CATALOG
+        return _OUTSIDE.get(moved, _GENERAL_REFUSAL)
+    if isinstance(node, pgast.RenameStmt) and _renamed_subject(node) == "SCHEMA":
+        return _CATALOG
     if isinstance(node, pgast.AlterTableStmt):
         refused = _alter_refusal(node)
         if refused is not None:
@@ -541,7 +577,7 @@ def _risky(node: pgast.Node | None, kind: StatementClass) -> bool:
     Anything this module cannot read is high risk as well, for the reason
     `unknown` is refused: not knowing is not the same as knowing it is safe.
     """
-    if kind == "ddl":
+    if kind in ("ddl", "unknown"):
         return True
     if kind == "maintenance":
         return _locks_readers_out(node)

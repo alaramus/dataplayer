@@ -493,6 +493,14 @@ async def rehearse_change(
                 "queries.maintenance_not_rehearsed",
                 statement=statement.ordinal + 1,
             )
+        if statement.kind == "unknown":
+            # It runs with no transaction to roll back, so it cannot be tried
+            # out in one either (D383).
+            raise Problem(
+                422,
+                "queries.unclassified_not_rehearsed",
+                statement=statement.ordinal + 1,
+            )
     document = (
         None
         if body.document_id is None
@@ -587,6 +595,7 @@ async def start_run(
             scope=body.scope,
             given=[parameter.name for parameter in body.parameters],
             mode=body.mode,
+            unclassified=profile.runs_unclassified,
         )
     except RunRefused as refusal:
         raise HTTPException(

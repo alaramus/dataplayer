@@ -40,4 +40,8 @@ MESSAGES: dict[str, str] = {
     "Only the newest {count} saved queries are searched by their text": "Nur die neuesten {count} gespeicherten Abfragen werden nach ihrem Text durchsucht",
     "Saved query": "Gespeicherte Abfrage",
     "Saved query · {connection}": "Gespeicherte Abfrage · {connection}",
+    # Statements the console cannot classify (D383).
+    "Statement {at}: this source could not establish what it is": "Anweisung {at}: Diese Quelle konnte nicht feststellen, was das ist",
+    "A statement DataPlayer cannot classify runs outside a transaction; turn the manual transaction off to run it": "Eine Anweisung, die DataPlayer nicht einordnen kann, läuft außerhalb einer Transaktion; schalten Sie die manuelle Transaktion aus, um sie auszuführen",
+    "A statement DataPlayer cannot classify runs outside a transaction, so run it on its own": "Eine Anweisung, die DataPlayer nicht einordnen kann, läuft außerhalb einer Transaktion; führen Sie sie daher einzeln aus",
 }

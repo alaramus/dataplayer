@@ -284,7 +284,12 @@ const canWriteChanges = computed(
   () => manualTransaction.value || (supportsWrites.value && connectionWritable.value)
 )
 const editorMarks = computed(() =>
-  marks(script.value, metadata.data.value, canWriteChanges.value)
+  marks(
+    script.value,
+    metadata.data.value,
+    canWriteChanges.value,
+    profile.data.value?.runs_unclassified === true
+  )
 )
 const connectorLabel = computed(() => {
   const listed = connectorNameOf(connectors.data.value, connectorId.value)
@@ -598,6 +603,13 @@ async function go(target: RunTarget | null) {
   target = settled.target
   const selectedScript = settled.script
   const statements = selectedScript.statements
+  const unclassified = statements.some((one) => one.kind === "unknown")
+  // Asking to confirm what the source will refuse anyway would be a question
+  // with one answer (D383).
+  if (unclassified && profile.data.value?.runs_unclassified !== true) {
+    toast.error(t("queries.marks.unreadable"))
+    return
+  }
   const mutating = statements.some((one) => one.changes)
   const risky = mutating && (statements.length > 1 || statements.some((one) => one.kind === "ddl" || one.risk === "high"))
   const policyConfirm = mutating && supportsWrites.value && (connection.value?.execution_policy ?? "confirm_writes") === "confirm_writes"
@@ -616,6 +628,7 @@ async function go(target: RunTarget | null) {
       risky && cannotBeTriedOut(selectedScript, profile.data.value?.supports_rehearsal)
         ? `\n\n${t("queries.console.not_tried")}`
         : ""
+    const unread = unclassified ? `\n\n${t("queries.console.unclassified_note")}` : ""
     const accepted = await confirm({
       title: risky ? t("queries.console.risky_title") : t("queries.console.write_title"),
       message:
@@ -627,7 +640,8 @@ async function go(target: RunTarget | null) {
           ? t("queries.console.manual_note")
           : t("queries.console.auto_note")) +
         tried +
-        untried,
+        untried +
+        unread,
       confirmLabel: t("queries.console.run_it"),
       danger: true,
     })

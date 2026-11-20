@@ -40,4 +40,8 @@ MESSAGES: dict[str, str] = {
     "Only the newest {count} saved queries are searched by their text": "仅按文本搜索最新的 {count} 个已保存查询",
     "Saved query": "已保存查询",
     "Saved query · {connection}": "已保存查询 · {connection}",
+    # Statements the console cannot classify (D383).
+    "Statement {at}: this source could not establish what it is": "第 {at} 条语句：此数据源无法确定它是什么",
+    "A statement DataPlayer cannot classify runs outside a transaction; turn the manual transaction off to run it": "DataPlayer 无法归类的语句在事务之外运行；请关闭手动事务以运行它",
+    "A statement DataPlayer cannot classify runs outside a transaction, so run it on its own": "DataPlayer 无法归类的语句在事务之外运行，因此请单独运行它",
 }

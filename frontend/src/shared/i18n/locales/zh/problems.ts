@@ -106,6 +106,7 @@ export const problems: Record<ProblemCode, string> = {
   "queries.no_queries": "此数据源不执行查询",
   "queries.run_not_found": "找不到执行",
   "queries.maintenance_not_rehearsed": "语句 {statement}：维护命令无法预先测试",
+  "queries.unclassified_not_rehearsed": "语句 {statement}：DataPlayer 无法归类的语句无法预先测试",
   "queries.transaction_not_found": "找不到已打开的事务",
   "queries.transaction_other_connection": "此事务属于另一个连接",
   "queries.no_rehearsal": "此数据源无法预先测试修改",

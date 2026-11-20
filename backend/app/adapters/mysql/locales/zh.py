@@ -436,4 +436,7 @@ MESSAGES: dict[str, str] = {
     'The sample data needs spatial columns and triggers, which TiDB does not have': '示例数据需要空间列和触发器，而 TiDB 没有这些',
     'TiDB is not backed up here yet': '此处暂不支持备份 TiDB',
     "TiDB's plan is read by running EXPLAIN in the console": '在控制台中运行 EXPLAIN 即可查看 TiDB 的执行计划',
+    # Statements the console cannot classify (D383).
+    "The server itself is not administered from the query editor": "服务器本身不在查询编辑器中管理",
+    "The console owns the transaction and the session; this statement would change them": "事务和会话由控制台管理；此语句会改变它们",
 }

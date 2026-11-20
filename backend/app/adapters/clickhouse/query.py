@@ -88,10 +88,10 @@ _CATEGORIES: dict[int, str] = {
 
 _ADMITTED: dict[str, frozenset[str]] = {
     "read": frozenset({"read"}),
-    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance"}),
+    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance", "unknown"}),
 }
 
-_CHANGES = frozenset({"dml", "ddl", "maintenance"})
+_CHANGES = frozenset({"dml", "ddl", "maintenance", "unknown"})
 
 _UNSAFE = {ord(char): None for char in ("\r", "\n", "\t", "\x00")}
 # `Code: 62. DB::Exception: Syntax error: … (SYNTAX_ERROR) (version 25.8…)`
@@ -339,6 +339,9 @@ class ClickhouseExecution:
         effect: SchemaEffect | None = None
         if statement.kind == "ddl":
             effect = effect_of(statement, self._database)
+        elif statement.kind == "unknown":
+            # Nothing says what it changed, so anything may have (D383).
+            effect = SchemaEffect(scope="connection")
         return StatementFinished(
             ordinal=statement.ordinal,
             status="succeeded",
@@ -417,6 +420,8 @@ class ClickhouseQuery:
             parameter_syntax="named_braces",
             # No manual transaction: ClickHouse has none to hold (D271).
             statement_modes=["read", "auto_commit"],
+            # The server's role stands behind every run (D383).
+            runs_unclassified=True,
             supports_cancel=True,
             default_timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
             max_timeout_seconds=MAX_TIMEOUT_SECONDS,

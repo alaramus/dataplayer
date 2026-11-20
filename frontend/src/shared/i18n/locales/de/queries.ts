@@ -56,6 +56,7 @@ export const queries: Messages["queries"] = {
   },
   marks: {
     unreadable: "Diese Anweisung konnte nicht gelesen werden und wird nicht ausgeführt",
+    unclassified: "DataPlayer kann nicht erkennen, was diese Anweisung tut; sie läuft nur einzeln, mit Eigentümerzugriff und nach Ihrer Bestätigung",
     not_in_read: "Eine {kind}-Anweisung kann nicht im Lesemodus ausgeführt werden",
     unknown_relation: "{schema} enthält nichts mit dem Namen {name}",
     reading: "Inhalt dieser Verbindung wird gelesen…",
@@ -191,6 +192,7 @@ export const queries: Messages["queries"] = {
     fill_parameters: "Füllen Sie die Parameter aus, die diese Abfrage verlangt",
     tried_out: "An der Quelle versucht und dann rückgängig gemacht:",
     not_tried: "Diese Quelle kann die Änderung nicht vorher ausprobieren: Sie wird sofort vorgenommen und kann nicht rückgängig gemacht werden.",
+    unclassified_note: "DataPlayer kann nicht erkennen, was diese Anweisung tut; die Datenbank entscheidet. Sie läuft einzeln, außerhalb einer Transaktion.",
     risky_title: "Etwas ausführen, das nicht rückgängig gemacht werden kann?",
     write_title: "Dieses Schreiben bestätigen?",
     changes_named: "Dies ändert {name}.",

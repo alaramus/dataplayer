@@ -106,6 +106,7 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "queries.no_queries": "هذا المصدر لا ينفّذ استعلامات",
   "queries.run_not_found": "لم يتم العثور على التشغيل",
   "queries.maintenance_not_rehearsed": "العبارة {statement}: لا يمكن تجربة أوامر الصيانة مسبقًا",
+  "queries.unclassified_not_rehearsed": "العبارة {statement}: لا يمكن تجربة عبارة لا يستطيع DataPlayer تصنيفها مسبقًا",
   "queries.transaction_not_found": "لا توجد معاملة مفتوحة بهذا الوصف",
   "queries.transaction_other_connection": "تلك المعاملة تنتمي إلى اتصال آخر",
   "queries.no_rehearsal": "هذا المصدر لا يجرّب التغييرات مسبقًا",

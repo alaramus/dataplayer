@@ -143,6 +143,37 @@ def test_what_falls_outside_the_editor_is_refused_by_name(text: str) -> None:
     assert prepare(text).statements[0].refused
 
 
+@pytest.mark.parametrize("text", ["KILL QUERY WHERE query_id = 'x'", "UNDROP TABLE t"])
+def test_what_the_parser_cannot_class_runs_behind_the_strictest_gate(text: str) -> None:
+    """Unknown, high risk, a change, and not refused for being unknown (D383)."""
+    [statement] = prepare(text).statements
+
+    assert statement.kind == "unknown"
+    assert statement.risk == "high"
+    assert statement.changes is True
+    assert statement.refused is None
+
+
+@pytest.mark.parametrize(
+    ("text", "says"),
+    [
+        ("MOVE USER u TO local_directory", "Roles"),
+        ("SET ROLE r", "Roles"),
+        ("BACKUP TABLE t TO Disk('backups', 't.zip')", "Backups"),
+        ("RESTORE TABLE t FROM Disk('backups', 't.zip')", "Backups"),
+    ],
+)
+def test_a_closed_family_the_parser_cannot_class_is_refused_by_its_words(
+    text: str, says: str
+) -> None:
+    """Left `unknown` these would run behind D383's gate; D66 keeps them out."""
+    [statement] = prepare(text).statements
+
+    assert statement.kind == "unknown"
+    assert statement.refused is not None
+    assert says in statement.refused
+
+
 def test_a_change_that_cannot_be_read_back_is_marked() -> None:
     script = prepare(
         "DROP TABLE t; ALTER TABLE t DROP COLUMN a; ALTER TABLE t ADD COLUMN b UInt8; "

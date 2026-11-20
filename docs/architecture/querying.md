@@ -5,7 +5,7 @@ documents in which a user develops one, the bounded results it produces and the
 transaction state of mutations. Read this before changing query documents, SQL
 parsing, execution, history, result snapshots, Explain or query transactions.
 
-Decisions here: D62, D63, D64, D65, D66, D160, D206.
+Decisions here: D62, D63, D64, D65, D66, D160, D206, D383.
 
 ## What exists today
 
@@ -135,10 +135,9 @@ adapter type.
 Known deviations:
 
 - **Renaming a schema and moving a relation stay catalog actions.** Both parse
-  precisely and stay `unknown` on purpose rather than by a parser falling
-  over: the screen that renames what it is looking at is not the query
-  editor. Changing an owner and row security are refused as permission
-  administration, the way a grant is, and an `ALTER TABLE` that switches a
+  precisely and are refused with a sentence saying so: the screen that renames
+  what it is looking at is not the query editor. Changing an owner and row
+  security are refused as permission administration, the way a grant is, and an `ALTER TABLE` that switches a
   tablespace, a trigger or a rule is refused with that family's sentence.
 - **PostgreSQL still has a second reader.** Boundaries and classes come from
   the server's grammar (pglast), while the formatter and the post-commit
@@ -443,9 +442,9 @@ would be an arbitrary line. Permission administration, database/role/
 tablespace/extension commands and maintenance operations remain actions or later
 jobs. The list is an allowlist because the alternative cannot be written down:
 what falls outside it is refused with a sentence naming the family, and a form
-the dialect module cannot read is refused as unknown rather than admitted by
-omission. Destructive DDL is rehearsed in a rollback transaction with a short
-lock timeout, inside the open transaction when there is one so that a person's
+the dialect module cannot read is never admitted into it by omission: it is
+`unknown`, and runs only through D383's gate. Destructive DDL is rehearsed in
+a rollback transaction with a short lock timeout, inside the open transaction when there is one so that a person's
 own locks are not read as somebody else blocking them; a blocked preview
 disables execution. After commit the adapter returns exact node invalidations,
 replacements or an explicit schema/database scope; the client never
@@ -518,3 +517,27 @@ change a source is one server set, sent with each prepared statement as
 `changes` so the editor does not keep its own.
 
 Spec: [Maintenance commands in the SQL editor](../decisions/2026-10-04-maintenance-statements.md)
+
+## D383. What the console cannot classify runs alone, as the owner, confirmed
+
+`unknown` means the effect of a statement cannot be read out of its text: the
+parser could not read it (a command sqlglot keeps as a keyword), or read it
+and nothing says what it does (`DO`, `CALL`, `KILL`). A form the application
+means to refuse is not `unknown`: it carries its refusal in words. Each
+dialect module also refuses D66's closed families — roles, plugins, the
+server, replication, backups, the transaction and session the console owns —
+by their leading words when the parse gave no class. Words only take away
+here; D62's rule against the first word is about admitting.
+
+On a source whose profile says `runs_unclassified`, an `unknown` statement is
+a change (`CHANGING`) that needs `own` access, is high risk, and runs alone
+with no transaction, like maintenance (D206): refused beside other statements,
+in a manual transaction, in a read and in a rehearsal. Its connection is
+closed afterwards rather than pooled, because what it set in the session is
+not known, and a success invalidates the whole connection. The question
+before it says DataPlayer cannot tell what it does. PostgreSQL, MySQL and
+ClickHouse run it; SQLite, Cassandra and the file source, with no authority
+beside the classifier, refuse it. The agent never runs one: the person
+confirming did not read the statement.
+
+Spec: [Statements the console cannot classify](../decisions/2026-11-20-unclassified-statements.md)

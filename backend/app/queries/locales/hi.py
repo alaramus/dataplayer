@@ -40,4 +40,8 @@ MESSAGES: dict[str, str] = {
     "Only the newest {count} saved queries are searched by their text": "केवल नवीनतम {count} सहेजी गई क्वेरियाँ उनके टेक्स्ट से खोजी जाती हैं",
     "Saved query": "सहेजी गई क्वेरी",
     "Saved query · {connection}": "सहेजी गई क्वेरी · {connection}",
+    # Statements the console cannot classify (D383).
+    "Statement {at}: this source could not establish what it is": "कथन {at}: यह स्रोत तय नहीं कर सका कि यह क्या है",
+    "A statement DataPlayer cannot classify runs outside a transaction; turn the manual transaction off to run it": "जिस कथन को DataPlayer वर्गीकृत नहीं कर सकता, वह ट्रांज़ैक्शन के बाहर चलता है; इसे चलाने के लिए मैन्युअल ट्रांज़ैक्शन बंद करें",
+    "A statement DataPlayer cannot classify runs outside a transaction, so run it on its own": "जिस कथन को DataPlayer वर्गीकृत नहीं कर सकता, वह ट्रांज़ैक्शन के बाहर चलता है, इसलिए इसे अकेले चलाएँ",
 }

@@ -56,6 +56,7 @@ export const queries: Messages["queries"] = {
   },
   marks: {
     unreadable: "Cette instruction n'a pas pu être lue et ne sera pas exécutée",
+    unclassified: "DataPlayer ne peut pas savoir ce que fait cette instruction ; elle ne s'exécute que seule, avec un accès propriétaire et après votre confirmation",
     not_in_read: "Une instruction {kind} ne peut pas s'exécuter en lecture",
     unknown_relation: "{schema} ne contient rien qui s'appelle {name}",
     reading: "Lecture du contenu de cette connexion…",
@@ -191,6 +192,7 @@ export const queries: Messages["queries"] = {
     fill_parameters: "Renseignez les paramètres que cette requête demande",
     tried_out: "Essayée sur la source, puis annulée :",
     not_tried: "Cette source ne peut pas essayer la modification d'abord : elle est faite immédiatement et ne peut pas être annulée.",
+    unclassified_note: "DataPlayer ne peut pas savoir ce que fait cette instruction ; c'est la base de données qui décide. Elle s'exécute seule, hors transaction.",
     risky_title: "Exécuter une opération irréversible ?",
     write_title: "Confirmer cette écriture ?",
     changes_named: "Cela modifie {name}.",

@@ -12,6 +12,9 @@ NEEDED: dict[StatementClass, Access] = {
     "ddl": "structure",
     # It changes how the source stores what is there, not what is there (D206).
     "maintenance": "write",
+    # Nothing in it says how far it reaches, so it needs the most a grant
+    # gives (D383).
+    "unknown": "own",
 }
 
 # The access is a word, so each level is a sentence of its own.

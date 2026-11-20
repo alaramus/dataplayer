@@ -54,6 +54,7 @@ export const queries = {
   },
   marks: {
     unreadable: "This statement could not be read, and will not be run",
+    unclassified: "DataPlayer cannot tell what this statement does; it runs only on its own, with owner access and your confirmation",
     not_in_read: "A {kind} statement cannot run in a read",
     unknown_relation: "{schema} has nothing called {name}",
     reading: "Reading what this connection holds…",
@@ -189,6 +190,7 @@ export const queries = {
     fill_parameters: "Fill in the parameters this query asks for",
     tried_out: "Tried out on the source, then undone:",
     not_tried: "This source cannot try the change out first: it is made at once and cannot be undone.",
+    unclassified_note: "DataPlayer cannot tell what this statement does; the database decides. It runs on its own, outside a transaction.",
     risky_title: "Run something that cannot be undone?",
     write_title: "Confirm this write?",
     changes_named: "This changes {name}.",

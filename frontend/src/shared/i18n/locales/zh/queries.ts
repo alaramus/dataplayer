@@ -56,6 +56,7 @@ export const queries: Messages["queries"] = {
   },
   marks: {
     unreadable: "无法读取此语句，因此不会运行",
+    unclassified: "DataPlayer 无法判断此语句的作用；它只能单独运行，需要所有者权限并经你确认",
     not_in_read: "{kind} 语句不能在读取中运行",
     unknown_relation: "{schema} 中没有名为 {name} 的对象",
     reading: "正在读取此连接中的内容……",
@@ -189,6 +190,7 @@ export const queries: Messages["queries"] = {
     fill_parameters: "填写此查询所需的参数",
     tried_out: "已在数据源上试运行，随后撤销：",
     not_tried: "此数据源无法先试运行该更改：更改会立即生效，且无法撤销。",
+    unclassified_note: "DataPlayer 无法判断此语句的作用，由数据库决定。它会单独运行，不在事务中。",
     risky_title: "运行无法撤销的操作？",
     write_title: "确认此写入？",
     changes_named: "这会更改 {name}。",

@@ -106,6 +106,7 @@ export const problems: Record<ProblemCode, string> = {
   "queries.no_queries": "Источник не выполняет запросы",
   "queries.run_not_found": "Запуск не найден",
   "queries.maintenance_not_rehearsed": "Инструкция {statement}: команды обслуживания нельзя опробовать заранее",
+  "queries.unclassified_not_rehearsed": "Инструкция {statement}: инструкцию, которую DataPlayer не может распознать, нельзя опробовать заранее",
   "queries.transaction_not_found": "Открытая транзакция не найдена",
   "queries.transaction_other_connection": "Транзакция относится к другому подключению",
   "queries.no_rehearsal": "Источник не умеет опробовать изменения",

@@ -11390,6 +11390,7 @@ export type ProblemDetail = {
     | "queries.no_queries"
     | "queries.run_not_found"
     | "queries.maintenance_not_rehearsed"
+    | "queries.unclassified_not_rehearsed"
     | "queries.transaction_not_found"
     | "queries.transaction_other_connection"
     | "queries.no_rehearsal"
@@ -12034,6 +12035,10 @@ export type QueryProfile = {
    * Supports Cancel
    */
   supports_cancel: boolean
+  /**
+   * Runs Unclassified
+   */
+  runs_unclassified?: boolean
   /**
    * Supports Explain
    */

@@ -56,6 +56,7 @@ export const queries: Messages["queries"] = {
   },
   marks: {
     unreadable: "No se pudo leer esta sentencia y no se ejecutará",
+    unclassified: "DataPlayer no puede saber qué hace esta sentencia; solo se ejecuta sola, con acceso de propietario y tras tu confirmación",
     not_in_read: "Una sentencia {kind} no puede ejecutarse en una lectura",
     unknown_relation: "{schema} no tiene nada llamado {name}",
     reading: "Leyendo lo que contiene esta conexión…",
@@ -191,6 +192,7 @@ export const queries: Messages["queries"] = {
     fill_parameters: "Rellena los parámetros que pide esta consulta",
     tried_out: "Probado en la fuente y luego deshecho:",
     not_tried: "Esta fuente no puede probar el cambio antes: se hace al instante y no se puede deshacer.",
+    unclassified_note: "DataPlayer no puede saber qué hace esta sentencia; decide la base de datos. Se ejecuta sola, fuera de una transacción.",
     risky_title: "¿Ejecutar algo que no se puede deshacer?",
     write_title: "¿Confirmar esta escritura?",
     changes_named: "Esto cambia {name}.",

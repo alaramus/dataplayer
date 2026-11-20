@@ -144,4 +144,7 @@ MESSAGES: dict[str, str] = {
     '{parameter} is one column': '{parameter} एक ही कॉलम है',
     # Reaching a server through an SSH connection (D282).
     "Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already": "SSH टनल से HTTPS के बिना कनेक्ट करें: टनल पहले से ही कनेक्शन एन्क्रिप्ट करती है",
+    # Statements the console cannot classify (D383).
+    "The console owns the transaction and the session; this statement would change them": "ट्रांज़ैक्शन और सत्र कंसोल के नियंत्रण में हैं; यह कथन उन्हें बदल देगा",
+    "Backups are not made or restored from the query editor": "बैकअप क्वेरी एडिटर से न बनाए जाते हैं, न बहाल किए जाते हैं",
 }

@@ -289,13 +289,66 @@ def test_what_falls_outside_the_vocabulary_is_refused_in_words(
         "alter table t set schema s2",
     ],
 )
-def test_subjects_the_catalog_owns_stay_unknown(
+def test_subjects_the_catalog_owns_are_refused_in_words(
     sql: str,
 ) -> None:
-    """Renaming a schema and moving a relation are catalog actions. Both parse
-    precisely and stay `unknown` on purpose rather than by a parser falling
-    over (D62)."""
-    assert one(sql).kind == "unknown"
+    """Renaming a schema and moving a relation are catalog actions (D62). Left
+    `unknown` they would now run behind D383's gate, so they say why not."""
+    statement = one(sql)
+
+    assert statement.kind == "ddl"
+    assert statement.refused is not None
+    assert "catalog" in statement.refused
+
+
+@pytest.mark.parametrize("sql", ["do $$begin perform 1; end$$", "call p(1)"])
+def test_what_says_nothing_of_its_effect_is_unknown_and_high_risk(sql: str) -> None:
+    """The grammar reads both exactly; neither says what it does (D383)."""
+    statement = one(sql)
+
+    assert statement.kind == "unknown"
+    assert statement.risk == "high"
+    assert statement.refused is None
+    assert statement.changes is True
+
+
+@pytest.mark.parametrize(
+    ("sql", "says"),
+    [
+        ("grant r to u", "Permissions"),
+        ("reassign owned by a to b", "Permissions"),
+        ("drop owned by a", "Permissions"),
+        ("alter default privileges grant select on tables to u", "Permissions"),
+        ("security label on table t is 'x'", "Permissions"),
+        ("load 'auto_explain'", "Extensions"),
+        ("import foreign schema s from server x into y", "something else"),
+        ("create rule r as on insert to t do nothing", "something else"),
+        ("create aggregate a (int) (sfunc = f, stype = int)", "something else"),
+        ("alter function f() set schema s", "Functions"),
+    ],
+)
+def test_forms_d66_refuses_are_refused_rather_than_left_unknown(sql: str, says: str) -> None:
+    statement = one(sql)
+
+    assert statement.kind == "ddl"
+    assert statement.refused is not None
+    assert says in statement.refused
+
+
+@pytest.mark.parametrize(
+    ("sql", "kind"),
+    [
+        ("declare c cursor for select 1", "session"),
+        ("fetch c", "session"),
+        ("close c", "session"),
+        ("lock table t", "transaction"),
+        ("set constraints all deferred", "transaction"),
+    ],
+)
+def test_cursors_and_locks_belong_to_the_state_the_console_owns(
+    sql: str, kind: StatementClass
+) -> None:
+    assert kinds(sql) == [kind]
 
 
 @pytest.mark.parametrize(

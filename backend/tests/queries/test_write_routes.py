@@ -667,3 +667,123 @@ async def test_a_full_vacuum_is_asked_about_every_time(
     assert confirmed.status_code == 200, confirmed.text
     run = await _settled(client, headers, confirmed.json()["id"])
     assert run["status"] == "succeeded"
+
+
+# --- what the console cannot classify (D383) --------------------------------
+
+
+async def test_a_do_block_runs_alone_as_the_owner_and_is_kept(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+    table = await _table()
+    block = f"do $$begin insert into demo_lab.{table} values (2, 'two'); end$$"
+
+    unconfirmed = await _run(client, headers, connector_id, block, mode="auto_commit")
+    confirmed = await _run(
+        client, headers, connector_id, block, mode="auto_commit", confirm_high_risk=True
+    )
+
+    # Nothing in it says how far it reaches, so it is asked about every time.
+    assert unconfirmed.status_code == 409
+    assert confirmed.status_code == 200, confirmed.text
+    run = await _settled(client, headers, confirmed.json()["id"])
+    assert run["status"] == "succeeded", run
+    assert run["statements"][0]["kind"] == "unknown"
+    # What it changed is not known, so the whole connection is read again.
+    assert run["effect"]["scope"] == "connection"
+    assert await _rows(client, headers, connector_id, table) == 2
+
+
+async def test_an_unclassified_statement_needs_own_access(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    owner_headers = await _headers(client, db)
+    designer, designer_headers = await _person(client, db)
+    connector_id = await _postgres(client, owner_headers)
+    granted = await client.put(
+        f"{CONNECTORS}/{connector_id}/grants",
+        headers=owner_headers,
+        json={"user_id": str(designer.id), "access": "structure"},
+    )
+    assert granted.status_code == 200, granted.text
+
+    response = await _run(
+        client,
+        designer_headers,
+        connector_id,
+        "do $$begin perform 1; end$$",
+        mode="auto_commit",
+        confirm_high_risk=True,
+    )
+
+    assert response.status_code == 403
+    assert "own access" in response.json()["detail"]
+
+
+async def test_an_unclassified_statement_shares_its_run_with_nothing(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+    opened = await _open(client, headers, connector_id)
+    assert opened.status_code == 200, opened.text
+
+    beside = await _run(
+        client,
+        headers,
+        connector_id,
+        "do $$begin perform 1; end$$; select 1",
+        mode="auto_commit",
+        scope="script",
+        confirm_high_risk=True,
+    )
+    in_transaction = await _run(
+        client,
+        headers,
+        connector_id,
+        "do $$begin perform 1; end$$",
+        mode="manual",
+        transaction_id=opened.json()["id"],
+        confirm_high_risk=True,
+    )
+    as_a_read = await _run(client, headers, connector_id, "do $$begin perform 1; end$$")
+
+    assert beside.status_code == 422
+    assert "on its own" in beside.json()["detail"]
+    assert in_transaction.status_code == 422
+    assert "outside a transaction" in in_transaction.json()["detail"]
+    assert as_a_read.status_code == 422
+    assert "this run is a read" in as_a_read.json()["detail"]
+
+
+async def test_what_an_unclassified_statement_set_does_not_outlive_its_run(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Its connection is closed rather than pooled, so a role or a setting it
+    chose cannot reach the next run that borrows a connection."""
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+
+    for _ in range(3):
+        started = await _run(
+            client,
+            headers,
+            connector_id,
+            "do $$begin perform set_config('application_name', 'dp_d383_leak', false); end$$",
+            mode="auto_commit",
+            confirm_high_risk=True,
+        )
+        assert started.status_code == 200, started.text
+        run = await _settled(client, headers, started.json()["id"])
+        assert run["status"] == "succeeded", run
+
+    for _ in range(3):
+        read = await _run(
+            client, headers, connector_id, "select current_setting('application_name')"
+        )
+        run = await _settled(client, headers, read.json()["id"])
+        result_id = run["statements"][0]["result_id"]
+        page = await client.get(f"{BASE}/results/{result_id}", headers=headers)
+        assert page.json()["rows"][0][0] != "dp_d383_leak"

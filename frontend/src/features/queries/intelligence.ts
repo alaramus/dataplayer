@@ -150,8 +150,9 @@ export interface Mark {
  * What is worth marking, and nothing else.
  *
  * `unknown` is a warning about this application rather than about the SQL: the
- * dialect module has not learnt the form. A change the console would run as a
- * change is not marked as unrunnable: whether writes are allowed is the
+ * dialect module cannot say what the statement does. On a source that runs one
+ * anyway (D383) the mark says how; elsewhere, that it will not run. A change
+ * the console would run as a change is not marked as unrunnable: whether writes are allowed is the
  * connection's answer, and the mark only says what a read would refuse. A
  * relation is marked only when the metadata is complete and the schema it
  * names is one the source listed — an alias, a CTE or a partial answer is
@@ -160,7 +161,8 @@ export interface Mark {
 export function marks(
   script: PreparedScript | null,
   metadata: QueryMetadata | undefined,
-  writes = false
+  writes = false,
+  unclassified = false
 ): Mark[] {
   if (script === null) return []
   const found: Mark[] = []
@@ -170,7 +172,7 @@ export function marks(
         from: statement.start,
         to: statement.end,
         severity: "warning",
-        message: t("queries.marks.unreadable"),
+        message: t(unclassified ? "queries.marks.unclassified" : "queries.marks.unreadable"),
       })
       continue
     }

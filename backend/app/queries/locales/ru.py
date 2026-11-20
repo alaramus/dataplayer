@@ -40,4 +40,8 @@ MESSAGES: dict[str, str] = {
     "Only the newest {count} saved queries are searched by their text": "По тексту ищутся только последние сохранённые запросы: {count}",
     "Saved query": "Сохранённый запрос",
     "Saved query · {connection}": "Сохранённый запрос · {connection}",
+    # Statements the console cannot classify (D383).
+    "Statement {at}: this source could not establish what it is": "Инструкция {at}: этот источник не смог определить, что это",
+    "A statement DataPlayer cannot classify runs outside a transaction; turn the manual transaction off to run it": "Инструкция, которую DataPlayer не может распознать, выполняется вне транзакции; чтобы выполнить её, выключите ручную транзакцию",
+    "A statement DataPlayer cannot classify runs outside a transaction, so run it on its own": "Инструкция, которую DataPlayer не может распознать, выполняется вне транзакции, поэтому выполняйте её отдельно",
 }

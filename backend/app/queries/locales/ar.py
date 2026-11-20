@@ -40,4 +40,8 @@ MESSAGES: dict[str, str] = {
     "Only the newest {count} saved queries are searched by their text": "لا يُبحث بالنص إلا في أحدث {count} استعلامًا محفوظًا",
     "Saved query": "استعلام محفوظ",
     "Saved query · {connection}": "استعلام محفوظ · {connection}",
+    # Statements the console cannot classify (D383).
+    "Statement {at}: this source could not establish what it is": "العبارة {at}: لم يتمكن هذا المصدر من تحديد ماهيتها",
+    "A statement DataPlayer cannot classify runs outside a transaction; turn the manual transaction off to run it": "العبارة التي لا يستطيع DataPlayer تصنيفها تُنفَّذ خارج معاملة؛ أوقف المعاملة اليدوية لتنفيذها",
+    "A statement DataPlayer cannot classify runs outside a transaction, so run it on its own": "العبارة التي لا يستطيع DataPlayer تصنيفها تُنفَّذ خارج معاملة، لذا نفّذها وحدها",
 }

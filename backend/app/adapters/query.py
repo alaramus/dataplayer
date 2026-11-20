@@ -18,10 +18,11 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 from app.adapters.content import JsonValue
 from app.adapters.relation import ColumnType
 
-# The closed class of one prepared statement. "unknown" is a refusal rather
-# than a write-shaped guess: a statement whose class cannot be established is
-# not run (D62). "maintenance" is the source looking after its own storage —
-# statistics, dead rows, indexes — and runs outside a transaction (D206).
+# The closed class of one prepared statement. "unknown" is a statement whose
+# effect its text does not say; it runs only behind the strictest gate, on a
+# source whose profile allows it (D383). "maintenance" is the source looking
+# after its own storage — statistics, dead rows, indexes — and runs outside a
+# transaction (D206).
 StatementClass = Literal[
     "read",
     "explain",
@@ -35,8 +36,12 @@ StatementClass = Literal[
 ]
 
 # The classes that change the source, and so need write access, the owner's
-# confirmation policy and a run that is not a read (D160, D206).
-CHANGING: frozenset[StatementClass] = frozenset({"dml", "ddl", "maintenance"})
+# confirmation policy and a run that is not a read (D160, D206, D383).
+CHANGING: frozenset[StatementClass] = frozenset({"dml", "ddl", "maintenance", "unknown"})
+
+# The classes that run with no transaction, so share a run with nothing and
+# never run in a manual transaction or a rehearsal (D206, D383).
+ALONE: frozenset[StatementClass] = frozenset({"maintenance", "unknown"})
 
 # What a run may be asked to do, and who ends the transaction.
 #
@@ -80,6 +85,10 @@ class QueryProfile(BaseModel):
     editor_language: Literal["sql", "javascript"] = "sql"
     statement_modes: list[ExecutionMode]
     supports_cancel: bool
+    # Whether a statement this source cannot classify may run at all. Said by
+    # the adapter, and only where a server's role stands behind the run rather
+    # than this application's classifier alone (D383).
+    runs_unclassified: bool = False
     # The five below are filled in from what the adapter actually implements,
     # by the route that answers this. An adapter does not restate them, so a
     # capability cannot be announced and then be missing (D62).

@@ -592,4 +592,6 @@ MESSAGES: dict[str, str] = {
     'Aurora PostgreSQL too. Sign in with a database password; IAM sign-in is not supported yet. The instance has to be reachable from this server, publicly or through an SSH tunnel.': 'Aurora PostgreSQL भी। डेटाबेस पासवर्ड से साइन इन करें; IAM साइन-इन अभी समर्थित नहीं है। इंस्टेंस इस सर्वर से पहुँच योग्य होना चाहिए, सार्वजनिक रूप से या SSH टनल के ज़रिए।',
     "Flexible server. Allow this server's address under Networking and sign in with a PostgreSQL user; Microsoft Entra sign-in is not supported yet.": 'फ़्लेक्सिबल सर्वर। Networking में इस सर्वर का पता अनुमति दें और PostgreSQL उपयोगकर्ता से साइन इन करें; Microsoft Entra साइन-इन अभी समर्थित नहीं है।',
     "Connect to the instance's public IP with this server among its authorised networks, or through an SSH tunnel; IAM sign-in and the Auth Proxy are not supported yet.": 'इंस्टेंस के सार्वजनिक IP से जुड़ें, इस सर्वर को उसके अधिकृत नेटवर्क में जोड़कर, या SSH टनल के ज़रिए; IAM साइन-इन और Auth Proxy अभी समर्थित नहीं हैं।',
+    # Statements the console cannot classify (D383).
+    "Renaming a schema and moving a relation between schemas are done from the catalog": "स्कीमा का नाम बदलना और किसी रिलेशन को स्कीमाओं के बीच ले जाना कैटलॉग से किया जाता है",
 }

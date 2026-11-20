@@ -106,6 +106,7 @@ export const problems: Record<ProblemCode, string> = {
   "queries.no_queries": "यह स्रोत क्वेरी नहीं चलाता",
   "queries.run_not_found": "रन नहीं मिला",
   "queries.maintenance_not_rehearsed": "कथन {statement}: रखरखाव कमांड पहले से नहीं जाँचे जा सकते",
+  "queries.unclassified_not_rehearsed": "कथन {statement}: जिस कथन को DataPlayer वर्गीकृत नहीं कर सकता, उसे पहले से नहीं जाँचा जा सकता",
   "queries.transaction_not_found": "खुला ट्रांज़ैक्शन नहीं मिला",
   "queries.transaction_other_connection": "यह ट्रांज़ैक्शन किसी दूसरे कनेक्शन का है",
   "queries.no_rehearsal": "यह स्रोत बदलावों को पहले से नहीं जाँच सकता",

@@ -106,6 +106,7 @@ export const problems: Record<ProblemCode, string> = {
   "queries.no_queries": "Die Quelle führt keine Abfragen aus",
   "queries.run_not_found": "Ausführung nicht gefunden",
   "queries.maintenance_not_rehearsed": "Anweisung {statement}: Wartungsbefehle können nicht im Voraus getestet werden",
+  "queries.unclassified_not_rehearsed": "Anweisung {statement}: Eine Anweisung, die DataPlayer nicht einordnen kann, lässt sich nicht im Voraus testen",
   "queries.transaction_not_found": "Offene Transaktion nicht gefunden",
   "queries.transaction_other_connection": "Die Transaktion gehört zu einer anderen Verbindung",
   "queries.no_rehearsal": "Die Quelle kann Änderungen nicht im Voraus testen",

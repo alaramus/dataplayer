@@ -4,7 +4,8 @@ Pure: text in, prepared statements out, no connection anywhere. Boundaries come
 from sqlglot's ClickHouse tokenizer and the class from its parser, as MySQL's
 do (D232). What the parser does not model falls back to a bare command; only
 the commands named below by the keyword the parser kept are classed, and the
-rest is `unknown` and is not run. Two shapes the parser refuses are read off
+rest is `unknown`, which runs only behind D383's gate once D66's closed
+families are refused by their leading words. Two shapes the parser refuses are read off
 the tokens: an `INSERT … FORMAT` with its data after it, and the read-only
 `EXISTS` and `CHECK TABLE`.
 
@@ -21,6 +22,7 @@ from sqlglot.errors import ParseError, TokenError
 # sqlglot re-exports these without naming them in __all__.
 from sqlglot.tokens import Token, TokenType  # type: ignore[attr-defined]
 
+from app.adapters.families import refusal_by_words
 from app.adapters.query import PreparedScript, PreparedStatement, StatementClass
 from app.core.translation import N_, say_if
 
@@ -79,6 +81,34 @@ _GENERAL_REFUSAL = N_(
 _SYSTEM = N_("SYSTEM commands manage the server and are not run from the query editor")
 _DETACHED = N_("Detaching and attaching tables is not done from the query editor")
 _OWN_FORMAT = N_("The console shows a result itself; leave FORMAT out")
+_OWNED_STATE = N_(
+    "The console owns the transaction and the session; this statement would change them"
+)
+_BACKUPS = N_("Backups are not made or restored from the query editor")
+
+# D66's families in the shapes sqlglot keeps no class for, by their leading
+# words. Read only for a statement that is otherwise `unknown` (D383).
+_FAMILIES: dict[tuple[str, ...], str] = {
+    **{
+        (verb, subject): sentence
+        for verb in ("CREATE", "ALTER", "DROP", "RENAME", "MOVE")
+        for subject, sentence in _OUTSIDE.items()
+    },
+    ("GRANT",): _PERMISSIONS,
+    ("REVOKE",): _PERMISSIONS,
+    ("SET", "ROLE"): _ROLES,
+    ("SET", "DEFAULT", "ROLE"): _ROLES,
+    ("SYSTEM",): _SYSTEM,
+    ("ATTACH",): _DETACHED,
+    ("DETACH",): _DETACHED,
+    ("BACKUP",): _BACKUPS,
+    ("RESTORE",): _BACKUPS,
+    ("SET",): _OWNED_STATE,
+    ("USE",): _OWNED_STATE,
+    ("BEGIN",): _OWNED_STATE,
+    ("COMMIT",): _OWNED_STATE,
+    ("ROLLBACK",): _OWNED_STATE,
+}
 
 
 def _tokens(text: str) -> list[Token]:
@@ -234,9 +264,11 @@ def _subject(node: exp.Expr) -> str:
     return ""
 
 
-def _refusal(node: exp.Expr | None, kind: StatementClass) -> str | None:
+def _refusal(node: exp.Expr | None, kind: StatementClass, text: str) -> str | None:
     if isinstance(node, exp.Select) and node.args.get("format") is not None:
         return _OWN_FORMAT
+    if kind == "unknown":
+        return refusal_by_words([token.text for token in _tokens(text)], _FAMILIES)
     if node is None:
         return None
     if isinstance(node, exp.Command):
@@ -357,7 +389,7 @@ def prepare(text: str) -> PreparedScript:
                 kind=kind,
                 risk="high" if _risky(node, kind) else "low",
                 destructive=_destructive(node, kind),
-                refused=say_if(_refusal(node, kind)),
+                refused=say_if(_refusal(node, kind, piece)),
                 parameters=found,
                 targets=_targets(node, piece),
             )

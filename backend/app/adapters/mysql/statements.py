@@ -5,8 +5,9 @@ from sqlglot's MySQL tokenizer, so a semicolon inside a string, a quoted name or
 a comment is not one. The class comes from sqlglot's MySQL parser, and `read`
 is granted only to the shapes that are reads; whatever the parser does not
 model — it falls back to a bare command, or to an alias for `FLUSH` and `TABLE`
-— is `unknown` and is not run, unless it is one of the few commands named
-below by the keyword the parser kept.
+— is `unknown` unless it is one of the few commands named below by the keyword
+the parser kept. An `unknown` statement runs only behind D383's gate, and one
+of D66's closed families is refused by its leading words first.
 """
 
 import logging
@@ -19,6 +20,7 @@ from sqlglot.errors import ParseError, TokenError
 # sqlglot re-exports these without naming them in __all__.
 from sqlglot.tokens import Token, TokenType  # type: ignore[attr-defined]
 
+from app.adapters.families import refusal_by_words
 from app.adapters.query import PreparedScript, PreparedStatement, StatementClass
 from app.core.translation import N_, say_if
 
@@ -69,6 +71,43 @@ _GENERAL_REFUSAL = N_(
     "The query editor changes schemas, tables, views and indexes; "
     "this is something else"
 )
+
+_SERVER = N_("The server itself is not administered from the query editor")
+_OWNED_STATE = N_(
+    "The console owns the transaction and the session; this statement would change them"
+)
+
+# D66's families in the shapes sqlglot keeps no class for, by their leading
+# words. Read only for a statement that is otherwise `unknown` (D383).
+_FAMILIES: dict[tuple[str, ...], str] = {
+    **{
+        (verb, subject): sentence
+        for verb in ("CREATE", "ALTER", "DROP", "RENAME")
+        for subject, sentence in _OUTSIDE.items()
+    },
+    ("GRANT",): _PERMISSIONS,
+    ("REVOKE",): _PERMISSIONS,
+    ("SET", "ROLE"): _OUTSIDE["ROLE"],
+    ("SET", "DEFAULT", "ROLE"): _OUTSIDE["ROLE"],
+    ("INSTALL",): _SERVER,
+    ("UNINSTALL",): _SERVER,
+    ("SHUTDOWN",): _SERVER,
+    ("RESTART",): _SERVER,
+    ("CLONE",): _SERVER,
+    ("CHANGE",): _SERVER,
+    ("RESET",): _SERVER,
+    ("PURGE",): _SERVER,
+    ("START", "REPLICA"): _SERVER,
+    ("STOP", "REPLICA"): _SERVER,
+    ("START", "SLAVE"): _SERVER,
+    ("STOP", "SLAVE"): _SERVER,
+    ("START", "GROUP_REPLICATION"): _SERVER,
+    ("STOP", "GROUP_REPLICATION"): _SERVER,
+    ("XA",): _OWNED_STATE,
+    ("LOCK",): _OWNED_STATE,
+    ("UNLOCK",): _OWNED_STATE,
+    ("HANDLER",): _OWNED_STATE,
+}
 
 
 def _tokens(text: str) -> list[Token]:
@@ -221,7 +260,9 @@ def _subject(node: exp.Expr) -> str:
     return ""
 
 
-def _refusal(node: exp.Expr | None, kind: StatementClass) -> str | None:
+def _refusal(node: exp.Expr | None, kind: StatementClass, text: str) -> str | None:
+    if kind == "unknown":
+        return refusal_by_words([token.text for token in _tokens(text)], _FAMILIES)
     if kind != "ddl" or node is None:
         return None
     if isinstance(node, exp.Command) and _command(node)[0] in ("GRANT", "REVOKE"):
@@ -347,7 +388,7 @@ def prepare(text: str) -> PreparedScript:
                 kind=kind,
                 risk="high" if _risky(node, kind) else "low",
                 destructive=_destructive(node),
-                refused=say_if(_refusal(node, kind)),
+                refused=say_if(_refusal(node, kind, piece)),
                 parameters=found,
                 targets=_targets(node),
             )

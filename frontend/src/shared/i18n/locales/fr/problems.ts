@@ -106,6 +106,7 @@ export const problems: Record<ProblemCode, string> = {
   "queries.no_queries": "Cette source n'exécute pas de requêtes",
   "queries.run_not_found": "Exécution introuvable",
   "queries.maintenance_not_rehearsed": "Instruction {statement} : les commandes de maintenance ne peuvent pas être testées à l'avance",
+  "queries.unclassified_not_rehearsed": "Instruction {statement} : une instruction que DataPlayer ne sait pas classer ne peut pas être testée à l'avance",
   "queries.transaction_not_found": "Transaction ouverte introuvable",
   "queries.transaction_other_connection": "Cette transaction appartient à une autre connexion",
   "queries.no_rehearsal": "Cette source ne peut pas tester les modifications à l'avance",

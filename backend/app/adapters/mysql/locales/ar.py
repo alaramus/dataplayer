@@ -436,4 +436,7 @@ MESSAGES: dict[str, str] = {
     'The sample data needs spatial columns and triggers, which TiDB does not have': 'تحتاج البيانات التجريبية إلى أعمدة مكانية ومشغّلات، وهي غير موجودة في TiDB',
     'TiDB is not backed up here yet': 'لا يُنسخ TiDB احتياطيًا هنا بعد',
     "TiDB's plan is read by running EXPLAIN in the console": 'تُقرأ خطة TiDB بتشغيل EXPLAIN في وحدة التحكم',
+    # Statements the console cannot classify (D383).
+    "The server itself is not administered from the query editor": "الخادم نفسه لا يُدار من محرّر الاستعلامات",
+    "The console owns the transaction and the session; this statement would change them": "تتحكم وحدة التحكم في المعاملة والجلسة؛ هذه العبارة ستغيّرهما",
 }
