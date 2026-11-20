@@ -36,7 +36,7 @@ MESSAGES: dict[str, str] = {
     "Only buckets are kept at the root of the store": "Seuls des buckets sont rangés à la racine du stockage",
     "{name} holds more than {count} objects; this store changes them one by one, so it is refused": "{name} contient plus de {count} objets ; ce stockage les modifie un par un, c'est donc refusé",
     "The store did not delete every object": "Le stockage n'a pas supprimé tous les objets",
-    "A bucket is not renamed or copied as a whole": "Un bucket ne se renomme ni ne se copie en entier",
+    "A bucket cannot be renamed, nor made by a copy or a move": "Un bucket ne peut être ni renommé, ni créé par une copie ou un déplacement",
     "A bucket's name is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending with a letter or a digit": "Le nom d'un bucket compte 3 à 63 lettres minuscules, chiffres, points et tirets, et commence et finit par une lettre ou un chiffre",
     "{name} keeps old versions of its objects; empty it with a lifecycle rule, then delete it": "{name} conserve d'anciennes versions de ses objets ; videz-le par une règle de cycle de vie, puis supprimez-le",
     "That is not an S3 address": "Ce n'est pas une adresse S3",

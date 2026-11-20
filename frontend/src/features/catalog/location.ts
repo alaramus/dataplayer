@@ -1,4 +1,4 @@
-import { roleOf } from "@/features/catalog/nodes"
+import { isFolderKind, roleOf } from "@/features/catalog/nodes"
 import type { CatalogNode } from "@/features/catalog/nodes"
 
 /** One step of the way down from the root of a connector. */
@@ -21,7 +21,7 @@ export interface Crumb {
  * a path and any other trail is not.
  */
 export function isPathTrail(crumbs: Crumb[]): boolean {
-  return crumbs.every((crumb) => crumb.id === null || crumb.kind === "directory")
+  return crumbs.every((crumb) => crumb.id === null || isFolderKind(crumb.kind))
 }
 
 /** Where a node lives, said in the terms a catalog level is set from. */

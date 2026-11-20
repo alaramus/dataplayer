@@ -36,7 +36,7 @@ MESSAGES: dict[str, str] = {
     "Only buckets are kept at the root of the store": "لا يحفظ جذر المخزن إلا الحاويات",
     "{name} holds more than {count} objects; this store changes them one by one, so it is refused": "يحوي {name} أكثر من {count} كائن؛ يغيّرها هذا المخزن واحدًا واحدًا، لذا رُفض ذلك",
     "The store did not delete every object": "لم يحذف المخزن كل الكائنات",
-    "A bucket is not renamed or copied as a whole": "لا تُعاد تسمية الحاوية ولا تُنسخ كاملة",
+    "A bucket cannot be renamed, nor made by a copy or a move": "لا يمكن إعادة تسمية الحاوية، ولا إنشاؤها بنسخ أو نقل",
     "A bucket's name is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending with a letter or a digit": "اسم الحاوية من 3 إلى 63 حرفًا لاتينيًا صغيرًا ورقمًا ونقطة وشرطة، يبدأ وينتهي بحرف أو رقم",
     "{name} keeps old versions of its objects; empty it with a lifecycle rule, then delete it": "يحتفظ {name} بإصدارات قديمة من كائناته؛ أفرغه بقاعدة دورة حياة ثم احذفه",
     "That is not an S3 address": "هذا ليس عنوان S3",

@@ -99,7 +99,10 @@ class S3Storage(PathPlaces):
             return parts[0], "/".join(parts[1:])
         return self._options.bucket, "/".join((*_parts(self._options.prefix), *parts))
 
-    def _is_bucket(self, place: Place) -> bool:
+    def holds_buckets(self, place: Place) -> bool:
+        return self._options.bucket == "" and place == ROOT
+
+    def is_bucket(self, place: Place) -> bool:
         return self._options.bucket == "" and len(self.path_at(place).parts) == 1
 
     # --- asking the store ---------------------------------------------------------
@@ -150,7 +153,7 @@ class S3Storage(PathPlaces):
             return Entry(place=ROOT, is_directory=True, size_bytes=0, modified_at=None)
         bucket, key = self._address(place)
         assert bucket is not None
-        if self._is_bucket(place):
+        if self.is_bucket(place):
             # Looked up among the buckets listed rather than asked by HEAD,
             # which answers a name no bucket may have with a 400.
             listed = self._asked(lambda client: client.list_buckets())
@@ -213,7 +216,7 @@ class S3Storage(PathPlaces):
                     size_bytes=int(item.get("Size", 0)),
                     modified_at=item.get("LastModified"),
                 )
-        if not files and not folders and place != ROOT and not self._is_bucket(place):
+        if not files and not folders and place != ROOT and not self.is_bucket(place):
             # Nothing below may be an empty folder, or no folder at all.
             if self.entry(place) is None:
                 raise FileNotFoundError(place.key)
@@ -419,11 +422,13 @@ class S3Storage(PathPlaces):
                     self.publish(staged, target, replace=True)
 
     def make_directory(self, place: Place) -> None:
-        if self._is_bucket(place):
+        if self.entry(place) is not None:
+            # Asked first for a bucket too: in us-east-1, and on RustFS, making
+            # one the key already owns answers success.
+            raise FileExistsError(place.key)
+        if self.is_bucket(place):
             self._make_bucket(place.name)
             return
-        if self.entry(place) is not None:
-            raise FileExistsError(place.key)
         self._marker(place, claim=True)
 
     def make_file(self, place: Place) -> None:
@@ -436,16 +441,26 @@ class S3Storage(PathPlaces):
 
     def rename(self, place: Place, to: Place) -> None:
         """A copy on the server and the original removed: a store cannot
-        rename. Not atomic, and said so (D380)."""
-        self._refuse_bucket(place, to)
+        rename. Not atomic, and said so (D380). A bucket moved into a folder
+        is emptied into it and then deleted (D381)."""
+        self._refuse_into_bucket(to)
         if self.entry(to) is not None:
             raise FileExistsError(to.key)
+        bucket = self.is_bucket(place)
+        if bucket:
+            # Before anything is copied: a bucket that keeps versions could
+            # not be deleted at the end.
+            self._refuse_kept_versions(place.name)
         moved = self._copied(place, to)
         self._deleted(moved)
+        if bucket:
+            self._asked(lambda client: client.delete_bucket(Bucket=place.name))
         self._forget(place)
 
     def copy(self, place: Place, to: Place) -> None:
-        self._refuse_bucket(place, to)
+        """A folder or a whole bucket copied below a folder, on the server; a
+        bucket's copy is a folder of its name (D381)."""
+        self._refuse_into_bucket(to)
         if self.entry(to) is not None:
             raise FileExistsError(to.key)
         self._copied(place, to)
@@ -453,7 +468,7 @@ class S3Storage(PathPlaces):
     def remove(self, place: Place) -> None:
         if place == ROOT:
             raise PermissionError(place.key)
-        if self._is_bucket(place):
+        if self.is_bucket(place):
             self._remove_bucket(place)
             return
         found = self.entry(place)
@@ -472,7 +487,7 @@ class S3Storage(PathPlaces):
         bucket, key = self._address(place)
         if bucket is None:
             raise PermissionError(place.key)
-        if self._is_bucket(place):
+        if self.is_bucket(place):
             try:
                 self._asked(lambda client: client.delete_bucket(Bucket=bucket))
             except AdapterError:
@@ -497,7 +512,7 @@ class S3Storage(PathPlaces):
         """The bucket and key of an object; none at the root, nor at a
         bucket's place when the root lists buckets."""
         bucket, key = self._address(place)
-        if bucket is None or key == "" or self._is_bucket(place):
+        if bucket is None or key == "" or self.is_bucket(place):
             raise ActionRefused(
                 "not_applicable", say("Only buckets are kept at the root of the store")
             )
@@ -578,15 +593,18 @@ class S3Storage(PathPlaces):
         found = self.entry(place)
         if found is None:
             raise FileNotFoundError(place.key)
-        bucket, key = self._object(place)
+        bucket, key = (
+            (place.name, "") if self.is_bucket(place) else self._object(place)
+        )
         target_bucket, target_key = self._object(to)
         if not found.is_directory:
             self._copy_object(bucket, key, target_bucket, target_key)
             return [(bucket, key)]
-        keys = self._keys(bucket, f"{key}/", place)
+        below = f"{key}/" if key else ""
+        keys = self._keys(bucket, below, place)
         for source in keys:
             self._copy_object(
-                bucket, source, target_bucket, target_key + source[len(key) :]
+                bucket, source, target_bucket, f"{target_key}/{source[len(below) :]}"
             )
         if not keys:
             self._marker(to)
@@ -622,10 +640,12 @@ class S3Storage(PathPlaces):
         if self._asked(work).get("Errors"):
             raise OSError(say("The store did not delete every object"))
 
-    def _refuse_bucket(self, place: Place, to: Place) -> None:
-        if self._is_bucket(place) or self._is_bucket(to):
+    def _refuse_into_bucket(self, to: Place) -> None:
+        """S3 has no call that renames a bucket or makes one by copying."""
+        if self.is_bucket(to):
             raise ActionRefused(
-                "not_applicable", say("A bucket is not renamed or copied as a whole")
+                "not_applicable",
+                say("A bucket cannot be renamed, nor made by a copy or a move"),
             )
 
     # --- buckets (D381) ---------------------------------------------------------------
@@ -657,6 +677,12 @@ class S3Storage(PathPlaces):
 
     def _remove_bucket(self, place: Place) -> None:
         bucket = place.name
+        self._refuse_kept_versions(bucket)
+        self._deleted([(bucket, key) for key in self._keys(bucket, "", place)])
+        self._asked(lambda client: client.delete_bucket(Bucket=bucket))
+        self._forget(place)
+
+    def _refuse_kept_versions(self, bucket: str) -> None:
         versioning = self._asked(
             lambda client: client.get_bucket_versioning(Bucket=bucket)
         )
@@ -673,9 +699,6 @@ class S3Storage(PathPlaces):
                         name=bucket,
                     ),
                 )
-        self._deleted([(bucket, key) for key in self._keys(bucket, "", place)])
-        self._asked(lambda client: client.delete_bucket(Bucket=bucket))
-        self._forget(place)
 
     def _forget(self, place: Place) -> None:
         """The copies of a node just written, and of everything below it."""

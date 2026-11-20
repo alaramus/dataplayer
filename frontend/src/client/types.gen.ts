@@ -156,6 +156,7 @@ export type ActionInfo = {
     | "table"
     | "view"
     | "directory"
+    | "bucket"
     | "file"
     | "dataset"
     | "entry"
@@ -1724,6 +1725,51 @@ export type BrowserTurn = {
 }
 
 /**
+ * BucketNode
+ *
+ * An object store's top folder (D381).
+ *
+ * Walked into as a folder is, and a kind of its own because what can be done
+ * to it is not what can be done to a folder: it is made and removed apart
+ * from the rest and never renamed. Actions say so by the kinds they apply
+ * to, which is the one thing a client reads about a ticked node.
+ */
+export type BucketNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "bucket"
+  /**
+   * Created At
+   */
+  created_at?: string | null
+}
+
+/**
  * CacheHealth
  */
 export type CacheHealth = {
@@ -1895,6 +1941,7 @@ export type CardRow = {
     | "table"
     | "view"
     | "directory"
+    | "bucket"
     | "file"
     | "dataset"
     | "entry"
@@ -9389,6 +9436,9 @@ export type NodeMatch = {
         kind: "directory"
       } & DirectoryNode)
     | ({
+        kind: "bucket"
+      } & BucketNode)
+    | ({
         kind: "file"
       } & FileNode)
     | ({
@@ -9586,6 +9636,7 @@ export type NodeSummary = {
     | "table"
     | "view"
     | "directory"
+    | "bucket"
     | "file"
     | "dataset"
     | "entry"
@@ -9754,6 +9805,9 @@ export type NodeTarget = {
     | ({
         kind: "directory"
       } & DirectoryNode)
+    | ({
+        kind: "bucket"
+      } & BucketNode)
     | ({
         kind: "file"
       } & FileNode)
@@ -12383,6 +12437,9 @@ export type ReferencedRows = {
         kind: "directory"
       } & DirectoryNode)
     | ({
+        kind: "bucket"
+      } & BucketNode)
+    | ({
         kind: "file"
       } & FileNode)
     | ({
@@ -12681,6 +12738,9 @@ export type RelationCreated = {
     | ({
         kind: "directory"
       } & DirectoryNode)
+    | ({
+        kind: "bucket"
+      } & BucketNode)
     | ({
         kind: "file"
       } & FileNode)
@@ -13214,6 +13274,7 @@ export type ResultRow = {
     | "table"
     | "view"
     | "directory"
+    | "bucket"
     | "file"
     | "dataset"
     | "entry"
@@ -18639,6 +18700,9 @@ export type connectorsReadCatalogResponses = {
         kind: "directory"
       } & DirectoryNode)
     | ({
+        kind: "bucket"
+      } & BucketNode)
+    | ({
         kind: "file"
       } & FileNode)
     | ({
@@ -19942,6 +20006,9 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "directory"
       } & DirectoryNode)
+    | ({
+        kind: "bucket"
+      } & BucketNode)
     | ({
         kind: "file"
       } & FileNode)

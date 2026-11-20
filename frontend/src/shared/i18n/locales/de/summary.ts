@@ -12,6 +12,7 @@ export const summary: Messages["summary"] = {
     table: "Tabelle",
     view: "Ansicht",
     directory: "Ordner",
+    bucket: "Bucket",
     file: "Datei",
     dataset: "Datensatz",
     entry: "Archiveintrag",

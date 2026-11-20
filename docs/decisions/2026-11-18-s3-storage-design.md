@@ -96,7 +96,8 @@ Rejected:
 
 When a connection names no bucket, the root is where buckets live.
 
-- **New folder at the root is a bucket.** Its name is checked against the S3
+- **New bucket at the root makes a bucket** (New folder until 2026-11-20, when a bucket became a kind of node of its
+  own, `bucket`, so that the kinds an action applies to keep Rename off it). Its name is checked against the S3
   rules — 3 to 63 characters, lowercase letters, digits, dots and hyphens,
   beginning and ending with a letter or a digit, not an IP address — before
   anything is sent, and it is made in the connection's region
@@ -105,8 +106,11 @@ When a connection names no bucket, the root is where buckets live.
   10,000-object ceiling, under the explorer's usual confirmation, which names
   it as a bucket. A versioned bucket that is not empty is refused: its old
   versions would have to go too, and that is a lifecycle rule's job.
-- **A bucket is not renamed** and not copied as a whole; those actions are not
-  offered at the root.
+- **A bucket is not renamed**: S3 has no such call. Rename and Archive are not
+  offered on a bucket, nor New file, Upload and Paste where buckets are; the
+  storage says which places those are, and the explorer offers by it rather
+  than by the kind of node alone. A bucket copied or moved becomes a folder
+  of its name, and a move deletes it once empty.
 - With a bucket named in the connection, the root is that bucket and these
   actions do not exist.
 
@@ -117,10 +121,12 @@ When a connection names no bucket, the root is where buckets live.
   (auto, path, virtual) and whether to verify the certificate. TLS is the
   endpoint's scheme. Auto addressing is virtual on AWS and path everywhere
   else, which every compatible store accepts.
-- **Connection strings** carry an address and never a key:
-  `s3://bucket/prefix`, an AWS URL `https://bucket.s3.<region>.amazonaws.com/prefix`,
-  and a path-style URL `https://host:port/bucket/prefix`. The keys are typed
-  apart, as an SSH password is.
+- **Connection strings** name the store and never a key: the endpoint, or
+  `https://s3.<region>.amazonaws.com` on AWS. They first carried the bucket
+  and the prefix too, `https://host:port/bucket/prefix`; that repeated two
+  fields of the form, and erasing a part from the box brought it back, since
+  the form merges what an address answers. A pasted `s3://bucket/prefix`
+  still fills those two. The keys are typed apart, as an SSH password is.
 - **Cards.** Every card is the type `s3` and the same form, filled with what
   its provider always names the same (D264, D377); none starts anything.
 
@@ -160,7 +166,9 @@ When a connection names no bucket, the root is where buckets live.
 - Conditional writes: a taken name, a version changed under an edit.
 - `incoming` across several parts, and an aborted upload leaving none.
 - Folders: an empty marker, a rename and a removal past the ceiling refused.
-- Buckets: a bad name refused before a request, a bucket made and removed.
+- Buckets: a bad name refused before a request, a bucket made and removed,
+  what is offered where buckets are and on one, a bucket copied and moved
+  into a folder.
 - SQL over a CSV and a Parquet file in the bucket.
 - Cards: their options against the form; connection strings parsed and
   refused.

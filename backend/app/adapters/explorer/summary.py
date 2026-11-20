@@ -42,7 +42,7 @@ from app.adapters.explorer.formats import (
     worded,
 )
 from app.adapters.explorer.members import ResolvedNode, resolve_node
-from app.adapters.explorer.storage import Entry, Storage
+from app.adapters.explorer.storage import Entry, Storage, is_bucket
 from app.adapters.protocol import NodeNotFound
 from app.adapters.summary import (
     ArchiveContents,
@@ -121,7 +121,7 @@ def _directory(storage: Storage, entry: Entry, node_id: str) -> NodeSummary:
     return NodeSummary(
         node_id=node_id,
         name=entry.name,
-        kind="directory",
+        kind="bucket" if is_bucket(storage, entry.place) else "directory",
         # A folder is walked into rather than opened, so it declares none — the
         # same answer its catalog node gives.
         representations=[],

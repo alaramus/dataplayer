@@ -85,7 +85,7 @@ async def add_contents(
     if node_id:
         # A folder whose name is kept: the scope is read from those names.
         found = await session.get(SearchName, (connector.id, node_id))
-        if found is None or found.kind != "directory":
+        if found is None or found.kind not in ("directory", "bucket"):
             raise Problem(422, "search.folder_not_kept")
     await kept.add_contents(session, row, node_id)
     return await _state(session, connector, access)

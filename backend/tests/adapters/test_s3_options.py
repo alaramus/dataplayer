@@ -142,30 +142,21 @@ def test_an_unreachable_endpoint_is_a_network_failure_that_names_no_address() ->
 @pytest.mark.parametrize(
     ("url", "expected"),
     [
-        ("s3://reports", {"bucket": "reports"}),
+        ("s3://reports", {"bucket": "reports", "prefix": ""}),
         ("s3://reports/2026/q1", {"bucket": "reports", "prefix": "2026/q1"}),
         (
             "https://reports.s3.eu-central-1.amazonaws.com/2026",
-            {
-                "endpoint": "",
-                "region": "eu-central-1",
-                "bucket": "reports",
-                "prefix": "2026",
-            },
+            {"endpoint": "", "region": "eu-central-1"},
         ),
         (
             "https://s3.eu-west-2.amazonaws.com/reports",
-            {"endpoint": "", "region": "eu-west-2", "bucket": "reports"},
+            {"endpoint": "", "region": "eu-west-2"},
         ),
-        ("https://reports.s3.amazonaws.com", {"endpoint": "", "bucket": "reports"}),
+        ("https://s3-us-west-1.amazonaws.com", {"endpoint": "", "region": "us-west-1"}),
+        ("https://reports.s3.amazonaws.com", {"endpoint": "", "region": ""}),
         (
             "http://127.0.0.1:9000/reports/2026",
-            {
-                "endpoint": "http://127.0.0.1:9000",
-                "addressing": "path",
-                "bucket": "reports",
-                "prefix": "2026",
-            },
+            {"endpoint": "http://127.0.0.1:9000"},
         ),
         (
             "https://storage.yandexcloud.net",
@@ -173,13 +164,23 @@ def test_an_unreachable_endpoint_is_a_network_failure_that_names_no_address() ->
         ),
     ],
 )
-def test_an_address_fills_where_the_objects_are(
+def test_an_address_fills_where_the_store_is(
     url: str, expected: dict[str, str]
 ) -> None:
     found = S3Adapter.options_from_url(url)
 
     assert found == expected
     _options(**found)
+
+
+def test_a_part_erased_from_the_address_is_erased_from_the_form() -> None:
+    """The form merges what the address answers into what it holds, so a part
+    left unanswered would come back as it was before it was erased."""
+    assert S3Adapter.options_from_url("s3://reports/") == {
+        "bucket": "reports",
+        "prefix": "",
+    }
+    assert S3Adapter.options_from_url("https://s3.amazonaws.com")["region"] == ""
 
 
 @pytest.mark.parametrize(
@@ -198,20 +199,24 @@ def test_an_address_with_a_key_or_not_of_s3_is_refused(url: str) -> None:
         S3Adapter.options_from_url(url)
 
 
-def test_the_address_shown_carries_no_key() -> None:
-    aws = _options(bucket="reports", prefix="2026/q1")
+def test_the_address_shown_is_the_store_and_carries_no_key() -> None:
+    aws = _options(region="eu-central-1", bucket="reports", prefix="2026/q1")
     elsewhere = _options(endpoint="http://127.0.0.1:9000", bucket="reports")
 
-    assert S3Adapter.draft_connection_string(aws.model_dump()) == "s3://reports/2026/q1"
+    assert (
+        S3Adapter.draft_connection_string(aws.model_dump())
+        == "https://s3.eu-central-1.amazonaws.com"
+    )
     assert (
         S3Adapter.draft_connection_string(elsewhere.model_dump())
-        == "http://127.0.0.1:9000/reports"
+        == "http://127.0.0.1:9000"
     )
     assert S3Adapter.draft_connection_string(_options().model_dump()) is None
     for options in (aws, elsewhere):
         text = S3Adapter.draft_connection_string(options.model_dump()) or ""
         assert SECRET not in text and KEY_ID not in text
-        assert S3Adapter.options_from_url(text)["bucket"] == "reports"
+        found = S3Adapter.options_from_url(text)
+        assert {name: getattr(options, name) for name in found} == found
 
 
 def test_every_card_is_one_form_filled_in_and_starts_nothing() -> None:

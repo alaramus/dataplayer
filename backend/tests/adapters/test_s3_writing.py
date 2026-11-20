@@ -330,7 +330,7 @@ async def test_a_bucket_name_the_rules_refuse_is_refused_before_a_request(
     server: S3Options, name: str
 ) -> None:
     with pytest.raises(ActionRefused):
-        await _adapter(server).action("create_folder").perform(None, {"name": name})
+        await _adapter(server).action("create_bucket").perform(None, {"name": name})
 
 
 async def test_a_bucket_is_made_and_deleted_with_what_it_holds(
@@ -339,7 +339,7 @@ async def test_a_bucket_is_made_and_deleted_with_what_it_holds(
     adapter = _adapter(server)
     name = f"made-{uuid.uuid4().hex[:12]}"
 
-    await adapter.action("create_folder").perform(None, {"name": name})
+    await adapter.action("create_bucket").perform(None, {"name": name})
     try:
         await _upload(adapter, "inside.txt", b"x", into=name)
         assert name in {node.name for node in await adapter.list_children(None)}
@@ -361,3 +361,103 @@ async def test_a_bucket_is_not_renamed_and_holds_no_file_at_the_root(
         await adapter.action("rename").perform(bucket, {"new_name": f"{bucket}-x"})
     with pytest.raises(ActionRefused):
         await adapter.action("create_file").perform(None, {"name": "loose.txt"})
+
+
+async def test_where_buckets_live_only_what_a_bucket_takes_is_offered(
+    server: S3Options, bucket: str
+) -> None:
+    adapter = _adapter(server)
+    await _upload(adapter, "a.txt", b"a", into=bucket)
+
+    root = {action.name for action in await adapter.available(None)}
+    on_bucket = await adapter.available(bucket)
+    to_it = {action.name for action in on_bucket if action.acts_on == "node"}
+    in_it = {action.name for action in on_bucket if action.acts_on == "children"}
+    inside = {action.name for action in await adapter.available(f"{bucket}/a.txt")}
+    # What a client reads of a ticked bucket: the kinds an action applies to.
+    by_kind = {
+        action.name
+        for action in await adapter.all_actions()
+        if action.acts_on == "node" and "bucket" in action.applies_to
+    }
+
+    assert root == {"create_bucket"}
+    assert to_it == by_kind == {"delete", "download"}
+    assert in_it == {"create_folder", "create_file", "upload", "paste"}
+    assert {"rename", "delete"} <= inside
+
+
+async def test_one_bucket_offers_its_root_as_any_folder(options: S3Options) -> None:
+    adapter = _adapter(options)
+    offered = {action.name for action in await adapter.available(None)}
+    known = {action.name for action in await adapter.all_actions()}
+
+    assert "create_folder" in offered
+    assert "create_bucket" not in offered | known
+
+
+async def test_a_bucket_is_named_a_bucket_and_its_folders_folders(
+    server: S3Options, bucket: str
+) -> None:
+    adapter = _adapter(server)
+    await _upload(adapter, "a.txt", b"a", into=bucket)
+    await adapter.action("create_folder").perform(bucket, {"name": "inner"})
+
+    top = next(node for node in await adapter.list_children(None) if node.name == bucket)
+    below = await adapter.list_children(bucket)
+    folder = next(node for node in below if node.name == "inner")
+
+    assert top.kind == "bucket"
+    assert folder.kind == "directory"
+    assert (await adapter.node_summary(bucket)).kind == "bucket"
+
+
+async def test_a_bucket_name_already_taken_is_refused_not_numbered(
+    server: S3Options, bucket: str
+) -> None:
+    with pytest.raises(ActionRefused) as refused:
+        await _adapter(server).action("create_bucket").perform(None, {"name": bucket})
+
+    assert refused.value.reason == "conflict"
+
+
+async def test_a_bucket_is_copied_into_a_folder_of_its_name(
+    server: S3Options, bucket: str
+) -> None:
+    client = _client(server)
+    source = f"src-{uuid.uuid4().hex[:12]}"
+    client.create_bucket(Bucket=source)
+    try:
+        client.put_object(Bucket=source, Key="a.txt", Body=b"a")
+        client.put_object(Bucket=source, Key="deep/b.txt", Body=b"b")
+        adapter = _adapter(server)
+
+        await adapter.action("paste").perform(
+            bucket, {"sources": [source], "mode": "copy", "conflict": "refuse"}
+        )
+
+        assert _keys(server, bucket) == [f"{source}/a.txt", f"{source}/deep/b.txt"]
+        assert _keys(server, source) == ["a.txt", "deep/b.txt"]
+    finally:
+        _emptied(client, source)
+
+
+async def test_a_bucket_moved_into_a_folder_is_emptied_and_deleted(
+    server: S3Options, bucket: str
+) -> None:
+    client = _client(server)
+    source = f"src-{uuid.uuid4().hex[:12]}"
+    client.create_bucket(Bucket=source)
+    try:
+        client.put_object(Bucket=source, Key="a.txt", Body=b"a")
+        adapter = _adapter(server)
+
+        await adapter.action("paste").perform(
+            bucket, {"sources": [source], "mode": "move", "conflict": "refuse"}
+        )
+    except BaseException:
+        _emptied(client, source)
+        raise
+
+    assert _keys(server, bucket) == [f"{source}/a.txt"]
+    assert source not in {node.name for node in await adapter.list_children(None)}

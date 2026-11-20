@@ -25,6 +25,8 @@ MESSAGES: dict[str, str] = {
     "Off puts the contents beside the archive, which is what an archive of one file usually wants": "Si se desactiva, el contenido queda junto al archivo comprimido, que es lo que suele convenir para un archivo comprimido de un solo archivo",
     # What an action did.
     "Folder {name} created": "Carpeta {name} creada",
+    "New bucket": "Nuevo bucket",
+    "Bucket {name} created": "Bucket {name} creado",
     "{name} created": "Se creó {name}",
     "Renamed to {name}": "Renombrado a {name}",
     "{name} deleted": "{name}: eliminado",

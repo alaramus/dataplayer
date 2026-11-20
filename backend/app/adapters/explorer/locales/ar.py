@@ -23,6 +23,8 @@ MESSAGES: dict[str, str] = {
     "Off puts the contents beside the archive, which is what an archive of one file usually wants": "إذا كان معطّلًا، يوضع المحتوى بجانب الأرشيف، وهو ما يلائم عادةً أرشيف ملف واحد",
     # ما فعله الإجراء.
     "Folder {name} created": "أُنشئ المجلد {name}",
+    "New bucket": "حاوية جديدة",
+    "Bucket {name} created": "أُنشئت الحاوية {name}",
     "{name} created": "أُنشئ {name}",
     "Renamed to {name}": "أُعيدت التسمية إلى {name}",
     "{name} deleted": "حُذف {name}",

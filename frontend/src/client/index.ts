@@ -308,6 +308,7 @@ export type {
   BrowserPlace,
   BrowserQuestion,
   BrowserTurn,
+  BucketNode,
   CacheHealth,
   CacheMeasurements,
   CandidateKey,

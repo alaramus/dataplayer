@@ -82,6 +82,7 @@ export const pipelines: Messages["pipelines"] = {
       table: "टेबल",
       view: "व्यू",
       directory: "फ़ोल्डर",
+      bucket: "बकेट",
       file: "फ़ाइल",
       dataset: "डेटासेट",
       entry: "प्रविष्टि",

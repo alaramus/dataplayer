@@ -36,7 +36,7 @@ MESSAGES: dict[str, str] = {
     "Only buckets are kept at the root of the store": "स्टोर के रूट में केवल बकेट रखे जाते हैं",
     "{name} holds more than {count} objects; this store changes them one by one, so it is refused": "{name} में {count} से अधिक ऑब्जेक्ट हैं; यह स्टोर उन्हें एक-एक करके बदलता है, इसलिए इसे अस्वीकार किया गया",
     "The store did not delete every object": "स्टोर ने हर ऑब्जेक्ट नहीं हटाया",
-    "A bucket is not renamed or copied as a whole": "बकेट को पूरा का पूरा नाम बदला या कॉपी नहीं किया जाता",
+    "A bucket cannot be renamed, nor made by a copy or a move": "बकेट का नाम नहीं बदला जा सकता, न ही उसे कॉपी या मूव करके बनाया जा सकता है",
     "A bucket's name is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending with a letter or a digit": "बकेट का नाम 3 से 63 छोटे अक्षरों, अंकों, बिंदुओं और हाइफ़न का होता है, और अक्षर या अंक से शुरू और खत्म होता है",
     "{name} keeps old versions of its objects; empty it with a lifecycle rule, then delete it": "{name} अपने ऑब्जेक्ट के पुराने संस्करण रखता है; पहले उसे लाइफ़साइकल नियम से खाली करें, फिर हटाएँ",
     "That is not an S3 address": "यह S3 पता नहीं है",

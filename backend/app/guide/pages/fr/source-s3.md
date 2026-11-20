@@ -38,9 +38,11 @@ La page **Connexion** de la fenêtre demande :
 - **Vérifier le certificat** : à désactiver seulement pour un stockage dont vous
   avez fait le certificat vous-même.
 
-Une adresse comme `s3://reports/2026`, une URL Amazon S3 ou
-`https://host:9000/reports` collée dans **URL** remplit le point d'accès, la
-région, le bucket et le dossier. Les clés n'en font jamais partie.
+**URL** montre où est le stockage : son point d'accès, ou l'adresse
+d'Amazon S3 dans la région. Une adresse collée là remplit le point d'accès, et
+une URL Amazon S3 aussi la région ; `s3://reports/2026` remplit le bucket et le
+dossier. Le bucket et le dossier ne sont pas répétés dans l'URL, et les clés
+n'en font jamais partie.
 
 Le catalogue des types montre une carte par fournisseur : Amazon S3, MinIO,
 RustFS, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud
@@ -83,11 +85,15 @@ En quoi un stockage diffère d'un disque :
 
 Quand **Bucket** est vide, le haut du catalogue liste les buckets.
 
-- **Nouveau dossier** y crée un bucket, dans la région de la connexion. Son
+- **Nouveau bucket** y crée un bucket, dans la région de la connexion. Son
   nom compte 3 à 63 lettres minuscules, chiffres, points et tirets, et commence
   et finit par une lettre ou un chiffre.
 - **Supprimer** retire un bucket avec tout son contenu, jusqu'à 10 000 objets.
   Un bucket qui conserve d'anciennes versions de ses objets est refusé :
   videz-le d'abord par une règle de cycle de vie.
-- Un bucket ne se renomme ni ne se copie, et aucun fichier n'est rangé à côté
-  des buckets.
+- Un bucket ne peut pas être renommé : le stockage n'a pas cette opération.
+  **Copier** ou **Couper** un bucket et le **Coller** dans un dossier d'un autre
+  bucket y place ses objets dans un dossier de son nom ; un bucket coupé est
+  supprimé une fois vide.
+- En haut ne se trouvent que des buckets : nouveau fichier, envoi de fichiers et
+  coller n'y sont pas proposés. Un bucket a sa propre icône.

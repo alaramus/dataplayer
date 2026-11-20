@@ -36,7 +36,7 @@ MESSAGES: dict[str, str] = {
     "Only buckets are kept at the root of the store": "存储的根目录下只能放存储桶",
     "{name} holds more than {count} objects; this store changes them one by one, so it is refused": "{name} 中的对象超过 {count} 个；此存储逐个更改对象，因此拒绝执行",
     "The store did not delete every object": "存储未能删除所有对象",
-    "A bucket is not renamed or copied as a whole": "存储桶不能整体重命名或复制",
+    "A bucket cannot be renamed, nor made by a copy or a move": "存储桶不能重命名，也不能通过复制或移动创建",
     "A bucket's name is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending with a letter or a digit": "存储桶名称由 3 到 63 个小写字母、数字、点和连字符组成，并以字母或数字开头和结尾",
     "{name} keeps old versions of its objects; empty it with a lifecycle rule, then delete it": "{name} 保留了对象的旧版本；请先用生命周期规则清空它，然后再删除",
     "That is not an S3 address": "这不是 S3 地址",

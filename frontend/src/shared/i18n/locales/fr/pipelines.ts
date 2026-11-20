@@ -82,6 +82,7 @@ export const pipelines: Messages["pipelines"] = {
       table: "table",
       view: "vue",
       directory: "dossier",
+      bucket: "bucket",
       file: "fichier",
       dataset: "jeu de données",
       entry: "entrée",

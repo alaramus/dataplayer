@@ -37,9 +37,10 @@ The **Connection** page of the window asks for:
 - **Verify the certificate**: switch it off only for a store whose certificate
   you made yourself.
 
-An address such as `s3://reports/2026`, an Amazon S3 URL or
-`https://host:9000/reports` pasted into **URL** fills the endpoint, region,
-bucket and folder. The keys are never part of it.
+**URL** shows where the store is: its endpoint, or Amazon S3's address in
+the region. An address pasted into it fills the endpoint, and an Amazon S3 URL
+the region too; `s3://reports/2026` fills the bucket and folder. The bucket
+and folder are not repeated in the URL, and the keys are never part of it.
 
 The catalog of types shows a card for each provider: Amazon S3, MinIO, RustFS,
 Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud Storage,
@@ -79,11 +80,15 @@ How a store differs from a disk:
 
 When **Bucket** is empty, the top of the catalog lists buckets.
 
-- **New folder** there makes a bucket, in the connection's region. Its name
+- **New bucket** there makes a bucket, in the connection's region. Its name
   is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending
   with a letter or a digit.
 - **Delete** removes a bucket with everything in it, up to 10,000 objects. A
   bucket that keeps old versions of its objects is refused: empty it with a
   lifecycle rule first.
-- A bucket cannot be renamed or copied, and no file is kept beside the
-  buckets.
+- A bucket cannot be renamed: the store has no such operation. **Copy** or
+  **Cut** a bucket and **Paste** it into a folder of another bucket to get its
+  objects there in a folder of its name; a cut bucket is deleted once it is
+  empty.
+- Nothing but buckets is kept at the top, so New file, Upload files and Paste
+  are not offered there. A bucket is drawn with an icon of its own.

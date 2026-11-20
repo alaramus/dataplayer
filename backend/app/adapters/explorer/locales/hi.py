@@ -25,6 +25,8 @@ MESSAGES: dict[str, str] = {
     "Off puts the contents beside the archive, which is what an archive of one file usually wants": "बंद होने पर सामग्री संग्रह के बगल में रखी जाती है, जो एक फ़ाइल के संग्रह के लिए सामान्यतः वांछित होता है",
     # What an action did.
     "Folder {name} created": "फ़ोल्डर {name} बनाया गया",
+    "New bucket": "नया बकेट",
+    "Bucket {name} created": "बकेट {name} बनाया गया",
     "{name} created": "{name} बनाया गया",
     "Renamed to {name}": "नाम बदलकर {name} कर दिया गया",
     "{name} deleted": "{name} को हटा दिया गया",

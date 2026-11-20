@@ -38,9 +38,11 @@ La página **Conexión** de la ventana pide:
 - **Verificar el certificado**: desactívalo solo para un almacenamiento cuyo
   certificado hiciste tú.
 
-Una dirección como `s3://reports/2026`, una URL de Amazon S3 o
-`https://host:9000/reports` pegada en **URL** rellena el punto de acceso, la
-región, el bucket y la carpeta. Las claves nunca forman parte de ella.
+**URL** muestra dónde está el almacén: su punto de acceso, o la dirección de
+Amazon S3 en la región. Una dirección pegada ahí rellena el punto de acceso, y
+una URL de Amazon S3 también la región; `s3://reports/2026` rellena el bucket y
+la carpeta. El bucket y la carpeta no se repiten en la URL, y las claves nunca
+forman parte de ella.
 
 El catálogo de tipos muestra una tarjeta por proveedor: Amazon S3, MinIO,
 RustFS, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud
@@ -82,11 +84,15 @@ En qué se diferencia un almacenamiento de un disco:
 Cuando **Bucket** está vacío, el nivel superior del catálogo lista los
 buckets.
 
-- **Nueva carpeta** allí crea un bucket, en la región de la conexión. Su nombre
+- **Nuevo bucket** allí crea un bucket, en la región de la conexión. Su nombre
   tiene de 3 a 63 letras minúsculas, dígitos, puntos y guiones, y empieza y
   termina con una letra o un dígito.
 - **Eliminar** quita un bucket con todo lo que contiene, hasta 10.000 objetos.
   Un bucket que guarda versiones antiguas de sus objetos se rechaza: vacíalo
   antes con una regla de ciclo de vida.
-- Un bucket no se renombra ni se copia, y junto a los buckets no se guarda
-  ningún archivo.
+- Un bucket no se puede renombrar: el almacén no tiene esa operación.
+  **Copiar** o **Cortar** un bucket y **Pegarlo** en una carpeta de otro bucket
+  deja allí sus objetos en una carpeta con su nombre; un bucket cortado se
+  elimina cuando queda vacío.
+- Arriba solo hay buckets, así que nuevo archivo, subir archivos y pegar no se
+  ofrecen allí. Un bucket tiene un icono propio.

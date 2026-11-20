@@ -36,7 +36,7 @@ MESSAGES: dict[str, str] = {
     "Only buckets are kept at the root of the store": "В корне хранилища лежат только бакеты",
     "{name} holds more than {count} objects; this store changes them one by one, so it is refused": "В {name} больше {count} объектов; хранилище меняет их по одному, поэтому это не делается",
     "The store did not delete every object": "Хранилище удалило не все объекты",
-    "A bucket is not renamed or copied as a whole": "Бакет нельзя переименовать или скопировать целиком",
+    "A bucket cannot be renamed, nor made by a copy or a move": "Бакет нельзя переименовать или создать копированием либо переносом",
     "A bucket's name is 3 to 63 lowercase letters, digits, dots and hyphens, beginning and ending with a letter or a digit": "Имя бакета — от 3 до 63 строчных латинских букв, цифр, точек и дефисов, начинается и заканчивается буквой или цифрой",
     "{name} keeps old versions of its objects; empty it with a lifecycle rule, then delete it": "{name} хранит старые версии объектов; очистите его правилом жизненного цикла, потом удалите",
     "That is not an S3 address": "Это не адрес S3",

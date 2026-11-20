@@ -7,11 +7,13 @@ and the cards it shows (D382).
 
 from collections.abc import Mapping
 from typing import Any, ClassVar
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import unquote, urlsplit
 
 from app.adapters.explorer.actions import (
     EXPLORER_ACTION_TYPES,
     ConnectFolder,
+    CreateBucket,
+    CreateFolder,
     ExplorerActionType,
 )
 from app.adapters.explorer.explorer import Explorer
@@ -30,10 +32,16 @@ class S3Adapter(Explorer):
 
     # A folder never becomes a connection of its own: the draft would carry
     # the key to the browser, as an SSH folder's would carry its password.
+    # Where the root lists buckets, New bucket stands in for New folder (D381).
     explorer_action_types: ClassVar[tuple[ExplorerActionType, ...]] = tuple(
-        action_type
+        made
         for action_type in EXPLORER_ACTION_TYPES
         if action_type is not ConnectFolder
+        for made in (
+            (CreateFolder, CreateBucket)
+            if action_type is CreateFolder
+            else (action_type,)
+        )
     )
 
     def __init__(self, options: S3Options, context: AdapterContext) -> None:
@@ -42,26 +50,25 @@ class S3Adapter(Explorer):
 
     def connection_string(self) -> str:
         value = self.draft_connection_string(self._options.model_dump(mode="python"))
-        return value or "s3://"
+        return value or f"https://s3{_AWS_SUFFIX}"
 
     @classmethod
     def draft_connection_string(cls, options: Mapping[str, Any]) -> str | None:
-        """Where the objects are, as one line, and never with a key (D382):
-        `s3://bucket/folder` on Amazon S3, the path-style URL elsewhere."""
+        """Where the store is, and never a key (D382): the endpoint, or Amazon
+        S3's address in the region. The bucket and the folder have fields of
+        their own and are not repeated here."""
         endpoint = _text(options.get("endpoint")).rstrip("/")
-        bucket = _text(options.get("bucket"))
-        prefix = _text(options.get("prefix")).strip("/")
-        path = "/".join(
-            quote(part, safe="") for part in (bucket, *prefix.split("/")) if part
-        )
         if endpoint != "":
-            return f"{endpoint}/{path}" if path else endpoint
-        return f"s3://{path}" if bucket else None
+            return endpoint
+        region = _text(options.get("region"))
+        return f"https://s3.{region}{_AWS_SUFFIX}" if region else None
 
     @classmethod
     def options_from_url(cls, url: str) -> dict[str, Any]:
-        """The endpoint, region, bucket and folder an address states; the keys
-        are typed apart, as an SSH password is."""
+        """The store an address names: its endpoint, and Amazon S3's region.
+        `s3://bucket/folder` names nothing else, so it fills those two. What
+        an address names is always answered, an empty part as empty, so a
+        part erased from the box is erased from the form."""
         try:
             parts = urlsplit(url.strip())
             port = parts.port
@@ -76,46 +83,34 @@ class S3Adapter(Explorer):
             or parts.fragment != ""
         ):
             raise ValueError(say("That is not an S3 address"))
-        segments = [unquote(part) for part in parts.path.split("/") if part]
         if parts.scheme == "s3":
-            return _located(unquote(parts.hostname), segments)
+            folder = [unquote(part) for part in parts.path.split("/") if part]
+            return {"bucket": unquote(parts.hostname), "prefix": "/".join(folder)}
         host = parts.hostname.lower()
         if host.endswith(_AWS_SUFFIX):
-            return _on_aws(host, segments)
+            return {"endpoint": "", "region": _aws_region(host)}
         origin = f"{parts.scheme}://{host}" + (f":{port}" if port is not None else "")
-        found = _located(segments[0], segments[1:]) if segments else {}
-        return {
-            "endpoint": origin,
-            **({"addressing": "path"} if segments else {}),
-            **found,
-        }
+        return {"endpoint": origin}
 
 
-def _on_aws(host: str, segments: list[str]) -> dict[str, Any]:
-    """An Amazon S3 address, virtual-hosted or path-style."""
+def _aws_region(host: str) -> str:
+    """The region of an Amazon S3 address, virtual-hosted or path-style:
+    `bucket.s3.region.amazonaws.com`, `s3.region.amazonaws.com`, or the older
+    `s3-region`; empty for the global `s3.amazonaws.com`."""
     labels = host.removesuffix(_AWS_SUFFIX).split(".")
-    if "s3" not in labels and not any(label.startswith("s3-") for label in labels):
-        raise ValueError(say("That is not an S3 address"))
     at = next(
-        i for i, label in enumerate(labels) if label == "s3" or label.startswith("s3-")
+        (
+            i
+            for i, label in enumerate(labels)
+            if label == "s3" or label.startswith("s3-")
+        ),
+        None,
     )
-    region = (
-        labels[at][3:] if labels[at].startswith("s3-") else ".".join(labels[at + 1 :])
-    )
-    found: dict[str, Any] = {"endpoint": ""}
-    if region:
-        found["region"] = region
-    bucket = ".".join(labels[:at])
-    if bucket:
-        return {**found, **_located(bucket, segments)}
-    return {**found, **(_located(segments[0], segments[1:]) if segments else {})}
-
-
-def _located(bucket: str, folder: list[str]) -> dict[str, Any]:
-    found: dict[str, Any] = {"bucket": bucket}
-    if folder:
-        found["prefix"] = "/".join(folder)
-    return found
+    if at is None:
+        raise ValueError(say("That is not an S3 address"))
+    if labels[at].startswith("s3-"):
+        return labels[at][3:]
+    return ".".join(labels[at + 1 :])
 
 
 def _text(value: object) -> str:

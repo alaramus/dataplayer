@@ -23,6 +23,8 @@ MESSAGES: dict[str, str] = {
     "Off puts the contents beside the archive, which is what an archive of one file usually wants": "关闭时，内容会放在压缩包旁边，这通常是单文件压缩包所需的效果",
     # 操作的结果。
     "Folder {name} created": "文件夹 {name} 已创建",
+    "New bucket": "新建存储桶",
+    "Bucket {name} created": "存储桶 {name} 已创建",
     "{name} created": "{name} 已创建",
     "Renamed to {name}": "已重命名为 {name}",
     "{name} deleted": "{name} 已删除",

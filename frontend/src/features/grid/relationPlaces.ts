@@ -1,4 +1,4 @@
-import { toListNodes } from "@/features/catalog/nodes"
+import { isFolderKind, toListNodes } from "@/features/catalog/nodes"
 import type { CatalogNode } from "@/features/catalog/nodes"
 
 /**
@@ -37,7 +37,7 @@ export function placesIn(nodes: CatalogNode[], topLabel: string): Place[] {
   // A directory, and not merely something one walks into: a workbook and an
   // archive have children too, and neither can be written a file into.
   const folders = rows
-    .filter((node) => node.kind === "directory")
+    .filter((node) => isFolderKind(node.kind))
     .map((node) => ({ label: node.label, value: node.id, kind: "folder" as const }))
   // The top level itself, named by the connection: it is where a source that
   // keeps files keeps them, and the empty id is what the source calls it.

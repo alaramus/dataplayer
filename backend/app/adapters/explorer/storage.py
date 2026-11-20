@@ -27,6 +27,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import BinaryIO, Protocol, runtime_checkable
 
 from app.adapters.actions import ConnectorDraft
+from app.adapters.catalog import NodeKind
 from app.adapters.protocol import ConnectionCheckResult
 from app.core.translation import say
 
@@ -362,6 +363,35 @@ class DraftsConnections(Protocol):
         """The place as a path below its owner's home, which is what a
         connection to something in personal storage names (D8)."""
         ...
+
+
+@runtime_checkable
+class KeepsBuckets(Protocol):
+    """A storage whose top folders are buckets, as an object store's are.
+
+    A bucket is listed, opened and removed as a folder is, so it stays one to
+    the explorer; what differs is what can be done to it and where, which the
+    actions read from here rather than from the type of the source.
+    """
+
+    def holds_buckets(self, place: Place) -> bool:
+        """Whether what is made in this folder is a bucket. Answered from the
+        options, without asking the store: the actions ask it on the loop."""
+        ...
+
+    def is_bucket(self, place: Place) -> bool: ...
+
+
+# The kinds of node a storage's folders are: a folder, and a store's bucket.
+FOLDER_KINDS: frozenset[NodeKind] = frozenset({"directory", "bucket"})
+
+
+def is_bucket(storage: Storage, place: Place) -> bool:
+    return isinstance(storage, KeepsBuckets) and storage.is_bucket(place)
+
+
+def holds_buckets(storage: Storage, place: Place) -> bool:
+    return isinstance(storage, KeepsBuckets) and storage.holds_buckets(place)
 
 
 def walk_iterator(storage: Storage, place: Place) -> Iterator[Entry]:

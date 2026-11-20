@@ -10,6 +10,7 @@ export const summary = {
     table: "Table",
     view: "View",
     directory: "Folder",
+    bucket: "Bucket",
     file: "File",
     dataset: "Dataset",
     entry: "Archive entry",

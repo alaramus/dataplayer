@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 from anyio import to_thread
 
 from app.adapters.catalog import (
+    BucketNode,
     CatalogNode,
     DatasetNode,
     DirectoryNode,
@@ -22,11 +23,13 @@ from app.adapters.explorer.formats import (
 )
 from app.adapters.explorer.members import member_id, resolve_node
 from app.adapters.explorer.storage import (
+    FOLDER_KINDS,
     ROOT,
     Entry,
     Place,
     Storage,
     ancestors,
+    is_bucket,
     node_id_of,
 )
 from app.adapters.protocol import AdapterError, NodeNotFound
@@ -87,7 +90,9 @@ class ExplorerCatalog:
             )
 
         nodes = [node_of(self._storage, entry) for entry in entries]
-        nodes.sort(key=lambda node: (node.kind != "directory", node.name.casefold()))
+        nodes.sort(
+            key=lambda node: (node.kind not in FOLDER_KINDS, node.name.casefold())
+        )
         return nodes
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
@@ -193,6 +198,15 @@ def node_of(storage: Storage, entry: Entry) -> CatalogNode:
     differently depending on how it was found.
     """
     node_id = node_id_of(entry.place) or ""
+    if entry.is_directory and is_bucket(storage, entry.place):
+        return BucketNode(
+            id=node_id,
+            name=entry.name,
+            has_children=storage.has_entries(entry.place),
+            created_at=entry.created_at,
+            representations=[],
+            summarizable=True,
+        )
     if entry.is_directory:
         return DirectoryNode(
             id=node_id,

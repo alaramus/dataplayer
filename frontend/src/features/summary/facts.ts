@@ -1,5 +1,5 @@
 import type { NodeSummary, RelationContents } from "@/client"
-import { formatSize } from "@/features/catalog/nodes"
+import { formatSize, isFolderKind } from "@/features/catalog/nodes"
 import { formatDuration, mediaTypeName } from "@/features/content/media"
 import { datasetFacts } from "@/features/structure/model"
 import { statisticsFacts } from "@/features/summary/timescaleStatistics"
@@ -73,7 +73,7 @@ function nodeFacts(summary: NodeSummary): Fact[] {
   }
   // A folder is walked into rather than opened, so it is not asked what it
   // opens as; anything else says so even when the answer is nothing.
-  if (summary.kind !== "directory") {
+  if (!isFolderKind(summary.kind)) {
     const opens = (summary.representations ?? []).map((item) => item.title)
     facts.push({
       label: t("summary.facts.opens_as"),

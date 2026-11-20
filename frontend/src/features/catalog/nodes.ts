@@ -33,6 +33,14 @@ export interface PickedNode {
  */
 export type NodeRole = "group" | "container" | "leaf"
 
+/**
+ * Whether a node of this kind is a place in a tree of files: a folder, or a
+ * store's bucket (D381), whose id is its path as a folder's is.
+ */
+export function isFolderKind(kind: string | undefined): boolean {
+  return kind === "directory" || kind === "bucket"
+}
+
 const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   schema: "group",
   // A key-value database is a grouping for the same reason a schema is: the
@@ -40,6 +48,8 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   // beside it in the same control rather than one folder down (D91).
   database: "group",
   directory: "container",
+  // A store's top folder, walked into as a folder is (D381).
+  bucket: "container",
   table: "leaf",
   view: "leaf",
   file: "leaf",
@@ -149,6 +159,7 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   table: "table_chart",
   view: "visibility",
   directory: "folder_open",
+  bucket: "inventory_2",
   file: "draft",
   dataset: "grid_on",
   entry: "draft",

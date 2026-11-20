@@ -38,9 +38,11 @@ Die Seite **Verbindung** des Fensters fragt nach:
 - **Zertifikat prüfen**: nur ausschalten für einen Speicher, dessen Zertifikat
   Sie selbst ausgestellt haben.
 
-Eine Adresse wie `s3://reports/2026`, eine Amazon-S3-URL oder
-`https://host:9000/reports`, in **URL** eingefügt, füllt Endpunkt, Region,
-Bucket und Ordner. Die Schlüssel sind nie Teil davon.
+**URL** zeigt, wo der Speicher ist: seinen Endpunkt oder die Adresse von
+Amazon S3 in der Region. Eine dort eingefügte Adresse füllt den Endpunkt, eine
+Amazon-S3-URL auch die Region; `s3://reports/2026` füllt Bucket und Ordner.
+Bucket und Ordner werden in der URL nicht wiederholt, und die Schlüssel sind
+nie Teil davon.
 
 Der Katalog der Typen zeigt für jeden Anbieter eine Karte: Amazon S3, MinIO,
 RustFS, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, Google Cloud
@@ -82,11 +84,15 @@ Worin sich ein Speicher von einer Festplatte unterscheidet:
 
 Ist **Bucket** leer, listet die oberste Ebene des Katalogs die Buckets.
 
-- **Neuer Ordner** legt dort einen Bucket in der Region der Verbindung an. Sein
+- **Neuer Bucket** legt dort einen Bucket in der Region der Verbindung an. Sein
   Name hat 3 bis 63 Kleinbuchstaben, Ziffern, Punkte und Bindestriche und
   beginnt und endet mit einem Buchstaben oder einer Ziffer.
 - **Löschen** entfernt einen Bucket mit allem darin, bis zu 10.000 Objekte. Ein
   Bucket, der alte Versionen seiner Objekte aufbewahrt, wird abgelehnt: Leeren
   Sie ihn zuerst mit einer Lebenszyklusregel.
-- Ein Bucket kann nicht umbenannt oder kopiert werden, und neben den Buckets
-  liegt keine Datei.
+- Ein Bucket kann nicht umbenannt werden: Der Speicher kennt diese Operation
+  nicht. Einen Bucket **kopieren** oder **ausschneiden** und in einen Ordner
+  eines anderen Buckets **einfügen** legt seine Objekte dort in einen Ordner
+  seines Namens; ein ausgeschnittener Bucket wird gelöscht, sobald er leer ist.
+- Oben liegen nur Buckets, daher werden neue Datei, Hochladen und Einfügen dort
+  nicht angeboten. Ein Bucket hat ein eigenes Symbol.

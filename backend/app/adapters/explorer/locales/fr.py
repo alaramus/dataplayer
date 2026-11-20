@@ -25,6 +25,8 @@ MESSAGES: dict[str, str] = {
     "Off puts the contents beside the archive, which is what an archive of one file usually wants": "Désactivé, le contenu est placé à côté de l'archive, ce qu'on attend généralement d'une archive d'un seul fichier",
     # What an action did.
     "Folder {name} created": "Dossier {name} créé",
+    "New bucket": "Nouveau bucket",
+    "Bucket {name} created": "Bucket {name} créé",
     "{name} created": "{name} créé",
     "Renamed to {name}": "Renommé en {name}",
     "{name} deleted": "{name} supprimé",
