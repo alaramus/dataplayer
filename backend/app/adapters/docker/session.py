@@ -185,6 +185,34 @@ class DockerSession:
             raise _refused(refused.status, path) from None
         return answer.status, answer.body
 
+    async def send(
+        self,
+        method: str,
+        path: str,
+        params: Mapping[str, str] | None = None,
+        body: Any | None = None,
+        *,
+        expected: tuple[int, ...],
+        node_id: str = "",
+        seconds: float = TIMEOUT_SECONDS,
+    ) -> tuple[int, Any]:
+        """A change: the status among `expected` and the JSON, or a reduced failure.
+
+        A status the caller expects is its to word; any other is said here.
+        """
+        engine = await self.engine()
+        try:
+            answer = await engine.request(
+                method, path, params=params, json=body, expected=expected, seconds=seconds
+            )
+        except EngineUnreachable:
+            raise _unreachable() from None
+        except EngineRefused as refused:
+            if refused.status == 404 and node_id:
+                raise NodeNotFound(node_id) from None
+            raise _refused(refused.status, path) from None
+        return answer.status, _json(answer.body) if answer.body.strip() else None
+
     async def check(self) -> ConnectionCheckResult:
         started = time.perf_counter()
         try:

@@ -15,6 +15,15 @@ auf der Seite [Verbindungen](connections.md).
 - Die Schichten eines Images und die Anweisungen dahinter
 - Die Engine: Versionen, Treiber, CPUs, Speicher, Platz, Ereignisse
 
+## Was Sie ändern können
+
+- Container starten, stoppen, neu starten, pausieren, Pause aufheben, beenden
+- Die Container eines Compose-Projekts, alle auf einmal
+- Container, Images, Volumes und Netzwerke entfernen
+- Gestoppte Container und ungenutzte Images, Volumes, Netzwerke aufräumen
+- Neue Volumes und Netzwerke
+- Öffentliche Images ziehen, einen Container als Image festschreiben
+
 ## Verbinden
 
 Der Daemon wird nie direkt erreicht. Legen Sie zuerst eine
@@ -93,10 +102,35 @@ angeboten: Wer diesen Socket hat, hat den Rechner.
   kann eine Anfrage ablehnen: Das heißt dann **Der Docker-Server hat das nicht
   erlaubt**.
 
+## Ändern
+
+Wählen Sie einen Container, den Ordner eines Compose-Projekts oder einen
+Knoten und öffnen Sie das Menü des Katalogs. Der Lebenszyklus eines Containers
+braucht Schreibzugriff; Entfernen, Aufräumen, Ziehen, Festschreiben und neue
+Volumes und Netzwerke brauchen Strukturzugriff.
+
+- **Starten**, **Stoppen**, **Neu starten**, **Pausieren**, **Pause aufheben**
+  und **Beenden (Signal)** wirken auf die gewählten Container oder auf alle
+  Container eines gewählten Compose-Projekts. Jedes sagt zuerst, was es tut
+  und welche Container schon so sind. Stoppen und Neu starten können einige
+  Sekunden warten; Beenden sendet das gewählte Signal.
+- **Container entfernen** lehnt einen laufenden ohne **Erzwingen** ab und
+  kann seine anonymen Volumes mitnehmen. **Image entfernen** nennt die
+  Container, die es nutzen; **Volume entfernen** lehnt ein eingebundenes ab;
+  **Netzwerk entfernen** lehnt eines mit Containern ab, und Dockers eigene
+  drei.
+- In **Container**, **Images**, **Volumes** und **Netzwerke** listet das
+  Aufräumen, was weggeht, bei Images auch den frei werdenden Platz. Der Daemon
+  räumt auf, was beim Klick ungenutzt ist, also auch, was es inzwischen wurde.
+- **Neues Volume** und **Neues Netzwerk** stehen in **Volumes** und
+  **Netzwerke**.
+- **Image ziehen** in **Images** und **Als Image festschreiben** an einem
+  Container laufen als Aufträge unter **Aktivität**. Nur öffentliche Images
+  lassen sich ziehen: Eine Registry mit Anmeldung wird nicht unterstützt.
+
 ## Was Docker hier noch nicht hat
 
-- Container starten, stoppen, neu starten und entfernen
-- Images, Volumes und Netzwerke entfernen und aufräumen; Images ziehen
 - Ein Terminal im Container, und Logs, die live mitlaufen
 - Metriken auf einem Dashboard, und die Suche
 - Einen Daemon, der über TLS statt SSH erreicht wird
+- Private Registries, und neue Container anlegen oder starten

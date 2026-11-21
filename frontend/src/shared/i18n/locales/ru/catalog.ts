@@ -225,7 +225,7 @@ export const catalog: Messages["catalog"] = {
     container_healthy: "исправен",
     container_unhealthy: "неисправен",
     container_starting: "запускается",
-    container_paused: "приостановлен",
+    container_paused: "на паузе",
     container_restarting: "перезапускается",
     container_stopped: "остановлен",
     container_failed: "сбой",

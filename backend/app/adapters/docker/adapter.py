@@ -6,11 +6,20 @@ connections. No driver of its own: the Engine API client is the one the
 services use (D406), and `asyncssh` stays in the SSH adapter.
 """
 
+from typing import Any
+
 import httpx
 
 from app.adapters import jsontext
+from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.content import ContentRequest, ContentResult, JsonContent, json_tree
+from app.adapters.docker.actions import (
+    LEVEL_ACTIONS,
+    LIFECYCLE,
+    REMOVALS,
+    plain_actions,
+)
 from app.adapters.docker.catalog import (
     GROUPS,
     Group,
@@ -31,6 +40,7 @@ from app.adapters.docker.inventory import (
     read_networks,
     read_volumes,
 )
+from app.adapters.docker.jobs import CommitContainer, PullImage, job_actions
 from app.adapters.docker.options import DEFAULT_SOCKET, PODMAN_SOCKET, DockerOptions
 from app.adapters.docker.reports import (
     REPORTS,
@@ -70,6 +80,7 @@ class DockerAdapter:
     ) -> None:
         self._session = DockerSession(options, tunnels, transport)
         self._tables = DockerTables(self._session)
+        self._actions = ActionSet(plain_actions(self._session) + job_actions(self._session))
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -226,6 +237,46 @@ class DockerAdapter:
                 source_text=body.decode("utf-8", errors="replace"),
                 notice=say("The Docker server did not answer with JSON"),
             )
+
+
+    # --- what may be done (D410–D412) ------------------------------------------
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        levels = tuple(kind for kinds in LEVEL_ACTIONS.values() for kind in kinds)
+        return (*LIFECYCLE, CommitContainer, *REMOVALS.values(), PullImage, *levels)
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.get(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return list(self._actions)
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        """What a node or a level admits; state is judged when it runs (D9)."""
+        if node_id is None or is_section(node_id) or in_section(node_id):
+            return []
+        try:
+            named = parse(node_id)
+        except ValueError:
+            return []
+        if named.view is not None:
+            return []
+        wanted: set[str] = set()
+        if named.leaf == "container":
+            wanted = {kind.name for kind in LIFECYCLE} | {
+                REMOVALS["container"].name,
+                CommitContainer.name,
+            }
+        elif named.leaf is not None:
+            wanted = {REMOVALS[named.leaf].name}
+        elif named.project:
+            wanted = {kind.name for kind in LIFECYCLE}
+        elif named.group is not None and named.project is None:
+            wanted = {kind.name for kind in LEVEL_ACTIONS.get(named.group, ())}
+            if named.group == "images":
+                wanted.add(PullImage.name)
+        return [action for action in self._actions if action.name in wanted]
 
 
 _GROUP_OF: dict[str, Group] = {

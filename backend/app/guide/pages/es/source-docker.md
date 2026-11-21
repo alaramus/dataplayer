@@ -15,6 +15,15 @@ propio demonio. Cómo funcionan las conexiones en general está en la página
 - Las capas de una imagen y las instrucciones que las crearon
 - El motor: versiones, controladores, CPU, memoria, disco, eventos
 
+## Qué puedes cambiar
+
+- Contenedores arrancados, detenidos, reiniciados, pausados o matados
+- Los contenedores de un proyecto de Compose, todos a la vez
+- Contenedores, imágenes, volúmenes y redes eliminados
+- Contenedores detenidos e imágenes, volúmenes y redes sin uso limpiados
+- Nuevos volúmenes y redes
+- Imágenes públicas descargadas, y un contenedor guardado en una imagen
+
 ## Conexión
 
 Al demonio nunca se llega directamente. Crea primero una **conexión SSH** a la
@@ -90,10 +99,34 @@ ofrece: quien tiene ese socket tiene la máquina.
 - Un demonio detrás de un plugin de autorización o un proxy que filtra puede
   rechazar una petición: se dice como **El servidor Docker no lo permitió**.
 
+## Cambiar
+
+Selecciona un contenedor, la carpeta de un proyecto de Compose o un nodo y abre
+el menú del catálogo. El ciclo de vida de un contenedor necesita acceso de
+escritura; eliminar, limpiar, descargar, guardar y crear volúmenes y redes
+necesitan acceso a la estructura.
+
+- **Arrancar**, **Detener**, **Reiniciar**, **Pausar**, **Quitar la pausa** y
+  **Matar** actúan sobre los contenedores seleccionados, o sobre todos los de
+  un proyecto de Compose seleccionado. Cada uno dice primero qué hará y qué
+  contenedores ya lo están. Detener y Reiniciar pueden esperar unos segundos
+  antes de matar; Matar envía la señal que elijas.
+- **Eliminar contenedor** rechaza uno en marcha sin **Forzar**, y puede
+  llevarse sus volúmenes anónimos. **Eliminar imagen** nombra los contenedores
+  que la usan; **Eliminar volumen** rechaza uno montado; **Eliminar red**
+  rechaza una con contenedores, y las tres de Docker.
+- En **Contenedores**, **Imágenes**, **Volúmenes** y **Redes**, la limpieza
+  lista lo que se irá y, para las imágenes, el espacio que libera. El demonio
+  limpia lo que esté sin uso al pulsar, así que también se va lo que quedó sin
+  uso entretanto.
+- **Nuevo volumen** y **Nueva red** están en **Volúmenes** y **Redes**.
+- **Descargar imagen** en **Imágenes** y **Guardar en una imagen** sobre un
+  contenedor se ejecutan como tareas en **Actividad**. Solo se descargan
+  imágenes públicas: un registro que pide iniciar sesión no se admite.
+
 ## Lo que Docker aún no tiene aquí
 
-- Arrancar, detener, reiniciar y eliminar contenedores
-- Eliminar y limpiar imágenes, volúmenes y redes; descargar imágenes
 - Una terminal dentro de un contenedor, y registros que se siguen en vivo
 - Métricas en un panel, y la búsqueda
 - Un demonio alcanzado por TLS en lugar de SSH
+- Registros privados, y crear o ejecutar contenedores nuevos

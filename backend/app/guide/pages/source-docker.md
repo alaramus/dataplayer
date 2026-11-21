@@ -15,6 +15,15 @@ own reports. How connections work in general is on the
 - An image's layers and the instructions that made them
 - The engine: versions, drivers, CPUs, memory, disk usage, recent events
 
+## What you can change
+
+- Containers started, stopped, restarted, paused, unpaused or killed
+- A Compose project's containers, all at once
+- Containers, images, volumes and networks removed
+- Stopped containers and unused images, volumes and networks pruned
+- New volumes and networks
+- Public images pulled, and a container committed to an image
+
 ## Connecting
 
 The daemon is never reached directly. Make an **SSH connection** to the
@@ -85,10 +94,34 @@ whoever holds that socket holds the machine.
 - A daemon behind an authorization plugin or a filtering proxy may refuse one
   request: that is said as **The Docker server did not allow this**.
 
+## Changing things
+
+Select a container, a Compose project folder or a node and open the catalog's
+menu. Starting, stopping and the rest of a container's lifecycle need write
+access; removing, pruning, pulling, committing and making volumes and networks
+need structure access.
+
+- **Start**, **Stop**, **Restart**, **Pause**, **Unpause** and **Kill** act on
+  the selected containers, or on every container of a selected Compose
+  project. Each first lists what it would do and which containers are already
+  so. Stop and Restart can wait a number of seconds before killing; Kill sends
+  the signal you choose.
+- **Remove container** refuses a running one unless **Force** is ticked, and
+  can take its anonymous volumes with it. **Remove image** names the
+  containers that use it; **Remove volume** refuses one a container mounts;
+  **Remove network** refuses one with containers on it, and Docker's own three.
+- Inside **Containers**, **Images**, **Volumes** and **Networks**, **Prune**
+  lists what would go and, for images, the space it frees. The daemon prunes
+  whatever is unused when you press it, so something that stopped being used
+  meanwhile goes too.
+- **New volume** and **New network** are in **Volumes** and **Networks**.
+- **Pull image** in **Images** and **Commit to an image** on a container run
+  as jobs in **Activity**. Only public images can be pulled: a registry that
+  asks for a sign-in is said to be unsupported.
+
 ## What Docker does not have here yet
 
-- Starting, stopping, restarting and removing containers
-- Removing and pruning images, volumes and networks; pulling images
 - A terminal inside a container, and logs that follow as they are written
 - Metrics on a dashboard, and search
 - A daemon reached over TLS rather than SSH
+- Private registries, and creating or running new containers

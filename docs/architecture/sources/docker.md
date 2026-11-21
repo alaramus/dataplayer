@@ -4,12 +4,14 @@ What a Docker source is: a daemon on another machine reached through one of
 its owner's SSH connections (D405), the Engine API client it shares with the
 managed services (D406), what its catalog shows of containers, images,
 volumes, networks and the daemon's reports (D407), what a node opens as
-(D408), and who may do what and how a refusal is said (D409). The contract
+(D408), who may do what and how a refusal is said (D409), a container's
+lifecycle (D410), removing, pruning and making volumes and networks (D411),
+and pull and commit as jobs (D412). The contract
 every source type follows is in [contract.md](contract.md); the SSH tunnel it
 rides is D282 in [ssh.md](ssh.md). Read this before changing the `docker`
 adapter or `app/adapters/docker_api`.
 
-Decisions here: D405, D406, D407, D408, D409.
+Decisions here: D405, D406, D407, D408, D409, D410, D411, D412.
 
 ## D405. Only a remote daemon, its socket forwarded through an SSH connection
 
@@ -149,5 +151,81 @@ plugin or a filtering proxy answers 403, said as "The Docker server did not
 allow this" with the kind `auth`. 404 on a named node is that node gone; any
 other status is "The Docker server could not do that". The daemon's message is
 never passed on.
+
+Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D410. A container's lifecycle is six actions, on containers or a project
+
+Start, Stop, Restart, Pause, Unpause and Kill (`docker/actions.py`) need
+`write`, are `bulk`, and act on a container or on a Compose project's folder as
+the set of its containers; Standalone is not a project and offers none. Stop
+and Restart take an optional wait before killing (0–600 s, empty for the
+daemon's default); Kill a signal from `SIGTERM`, `SIGKILL`, `SIGINT`, `SIGHUP`.
+
+Each sorts the containers by their listed `State` into those it acts on, those
+already as asked and those it cannot act on, previews that, and runs at once
+on the first group; the others are said, not attempted. The daemon is not
+trusted to say "already": it answers 304 to a second start or stop, but 409 to
+a second pause and 500 to unpausing a running container (*checked*, Engine
+29.10). A 304 or 409 during the run — the container changed meanwhile — is
+taken as done. The result reloads the project folder and Containers.
+
+Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D411. Removing says what goes with it; pruning lists what it would take
+
+Remove container, Remove image, Remove volume and Remove network need
+`structure`, are `bulk` and destructive, and are judged from what was read
+before the daemon is asked:
+
+- a running, paused or restarting container is refused without **Force**; its
+  anonymous volumes go only when asked, and its named ones are listed as
+  staying;
+- an image used by a running container is refused, one used by stopped ones
+  needs **Force**, naming them either way;
+- a mounted volume is refused naming who mounts it;
+- a built-in network is refused, and one with containers names them. The
+  daemon answers both with 403 (*checked*), the status a proxy refuses with,
+  so they are ruled out first and a 403 after that is the proxy's (D409).
+
+**Prune** is an action of each group's level: stopped containers; untagged
+images, or every image no container uses; anonymous volumes (the label
+`com.docker.volume.anonymous`, *checked*), or named ones too — before API 1.42
+the daemon prunes named volumes whatever it is asked, and the preview says so
+by listing them; unused networks other than Docker's three. The preview is
+computed here from the lists and the image sizes; the prune itself is the
+daemon's and takes what is unused when it runs, which the confirmation says.
+
+**New volume** (driver `local`) and **New network** (driver `bridge`,
+internal or not) are actions of Volumes and Networks. A taken volume name is
+refused here, because the daemon answers 201 to it and changes nothing.
+
+Known deviations:
+
+- **A set is removed one node per request**, as D9 says for every source; one
+  refusal does not stop the rest.
+
+Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D412. Pull and commit are owned jobs of one target
+
+**Pull image** (on Images) and **Commit to an image** (on a container) need
+`structure` and implement `ProducesJob` (D123): the preview carries a
+fingerprint of the reference (and the container), the plan is one target, the
+unit runs, `observe` reads whether the image or tag is there. A reference is
+matched against Docker's grammar first (registry host, lowercase components,
+tag, digest), a repository and tag likewise. A pull reads the JSON-lines
+stream to its end and fails on an error inside it; 401, 403 or 404 before the
+stream is one sentence — not there, or private, and private registries are not
+supported (*checked*: a missing or private image answers 404 with "may require
+'docker login'"). A pull that loses the SSH link is an unknown outcome.
+
+Known deviations:
+
+- **No layer progress.** A job's progress is its targets (D123), so a pull
+  shows one step rather than layers done of layers known.
+- **`observe` after a commit** finds the tag, not that this commit made it: a
+  tag that existed before reads as done.
+- **Creating or running a container** is not planned, as the spec says.
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)

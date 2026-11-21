@@ -155,8 +155,11 @@ images, volumes and networks, each state one word and the counts the daemon
 leaves out counted from the containers, every level a table narrowed in
 memory (D407). A node opens as its inspect JSON; a container holds its logs
 and processes, an image its history, a volume and a network their containers
-(D408). Read only for now; a 403 from a proxy is said apart from the socket
-refusing (D409).
+(D408). A 403 from a proxy is said apart from the socket refusing (D409).
+Containers and Compose projects are started, stopped, restarted, paused,
+resumed and killed, already-so judged from what was read (D410); containers,
+images, volumes and networks are removed after saying what goes, groups
+pruned, volumes and networks made (D411); pull and commit are jobs (D412).
 
 **ClickHouse** — a server reached over its HTTP interface with the
 application's own client, every value one of the server's parameters and every
@@ -338,7 +341,8 @@ backend/app/adapters/
 │                       inventory.py (lists read whole, states, counts),
 │                       catalog.py (ids and nodes), tables.py (levels and
 │                       views as rows), reports.py (System), options.py,
-│                       adapter.py
+│                       actions.py (lifecycle, removal, prune, new),
+│                       jobs.py (pull, commit), adapter.py
 ├── clickhouse/         session.py (the HTTP interface, its errors, addresses)
 │                       and pool.py (a kept client), sql.py (names and
 │                       parameters), inspection.py (system.tables, once),

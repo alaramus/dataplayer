@@ -15,6 +15,15 @@ démon lui-même. Le fonctionnement des connexions est décrit sur la page
 - Les couches d'une image et les instructions qui les ont créées
 - Le moteur : versions, pilotes, CPU, mémoire, espace disque, événements
 
+## Ce que vous pouvez modifier
+
+- Conteneurs démarrés, arrêtés, redémarrés, en pause, sortis de pause ou tués
+- Les conteneurs d'un projet Compose, tous à la fois
+- Conteneurs, images, volumes et réseaux supprimés
+- Conteneurs arrêtés, images, volumes et réseaux inutilisés nettoyés
+- Nouveaux volumes et réseaux
+- Images publiques tirées, et un conteneur enregistré dans une image
+
 ## Connexion
 
 Le démon n'est jamais atteint directement. Créez d'abord une **connexion SSH**
@@ -90,10 +99,37 @@ proposé : qui tient ce socket tient la machine.
 - Un démon derrière un plugin d'autorisation ou un proxy filtrant peut
   refuser une requête : c'est dit par **Le serveur Docker ne l'a pas permis**.
 
+## Modifier
+
+Sélectionnez un conteneur, le dossier d'un projet Compose ou un nœud et ouvrez
+le menu du catalogue. Le cycle de vie d'un conteneur demande l'accès en
+écriture ; supprimer, nettoyer, tirer, enregistrer et créer des volumes et des
+réseaux demandent l'accès à la structure.
+
+- **Démarrer**, **Arrêter**, **Redémarrer**, **Mettre en pause**,
+  **Sortir de pause** et **Tuer** agissent sur les conteneurs sélectionnés, ou sur
+  tous ceux d'un projet Compose sélectionné. Chacun dit d'abord ce qu'il fera
+  et quels conteneurs le sont déjà. Arrêter et Redémarrer peuvent attendre
+  quelques secondes avant de tuer ; Tuer envoie le signal choisi.
+- **Supprimer le conteneur** refuse un conteneur en marche sans **Forcer**,
+  et peut emporter ses volumes anonymes. **Supprimer l'image** nomme les
+  conteneurs qui l'utilisent ; **Supprimer le volume** refuse un volume monté ;
+  **Supprimer le réseau** refuse un réseau avec des conteneurs, et les trois de
+  Docker.
+- Dans **Conteneurs**, **Images**, **Volumes** et **Réseaux**, le nettoyage
+  liste ce qui partira et, pour les images, la place libérée. Le démon nettoie
+  ce qui est inutilisé au moment du clic, donc ce qui l'est devenu entre-temps
+  part aussi.
+- **Nouveau volume** et **Nouveau réseau** sont dans **Volumes** et
+  **Réseaux**.
+- **Tirer une image** dans **Images** et **Enregistrer dans une image** sur un
+  conteneur tournent comme tâches dans **Activité**. Seules les images
+  publiques se tirent : un registre qui demande une connexion n'est pas pris en
+  charge.
+
 ## Ce que Docker n'a pas encore ici
 
-- Démarrer, arrêter, redémarrer et supprimer des conteneurs
-- Supprimer et nettoyer images, volumes et réseaux ; tirer des images
 - Un terminal dans un conteneur, et des journaux suivis en direct
 - Des métriques sur un tableau de bord, et la recherche
 - Un démon atteint par TLS plutôt que par SSH
+- Les registres privés, et créer ou lancer de nouveaux conteneurs

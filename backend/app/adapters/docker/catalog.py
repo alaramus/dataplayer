@@ -68,8 +68,9 @@ _VIEW_TITLES: dict[View, tuple[str, str]] = {
 
 _HEX = re.compile(r"^[0-9a-f]{64}$")
 _IMAGE = re.compile(r"^sha256:[0-9a-f]{64}$")
-# Docker's rule for a volume's name.
-_VOLUME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+# Docker's rule for a volume's name, and the one a new network is held to.
+VOLUME_NAME = r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$"
+_VOLUME = re.compile(VOLUME_NAME)
 _PATTERNS: dict[Leaf, re.Pattern[str]] = {
     "container": _HEX,
     "image": _IMAGE,
