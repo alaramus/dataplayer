@@ -14,11 +14,17 @@ import logging
 import uuid
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
+from app.adapters.docker_api.client import (
+    Answer,
+    EngineClient,
+    EngineRefused,
+    EngineUnreachable,
+)
+from app.adapters.docker_api.frames import demultiplexed, stream_failed
 from app.adapters.terminal import ConsoleProgram, TerminalSize
 from app.core.config import settings
 from app.core.translation import N_, say
@@ -77,24 +83,6 @@ _REFUSED = N_("The container runtime refused")
 # person who needs the whole thing has the machine it is on.
 MAX_LOG_LINES = 500
 
-# The eight-byte header the daemon puts in front of every chunk of a
-# container's output when the container has no TTY. Nothing about it is
-# optional and nothing about it is documented anywhere near the endpoint, so
-# it is named here: one byte of stream, three of padding, four of length.
-_LOG_HEADER = 8
-
-
-@dataclass(frozen=True)
-class _Answer:
-    status: int
-    body: bytes
-
-    def json(self) -> Any:
-        try:
-            return json.loads(self.body)
-        except ValueError:
-            return None
-
 
 class DockerEngine:
     """One installation's container runtime, reached over its socket.
@@ -112,21 +100,15 @@ class DockerEngine:
         self._socket_path = socket_path
         # A test supplies its own transport; a deployment gets one that talks
         # to the socket. Either way the requests below are the same requests.
-        self._transport = transport
+        # The host name is a formality: the socket decides where this goes.
+        self._engine = EngineClient(
+            lambda: transport or httpx.AsyncHTTPTransport(uds=socket_path),
+            base_url="http://docker",
+        )
 
     @asynccontextmanager
     async def _client(self, seconds: float) -> AsyncIterator[httpx.AsyncClient]:
-        """A client for one exchange, held to httpx's own timeout.
-
-        The bound belongs to the request rather than to a task wrapper: a
-        timed-out HTTP call must close its connection, which the transport
-        does and `asyncio.timeout` around it would not.
-        """
-        transport = self._transport or httpx.AsyncHTTPTransport(uds=self._socket_path)
-        # The host name is a formality: the socket decides where this goes.
-        async with httpx.AsyncClient(
-            transport=transport, base_url="http://docker", timeout=seconds
-        ) as client:
+        async with self._engine.client(seconds) as client:
             yield client
 
     async def availability(self) -> Availability:
@@ -171,7 +153,8 @@ class DockerEngine:
                         await response.aread()
                         raise _refusal(response.status_code)
                     async for line in response.aiter_lines():
-                        _refuse_if_the_stream_says_so(line)
+                        if stream_failed(line):
+                            raise EngineError(say("The image could not be fetched"))
             except httpx.HTTPError as failure:
                 raise _unreachable(failure) from None
 
@@ -302,7 +285,7 @@ class DockerEngine:
             },
             expected=(200,),
         )
-        return LogLines(lines=_demultiplexed(answer.body))
+        return LogLines(lines=demultiplexed(answer.body))
 
     async def run_once(self, run: ToolRun) -> ToolResult:
         """Run one program in one container, and take the container away.
@@ -383,7 +366,7 @@ class DockerEngine:
                         body.extend(chunk)
         except httpx.HTTPError as failure:
             raise _unreachable(failure) from None
-        return ToolResult(exit_code=exit_code, output=_demultiplexed(bytes(body)))
+        return ToolResult(exit_code=exit_code, output=demultiplexed(bytes(body)))
 
     async def _wait(self, container: str, *, seconds: float) -> int:
         """Block until the container exits, and answer with its code."""
@@ -405,25 +388,22 @@ class DockerEngine:
         params: Mapping[str, str] | None = None,
         json: Any | None = None,
         expected: tuple[int, ...],
-    ) -> _Answer:
+    ) -> Answer:
         try:
-            async with self._client(COMMAND_TIMEOUT_SECONDS) as client:
-                response = await client.request(method, path, params=params, json=json)
-        except httpx.HTTPError as failure:
-            raise _unreachable(failure) from None
-        if response.status_code not in expected:
-            # Logged with the daemon's own words, because they are useful to
-            # whoever runs this server; answered without them, because they
-            # name its paths and images.
-            logger.warning(
-                "Docker refused %s %s: %s %s",
+            return await self._engine.request(
                 method,
                 path,
-                response.status_code,
-                response.text[:500],
+                params=params,
+                json=json,
+                expected=expected,
+                seconds=COMMAND_TIMEOUT_SECONDS,
             )
-            raise _refusal(response.status_code)
-        return _Answer(status=response.status_code, body=response.content)
+        except EngineUnreachable:
+            raise EngineUnavailable(
+                say("This server cannot reach a container runtime")
+            ) from None
+        except EngineRefused as refused:
+            raise _refusal(refused.status) from None
 
 
 def _creation_body(spec: ContainerSpec) -> dict[str, Any]:
@@ -523,19 +503,6 @@ def _published_port(body: Mapping[str, Any]) -> int | None:
     return None
 
 
-def _refuse_if_the_stream_says_so(line: str) -> None:
-    """A pull reports failure inside a stream the daemon called successful."""
-    if not line.strip():
-        return
-    try:
-        message = json.loads(line)
-    except ValueError:
-        return
-    if isinstance(message, dict) and ("error" in message or "errorDetail" in message):
-        logger.warning("Docker pull failed: %s", str(message)[:500])
-        raise EngineError(say("The image could not be fetched"))
-
-
 def _refusal(status: int) -> EngineError:
     wording = _REFUSALS.get(status, _REFUSED)
     return EngineError(say(wording))
@@ -554,38 +521,6 @@ def _state_of(state: Mapping[str, Any]) -> ContainerState:
     same thing.
     """
     return "running" if state.get("Running") else "stopped"
-
-
-def _demultiplexed(body: bytes) -> list[str]:
-    """The text out of the daemon's framed output.
-
-    A container started without a TTY has its two streams interleaved with an
-    eight-byte header in front of each chunk. A container with one has none,
-    and its output is plain — so a body that does not parse as frames is
-    returned as it stands rather than mangled.
-    """
-    if not body:
-        return []
-    text: list[bytes] = []
-    at = 0
-    while at + _LOG_HEADER <= len(body):
-        stream = body[at]
-        if stream not in (0, 1, 2):
-            return _lines(body)
-        size = int.from_bytes(body[at + 4 : at + _LOG_HEADER], "big")
-        chunk = body[at + _LOG_HEADER : at + _LOG_HEADER + size]
-        if len(chunk) != size:
-            return _lines(body)
-        text.append(chunk)
-        at += _LOG_HEADER + size
-    if at != len(body):
-        return _lines(body)
-    return _lines(b"".join(text))
-
-
-def _lines(body: bytes) -> list[str]:
-    decoded = body.decode("utf-8", errors="replace")
-    return [line for line in decoded.splitlines() if line.strip()]
 
 
 def _tool_body(run: ToolRun) -> dict[str, Any]:

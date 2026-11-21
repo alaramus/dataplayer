@@ -101,6 +101,18 @@ services:
     ports:
       - "127.0.0.1:2222:2222"
 
+  # A Docker daemon on "another machine" for the Docker source (D405): host
+  # `docker-remote`, port 22 from the backend, 127.0.0.1:2223 from this
+  # machine, user and password `dataplayer`, the daemon's socket at
+  # /var/run/docker.sock. Privileged, as every Docker-in-Docker is; behind the
+  # `tools` profile, published on the loopback only.
+  docker-remote:
+    build: ./deploy/docker-remote
+    profiles: ["tools"]
+    privileged: true
+    ports:
+      - "127.0.0.1:2223:22"
+
   # A MySQL and a MariaDB for the backend suite and for a person to point a
   # MySQL connection at: user `root`, password `dataplayer`, host `mysql` or
   # `mariadb` port 3306 from the backend, 127.0.0.1:3307 and 127.0.0.1:3308
