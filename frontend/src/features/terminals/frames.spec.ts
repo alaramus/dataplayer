@@ -13,6 +13,25 @@ describe("what a terminal's socket says in text", () => {
     })
   })
 
+  it("names the action, the node and the form of a terminal on one node", () => {
+    const frame = openingFrame("t0k3n", "c1", { cols: 80, rows: 24 }, {
+      action: "docker_terminal",
+      nodeId: "container:abc",
+      params: { shell: "/bin/sh" },
+      title: "web",
+    })
+    expect(JSON.parse(frame)).toEqual({
+      type: "open",
+      token: "t0k3n",
+      connector_id: "c1",
+      cols: 80,
+      rows: 24,
+      action: "docker_terminal",
+      node_id: "container:abc",
+      params: { shell: "/bin/sh" },
+    })
+  })
+
   it("says a new size and nothing else", () => {
     expect(JSON.parse(resizeFrame({ cols: 80, rows: 24 }))).toEqual({
       type: "resize",

@@ -11,7 +11,7 @@ own reports. How connections work in general is on the
 - Containers, grouped by Compose project, running or not
 - Images, volumes and networks, and which containers use each
 - What the daemon says about any of them, as a JSON tree
-- A container's logs, newest first, and the processes running in it
+- A container's logs as they are written, and the processes in it
 - An image's layers and the instructions that made them
 - The engine: versions, drivers, CPUs, memory, disk usage, recent events
 
@@ -23,6 +23,7 @@ own reports. How connections work in general is on the
 - Stopped containers and unused images, volumes and networks pruned
 - New volumes and networks
 - Public images pulled, and a container committed to an image
+- A shell inside a running container, in a terminal
 
 ## Connecting
 
@@ -119,9 +120,25 @@ need structure access.
   as jobs in **Activity**. Only public images can be pulled: a registry that
   asks for a sign-in is said to be unsupported.
 
+## A terminal inside a container
+
+Select a running container and choose **Terminal** in the catalog's menu.
+Choose the shell — `/bin/sh` is in almost every image, `/bin/bash` and
+`/bin/ash` in some — and whether to run it as root rather than as the image's
+user. The shell opens in **Terminals** at the foot of the window, named after
+the container, and ends when you close it. Only the owner of the connection
+can open one: whoever you share it with cannot. A container without the shell
+you chose says so; open it again with another.
+
+## Logs and levels that keep up
+
+While a container's **Logs** is open, new lines appear as the container prints
+them, at most every two seconds. The level you stand on in the catalog reads
+itself again when the daemon changes it: a container that stops, an image
+pulled, a volume removed — by DataPlayer or by anybody else.
+
 ## What Docker does not have here yet
 
-- A terminal inside a container, and logs that follow as they are written
 - Metrics on a dashboard, and search
 - A daemon reached over TLS rather than SSH
 - Private registries, and creating or running new containers

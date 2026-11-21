@@ -146,4 +146,10 @@ MESSAGES: dict[str, str] = {
     "It is paused while the image is made": "制作镜像期间它会被暂停",
     "{name} will be committed to {reference} as a job": "{name} 将作为任务提交为 {reference}",
     "Commit {name} to {reference}": "将 {name} 提交为 {reference}",
+    # A terminal inside a container (D413).
+    "Terminal": "终端",
+    "Shell": "Shell",
+    "As root, not as the image's user": "以 root 身份，而非镜像的用户",
+    "The Docker server did not open the terminal": "Docker 服务器未打开终端",
+    "There is no {shell} in this container; open the terminal again and choose another shell": "此容器中没有 {shell}；请重新打开终端并选择其他 shell",
 }

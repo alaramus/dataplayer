@@ -49,7 +49,7 @@ documentation.
 | A source made of files, the storage it brings, the explorer over it, the limit on a person's storage | [sources/explorer.md](docs/architecture/sources/explorer.md) |
 | Amazon S3 and stores that speak its API, a bucket and its keys as folders and files, keys left out of a listing, the client and its failures, conditional and multipart writes, rename as copy and delete, making and removing buckets, the form, addresses, the cards per provider, the test server | [sources/s3.md](docs/architecture/sources/s3.md) |
 | An FTP or FTPS server, its pool of connections, MLSD and LIST, names not in UTF-8, reading at an offset, writes under a temporary name, copies through here, explicit and implicit TLS, the form and its address, the test server | [sources/ftp.md](docs/architecture/sources/ftp.md) |
-| A Docker daemon on another machine through an SSH connection, the Engine API client shared with services, its containers, images, volumes and networks, a container's logs and processes, the System reports, who refused, starting, stopping, removing and pruning, pull and commit as jobs | [sources/docker.md](docs/architecture/sources/docker.md) |
+| A Docker daemon on another machine through an SSH connection, the Engine API client shared with services, its containers, images, volumes and networks, a container's logs and processes, the System reports, who refused, starting, stopping, removing and pruning, pull and commit as jobs, a terminal inside a container, live logs and levels | [sources/docker.md](docs/architecture/sources/docker.md) |
 | An SSH server, the server key it trusts, SSH keys and their passphrases, a database reached through an SSH tunnel | [sources/ssh.md](docs/architecture/sources/ssh.md) |
 | A terminal, its socket, who may open one, a client program run in a container as one | [terminals.md](docs/architecture/terminals.md) |
 | Reading a relation, changing the rows in it | [sources/relations.md](docs/architecture/sources/relations.md) |
@@ -150,7 +150,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/s3](docs/architecture/sources/s3.md) | D379–D382 |
 | [sources/ftp](docs/architecture/sources/ftp.md) | D384–D386 |
 | [sources/duckdb](docs/architecture/sources/duckdb.md) | D387–D404 |
-| [sources/docker](docs/architecture/sources/docker.md) | D405–D412 |
+| [sources/docker](docs/architecture/sources/docker.md) | D405–D414 |
 
 ## Working rules
 

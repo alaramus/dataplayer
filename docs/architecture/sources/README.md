@@ -160,6 +160,8 @@ Containers and Compose projects are started, stopped, restarted, paused,
 resumed and killed, already-so judged from what was read (D410); containers,
 images, volumes and networks are removed after saying what goes, groups
 pruned, volumes and networks made (D411); pull and commit are jobs (D412).
+A terminal inside a container is an action whose form opens it (D413), and
+open logs and levels are told when the daemon changes them (D414).
 
 **ClickHouse** — a server reached over its HTTP interface with the
 application's own client, every value one of the server's parameters and every
@@ -342,7 +344,8 @@ backend/app/adapters/
 │                       catalog.py (ids and nodes), tables.py (levels and
 │                       views as rows), reports.py (System), options.py,
 │                       actions.py (lifecycle, removal, prune, new),
-│                       jobs.py (pull, commit), adapter.py
+│                       jobs.py (pull, commit), terminal.py (exec as a
+│                       terminal), watch.py (live logs, events), adapter.py
 ├── clickhouse/         session.py (the HTTP interface, its errors, addresses)
 │                       and pool.py (a kept client), sql.py (names and
 │                       parameters), inspection.py (system.tables, once),

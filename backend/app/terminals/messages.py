@@ -10,7 +10,7 @@ reason `app/realtime/messages.py` gives: OpenAPI has no WebSocket channel.
 """
 
 import uuid
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,6 +35,11 @@ class TerminalOpen(_ClientFrame):
     connector_id: uuid.UUID
     cols: int = Field(ge=1, le=MAX_COLUMNS)
     rows: int = Field(ge=1, le=MAX_ROWS)
+    # A terminal on one node rather than the connection's own shell: the
+    # action that opens it, the node and its form (D413).
+    action: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{0,63}$")
+    node_id: str | None = Field(default=None, max_length=2048)
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 class TerminalResize(_ClientFrame):

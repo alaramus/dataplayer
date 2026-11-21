@@ -239,7 +239,8 @@ The `source.changes` topic (`app/connectors/changes.py`) keeps one watch per
 person and connection, closes one not renewed within ninety seconds, gathers
 changes for a third of a second and tells every socket of that person
 `{connector_id, levels, nodes, everything}` — everything past two hundred.
-The catalog reads those levels again, keeping open branches open, and the
+The catalog reads those levels again, keeping open branches open — a catalog of
+levels follows the level it stands on and reads that one again (D414) — and the
 workspace reloads the tabs on those nodes; an editor with an unsaved change
 is left alone without a word.
 

@@ -14,4 +14,7 @@ MESSAGES: dict[str, str] = {
     "Frame not understood": "تعذّر فهم الإطار",
     "This terminal is already open": "هذه الطرفية مفتوحة بالفعل",
     "This server cannot start a console": "لا يستطيع هذا الخادم تشغيل وحدة تحكم",
+    # A terminal on one node (D413).
+    "No terminal opens here": "لا تُفتح طرفية هنا",
+    "The terminal's settings are not valid": "إعدادات الطرفية غير صالحة",
 }

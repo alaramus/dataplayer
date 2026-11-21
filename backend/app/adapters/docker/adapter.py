@@ -13,6 +13,7 @@ import httpx
 from app.adapters import jsontext
 from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.changes import ChangeSink, ChangeWatch
 from app.adapters.content import ContentRequest, ContentResult, JsonContent, json_tree
 from app.adapters.docker.actions import (
     LEVEL_ACTIONS,
@@ -53,6 +54,8 @@ from app.adapters.docker.reports import (
 )
 from app.adapters.docker.session import DockerSession, segment
 from app.adapters.docker.tables import DockerTables
+from app.adapters.docker.terminal import ContainerTerminal
+from app.adapters.docker.watch import DockerWatch
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
@@ -80,7 +83,11 @@ class DockerAdapter:
     ) -> None:
         self._session = DockerSession(options, tunnels, transport)
         self._tables = DockerTables(self._session)
-        self._actions = ActionSet(plain_actions(self._session) + job_actions(self._session))
+        self._actions = ActionSet(
+            plain_actions(self._session)
+            + job_actions(self._session)
+            + [ContainerTerminal(self._session)]
+        )
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -239,12 +246,24 @@ class DockerAdapter:
             )
 
 
+    # --- told when what is on screen changes (D414, D303) -----------------------
+
+    async def watch_changes(self, sink: ChangeSink) -> ChangeWatch:
+        return DockerWatch(self._session, sink)
+
     # --- what may be done (D410–D412) ------------------------------------------
 
     @classmethod
     def action_types(cls) -> tuple[ActionType, ...]:
         levels = tuple(kind for kinds in LEVEL_ACTIONS.values() for kind in kinds)
-        return (*LIFECYCLE, CommitContainer, *REMOVALS.values(), PullImage, *levels)
+        return (
+            *LIFECYCLE,
+            ContainerTerminal,
+            CommitContainer,
+            *REMOVALS.values(),
+            PullImage,
+            *levels,
+        )
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.get(name)
@@ -267,6 +286,7 @@ class DockerAdapter:
             wanted = {kind.name for kind in LIFECYCLE} | {
                 REMOVALS["container"].name,
                 CommitContainer.name,
+                ContainerTerminal.name,
             }
         elif named.leaf is not None:
             wanted = {REMOVALS[named.leaf].name}

@@ -146,4 +146,10 @@ MESSAGES: dict[str, str] = {
     "It is paused while the image is made": "Er wird pausiert, während das Image entsteht",
     "{name} will be committed to {reference} as a job": "{name} wird als Auftrag in {reference} festgeschrieben",
     "Commit {name} to {reference}": "{name} in {reference} festschreiben",
+    # A terminal inside a container (D413).
+    "Terminal": "Terminal",
+    "Shell": "Shell",
+    "As root, not as the image's user": "Als root, nicht als Benutzer des Images",
+    "The Docker server did not open the terminal": "Der Docker-Server hat das Terminal nicht geöffnet",
+    "There is no {shell} in this container; open the terminal again and choose another shell": "In diesem Container gibt es kein {shell}; öffnen Sie das Terminal erneut und wählen Sie eine andere Shell",
 }

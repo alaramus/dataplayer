@@ -11,7 +11,7 @@ auf der Seite [Verbindungen](connections.md).
 - Container, nach Compose-Projekt gruppiert, laufend oder nicht
 - Images, Volumes und Netzwerke, und welche Container sie nutzen
 - Was der Daemon über jedes davon sagt, als JSON-Baum
-- Die Logs eines Containers, Neuestes zuerst, und seine Prozesse
+- Die Logs eines Containers, während sie entstehen, und seine Prozesse
 - Die Schichten eines Images und die Anweisungen dahinter
 - Die Engine: Versionen, Treiber, CPUs, Speicher, Platz, Ereignisse
 
@@ -23,6 +23,7 @@ auf der Seite [Verbindungen](connections.md).
 - Gestoppte Container und ungenutzte Images, Volumes, Netzwerke aufräumen
 - Neue Volumes und Netzwerke
 - Öffentliche Images ziehen, einen Container als Image festschreiben
+- Eine Shell in einem laufenden Container, in einem Terminal
 
 ## Verbinden
 
@@ -128,9 +129,26 @@ Volumes und Netzwerke brauchen Strukturzugriff.
   Container laufen als Aufträge unter **Aktivität**. Nur öffentliche Images
   lassen sich ziehen: Eine Registry mit Anmeldung wird nicht unterstützt.
 
+## Ein Terminal im Container
+
+Wählen Sie einen laufenden Container und im Menü des Katalogs **Terminal**.
+Wählen Sie die Shell — `/bin/sh` gibt es in fast jedem Image, `/bin/bash` und
+`/bin/ash` in manchen — und ob sie als root statt als Benutzer des Images
+läuft. Sie öffnet sich unter **Terminals** am Fuß des Fensters, benannt nach
+dem Container, und endet, wenn Sie sie schließen. Nur der Eigentümer der
+Verbindung kann eines öffnen. Fehlt die gewählte Shell im Container, wird das
+gesagt; öffnen Sie es erneut mit einer anderen.
+
+## Logs und Ebenen, die mithalten
+
+Solange die **Logs** eines Containers offen sind, erscheinen neue Zeilen, wie
+der Container sie ausgibt, höchstens alle zwei Sekunden. Die Ebene des
+Katalogs, auf der Sie stehen, liest sich neu, wenn der Daemon sie ändert: ein
+Container stoppt, ein Image wird gezogen, ein Volume entfernt — durch
+DataPlayer oder durch jemand anderen.
+
 ## Was Docker hier noch nicht hat
 
-- Ein Terminal im Container, und Logs, die live mitlaufen
 - Metriken auf einem Dashboard, und die Suche
 - Einen Daemon, der über TLS statt SSH erreicht wird
 - Private Registries, und neue Container anlegen oder starten

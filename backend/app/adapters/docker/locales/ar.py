@@ -146,4 +146,10 @@ MESSAGES: dict[str, str] = {
     "It is paused while the image is made": "تُوقف مؤقتًا أثناء إنشاء الصورة",
     "{name} will be committed to {reference} as a job": "سيُحفظ {name} في {reference} كمهمة",
     "Commit {name} to {reference}": "حفظ {name} في {reference}",
+    # A terminal inside a container (D413).
+    "Terminal": "الطرفية",
+    "Shell": "الصدفة",
+    "As root, not as the image's user": "بصفة root، لا بصفة مستخدم الصورة",
+    "The Docker server did not open the terminal": "لم يفتح خادم Docker الطرفية",
+    "There is no {shell} in this container; open the terminal again and choose another shell": "لا توجد {shell} في هذه الحاوية؛ افتح الطرفية مجددًا واختر صدفة أخرى",
 }

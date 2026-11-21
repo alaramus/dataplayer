@@ -68,7 +68,7 @@ class EngineClient:
         )
 
     @asynccontextmanager
-    async def client(self, seconds: float) -> AsyncIterator[httpx.AsyncClient]:
+    async def client(self, seconds: float | None) -> AsyncIterator[httpx.AsyncClient]:
         """A client for one exchange, held to httpx's own timeout.
 
         The bound belongs to the request rather than to a task wrapper: a
@@ -119,9 +119,13 @@ class EngineClient:
         path: str,
         *,
         params: Mapping[str, str] | None = None,
-        seconds: float,
+        seconds: float | None,
     ) -> AsyncIterator[httpx.Response]:
-        """A response read as it arrives; any status but 200 is a refusal."""
+        """A response read as it arrives; any status but 200 is a refusal.
+
+        None waits for ever between chunks: a followed log or the daemon's
+        events may say nothing for hours.
+        """
         try:
             async with self.client(seconds) as client:
                 async with client.stream(method, path, params=params) as response:

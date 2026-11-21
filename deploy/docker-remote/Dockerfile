@@ -5,7 +5,8 @@
 FROM docker:29-dind
 
 # First match wins in sshd_config, so these go before anything Alpine ships.
-RUN apk add --no-cache openssh-server \
+# sftp-server too: the SSH connection it is reached through browses over SFTP.
+RUN apk add --no-cache openssh-server openssh-sftp-server \
     && ssh-keygen -A \
     && (getent group docker || addgroup -S docker) \
     && adduser -D -s /bin/sh dataplayer \

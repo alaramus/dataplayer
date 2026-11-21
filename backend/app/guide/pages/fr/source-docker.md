@@ -11,7 +11,7 @@ démon lui-même. Le fonctionnement des connexions est décrit sur la page
 - Les conteneurs, par projet Compose, en marche ou non
 - Images, volumes et réseaux, et les conteneurs qui les utilisent
 - Ce que le démon dit de chacun, sous forme d'arbre JSON
-- Les journaux d'un conteneur, du plus récent, et ses processus
+- Les journaux d'un conteneur au fil de l'écriture, et ses processus
 - Les couches d'une image et les instructions qui les ont créées
 - Le moteur : versions, pilotes, CPU, mémoire, espace disque, événements
 
@@ -23,6 +23,7 @@ démon lui-même. Le fonctionnement des connexions est décrit sur la page
 - Conteneurs arrêtés, images, volumes et réseaux inutilisés nettoyés
 - Nouveaux volumes et réseaux
 - Images publiques tirées, et un conteneur enregistré dans une image
+- Un shell dans un conteneur en marche, dans un terminal
 
 ## Connexion
 
@@ -127,9 +128,25 @@ réseaux demandent l'accès à la structure.
   publiques se tirent : un registre qui demande une connexion n'est pas pris en
   charge.
 
+## Un terminal dans un conteneur
+
+Sélectionnez un conteneur en marche et choisissez **Terminal** dans le menu du
+catalogue. Choisissez le shell — `/bin/sh` est dans presque toutes les images,
+`/bin/bash` et `/bin/ash` dans certaines — et s'il tourne en root plutôt
+qu'avec l'utilisateur de l'image. Il s'ouvre dans **Terminaux** au pied de la
+fenêtre, au nom du conteneur, et se termine quand vous le fermez. Seul le
+propriétaire de la connexion peut en ouvrir un. Un conteneur sans le shell
+choisi le dit ; rouvrez-le avec un autre.
+
+## Des journaux et des niveaux à jour
+
+Tant que les **Journaux** d'un conteneur sont ouverts, les nouvelles lignes
+apparaissent au fil de l'écriture, au plus toutes les deux secondes. Le niveau
+du catalogue où vous êtes se relit quand le démon le change : un conteneur qui
+s'arrête, une image tirée, un volume supprimé — par DataPlayer ou par d'autres.
+
 ## Ce que Docker n'a pas encore ici
 
-- Un terminal dans un conteneur, et des journaux suivis en direct
 - Des métriques sur un tableau de bord, et la recherche
 - Un démon atteint par TLS plutôt que par SSH
 - Les registres privés, et créer ou lancer de nouveaux conteneurs

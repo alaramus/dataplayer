@@ -309,7 +309,9 @@ class DockerTables:
             notice=say("Only the last {count} lines are read", count=LOG_DEPTH)
             if reached
             else None,
-            refresh_seconds=5,
+            # New lines are told as they come (D414); this is for a screen
+            # that is not following, such as a tab with no catalog beside it.
+            refresh_seconds=30,
         )
         # The daemon was asked for exactly this many; fewer means the start.
         result.has_more = len(rows) >= depth and depth < LOG_DEPTH

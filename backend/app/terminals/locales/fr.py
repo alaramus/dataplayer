@@ -14,4 +14,7 @@ MESSAGES: dict[str, str] = {
     "Frame not understood": "Trame non comprise",
     "This terminal is already open": "Ce terminal est déjà ouvert",
     "This server cannot start a console": "Ce serveur ne peut pas lancer de console",
+    # A terminal on one node (D413).
+    "No terminal opens here": "Aucun terminal ne s'ouvre ici",
+    "The terminal's settings are not valid": "Les réglages du terminal ne sont pas valides",
 }

@@ -26,6 +26,8 @@ from app.adapters.docker_api.client import (
     EngineRefused,
     EngineUnreachable,
 )
+from app.adapters.docker_api.hijack import UpgradeRefused, upgrade_request
+from app.adapters.docker_api.hijack import upgraded as read_upgrade
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.tunnels import TunnelAccess, tunnel_of
 from app.core.translation import say
@@ -33,6 +35,7 @@ from app.core.translation import say
 logger = logging.getLogger(__name__)
 
 # What one request may cost. Disk usage walks every volume and has its own.
+UPGRADE_SECONDS = 15.0
 TIMEOUT_SECONDS = 15.0
 SLOW_SECONDS = 120.0
 
@@ -88,6 +91,7 @@ class DockerSession:
         # The forwarded port the client was made for: a forwarder closed for
         # idleness comes back on another one.
         self._engine_port = 0
+        self._here = ("127.0.0.1", 0)
         self._version: tuple[int, int] | None = None
         self._lock = asyncio.Lock()
 
@@ -114,6 +118,7 @@ class DockerSession:
         """The client at the negotiated version; asked before every request,
         so a locked key or a closed SSH connection is said there."""
         host, port = await self._address()
+        self._here = (host, port)
         async with self._lock:
             if self._engine is None or self._engine_port != port:
                 transport = self._transport
@@ -212,6 +217,27 @@ class DockerSession:
                 raise NodeNotFound(node_id) from None
             raise _refused(refused.status, path) from None
         return answer.status, _json(answer.body) if answer.body.strip() else None
+
+    async def upgraded(
+        self, path: str, body: Mapping[str, Any]
+    ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+        """A request the daemon turns into a raw stream: an exec's start (D406)."""
+        engine = await self.engine()
+        host, port = self._here
+        try:
+            reader, writer = await asyncio.open_connection(host, port)
+        except OSError:
+            raise _unreachable() from None
+        try:
+            writer.write(upgrade_request(engine.prefix + path, json.dumps(body).encode()))
+            await writer.drain()
+            await read_upgrade(reader, UPGRADE_SECONDS)
+        except (UpgradeRefused, TimeoutError, OSError, asyncio.IncompleteReadError):
+            writer.close()
+            raise AdapterError(
+                "unknown", say("The Docker server did not open the terminal")
+            ) from None
+        return reader, writer
 
     async def check(self) -> ConnectionCheckResult:
         started = time.perf_counter()

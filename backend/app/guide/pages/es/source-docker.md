@@ -11,7 +11,7 @@ propio demonio. Cómo funcionan las conexiones en general está en la página
 - Contenedores, agrupados por proyecto de Compose, en marcha o no
 - Imágenes, volúmenes y redes, y qué contenedores los usan
 - Lo que el demonio dice de cualquiera de ellos, como árbol JSON
-- Los registros de un contenedor, lo más reciente primero, y sus procesos
+- Los registros de un contenedor según se escriben, y sus procesos
 - Las capas de una imagen y las instrucciones que las crearon
 - El motor: versiones, controladores, CPU, memoria, disco, eventos
 
@@ -23,6 +23,7 @@ propio demonio. Cómo funcionan las conexiones en general está en la página
 - Contenedores detenidos e imágenes, volúmenes y redes sin uso limpiados
 - Nuevos volúmenes y redes
 - Imágenes públicas descargadas, y un contenedor guardado en una imagen
+- Un shell dentro de un contenedor en marcha, en una terminal
 
 ## Conexión
 
@@ -124,9 +125,26 @@ necesitan acceso a la estructura.
   contenedor se ejecutan como tareas en **Actividad**. Solo se descargan
   imágenes públicas: un registro que pide iniciar sesión no se admite.
 
+## Una terminal dentro de un contenedor
+
+Selecciona un contenedor en marcha y elige **Terminal** en el menú del
+catálogo. Elige el shell — `/bin/sh` está en casi cualquier imagen, `/bin/bash`
+y `/bin/ash` en algunas — y si se ejecuta como root en lugar del usuario de la
+imagen. Se abre en **Terminales** al pie de la ventana, con el nombre del
+contenedor, y termina al cerrarla. Solo el propietario de la conexión puede
+abrir una. Un contenedor sin el shell elegido lo dice; vuelve a abrirla con
+otro.
+
+## Registros y niveles al día
+
+Mientras los **Registros** de un contenedor están abiertos, las líneas nuevas
+aparecen según el contenedor las imprime, como mucho cada dos segundos. El
+nivel del catálogo en el que estás se vuelve a leer cuando el demonio lo
+cambia: un contenedor que se detiene, una imagen descargada, un volumen
+eliminado — por DataPlayer o por cualquier otro.
+
 ## Lo que Docker aún no tiene aquí
 
-- Una terminal dentro de un contenedor, y registros que se siguen en vivo
 - Métricas en un panel, y la búsqueda
 - Un demonio alcanzado por TLS en lugar de SSH
 - Registros privados, y crear o ejecutar contenedores nuevos

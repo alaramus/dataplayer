@@ -292,3 +292,38 @@ async def test_a_resize_and_a_frame_not_understood_leave_the_shell_running(
 
     assert error["type"] == "error"
     assert b"43 132" in seen
+
+
+async def test_a_terminal_on_a_node_needs_an_action_that_opens_one(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _connector(client, normal_user_token_headers, "file", {"path": "/"})
+
+    frame = await _refused(
+        {**_opening(normal_user_token_headers, connector_id), "action": "no_such_action"}
+    )
+
+    assert frame["code"] == "unsupported"
+
+
+async def test_a_terminal_action_is_refused_where_the_source_does_not_offer_it(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Being named in the first frame permits nothing (D9, D413)."""
+    connector_id = await _connector(
+        client,
+        normal_user_token_headers,
+        "docker",
+        {"ssh_connection": str(uuid.uuid4()), "socket": "/var/run/docker.sock"},
+    )
+
+    frame = await _refused(
+        {
+            **_opening(normal_user_token_headers, connector_id),
+            "action": "docker_terminal",
+            "node_id": "images",
+            "params": {"shell": "/bin/sh"},
+        }
+    )
+
+    assert frame["code"] == "unsupported"

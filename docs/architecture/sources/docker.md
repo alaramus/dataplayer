@@ -6,12 +6,13 @@ managed services (D406), what its catalog shows of containers, images,
 volumes, networks and the daemon's reports (D407), what a node opens as
 (D408), who may do what and how a refusal is said (D409), a container's
 lifecycle (D410), removing, pruning and making volumes and networks (D411),
-and pull and commit as jobs (D412). The contract
+pull and commit as jobs (D412), a terminal inside a container (D413) and what
+changed told as it happens (D414). The contract
 every source type follows is in [contract.md](contract.md); the SSH tunnel it
 rides is D282 in [ssh.md](ssh.md). Read this before changing the `docker`
 adapter or `app/adapters/docker_api`.
 
-Decisions here: D405, D406, D407, D408, D409, D410, D411, D412.
+Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414.
 
 ## D405. Only a remote daemon, its socket forwarded through an SSH connection
 
@@ -229,3 +230,55 @@ Known deviations:
 - **Creating or running a container** is not planned, as the spec says.
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D413. A terminal inside a container is an action whose form opens it
+
+**Terminal** (`docker/terminal.py`) is an action of a container that needs
+`own`, as a shell on an SSH server does (D149). Its form chooses the shell from
+`/bin/sh`, `/bin/bash`, `/bin/ash` — argv, never a command line — and whether
+to run as root rather than the image's user. Instead of running, the form
+opens a terminal: the action implements `OpensTerminal`
+(`adapters/terminal.py`), `ActionInfo.opens_terminal` is derived from that,
+and the terminal socket's first frame (D148) carries the action, the node and
+the form. The route asks the source whether the action is offered on that node
+before opening anything, so a name in a frame permits nothing (D9). This is the
+first terminal on a node rather than on a connection; any source can offer one
+the same way.
+
+It is `POST /containers/{id}/exec` with a TTY and `TERM=xterm-256color`,
+started over a connection the daemon upgrades (`DockerSession.upgraded`, D406),
+resized through `/exec/{id}/resize` — answered 400 until the program has
+started, which is let pass — and ended with the exec's exit code. A stopped
+container is refused before the daemon's 409. A shell the image lacks still
+starts the stream and the daemon prints "OCI runtime exec failed" and exits
+127 (*checked*, Engine 29.10); that first line is replaced by a sentence
+naming the shell. The terminal's tab is named after the container.
+
+Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D414. What changed is told while somebody looks, over D303
+
+Docker implements `SupportsChangeWatch` (`docker/watch.py`), and a catalog of
+levels now follows too: the level it stands on and the tabs open on the
+connection, as a tree follows its open branches. For each open **Logs** tab
+the watch reads `follow=true&tail=0` and tells that tab to read again, at most
+once every two seconds however fast the container prints. For any level shown
+it reads the daemon's `/events` and tells the group an event is about — and a
+container's Compose project — for the events that change what a level lists;
+a health check's exec, every few seconds, is not one. A stream that drops is
+opened again after five seconds.
+
+Known deviations from the spec:
+
+- **A tab is re-read, not appended to.** The spec's own stream of lines,
+  1,000 kept and the rest dropped with a count, became the existing D303
+  telling: the grid reads its page again, newest first, so nothing is
+  dropped and nothing new is drawn on the client.
+- **One stream per person and connection, closed by D303's lease** (ninety
+  seconds unrenewed) rather than one per container shared by everybody and
+  closed ten seconds after the last viewer.
+- **The Logs tab still polls every thirty seconds**, for a tab with no catalog
+  following beside it.
+
+Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+

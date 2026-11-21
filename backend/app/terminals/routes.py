@@ -16,8 +16,10 @@ from contextlib import AsyncExitStack, suppress
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from app.adapters.protocol import AdapterError, ErrorKind
+from app.adapters.actions import ActionRefused, SupportsActions, UnknownAction
+from app.adapters.protocol import AdapterError, ErrorKind, NodeNotFound
 from app.adapters.terminal import (
+    OpensTerminal,
     SupportsConsoleProgram,
     SupportsTerminal,
     Terminal,
@@ -137,7 +139,8 @@ async def _opened(websocket: WebSocket, held: AsyncExitStack) -> Terminal:
         except (ValueError, ValidationError):
             raise _Refusal("source", say("The settings of this connection are not valid")) from None
 
-    if not isinstance(adapter, SupportsTerminal | SupportsConsoleProgram):
+    opener = await _node_terminal(adapter, opening) if opening.action else None
+    if opener is None and not isinstance(adapter, SupportsTerminal | SupportsConsoleProgram):
         raise _Refusal("unsupported", say("This kind of connection has no terminal"))
     try:
         held.enter_context(SLOTS.taken(user.id))
@@ -148,8 +151,12 @@ async def _opened(websocket: WebSocket, held: AsyncExitStack) -> Terminal:
         ) from None
     size = TerminalSize(cols=opening.cols, rows=opening.rows)
     try:
-        if isinstance(adapter, SupportsTerminal):
+        if opener is not None:
+            terminal = await opener.open_terminal(opening.node_id, opening.params, size)
+        elif isinstance(adapter, SupportsTerminal):
             terminal = await adapter.open_terminal(size)
+        elif not isinstance(adapter, SupportsConsoleProgram):
+            raise _Refusal("unsupported", say("This kind of connection has no terminal"))
         else:
             runner = getattr(websocket.app.state, "console_runner", None)
             if not isinstance(runner, ConsoleRunner):
@@ -161,8 +168,39 @@ async def _opened(websocket: WebSocket, held: AsyncExitStack) -> Terminal:
         raise _Refusal("source", failure.message, failure.error_kind) from None
     except ConsoleRefused as refusal:
         raise _Refusal("source", refusal.message) from None
+    except ActionRefused as refusal:
+        raise _Refusal("source", refusal.message) from None
+    except NodeNotFound:
+        raise _Refusal("not_found", say("It is not there any more")) from None
+    except (ValueError, ValidationError):
+        raise _Refusal("malformed", say("The terminal's settings are not valid")) from None
     held.push_async_callback(terminal.close)
     return terminal
+
+
+async def _node_terminal(adapter: object, opening: TerminalOpen) -> OpensTerminal:
+    """The action a terminal on one node is opened by, offered on that node (D413).
+
+    Asked of the source as the menu is: an action it does not offer there is
+    refused here too, so being named in a frame permits nothing (D9).
+    """
+    if not isinstance(adapter, SupportsActions) or opening.action is None:
+        raise _Refusal("unsupported", say("This kind of connection has no terminal"))
+    try:
+        action = adapter.action(opening.action)
+    except UnknownAction:
+        raise _Refusal("unsupported", say("This kind of connection has no terminal")) from None
+    if not isinstance(action, OpensTerminal):
+        raise _Refusal("unsupported", say("This kind of connection has no terminal"))
+    try:
+        offered = await adapter.available(opening.node_id)
+    except NodeNotFound:
+        raise _Refusal("not_found", say("It is not there any more")) from None
+    except AdapterError as failure:
+        raise _Refusal("source", failure.message, failure.error_kind) from None
+    if not any(one.name == opening.action for one in offered):
+        raise _Refusal("unsupported", say("No terminal opens here"))
+    return action
 
 
 async def _opening(websocket: WebSocket) -> TerminalOpen:

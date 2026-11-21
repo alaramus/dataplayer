@@ -1,5 +1,5 @@
 import { openingFrame, readServerFrame, resizeFrame } from "./frames"
-import type { RefusalCode, TerminalSize } from "./frames"
+import type { RefusalCode, TerminalSize, TerminalTarget } from "./frames"
 
 /**
  * One terminal's socket (D148): it opens, says who is asking, and then carries
@@ -34,6 +34,7 @@ export interface LinkOptions {
   token: string
   connectorId: string
   size: TerminalSize
+  target?: TerminalTarget | null
   onOutput: (data: Uint8Array) => void
   onState: (state: LinkState) => void
   open?: (url: string) => TerminalSocketLike
@@ -71,7 +72,7 @@ export function openTerminalLink(options: LinkOptions): TerminalLink {
     opened = true
     // The size at this moment rather than the one asked with: the terminal is
     // fitted to its window while the socket is still opening.
-    socket.send(openingFrame(options.token, options.connectorId, size))
+    socket.send(openingFrame(options.token, options.connectorId, size, options.target ?? null))
   }
 
   socket.onmessage = (event: MessageEvent) => {

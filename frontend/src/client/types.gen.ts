@@ -125,6 +125,10 @@ export type ActionInfo = {
    */
   produces_job?: boolean
   /**
+   * Opens Terminal
+   */
+  opens_terminal?: boolean
+  /**
    * Takes Set
    */
   takes_set: boolean

@@ -146,4 +146,10 @@ MESSAGES: dict[str, str] = {
     "It is paused while the image is made": "Пока создаётся образ, он будет стоять на паузе",
     "{name} will be committed to {reference} as a job": "{name} будет сохранён в {reference} как задание",
     "Commit {name} to {reference}": "Сохранение {name} в {reference}",
+    # A terminal inside a container (D413).
+    "Terminal": "Терминал",
+    "Shell": "Оболочка",
+    "As root, not as the image's user": "От root, а не от пользователя образа",
+    "The Docker server did not open the terminal": "Сервер Docker не открыл терминал",
+    "There is no {shell} in this container; open the terminal again and choose another shell": "В этом контейнере нет {shell}; откройте терминал снова и выберите другую оболочку",
 }

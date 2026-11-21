@@ -705,20 +705,24 @@ const treeDescribed = computed(() => {
 const tree = ref<InstanceType<typeof KeyspaceTree> | null>(null)
 
 // A source that tells changes refreshes what is on screen by itself (D303):
-// the levels open in the tree and the tabs open on this connection.
+// the levels open in the tree, or the level a list stands on (D414), and the
+// tabs open on this connection.
 useLiveChanges({
   connectorId: () => props.connectorId,
-  live: () =>
-    asTree.value &&
-    sourceType.value?.capabilities.some((one) => one.code === "live_changes") === true,
+  live: () => sourceType.value?.capabilities.some((one) => one.code === "live_changes") === true,
   shown: () => [
-    treeRoot.value,
-    ...(tree.value?.expandedIds() ?? []),
+    ...(asTree.value
+      ? [treeRoot.value, ...(tree.value?.expandedIds() ?? [])]
+      : [level.currentId.value]),
     ...(workspace.nodesOpenOn?.(props.connectorId) ?? []),
   ],
   onChange: (event) => {
-    if (event.everything) void tree.value?.reload()
-    else void tree.value?.refreshLevels(event.levels)
+    if (asTree.value) {
+      if (event.everything) void tree.value?.reload()
+      else void tree.value?.refreshLevels(event.levels)
+    } else if (event.everything || event.levels.includes(level.currentId.value)) {
+      void level.reload(level.currentId.value)
+    }
     const levels = event.levels.filter((one): one is string => one !== null)
     workspace.reloadNodes?.(props.connectorId, [...event.nodes, ...levels], event.everything)
   },
