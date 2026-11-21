@@ -10,8 +10,10 @@ const props = withDefaults(
   defineProps<{
     tooltip?: string
     disable?: boolean
+    /** Inside a line of text or a cell, at its height rather than a toolbar's. */
+    compact?: boolean
   }>(),
-  { tooltip: undefined, disable: false }
+  { tooltip: undefined, disable: false, compact: false }
 )
 
 // A fallback rather than a default, so it is read in the current language.
@@ -23,5 +25,6 @@ const shownTooltip = computed(() => props.tooltip ?? t("kit.copy.tooltip"))
     :icon="appIcons.copy"
     :tooltip="shownTooltip"
     :disable="disable"
+    :compact="compact"
   />
 </template>

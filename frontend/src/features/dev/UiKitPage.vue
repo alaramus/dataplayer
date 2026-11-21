@@ -365,6 +365,7 @@ function removeSavedEntry(name: string) {
             />
           </AppIconButton>
           <AppCopyButton />
+          <AppCopyButton compact />
           <AppButton
             variant="secondary"
             label="Row actions"

@@ -56,6 +56,7 @@ async function copy(text: string) {
       >{{ t("content.view.truncated") }}</span>
       <AppCopyButton
         class="view-value__copy"
+        compact
         @click="copy(value.text)"
       />
     </template>
