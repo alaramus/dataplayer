@@ -11,6 +11,7 @@ auf der Seite [Verbindungen](connections.md).
 - Container, nach Compose-Projekt gruppiert, laufend oder nicht
 - Images, Volumes und Netzwerke, und welche Container sie nutzen
 - Was der Daemon über jedes davon sagt, als JSON-Baum
+- Einen Container auf einen Blick, Geheimnisse bis zum Anzeigen verborgen
 - Die Logs eines Containers, während sie entstehen, und seine Prozesse
 - Die Schichten eines Images und die Anweisungen dahinter
 - Die Engine: Versionen, Treiber, CPUs, Speicher, Platz, Ereignisse
@@ -95,10 +96,21 @@ das Zertifikat nicht gilt, oder ein Client-Zertifikat, das der Daemon ablehnt.
 
 ## Wie sich ein Knoten öffnet
 
-- Ein Container, ein Image, ein Volume oder ein Netzwerk öffnet sich als das,
-  was der Daemon darüber sagt, als JSON-Baum. Beim Container gehört seine
-  Umgebung dazu, die oft Passwörter enthält: Jeder, mit dem Sie diese
-  Verbindung teilen, sieht sie.
+- **Untersuchen** eines Containers öffnet sich als **Überblick**: Zustand,
+  Image, wann er erstellt und gestartet wurde oder wie er endete,
+  Neustartrichtlinie und -zahl, Befehl, Health Check und seine letzten
+  Ergebnisse, veröffentlichte Ports, Netzwerke mit Adressen, Mounts,
+  Umgebung, Labels und Limits. Ein Hinweis sagt, wenn er mehr als dreimal
+  neu startete oder wegen Speichermangels beendet wurde. Image, Volume,
+  Netzwerk und Compose-Projekt sind Links, die sie im Katalog zeigen.
+- **Als JSON** schaltet denselben Tab auf das, was der Daemon sagt, als
+  JSON-Baum, und **Überblick** zurück. Ein Image, ein Volume oder ein
+  Netzwerk öffnet sich als JSON-Baum.
+- Eine Variable, deren Name PASSWORD, PASSWD, SECRET, TOKEN, KEY,
+  CREDENTIAL oder PRIVATE enthält, erscheint als Punkte, bis Sie auf ihr
+  Auge drücken, und wird erst dann kopiert. Das verbirgt sie vor einem
+  Blick, nicht vor einem Leser: Das JSON zeigt sie offen, und jeder, mit dem
+  Sie diese Verbindung teilen, sieht die Umgebung eines Containers.
 - In einem Container: **Logs** — Zeit, Strom (stdout oder stderr) und Text
   jeder Zeile, Neuestes zuerst, bis zu zehntausend Zeilen zurück, eine Zeile
   bei 16 KB gekürzt — und **Prozesse**, was jetzt darin läuft. Ein gestoppter

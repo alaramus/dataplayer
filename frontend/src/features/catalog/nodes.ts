@@ -290,6 +290,7 @@ export const REPRESENTATION_ICONS: Record<NodeRepresentation["kind"], string> = 
   tree: "account_tree",
   documents: "data_object",
   market: "show_chart",
+  view: "info",
 }
 
 /**

@@ -14,6 +14,7 @@ from app.adapters.content import ContentRequest, JsonContent, JsonObject
 from app.adapters.docker.adapter import DockerAdapter
 from app.adapters.fetch import FetchRequest, ScalarFilter
 from app.adapters.protocol import NodeNotFound
+from app.adapters.views import DocumentView
 from tests.adapters.docker_stand import (
     IMAGE,
     PROJECT,
@@ -150,11 +151,25 @@ async def test_a_container_holds_its_views(
 ) -> None:
     views = await adapter.list_children(f"container:{stand['web']}")
     assert [node.id.rsplit("/", 1)[1] for node in views] == ["inspect", "logs", "processes"]
-    assert views[0].representations[0].kind == "tree"
+    # Its inspect opens on the view, its JSON one click away (D422).
+    assert [one.kind for one in views[0].representations] == ["view", "tree"]
     content = await adapter.read_content(
         ContentRequest(node_id=views[0].id, representation="tree")
     )
     assert isinstance(content, JsonContent)
+    card = await adapter.read_content(ContentRequest(node_id=views[0].id, representation="view"))
+    assert isinstance(card, DocumentView)
+    assert card.header.title == "dp-test-web"
+
+
+async def test_only_a_container_has_a_view_yet(
+    adapter: DockerAdapter, stand: dict[str, str]
+) -> None:
+    del stand
+    images = await adapter.list_children("images")
+    assert [one.kind for one in images[0].representations] == ["tree"]
+    with pytest.raises(ValueError):
+        await adapter.read_content(ContentRequest(node_id=images[0].id, representation="view"))
 
 
 async def test_a_path_leads_through_the_project(

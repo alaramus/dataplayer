@@ -49,7 +49,7 @@ documentation.
 | A source made of files, the storage it brings, the explorer over it, the limit on a person's storage | [sources/explorer.md](docs/architecture/sources/explorer.md) |
 | Amazon S3 and stores that speak its API, a bucket and its keys as folders and files, keys left out of a listing, the client and its failures, conditional and multipart writes, rename as copy and delete, making and removing buckets, the form, addresses, the cards per provider, the test server | [sources/s3.md](docs/architecture/sources/s3.md) |
 | An FTP or FTPS server, its pool of connections, MLSD and LIST, names not in UTF-8, reading at an offset, writes under a temporary name, copies through here, explicit and implicit TLS, the form and its address, the test server | [sources/ftp.md](docs/architecture/sources/ftp.md) |
-| A Docker daemon on another machine through an SSH connection, the Engine API client shared with services, its containers, images, volumes and networks, a container's logs and processes, the System reports, who refused, starting, stopping, removing and pruning, pull and commit as jobs, a terminal inside a container, live logs and levels, metrics, search, a database's container opened as a connection, a daemon on TCP with TLS | [sources/docker.md](docs/architecture/sources/docker.md) |
+| A Docker daemon on another machine through an SSH connection, the Engine API client shared with services, its containers, images, volumes and networks, a container's logs and processes, the System reports, who refused, starting, stopping, removing and pruning, pull and commit as jobs, a terminal inside a container, live logs and levels, metrics, search, a database's container opened as a connection, a daemon on TCP with TLS, a container's overview | [sources/docker.md](docs/architecture/sources/docker.md) |
 | An SSH server, the server key it trusts, SSH keys and their passphrases, a database reached through an SSH tunnel | [sources/ssh.md](docs/architecture/sources/ssh.md) |
 | A terminal, its socket, who may open one, a client program run in a container as one | [terminals.md](docs/architecture/terminals.md) |
 | Reading a relation, changing the rows in it | [sources/relations.md](docs/architecture/sources/relations.md) |
@@ -57,6 +57,7 @@ documentation.
 | A reference somebody drew by hand between two columns or two sources, a table declared over Redis keys | [sources/declared.md](docs/architecture/sources/declared.md) |
 | Columns, indexes, constraints, renaming a node | [sources/ddl.md](docs/architecture/sources/ddl.md) |
 | Opening a node as anything but rows: documents, media, archives, a source's JSON as a tree, rows read and changed as whole documents | [sources/content.md](docs/architecture/sources/content.md) |
+| A node opened as a view of its document: the blocks and values a source builds it from, the panel that draws any of them, the way to its JSON and back, a value hidden until asked for | [sources/views.md](docs/architecture/sources/views.md) |
 | Actions and action previews | [sources/actions.md](docs/architecture/sources/actions.md) |
 | Downloads, what a download asks first, reports a source publishes | [sources/downloads.md](docs/architecture/sources/downloads.md) |
 | A share link, what it opens, an access request | [sharing.md](docs/architecture/sharing.md) |
@@ -150,7 +151,8 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/s3](docs/architecture/sources/s3.md) | D379–D382 |
 | [sources/ftp](docs/architecture/sources/ftp.md) | D384–D386 |
 | [sources/duckdb](docs/architecture/sources/duckdb.md) | D387–D404 |
-| [sources/docker](docs/architecture/sources/docker.md) | D405–D418 |
+| [sources/docker](docs/architecture/sources/docker.md) | D405–D418, D422 |
+| [sources/views](docs/architecture/sources/views.md) | D419–D421 |
 
 ## Working rules
 

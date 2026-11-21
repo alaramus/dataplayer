@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters import jsontext
+from app.adapters.views import DocumentView
 
 RepresentationKind = Literal[
     "table",
@@ -30,9 +31,12 @@ RepresentationKind = Literal[
     "documents",
     # A market's symbol watched live: price, chart, book and trades (D323).
     "market",
+    # What a node's document means, as a page of blocks; declared before the
+    # `tree` of the same document (D419).
+    "view",
 ]
 ContentRepresentationKind = Literal[
-    "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf", "sql", "database", "tree"
+    "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf", "sql", "database", "tree", "view"
 ]
 # The representations whose bytes a client reads through the ranged transport
 # of D52 rather than holding whole.
@@ -415,7 +419,8 @@ ContentResult = Annotated[
     | AudioContent
     | VideoContent
     | PdfContent
-    | DatabaseContent,
+    | DatabaseContent
+    | DocumentView,
     Field(discriminator="kind"),
 ]
 

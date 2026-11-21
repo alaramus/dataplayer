@@ -287,7 +287,7 @@ class ExplorerContent:
                 # Read by `_read_database`, which needs a path rather than a
                 # stream; an archive entry offers no database (D53).
                 raise ValueError(say('This file does not offer the "{representation}" representation', representation="database"))
-            case "sql" | "tree":
+            case "sql" | "tree" | "view":
                 # The catalog guard above makes this unreachable for a file,
                 # but the closed content vocabulary includes what sources issue.
                 raise ValueError(

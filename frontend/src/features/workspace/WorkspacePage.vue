@@ -11,6 +11,7 @@ import type {
   ConnectorPublic,
   MakeChoice,
   NodeReplacement,
+  NodeRepresentation,
   ServiceTemplateInfo,
 } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
@@ -1070,6 +1071,36 @@ const actions: WorkspaceActions = {
       representation: preferred.kind,
       ...(table === undefined ? {} : { tableTitle: table.title }),
       ...(source === undefined ? {} : { sourceTitle: source.title }),
+      // Carried only where there is a view to go between (D419), so a stored
+      // panel of any other kind is what it was.
+      ...(request.representations.some((one) => one.kind === "view")
+        ? { representations: request.representations }
+        : {}),
+    })
+  },
+  switchRepresentation: (panelId: string, kind: NodeRepresentation["kind"]) => {
+    const panel = workspace.panels.value.find((candidate) => candidate.id === panelId)
+    if (panel?.kind !== "content" || panel.representations === undefined) return
+    const chosen = panel.representations.find((one) => one.kind === kind)
+    if (chosen === undefined) return
+    if (kind === "view" || kind === "tree") {
+      // One binding draws both and picks as it draws (panels.ts), so the tab
+      // is replaced rather than another opened beside it.
+      workspace.replace(panelId, {
+        ...panel,
+        id: contentPanelId(panel.connectorId, panel.nodeId, kind),
+        representation: kind,
+      })
+      return
+    }
+    actions.openRepresentation({
+      connectorId: panel.connectorId,
+      nodeId: panel.nodeId,
+      title: panel.title,
+      connectorName: panel.connectorName,
+      adapterType: panel.adapterType,
+      representations: [chosen, ...panel.representations.filter((one) => one !== chosen)],
+      describable: false,
     })
   },
   documentTarget,

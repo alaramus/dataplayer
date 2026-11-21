@@ -6,6 +6,7 @@ connections. No driver of its own: the Engine API client is the one the
 services use (D406), and `asyncssh` stays in the SSH adapter.
 """
 
+import json
 from collections.abc import AsyncIterator
 from typing import Any, ClassVar
 
@@ -22,6 +23,7 @@ from app.adapters.docker.actions import (
     REMOVALS,
     plain_actions,
 )
+from app.adapters.docker.card import container_view
 from app.adapters.docker.catalog import (
     GROUPS,
     Group,
@@ -69,7 +71,7 @@ from app.adapters.docker.watch import DockerWatch
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.metrics import MetricPreset, MetricSample
-from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
+from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, CatalogFace, register
 from app.adapters.search import (
     LastSearch,
@@ -255,13 +257,24 @@ class DockerAdapter:
         return body
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
-        if request.representation != "tree":
+        if request.representation not in ("tree", "view"):
             raise ValueError(say("This opens as what the Docker server says about it"))
         named = parse(request.node_id)
         # The node itself, or its Inspect view: the same answer (D408).
         if named.leaf is None or named.view not in (None, "inspect"):
             raise ValueError(say("This opens as a table"))
+        if request.representation == "view" and named.leaf != "container":
+            raise ValueError(say("This opens as what the Docker server says about it"))
         body = await self._inspect(named)
+        if request.representation == "view":
+            # The same inspect the tree draws, read as what it means (D422).
+            try:
+                document = json.loads(body)
+            except ValueError:
+                document = None
+            if not isinstance(document, dict):
+                raise AdapterError("unknown", say("The Docker server did not answer with JSON"))
+            return container_view(document)
         try:
             return JsonContent(value=json_tree(jsontext.load(body.decode("utf-8"))))
         except ValueError:

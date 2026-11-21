@@ -48,8 +48,9 @@ in D47 changes — a node without a view opens as before.
 - **The document stays one click away.** The view panel shows a button for
   each other representation the node declared — **Show as JSON** for `tree` —
   and reopens the tab with that one first, as the tree and source panels
-  already do between text and table (*to check*: `TreePanel` gains the button
-  back to the view the same way). The choice is not remembered per node:
+  already do between text and table (*checked*: `TreePanel` gains the button
+  back; the two replace each other in the same tab rather than opening a
+  second one, through one binding that picks its component as it draws). The choice is not remembered per node:
   opening the node again opens its first representation.
 - **Read only.** A view shows; it changes nothing. A node's actions stay in
   the catalog's menu (D9), and a view does not offer them again. Revisit when
@@ -119,9 +120,10 @@ decision about Inspect itself, not about views.
 ## Docker's views (D422)
 
 The container's **Inspect** view (D408) and the container node itself declare
-`[view "Overview", tree "As JSON"]` (*to check*: how a node that opens as a
-book, D51, picks the representation of its first page, so that clicking a
-container shows the view). The view is built from the inspect the source
+`[view "Overview", tree "As JSON"]` (*checked*: a book, D51, opens by the
+first of its own representations; a container is not a book but walked into,
+D408, so a click on it shows Inspect, Logs and Processes, and Inspect opens
+on the view — opened from a search or a link, the container itself does). The view is built from the inspect the source
 already reads; nothing else is asked of the daemon.
 
 - **Container.** The header is the name, the state word of D407 with its tone
@@ -156,9 +158,11 @@ because `content.md` is at 28 KB of its 32; D422 in
 [sources/docker.md](../architecture/sources/docker.md). The renderer and its
 blocks are added to the `/ui-kit` showcase with every block and every value
 kind, which the kit's test already demands of a component in `shared/ui`
-(*to check*: whether the view panel's blocks belong in `shared/ui` or in
-`features/content`; values that other screens could use — a moment, a size —
-belong in the kit).
+(*checked*: the blocks read the generated client's types, which the kit
+does not import, so they live in `features/content/view/` and the showcase
+draws them from there; the state word with its tone is the kit's
+`AppStateTag`; a moment and a size reuse the formatting screens already
+share).
 
 ## Slices
 

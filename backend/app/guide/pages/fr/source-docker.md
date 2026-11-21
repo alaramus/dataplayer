@@ -11,6 +11,7 @@ démon lui-même. Le fonctionnement des connexions est décrit sur la page
 - Les conteneurs, par projet Compose, en marche ou non
 - Images, volumes et réseaux, et les conteneurs qui les utilisent
 - Ce que le démon dit de chacun, sous forme d'arbre JSON
+- Un conteneur d'un coup d'œil, ses secrets cachés jusqu'à demande
 - Les journaux d'un conteneur au fil de l'écriture, et ses processus
 - Les couches d'une image et les instructions qui les ont créées
 - Le moteur : versions, pilotes, CPU, mémoire, espace disque, événements
@@ -91,10 +92,22 @@ pas, ou un certificat client que le démon refuse.
 
 ## Comment s'ouvre un nœud
 
-- Un conteneur, une image, un volume ou un réseau s'ouvre comme ce que le
-  démon en dit, en arbre JSON. Celui d'un conteneur inclut son
-  environnement, qui contient souvent des mots de passe : quiconque partage
-  cette connexion avec vous le voit.
+- **Inspecter** d'un conteneur s'ouvre sur sa **Vue d'ensemble** : l'état,
+  l'image, sa création et son démarrage ou sa sortie, la politique et le
+  nombre de redémarrages, la commande, le contrôle de santé et ses derniers
+  résultats, les ports publiés, les réseaux avec leurs adresses, les
+  montages, l'environnement, les étiquettes et les limites. Un avis signale
+  plus de trois redémarrages ou un arrêt faute de mémoire. L'image, un
+  volume, un réseau et le projet Compose sont des liens qui les montrent
+  dans le catalogue.
+- **En JSON** bascule le même onglet sur ce que dit le démon, en arbre JSON,
+  et **Vue d'ensemble** le ramène. Une image, un volume ou un réseau s'ouvre
+  en arbre JSON.
+- Une variable dont le nom contient PASSWORD, PASSWD, SECRET, TOKEN, KEY,
+  CREDENTIAL ou PRIVATE s'affiche en points jusqu'à ce que vous appuyiez
+  sur son œil, et ne se copie qu'une fois affichée. Elle est cachée d'un
+  coup d'œil, pas d'un lecteur : le JSON la montre en clair, et quiconque
+  partage cette connexion avec vous voit l'environnement d'un conteneur.
 - Dans un conteneur : **Journaux** — l'heure, le flux (stdout ou stderr) et le
   texte de chaque ligne, du plus récent, jusqu'à dix mille lignes en arrière,
   une ligne coupée à 16 Ko — et **Processus**, ce qui y tourne maintenant. Un

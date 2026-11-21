@@ -8,13 +8,14 @@ volumes, networks and the daemon's reports (D407), what a node opens as
 lifecycle (D410), removing, pruning and making volumes and networks (D411),
 pull and commit as jobs (D412), a terminal inside a container (D413) and what
 changed told as it happens (D414), metrics (D415), search (D416) and a
-database's container opened as a connection (D417) and a daemon reached
-on TCP with mutual TLS (D418). The contract
+database's container opened as a connection (D417), a daemon reached
+on TCP with mutual TLS (D418) and a container's view of its inspect (D422).
+The contract
 every source type follows is in [contract.md](contract.md); the SSH tunnel it
 rides is D282 in [ssh.md](ssh.md). Read this before changing the `docker`
 adapter or `app/adapters/docker_api`.
 
-Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414, D415, D416, D417, D418.
+Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414, D415, D416, D417, D418, D422.
 
 ## D405. Only a remote daemon, its socket forwarded through an SSH connection
 
@@ -124,7 +125,8 @@ A container, image, volume or network is walked into, and holds its views:
 **Inspect** first, the daemon's JSON for it as a read-only tree (D295), then
 tables — a container's **Logs** and **Processes**, an image's **History**, a
 volume's and a network's **Containers**. Opened from elsewhere — a search, a
-link — the node itself still answers as its Inspect tree. Walked rather than
+link — the node itself answers as its Inspect does; a container's opens on
+its view (D422). Walked rather than
 opened because a node that opens and holds nodes opens as a workbook does
 (D51), and that tab offers only sibling tables: the logs were out of reach.
 
@@ -398,3 +400,40 @@ which only somebody already holding that daemon has; an address cannot be
 judged "this machine" reliably behind containers and proxies anyway.
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D422. A container's inspect opens on its view
+
+The container node and its **Inspect** declare `[view "Overview", tree "As
+JSON"]`; the view (D419, [views.md](views.md)) is built by `docker/card.py`
+from the inspect the tree reads, and nothing else is asked of the daemon.
+Image, volume and network keep `[tree "Inspect"]` until slice 2.
+
+- **Header**: the name; the state word of D407 read from inspect (running and
+  healthy `good`, starting, restarting and removing `busy`, unhealthy, failed
+  and dead `bad`, paused `warning`, stopped, never started and unknown
+  `neutral`); the image as a link to its node.
+- **Sections**: Overview — id, created, started (running) or finished and
+  exit code, restart policy and count, command and entrypoint as code,
+  working directory, user, the Compose project as a link to its level and the
+  service; Health, only when a check is defined or reported — status, failing
+  streak, the check, the last results newest first; Network — the mode, the
+  published ports one row per address (an exposed port with no binding has
+  an empty host), the networks with address and gateway as links; Storage —
+  mounts, a volume as a link, a bind as its path; Environment — pairs,
+  sensitive by name (D421: `PASSWORD`, `PASSWD`, `SECRET`, `TOKEN`, `KEY`,
+  `CREDENTIAL`, `PRIVATE`, case-folded); Labels — pairs, collapsed;
+  Resources — memory, CPUs and processes, `empty` when the daemon says 0.
+- **Notices** above it: killed for memory (`OOMKilled`), and more than three
+  restarts.
+
+Docker's `created` state is worded "never started": the English key
+"created" is shared with another package, whose Russian is feminine.
+
+Known deviations:
+
+- **The view does not follow the daemon's events.** D414 tells a level and a
+  Logs tab; a view tab is reread by hand until slice 2.
+- **Image, volume and network have no view yet**, and so a link to one shows
+  its level in the catalog, where its Inspect is the tree.
+
+Spec: [A view of a document](../../decisions/2026-11-21-document-views-design.md)

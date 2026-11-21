@@ -16,13 +16,14 @@ file holds which decision.
 | [declared.md](declared.md) | draw a reference between two columns no source calls related |
 | [ddl.md](ddl.md) | change a column, an index, a constraint, or rename a node |
 | [content.md](content.md) | open a node as something other than a page of rows |
+| [views.md](views.md) | open a node as a view of its document: the blocks a source builds, the panel that draws them, the way to the JSON and back, a value hidden until asked for |
 | [actions.md](actions.md) | add an action or change what a form applies to |
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [duckdb.md](duckdb.md) | change how a DuckDB file is opened, how the engine is locked to the owner's storage, what its catalog shows, how its values and pages are read, its rows and structure changed and its tables designed, its reports, search, export and catalog actions, copying its tables, backing it up, its lab, a DuckDB file in a file source or one made here, or its console |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
-| [docker.md](docker.md) | change how a Docker daemon is reached through an SSH connection, the Engine API client shared with services, what its catalog shows of containers, images, volumes and networks, what a node opens as, how a refusal is said, its metrics and search, how a database's container becomes a connection, or a daemon on TCP with TLS |
+| [docker.md](docker.md) | change how a Docker daemon is reached through an SSH connection, the Engine API client shared with services, what its catalog shows of containers, images, volumes and networks, what a node opens as, how a refusal is said, its metrics and search, how a database's container becomes a connection, a daemon on TCP with TLS, or a container's overview |
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
 | [binance.md](binance.md) | change how Binance is reached and kept under its rate limit, what its catalog shows of markets, quote assets, symbols and feeds, or how tickers, symbols, candles, trades and the order book are read as rows, read on by a link, reported, measured and searched |
 | [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read, messages sent, topics and groups changed, its reports, metrics, search and export, its service and lab, or its console |
@@ -268,6 +269,7 @@ backend/app/adapters/
 ├── indexes.py          index create and drop
 ├── constraints.py      unique and foreign key
 ├── content.py          ordered node representations and bounded content results
+├── views.py            a document's view: its blocks and values (D419–D421)
 ├── summary.py          what a node is: its facts, and what its format states
 ├── search.py           finding a node by name: the request, a match, the answer
 ├── jsontext.py         the JSON and JSONL content shapes
@@ -347,7 +349,8 @@ backend/app/adapters/
 │                       jobs.py (pull, commit), terminal.py (exec as a
 │                       terminal), watch.py (live logs, events),
 │                       metrics.py (stats), search.py, connect.py (a
-│                       container as a connection), adapter.py
+│                       container as a connection), card.py (a
+│                       container's view, D422), adapter.py
 ├── clickhouse/         session.py (the HTTP interface, its errors, addresses)
 │                       and pool.py (a kept client), sql.py (names and
 │                       parameters), inspection.py (system.tables, once),

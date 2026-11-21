@@ -129,6 +129,26 @@ export function bannerLook(tone: Tone, form = false): BannerLook {
   return { classes: tone === "error" ? toneText(tone) : "", icon, iconClasses: toneText(tone) }
 }
 
+/**
+ * How a source says a state is doing: a word in a document's view (D420).
+ * Five, where a message has four, because "nothing to say" is a state and not
+ * a message: a stopped container is neither good news nor a warning.
+ */
+export type StateTone = "good" | "busy" | "warning" | "bad" | "neutral"
+
+const STATE_TONES: Record<StateTone, Tone | null> = {
+  good: "success",
+  busy: "info",
+  warning: "warning",
+  bad: "error",
+  neutral: null,
+}
+
+/** The message tone a state is drawn in, or none for a neutral one. */
+export function stateTone(tone: StateTone): Tone | null {
+  return STATE_TONES[tone]
+}
+
 /** A tone as a filled ground: a badge, a status dot. */
 export function toneFill(tone: Tone): string {
   return `dp-tone-fill-${tone}`

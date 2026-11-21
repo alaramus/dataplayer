@@ -11,6 +11,7 @@ own reports. How connections work in general is on the
 - Containers, grouped by Compose project, running or not
 - Images, volumes and networks, and which containers use each
 - What the daemon says about any of them, as a JSON tree
+- A container at a glance, its secrets hidden until asked for
 - A container's logs as they are written, and the processes in it
 - An image's layers and the instructions that made them
 - The engine: versions, drivers, CPUs, memory, disk usage, recent events
@@ -89,9 +90,21 @@ or a client certificate the daemon does not accept.
 
 ## What a node opens as
 
-- A container, an image, a volume or a network opens as what the daemon says
-  about it, as a JSON tree. A container's includes its environment, which
-  often holds passwords: anybody you share this connection with sees it.
+- A container's **Inspect** opens on its **Overview**: the state, the image,
+  when it was created and started or how it exited, the restart policy and
+  count, the command, the health check and its last results, published
+  ports, networks with their addresses, mounts, environment, labels and
+  limits. A notice says when it restarted more than three times or was
+  killed for running out of memory. The image, a volume, a network and the
+  Compose project are links that show them in the catalog.
+- **As JSON** switches the same tab to what the daemon says, as a JSON tree,
+  and **Overview** switches it back. An image, a volume or a network opens
+  as the JSON tree.
+- A variable whose name holds PASSWORD, PASSWD, SECRET, TOKEN, KEY,
+  CREDENTIAL or PRIVATE is shown as dots until you press its eye, and is
+  copied only once shown. That hides it from a glance, not from a reader:
+  the JSON shows it plainly, and anybody you share this connection with sees
+  a container's environment.
 - Inside a container: **Logs** — the time, the stream (stdout or stderr) and
   the text of each line, newest first, as far back as ten thousand lines, a
   line cut at 16 KB — and **Processes**, what runs in it now. A stopped

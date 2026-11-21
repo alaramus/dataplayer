@@ -80,6 +80,15 @@ _PATTERNS: dict[Leaf, re.Pattern[str]] = {
 
 TABLE = NodeRepresentation(kind="table", title=N_("View as table"))
 INSPECT = NodeRepresentation(kind="tree", title=N_("Inspect"))
+# A container's inspect opens on what it means, its JSON one click away (D422).
+OVERVIEW = NodeRepresentation(kind="view", title=N_("Overview"))
+AS_JSON = NodeRepresentation(kind="tree", title=N_("As JSON"))
+_OPENS: dict[Leaf, list[NodeRepresentation]] = {
+    "container": [OVERVIEW, AS_JSON],
+    "image": [INSPECT],
+    "volume": [INSPECT],
+    "network": [INSPECT],
+}
 
 
 @dataclass(frozen=True)
@@ -153,7 +162,7 @@ def view_node(leaf: Leaf, key: str, view: View) -> ReportNode:
         name=say(title),
         description=say(description),
         has_children=False,
-        representations=worded_titles([INSPECT if view == "inspect" else TABLE]),
+        representations=worded_titles(_OPENS[leaf] if view == "inspect" else [TABLE]),
     )
 
 
@@ -170,7 +179,7 @@ def container_node(container: dict[str, Any]) -> ContainerNode:
     return ContainerNode(
         id=leaf_id("container", str(container.get("Id"))),
         name=name_of(container),
-        representations=worded_titles([INSPECT]),
+        representations=worded_titles(_OPENS["container"]),
         state=state_of(container),
         status=str(container["Status"]) if container.get("Status") else None,
         image=str(container["Image"]) if container.get("Image") else None,

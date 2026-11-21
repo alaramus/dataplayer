@@ -11,6 +11,7 @@ propio demonio. Cómo funcionan las conexiones en general está en la página
 - Contenedores, agrupados por proyecto de Compose, en marcha o no
 - Imágenes, volúmenes y redes, y qué contenedores los usan
 - Lo que el demonio dice de cualquiera de ellos, como árbol JSON
+- Un contenedor de un vistazo, con sus secretos ocultos hasta pedirlos
 - Los registros de un contenedor según se escriben, y sus procesos
 - Las capas de una imagen y las instrucciones que las crearon
 - El motor: versiones, controladores, CPU, memoria, disco, eventos
@@ -92,10 +93,21 @@ un certificado de cliente que el demonio no acepta.
 
 ## Cómo se abre un nodo
 
-- Un contenedor, una imagen, un volumen o una red se abre como lo que el
-  demonio dice de él, en árbol JSON. El de un contenedor incluye su entorno,
-  que a menudo guarda contraseñas: cualquiera con quien compartas esta
-  conexión lo ve.
+- **Inspeccionar** de un contenedor se abre en su **Resumen**: el estado, la
+  imagen, cuándo se creó e inició o cómo terminó, la política y el número de
+  reinicios, el comando, la comprobación de salud y sus últimos resultados,
+  los puertos publicados, las redes con sus direcciones, los montajes, el
+  entorno, las etiquetas y los límites. Un aviso dice si se reinició más de
+  tres veces o se detuvo por falta de memoria. La imagen, un volumen, una
+  red y el proyecto de Compose son enlaces que los muestran en el catálogo.
+- **Como JSON** cambia la misma pestaña a lo que dice el demonio, en árbol
+  JSON, y **Resumen** la devuelve. Una imagen, un volumen o una red se abre
+  en árbol JSON.
+- Una variable cuyo nombre contiene PASSWORD, PASSWD, SECRET, TOKEN, KEY,
+  CREDENTIAL o PRIVATE se muestra como puntos hasta que pulses su ojo, y
+  solo se copia una vez mostrada. Eso la oculta de un vistazo, no de quien
+  lee: el JSON la muestra tal cual, y cualquiera con quien compartas esta
+  conexión ve el entorno de un contenedor.
 - Dentro de un contenedor: **Registros** — la hora, el flujo (stdout o
   stderr) y el texto de cada línea, lo más reciente primero, hasta diez mil
   líneas atrás, una línea cortada a 16 KB — y **Procesos**, lo que corre en él
