@@ -28,6 +28,7 @@ documentation.
 | Area | Read first |
 | --- | --- |
 | A source type, a capability, a node kind, untrusted input, the user's guide | [sources/contract.md](docs/architecture/sources/contract.md) |
+| Building a new source type: the slices, every place outside its package, the traps | [sources/adding-a-source.md](docs/architecture/sources/adding-a-source.md) |
 | What a catalog shows of a node, searching it, a key space | [sources/catalog.md](docs/architecture/sources/catalog.md) |
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | SQL over files, the DuckDB sandbox behind it | [sources/file-sql.md](docs/architecture/sources/file-sql.md) |

@@ -6,6 +6,7 @@ file holds which decision.
 | File | Open it to |
 | --- | --- |
 | [contract.md](contract.md) | add or change a source type, a capability, a node kind or the rule about untrusted input |
+| [adding-a-source.md](adding-a-source.md) | build a new source type: which adapter to copy, the six slices, every shared place it touches, and the checks |
 | [catalog.md](catalog.md) | change what a catalog shows of a node, how it is searched, or a key space |
 | [connecting.md](connecting.md) | change how a connection is described, composed or parsed, or anything pooled or cached between requests |
 | [timescale.md](timescale.md) | implement the designed Timescale feature package, runtime discovery and extension-aware operation restrictions |
