@@ -32,6 +32,7 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
+from app.adapters.made_here import FOLDER, STEM
 from app.adapters.protocol import (
     BackupAvailability,
     BackupProgram,
@@ -130,6 +131,10 @@ class SqliteAdapter:
     No read cache: the file is on this server's disk, and it can be replaced
     by an upload no connection hears of (D105).
     """
+
+    # A file made here may be asked for SQLite's write-ahead log (D263).
+    makes_here_wal = True
+    makes_here_file = f"{FOLDER}/{STEM}{made_here.SUFFIX}"
 
     def __init__(self, options: SqliteOptions, home_dir: Path) -> None:
         self._session = SqliteSession(options, home_dir)

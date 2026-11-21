@@ -9,9 +9,9 @@ from pathlib import PurePosixPath
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.adapters.explorer.storage import stays_inside_root
+from app.adapters.home_file import below_home
 from app.adapters.layout import layout
-from app.core.translation import N_, say
+from app.core.translation import N_
 
 
 class SqliteOptions(BaseModel):
@@ -31,13 +31,7 @@ class SqliteOptions(BaseModel):
     @field_validator("path")
     @classmethod
     def _must_name_a_file_inside_the_home(cls, value: str) -> str:
-        """Stored as a path below the home with no leading slash: `data/shop.db`."""
-        below_home = value.strip().strip("/")
-        if below_home == "":
-            raise ValueError(say("Name a file inside your personal storage"))
-        if not stays_inside_root(below_home):
-            raise ValueError(say("The path must stay inside your personal storage"))
-        return below_home
+        return below_home(value)
 
     @property
     def parts(self) -> tuple[str, ...]:

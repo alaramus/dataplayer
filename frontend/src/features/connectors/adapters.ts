@@ -17,6 +17,7 @@ const ICONS: Record<string, string> = {
   // A card of the `cassandra` type (D340).
   scylladb: "img:/icons/services/scylladb.svg",
   sqlite: "img:/icons/services/sqlite.svg",
+  duckdb: "img:/icons/services/duckdb.svg",
   clickhouse: "img:/icons/services/clickhouse.svg",
   mongodb: "img:/icons/services/mongodb.svg",
   zookeeper: "img:/icons/services/zookeeper.svg",

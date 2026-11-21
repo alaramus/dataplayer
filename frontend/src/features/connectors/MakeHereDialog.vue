@@ -54,7 +54,8 @@ const choice = computed<MakeChoice>(() => {
     name: name.value.trim() || null,
     folder: folder.value.trim() || null,
     sample_data: sampleData.value,
-    wal: wal.value,
+    // Only where the type has a journal to choose: DuckDB always keeps one (D404).
+    wal: props.type?.makes_here_wal === true && wal.value,
   }
 })
 
@@ -89,7 +90,7 @@ function make() {
         class="make-here__what"
         data-testid="make-here-automatic-summary"
       >
-        {{ t('connectors.make_here.automatic') }}
+        {{ t('connectors.make_here.automatic', { file: type?.makes_here_file ?? '' }) }}
       </p>
 
       <template v-else>
@@ -115,14 +116,16 @@ function make() {
           :label="t('connectors.make_here.sample_data')"
           data-testid="make-here-sample"
         />
-        <AppCheckbox
-          v-model="wal"
-          :label="t('connectors.make_here.wal')"
-          data-testid="make-here-wal"
-        />
-        <p class="make-here__what">
-          {{ t('connectors.make_here.wal_hint') }}
-        </p>
+        <template v-if="type?.makes_here_wal">
+          <AppCheckbox
+            v-model="wal"
+            :label="t('connectors.make_here.wal')"
+            data-testid="make-here-wal"
+          />
+          <p class="make-here__what">
+            {{ t('connectors.make_here.wal_hint') }}
+          </p>
+        </template>
       </template>
     </AppForm>
 

@@ -38,6 +38,9 @@ acciones del archivo, crea una nueva conexión SQLite a él. Solo se puede
 conectar un archivo de tu almacenamiento personal; en otros lugares la
 acción aparece desactivada y explica el motivo.
 
+Un archivo DuckDB (`.duckdb`, `.ddb`) se abre de la misma manera, y **Conectar
+como DuckDB** crea una conexión DuckDB a él.
+
 ## El catálogo
 
 - La ruta del nivel en el que estás se muestra en la parte superior. **Copiar la

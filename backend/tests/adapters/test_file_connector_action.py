@@ -164,3 +164,35 @@ async def test_a_database_outside_personal_storage_is_offered_greyed_with_the_re
     with pytest.raises(ActionRefused, match="personal storage"):
         await action.prepare_connector("shop.db", {})
 
+
+
+async def test_a_duckdb_file_becomes_a_draft_of_a_duckdb_connection_and_only_that(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "shop.duckdb").write_bytes(bytes(8) + b"DUCK")
+    adapter = FileAdapter(FileOptions(path=""), AdapterContext(home_dir=tmp_path))
+    action = adapter.action("connect_duckdb")
+    assert isinstance(action, PreparesConnector)
+
+    offered = {one.name for one in await adapter.available("data/shop.duckdb")}
+    draft = await action.prepare_connector("data/shop.duckdb", {})
+
+    assert "connect_duckdb" in offered and "connect_sqlite" not in offered
+    assert (draft.adapter_type, draft.options) == ("duckdb", {"path": "data/shop.duckdb"})
+    sqlite = adapter.action("connect_sqlite")
+    assert isinstance(sqlite, PreparesConnector)
+    with pytest.raises(ActionRefused, match="database file"):
+        await sqlite.prepare_connector("data/shop.duckdb", {})
+
+
+async def test_a_duckdb_file_outside_personal_storage_is_greyed_with_its_own_reason(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "shop.duckdb").write_bytes(bytes(8) + b"DUCK")
+    actions = ExplorerActions(_Elsewhere(LocalStorage(tmp_path)))
+
+    offers = await actions.action_offers("shop.duckdb")
+
+    assert offers.reason_for("connect_duckdb") == "Only a file in your personal storage can be connected as DuckDB"
+    assert offers.reason_for("connect_sqlite") is None

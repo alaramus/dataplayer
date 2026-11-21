@@ -91,9 +91,18 @@ const actions = useNodeActions(
   computed(() => props.connectorId),
   nodeIds
 )
-const connectAction = computed(
-  () => actions.data.value?.find((action) => action.name === "connect_sqlite") ?? null
-)
+// One per engine (D262, D403). Both are listed for every file: the one this
+// file's engine offers is applicable, or greyed with its reason where the file
+// is out of reach; the other engine's says nothing and is not drawn.
+const CONNECT_ACTIONS = ["connect_sqlite", "connect_duckdb"]
+const connectAction = computed(() => {
+  const listed = (actions.data.value ?? []).filter((action) => CONNECT_ACTIONS.includes(action.name))
+  return (
+    listed.find((action) => action.applicable) ??
+    listed.find((action) => action.unavailable_reason) ??
+    null
+  )
+})
 const prepare = usePrepareConnectorAction()
 const workspace = useWorkspaceActions()
 const toast = useToast()
@@ -105,7 +114,7 @@ async function connect() {
   try {
     const draft = await prepare.mutateAsync({
       connectorId: props.connectorId,
-      name: "connect_sqlite",
+      name: connectAction.value.name,
       nodeId: props.nodeId,
     })
     workspace.createConnector(draft)

@@ -267,6 +267,8 @@ MESSAGES: dict[str, str] = {
     'View the database': '查看数据库',
     'This server cannot read database files': '此服务器无法读取数据库文件',
     'Connect as SQLite': '作为 SQLite 连接',
+    'Connect as DuckDB': '作为 DuckDB 连接',
+    'Only a file in your personal storage can be connected as DuckDB': '只有你个人存储中的文件才能作为 DuckDB 连接',
     'Only a file in your personal storage can be connected as SQLite': '只有你个人存储中的文件才能作为 SQLite 连接',
     'Choose a database file to connect': '请选择要连接的数据库文件',
 }

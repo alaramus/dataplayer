@@ -66,6 +66,11 @@ class AdapterTypeInfo(BaseModel):
     # Whether a new source of this type can be made here without starting
     # anything — a SQLite file (D263). Read off the driver, like the rest.
     makes_here: bool = False
+    # Whether such a file may be asked for a write-ahead log: SQLite's choice;
+    # DuckDB always keeps one (D404).
+    makes_here_wal: bool = False
+    # The file such a source is made as when the server chooses.
+    makes_here_file: str | None = None
     # The cards the catalog shows for this type; empty when the type is
     # its own one card (D264).
     faces: list[AdapterFaceInfo] = []
@@ -100,6 +105,8 @@ def info(adapter_type: registry.AdapterType) -> AdapterTypeInfo:
         cache_windows=registry.cache_windows_of(adapter_type),
         options_schema=say_schema(options.json_schema(adapter_type.options_schema)),
         makes_here=issubclass(adapter_type.adapter_class, MakesSourceHere),
+        makes_here_wal=bool(getattr(adapter_type.adapter_class, "makes_here_wal", False)),
+        makes_here_file=getattr(adapter_type.adapter_class, "makes_here_file", None),
         faces=[
             AdapterFaceInfo(
                 key=face.key,

@@ -8,10 +8,23 @@ import { provideWindows, useWindows, WindowHost } from "@/shared/windows"
 
 import MakeHereDialog from "./MakeHereDialog.vue"
 
-const SQLITE = { name: "sqlite", title: "SQLite", makes_here: true } as AdapterTypeInfo
+const SQLITE = {
+  name: "sqlite",
+  title: "SQLite",
+  makes_here: true,
+  makes_here_wal: true,
+  makes_here_file: "databases/dataplayer.db",
+} as AdapterTypeInfo
+const DUCKDB = {
+  name: "duckdb",
+  title: "DuckDB",
+  makes_here: true,
+  makes_here_wal: false,
+  makes_here_file: "databases/dataplayer.duckdb",
+} as AdapterTypeInfo
 
 /** The dialog behind the page's `v-model:type`, which clears the type on close. */
-async function openDialog() {
+async function openDialog(opened: AdapterTypeInfo = SQLITE) {
   const made: unknown[] = []
   const type = ref<AdapterTypeInfo | null>(null)
   const Root = defineComponent({
@@ -33,7 +46,7 @@ async function openDialog() {
   })
   const wrapper = mount(Root, { global: { plugins: [Quasar] } })
   // Opened after mounting, as the page does: the form starts over on a type.
-  type.value = SQLITE
+  type.value = opened
   await nextTick()
   await flushPromises()
   return { wrapper, made }
@@ -89,6 +102,30 @@ describe("a database made here (D263)", () => {
 
     expect(made).toEqual([
       { adapterType: "sqlite", choice: { name: "Sales", folder: null, sample_data: true, wal: true } },
+    ])
+    wrapper.unmount()
+  })
+
+  it("offers no journal for a type that always keeps one, and names its own file (D404)", async () => {
+    const { wrapper, made } = await openDialog(DUCKDB)
+
+    expect(document.body.querySelector('[data-testid="make-here-automatic-summary"]')?.textContent)
+      .toContain("databases/dataplayer.duckdb")
+    ;(wrapper.getComponent(QSelect).vm as unknown as { showPopup: () => void }).showPopup()
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('[role="option"]')).not.toBeNull()
+    })
+    ;[...document.body.querySelectorAll<HTMLElement>('[role="option"]')]
+      .find((option) => option.textContent?.includes("Let me choose"))
+      ?.click()
+    await flushPromises()
+
+    expect(document.body.querySelector('[data-testid="make-here-wal"]')).toBeNull()
+    submit()
+    await flushPromises()
+
+    expect(made).toEqual([
+      { adapterType: "duckdb", choice: { name: null, folder: null, sample_data: true, wal: false } },
     ])
     wrapper.unmount()
   })

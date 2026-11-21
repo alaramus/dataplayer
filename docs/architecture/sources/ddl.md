@@ -160,6 +160,9 @@ Known deviations:
   `numeric(p,s)`, arrays, enums or domains.
 - **SQLite changes structure by rebuilding the table** from its own text,
   edited, since its ALTER TABLE does little more than add and rename (D255).
+- **DuckDB adds no foreign key or check to an existing table and drops no
+  constraint**: its ALTER TABLE has neither, and a rebuild would fail on the
+  very tables a key or a view depends on (D396).
 - **ClickHouse counts before a type or nullability change, and undoes a failed
   one.** Its conversion is a mutation after the metadata has changed, and a
   failed mutation leaves the table unreadable, so the change is refused while

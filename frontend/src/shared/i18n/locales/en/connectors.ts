@@ -54,7 +54,7 @@ export const connectors = {
     make: "Create",
     made: "{name} created in {where}",
     failed: "Could not create the database",
-    automatic: "Creates databases/dataplayer.db in your storage, with sample data so there is something to look at, and names the connection after the file.",
+    automatic: "Creates {file} in your storage, with sample data so there is something to look at, and names the connection after the file.",
     name_placeholder: "dataplayer",
     folder: "Folder",
     folder_placeholder: "databases",

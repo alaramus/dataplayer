@@ -269,6 +269,8 @@ MESSAGES: dict[str, str] = {
     'View the database': 'Открыть базу данных',
     'This server cannot read database files': 'Этот сервер не умеет читать файлы баз данных',
     'Connect as SQLite': 'Подключить как SQLite',
+    'Connect as DuckDB': 'Подключить как DuckDB',
+    'Only a file in your personal storage can be connected as DuckDB': 'Подключить как DuckDB можно только файл из вашего личного хранилища',
     'Only a file in your personal storage can be connected as SQLite': 'Подключить как SQLite можно только файл из вашего личного хранилища',
     'Choose a database file to connect': 'Выберите файл базы данных для подключения',
 }

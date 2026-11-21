@@ -24,9 +24,18 @@ VIDEO_EXTENSIONS: frozenset[str] = frozenset(
     {".m4v", ".mov", ".mp4", ".ogv", ".webm"}
 )
 PDF_EXTENSIONS: frozenset[str] = frozenset({".pdf"})
-# The names SQLite files are given. A file by one of them that is something
-# else is found out by its header when it is opened (D262).
-DATABASE_EXTENSIONS: frozenset[str] = frozenset({".db", ".db3", ".sqlite", ".sqlite3"})
+# The names SQLite and DuckDB files are given, by the engine that reads them. A
+# file by one of them that is something else is found out by its header when
+# it is opened (D262, D403).
+DATABASE_ENGINES: dict[str, str] = {
+    ".db": "sqlite",
+    ".db3": "sqlite",
+    ".sqlite": "sqlite",
+    ".sqlite3": "sqlite",
+    ".duckdb": "duckdb",
+    ".ddb": "duckdb",
+}
+DATABASE_EXTENSIONS: frozenset[str] = frozenset(DATABASE_ENGINES)
 # ZIP alone: a tar has no index, so listing it means reading it end to end and
 # reading one entry means reading it again (D53).
 ARCHIVE_EXTENSIONS: frozenset[str] = frozenset({".zip"})
@@ -147,6 +156,11 @@ def format_of(name: str) -> FileFormat:
     if suffix in BINARY_EXTENSIONS:
         return "opaque"
     return "text"
+
+
+def database_engine(name: str) -> str | None:
+    """Which engine reads a database file of this name, or none for any other file."""
+    return DATABASE_ENGINES.get(PurePosixPath(name).suffix.lower())
 
 
 def representations_of(name: str) -> list[NodeRepresentation]:

@@ -102,6 +102,7 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
         "create_file",
         "connect_folder",
         "connect_sqlite",
+        "connect_duckdb",
         "upload",
         "paste",
         "download",
@@ -122,6 +123,7 @@ async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
         "create_file": "children",
         "connect_folder": "node",
         "connect_sqlite": "node",
+        "connect_duckdb": "node",
         "upload": "children",
         # Pasting puts something into a place, so the place is the subject.
         "paste": "children",

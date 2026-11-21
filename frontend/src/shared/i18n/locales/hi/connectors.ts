@@ -56,7 +56,7 @@ export const connectors: Messages["connectors"] = {
     make: "बनाएँ",
     made: "{name} {where} में बनाया गया",
     failed: "डेटाबेस नहीं बनाया जा सका",
-    automatic: "आपके स्टोरेज में databases/dataplayer.db बनाता है, देखने के लिए नमूना डेटा के साथ, और कनेक्शन का नाम फ़ाइल के नाम पर रखता है।",
+    automatic: "आपके स्टोरेज में {file} बनाता है, देखने के लिए नमूना डेटा के साथ, और कनेक्शन का नाम फ़ाइल के नाम पर रखता है।",
     name_placeholder: "dataplayer",
     folder: "फ़ोल्डर",
     folder_placeholder: "databases",

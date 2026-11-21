@@ -1,0 +1,189 @@
+"""A DuckDB connection through the routes a screen calls (D387–D391).
+
+The adapter is tested on its own in tests/adapters/test_duckdb.py; this is the
+file of the signed-in person's storage reached the way the catalog, the grid
+and the details panel reach it.
+"""
+
+import asyncio
+import uuid
+from pathlib import Path
+from typing import Any
+
+import pytest
+from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app.core.config import settings
+from app.users import crud, storage
+from tests.adapters.duckdb_fixture import FILE, build
+
+BASE = f"{settings.API_V1_STR}/connectors"
+
+
+@pytest.fixture
+async def home(db: AsyncSession) -> Path:
+    """The personal directory of the user the route tests sign in as."""
+    user = await crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
+    assert user is not None
+    home = storage.create_home(user.id)
+    build(home)
+    return home
+
+
+async def _connector(client: AsyncClient, headers: dict[str, str], options: dict[str, Any]) -> str:
+    response = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={"name": f"duckdb {uuid.uuid4()}", "adapter_type": "duckdb", "options": options},
+    )
+    assert response.status_code == 200, response.text
+    return str(response.json()["id"])
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_file_is_checked_browsed_read_and_described(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers, {"path": FILE})
+
+    async def get(path: str, **params: Any) -> Any:
+        response = await client.get(f"{BASE}/{connector}/{path}", headers=headers, params=params)
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    async def post(path: str, body: dict[str, Any]) -> Any:
+        response = await client.post(f"{BASE}/{connector}/{path}", headers=headers, json=body)
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    check = await post("check", {})
+    assert check["ok"], check
+
+    schemas = await get("catalog")
+    # The schemas, then the file's reports (D398).
+    assert [node["id"] for node in schemas] == ["main", "sales\\.eu", "\\system"]
+    relations = await get("catalog", node_id="main")
+    assert {node["name"] for node in relations} >= {"items", "labels", "cheap"}
+
+    page = await post("fetch", {"node_id": "main.items", "limit": 2})
+    assert [row[0] for row in page["rows"]] == ["1", "2"]
+    assert page["has_more"] is True
+    assert page["update_supported"] is True
+
+    model = await get("relation-model", node_id="main.items")
+    assert model["kind"] == "table"
+    summary = await get("node-summary", node_id="main.items")
+    assert summary["contents"]["schema_name"] == "main"
+    ddl = await post("content", {"node_id": "main.items", "representation": "sql"})
+    assert ddl["text"].startswith("CREATE TABLE items(")
+    features = await get("features")
+    assert features["server_version"].startswith("DuckDB ")
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_path_out_of_the_storage_is_refused_by_the_form(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"duckdb {uuid.uuid4()}",
+            "adapter_type": "duckdb",
+            "options": {"path": "../someone-else/their.duckdb"},
+        },
+    )
+
+    assert response.status_code == 422, response.text
+
+
+@pytest.mark.usefixtures("home")
+async def test_the_catalog_is_searched_and_a_backup_is_offered(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector = await _connector(client, normal_user_token_headers, {"path": FILE})
+
+    found = await client.get(
+        f"{BASE}/{connector}/catalog/search",
+        headers=normal_user_token_headers,
+        params={"query": "items"},
+    )
+    offer = await client.get(
+        f"{settings.API_V1_STR}/backups/offer",
+        headers=normal_user_token_headers,
+        params={"connector_id": connector},
+    )
+
+    assert found.status_code == 200, found.text
+    assert [match["node"]["id"] for match in found.json()["matches"]] == ["main.items"]
+    # The type can name a backup program (D401); whether this server can run
+    # one is the offer's own answer.
+    assert offer.status_code == 200, offer.text
+
+
+@pytest.mark.usefixtures("home")
+async def test_the_console_runs_and_rehearses(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers, {"path": FILE})
+    queries = f"{settings.API_V1_STR}/queries"
+
+    profile = await client.get(f"{queries}/connectors/{connector}/profile", headers=headers)
+    assert profile.status_code == 200, profile.text
+    assert profile.json()["parameter_syntax"] == "named_dollar"
+    assert profile.json()["supports_explain"] is True
+    # Structure changes are transactional in DuckDB, so they are rehearsed (D393).
+    assert profile.json()["supports_rehearsal"] is True
+
+    started = await client.post(
+        f"{queries}/runs",
+        headers=headers,
+        json={
+            "run_id": str(uuid.uuid4()),
+            "connector_id": connector,
+            "text": "SELECT id, name FROM items ORDER BY id",
+        },
+    )
+    assert started.status_code == 200, started.text
+    run_id = started.json()["id"]
+    deadline = asyncio.get_running_loop().time() + 15
+    while True:
+        run = (await client.get(f"{queries}/runs/{run_id}", headers=headers)).json()
+        if run["status"] not in {"accepted", "running", "cancelling"}:
+            break
+        assert asyncio.get_running_loop().time() < deadline, run
+        await asyncio.sleep(0.05)
+
+    assert run["status"] == "succeeded", run
+    [statement] = run["statements"]
+    page = await client.get(f"{queries}/results/{statement['result_id']}", headers=headers)
+    assert page.json()["rows"][0] == ["1", "one"]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_database_is_made_here_with_its_connection(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], home: Path
+) -> None:
+    """Create DuckDB here, as Create SQLite here (D404)."""
+    headers = normal_user_token_headers
+    name = f"lab {uuid.uuid4().hex[:8]}"
+
+    types = await client.get(f"{settings.API_V1_STR}/adapter-types/", headers=headers)
+    made = await client.post(
+        f"{BASE}/made-here",
+        headers=headers,
+        json={"adapter_type": "duckdb", "choice": {"name": name, "folder": "work"}},
+    )
+
+    said = {item["name"]: item for item in types.json()}["duckdb"]
+    assert (said["makes_here"], said["makes_here_wal"]) == (True, False)
+    assert made.status_code == 200, made.text
+    connector = made.json()
+    file = f"work/{name.replace(' ', '-')}.duckdb"
+    assert connector["config"]["path"] == file
+    assert (home / file).is_file()
+    tables = await client.get(f"{BASE}/{connector['id']}/catalog", headers=headers, params={"node_id": "main"})
+    assert "tasks" in {node["name"] for node in tables.json()}

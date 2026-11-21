@@ -38,6 +38,9 @@ erstellt eine neue SQLite-Verbindung zu ihr. Nur eine Datei in Ihrem
 persönlichen Speicher lässt sich verbinden; anderswo ist die Aktion
 ausgegraut und nennt den Grund.
 
+Eine DuckDB-Datei (`.duckdb`, `.ddb`) öffnet sich genauso, und **Als DuckDB
+verbinden** erstellt eine DuckDB-Verbindung zu ihr.
+
 ## Der Katalog
 
 - Der Pfad der Ebene, auf der Sie sich befinden, wird oben gezeigt. **Pfad

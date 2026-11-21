@@ -423,6 +423,14 @@ export type AdapterTypeInfo = {
    */
   makes_here?: boolean
   /**
+   * Makes Here Wal
+   */
+  makes_here_wal?: boolean
+  /**
+   * Makes Here File
+   */
+  makes_here_file?: string | null
+  /**
    * Faces
    */
   faces?: Array<AdapterFaceInfo>

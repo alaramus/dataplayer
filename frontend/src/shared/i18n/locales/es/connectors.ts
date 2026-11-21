@@ -56,7 +56,7 @@ export const connectors: Messages["connectors"] = {
     make: "Crear",
     made: "{name} creada en {where}",
     failed: "No se pudo crear la base de datos",
-    automatic: "Crea databases/dataplayer.db en tu almacenamiento, con datos de ejemplo para tener algo que ver, y nombra la conexión según el archivo.",
+    automatic: "Crea {file} en tu almacenamiento, con datos de ejemplo para tener algo que ver, y nombra la conexión según el archivo.",
     name_placeholder: "dataplayer",
     folder: "Carpeta",
     folder_placeholder: "databases",

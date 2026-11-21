@@ -13,6 +13,8 @@ import logging
 import sys
 import uuid
 
+from app.adapters.duckdb.samples import SAMPLE_FILE as DUCKDB_SAMPLE_FILE
+from app.adapters.duckdb.samples import write_sample_database as write_duckdb_sample
 from app.adapters.explorer.samples import write_samples
 from app.adapters.sqlite.samples import SAMPLE_FILE, write_sample_database
 from app.core.config import settings
@@ -70,6 +72,7 @@ async def main(email: str) -> None:
     home = storage.home_dir(user.id)
     write_samples(home)
     write_sample_database(home / SAMPLE_FILE)
+    write_duckdb_sample(home / DUCKDB_SAMPLE_FILE)
     logger.info("Sample files written to %s", home)
 
 

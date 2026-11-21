@@ -197,6 +197,7 @@ source_modules =
     app.adapters.ssh
     app.adapters.mongodb
     app.adapters.zookeeper
+    app.adapters.duckdb
 forbidden_modules =
     sqlite3
 
@@ -216,6 +217,27 @@ forbidden_modules =
     asyncssh
     app.adapters.postgres
     app.adapters.mysql
+
+# DuckDB's driver is imported by its adapter and by the file explorer's SQL
+# sandbox (see below); no other source's driver reaches the adapter.
+[importlinter:contract:other-drivers-stay-out-of-duckdb]
+name = the duckdb adapter imports no other source's driver
+type = forbidden
+source_modules =
+    app.adapters.duckdb
+forbidden_modules =
+    psycopg
+    psycopg_pool
+    pglast
+    aiomysql
+    pymysql
+    sqlite3
+    redis
+    asyncssh
+    app.adapters.postgres
+    app.adapters.mysql
+    app.adapters.sqlite
+    app.adapters.clickhouse
 
 # ClickHouse is spoken to over HTTP with the client the application already
 # has (D267), so it has no driver of its own to contain; no other source's
@@ -521,9 +543,10 @@ forbidden_modules =
 # an upgrade has one place to change, and every source that is a tree of files
 # reads formats through the explorer rather than on its own (D150). duckdb is
 # here for a second reason as well — it is a SQL engine, and a query module
-# tempted to parse or run SQL itself fails this check instead.
+# tempted to parse or run SQL itself fails this check instead. The DuckDB
+# source is the one other owner: a DuckDB file is its database (D387).
 [importlinter:contract:file-format-sdks-are-contained]
-name = pyarrow, openpyxl and duckdb are imported only by the file explorer
+name = pyarrow, openpyxl and duckdb are imported only by the file explorer and the duckdb adapter
 type = forbidden
 source_modules =
     app.core
