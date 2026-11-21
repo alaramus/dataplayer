@@ -257,12 +257,20 @@ jobs:
             --authenticator=PasswordAuthenticator --authorizer=CassandraAuthorizer \
             --auth-superuser-name=cassandra \
             '--auth-superuser-salted-password=\$6\$dataplayer\$gGIHHoZqUhgE4YVKS2u4aliaE1CyijpZ3vqWELCqka5rzwM8hdpgdp.CcmtSttYfJ7Szziwsl8dbln7T9G5yS1'
-      # The Docker daemon behind SSH the Docker source reads (D405). Not a
-      # service: a service is an image already built, and this one is built
-      # from deploy/docker-remote. Privileged, as every Docker-in-Docker is.
+      # The Docker daemon behind SSH the Docker source reads (D405), and one on
+      # TCP with TLS (D418) on a network they share, so the SSH server can
+      # tunnel to it as `docker-tls`. Not services: a service is an image
+      # already built, and the first is built from deploy/docker-remote; the
+      # second leaves its client certificates in the checkout for the tests.
+      # Privileged, as every Docker-in-Docker is.
       - run: |
+          docker network create docker-stand
           docker build -t dataplayer-docker-remote deploy/docker-remote
-          docker run -d --privileged --name docker-remote -p 127.0.0.1:2223:22 dataplayer-docker-remote
+          docker run -d --privileged --name docker-remote --network docker-stand \
+            -p 127.0.0.1:2223:22 dataplayer-docker-remote
+          docker run -d --privileged --name docker-tls --hostname docker-tls --network docker-stand \
+            -e DOCKER_TLS_CERTDIR=/certs -e DOCKER_TLS_SAN=DNS:docker-tls,DNS:localhost,IP:127.0.0.1 \
+            -v "$GITHUB_WORKSPACE/deploy/docker-tls/certs:/certs" -p 127.0.0.1:2376:2376 docker:29-dind
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"

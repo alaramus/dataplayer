@@ -15,6 +15,7 @@ __pycache__/
 backend/app/frontend/
 
 # Test and coverage artifacts
+/deploy/docker-tls/certs/
 backend/htmlcov/
 /test-results/
 /playwright-report/

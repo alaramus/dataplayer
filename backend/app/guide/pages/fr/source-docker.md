@@ -1,7 +1,7 @@
 # Docker
 
 Un démon Docker sur une autre machine, atteint par l'une de vos connexions
-SSH. Vous voyez ses conteneurs, images, volumes et réseaux, ce que le démon
+SSH ou en TCP avec TLS. Vous voyez ses conteneurs, images, volumes et réseaux, ce que le démon
 dit de chacun, les journaux et processus d'un conteneur, et les rapports du
 démon lui-même. Le fonctionnement des connexions est décrit sur la page
 [Connexions](connections.md).
@@ -29,9 +29,9 @@ démon lui-même. Le fonctionnement des connexions est décrit sur la page
 
 ## Connexion
 
-Le démon n'est jamais atteint directement. Créez d'abord une **connexion SSH**
-vers la machine où il tourne ; la page **Connexion** d'une connexion Docker
-demande ensuite :
+**Transport** choisit comment atteindre le démon : **Socket via SSH** ou
+**TCP avec TLS**, plus bas. Pour le socket, créez d'abord une **connexion SSH**
+vers la machine où tourne le démon ; la page **Connexion** demande ensuite :
 
 - **Connexion SSH** : l'une de vos connexions SSH. Son compte doit pouvoir
   utiliser le socket du démon — sur la plupart des machines, il fait partie
@@ -53,6 +53,25 @@ Le démon doit parler l'API 1.41 ou plus récente (Docker 20.10 et après).
 
 Le démon Docker de la machine où tourne DataPlayer lui-même n'est jamais
 proposé : qui tient ce socket tient la machine.
+
+## En TCP avec TLS
+
+Un démon qui écoute en TCP avec TLS mutuel — `dockerd --tlsverify`, en général
+sur le port 2376 — s'atteint sans SSH. Le formulaire demande :
+
+- **Hôte** et **Port** : l'hôte tel que le nomme le certificat du démon ;
+- **Certificat CA** : `ca.pem`, l'autorité qui a signé celui du démon ;
+- **Certificat client** et **Clé client** : `cert.pem` et `key.pem`, que le
+  démon accepte. La clé ne doit pas être chiffrée.
+
+Collez chaque fichier en entier, ligne `-----BEGIN` comprise. **Tunnel SSH**
+reste sur **Directement**, sauf si le port n'est joignable que depuis un autre
+réseau ; l'hôte est alors le nom par lequel le serveur SSH l'atteint.
+
+Un démon en TCP sans TLS — port 2375 — est refusé, et la vérification le dit :
+qui atteint ce port possède la machine. Elle dit aussi ce qui a échoué : un
+certificat que la CA n'a pas signé, un hôte pour lequel le certificat n'est
+pas, ou un certificat client que le démon refuse.
 
 ## Le catalogue
 
@@ -184,5 +203,4 @@ le faire, car le formulaire porte les mots de passe du conteneur.
 
 ## Ce que Docker n'a pas encore ici
 
-- Un démon atteint par TLS plutôt que par SSH
 - Les registres privés, et créer ou lancer de nouveaux conteneurs

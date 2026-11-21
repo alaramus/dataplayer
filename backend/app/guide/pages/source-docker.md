@@ -1,7 +1,7 @@
 # Docker
 
 A Docker daemon on another machine, reached through one of your SSH
-connections. You see its containers, images, volumes and networks, what the
+connections or over TCP with TLS. You see its containers, images, volumes and networks, what the
 daemon says about each, a container's logs and processes, and the daemon's
 own reports. How connections work in general is on the
 [Connections](connections.md) page.
@@ -29,9 +29,9 @@ own reports. How connections work in general is on the
 
 ## Connecting
 
-The daemon is never reached directly. Make an **SSH connection** to the
-machine it runs on first, then the **Connection** page of a Docker connection
-asks for:
+**Transport** chooses how the daemon is reached: **Socket through SSH** or
+**TCP with TLS**, below. For the socket, make an **SSH connection** to the
+machine the daemon runs on first; then the **Connection** page asks for:
 
 - **SSH connection**: one of your SSH connections. Its account must be allowed
   to use the daemon's socket — on most machines, it is in the `docker` group;
@@ -52,6 +52,25 @@ The daemon must speak API 1.41 or newer (Docker 20.10 and later).
 
 The Docker daemon of the machine DataPlayer itself runs on is never offered:
 whoever holds that socket holds the machine.
+
+## Over TCP with TLS
+
+A daemon that listens on TCP with mutual TLS — `dockerd --tlsverify`, usually
+on port 2376 — is reached without SSH. The form asks for:
+
+- **Host** and **Port**: as the daemon's certificate names the host;
+- **CA certificate**: `ca.pem`, the authority that signed the daemon's;
+- **Client certificate** and **Client key**: `cert.pem` and `key.pem`, which
+  the daemon accepts. The key must not be encrypted.
+
+Paste each file whole, `-----BEGIN` line and all. **SSH tunnel** stays
+**Directly** unless the port is reachable only from inside another network;
+then the host is the name the SSH server reaches it by.
+
+A daemon on TCP without TLS — port 2375 — is refused, and the check says so:
+whoever reaches that port owns the machine. The check also says which part
+failed: a certificate not signed by the CA, a host the certificate is not for,
+or a client certificate the daemon does not accept.
 
 ## The catalog
 
@@ -174,5 +193,4 @@ passwords.
 
 ## What Docker does not have here yet
 
-- A daemon reached over TLS rather than SSH
 - Private registries, and creating or running new containers

@@ -22,7 +22,13 @@ type TransportFactory = Callable[[], httpx.AsyncBaseTransport]
 
 
 class EngineUnreachable(Exception):
-    """The daemon did not answer at all: no socket, a dropped link, a timeout."""
+    """The daemon did not answer at all: no socket, a dropped link, a timeout,
+    a TLS handshake that failed. `cause` is what failed, for the caller to
+    word; it never leaves the server."""
+
+    def __init__(self, message: str, cause: BaseException | None = None) -> None:
+        super().__init__(message)
+        self.cause = cause
 
 
 class EngineRefused(Exception):
@@ -55,16 +61,27 @@ class EngineClient:
     """
 
     def __init__(
-        self, transport: TransportFactory, *, base_url: str, prefix: str = ""
+        self,
+        transport: TransportFactory,
+        *,
+        base_url: str,
+        prefix: str = "",
+        server_name: str | None = None,
     ) -> None:
         self._transport = transport
         self._base_url = base_url
         self.prefix = prefix
+        # The name a TLS certificate is checked against when the address
+        # dialled is another — a port forwarded through SSH (D418).
+        self._extensions = {"sni_hostname": server_name} if server_name else {}
 
     def at_version(self, version: str) -> EngineClient:
         """The same daemon, every path prefixed with `/v<version>`."""
         return EngineClient(
-            self._transport, base_url=self._base_url, prefix=f"/v{version}"
+            self._transport,
+            base_url=self._base_url,
+            prefix=f"/v{version}",
+            server_name=self._extensions.get("sni_hostname"),
         )
 
     @asynccontextmanager
@@ -94,10 +111,14 @@ class EngineClient:
     ) -> Answer:
         try:
             async with self.client(seconds) as client:
-                response = await client.request(method, path, params=params, json=json)
-        except httpx.HTTPError as failure:
+                response = await client.request(
+                    method, path, params=params, json=json, extensions=self._extensions
+                )
+        # An ssl.SSLError raised after the handshake — a client certificate
+        # the daemon refused, under TLS 1.3 — reaches here unwrapped by httpx.
+        except (httpx.HTTPError, OSError) as failure:
             logger.warning("Docker is unreachable: %r", failure)
-            raise EngineUnreachable(str(failure)) from None
+            raise EngineUnreachable(str(failure), failure) from None
         if response.status_code not in expected:
             # Logged with the daemon's own words, because they are useful to
             # whoever runs this server; answered without them, because they
@@ -128,7 +149,9 @@ class EngineClient:
         """
         try:
             async with self.client(seconds) as client:
-                async with client.stream(method, path, params=params) as response:
+                async with client.stream(
+                    method, path, params=params, extensions=self._extensions
+                ) as response:
                     if response.status_code != 200:
                         await response.aread()
                         logger.warning(
@@ -140,6 +163,6 @@ class EngineClient:
                         )
                         raise EngineRefused(response.status_code, method, path)
                     yield response
-        except httpx.HTTPError as failure:
+        except (httpx.HTTPError, OSError) as failure:
             logger.warning("Docker is unreachable: %r", failure)
-            raise EngineUnreachable(str(failure)) from None
+            raise EngineUnreachable(str(failure), failure) from None

@@ -46,7 +46,12 @@ from app.adapters.docker.inventory import (
 from app.adapters.docker.jobs import CommitContainer, PullImage, job_actions
 from app.adapters.docker.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.docker.metrics import samples
-from app.adapters.docker.options import DEFAULT_SOCKET, PODMAN_SOCKET, DockerOptions
+from app.adapters.docker.options import (
+    DEFAULT_SOCKET,
+    PODMAN_SOCKET,
+    DockerConnection,
+    DockerOptions,
+)
 from app.adapters.docker.reports import (
     REPORTS,
     in_section,
@@ -95,7 +100,7 @@ class DockerAdapter:
 
     def __init__(
         self,
-        options: DockerOptions,
+        options: DockerConnection,
         tunnels: TunnelAccess | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
@@ -364,7 +369,7 @@ _GROUP_OF: dict[str, Group] = {
     category="containers",
     description=N_(
         "A Docker daemon on another machine, reached through one of your SSH "
-        "connections. See its containers by Compose project, its images, "
+        "connections or over TCP with TLS. See its containers by Compose project, its images, "
         "volumes and networks, what the daemon says about each, a container's "
         "logs and processes, an image's layers, and the engine's disk usage "
         "and events. Running containers are measured for dashboards, and a "
@@ -386,5 +391,5 @@ _GROUP_OF: dict[str, Group] = {
         ),
     ),
 )
-def _build(options: DockerOptions, context: AdapterContext) -> DockerAdapter:
+def _build(options: DockerConnection, context: AdapterContext) -> DockerAdapter:
     return DockerAdapter(options, context.tunnels)

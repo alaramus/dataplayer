@@ -8,12 +8,13 @@ volumes, networks and the daemon's reports (D407), what a node opens as
 lifecycle (D410), removing, pruning and making volumes and networks (D411),
 pull and commit as jobs (D412), a terminal inside a container (D413) and what
 changed told as it happens (D414), metrics (D415), search (D416) and a
-database's container opened as a connection (D417). The contract
+database's container opened as a connection (D417) and a daemon reached
+on TCP with mutual TLS (D418). The contract
 every source type follows is in [contract.md](contract.md); the SSH tunnel it
 rides is D282 in [ssh.md](ssh.md). Read this before changing the `docker`
 adapter or `app/adapters/docker_api`.
 
-Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414, D415, D416, D417.
+Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414, D415, D416, D417, D418.
 
 ## D405. Only a remote daemon, its socket forwarded through an SSH connection
 
@@ -352,5 +353,48 @@ otherwise the container's first network address and the port, as the SSH
 server sees them. A stopped container is read from the bindings it asked for.
 A password the environment does not hold is left to the form, and the official
 Redis image, which takes its password on the command line, drafts no password.
+
+Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D418. A daemon on TCP with mutual TLS is the second transport
+
+The options are a union on `transport` (`docker/options.py`): `ssh` — the
+SSH connection and the socket of D405 — or `tls`: host, port (2376), an
+optional `ssh_tunnel` (D282), the CA certificate, the client certificate and
+the client key, the key a `SecretStr` (D4). Options stored before the choice
+carry no `transport` and are read as `ssh`. Each PEM field keeps the blocks of
+its kind, rewrapped at 64 columns, because the form's secret field is one
+line and drops the breaks of what is pasted into it; an encrypted key is
+refused. The rest of the type does not know which transport it has:
+`DockerSession` dials `https://` with an `ssl.SSLContext` built once in a
+thread (the client pair written to a private temporary folder, as the
+standard library loads a chain only from files, and removed at once), and an
+exec's stream opens the same way. The certificate is checked against the
+host the options name, not the forwarded port: `EngineClient` takes a
+`server_name`, sent as httpx's `sni_hostname`.
+
+**A daemon on TCP without TLS is refused**, and there is no option to allow
+one. A handshake that fails for no certificate's reason is followed by one
+plain `GET /_ping` on the same address; a daemon that answers it is named in
+the refusal. The first exchange also says which part of TLS failed: a
+certificate the CA did not sign, a host the certificate is not for, or a
+client certificate the daemon refused — under TLS 1.3 that is an
+`ssl.SSLError` on the first read, which httpx does not wrap, so
+`EngineClient` reduces `OSError` too and keeps the cause for the caller.
+
+**Open as connection** (D417) through a daemon on TLS with no tunnel sees a
+container from outside its machine: a port published on every address is at
+the daemon's host, and one on its loopback or only a network's address is out
+of reach, refused with the port to publish.
+
+*Checked* against `docker:29-dind` with `DOCKER_TLS_CERTDIR` (the `docker-tls`
+stand): a client without a certificate fails on
+`TLSV13_ALERT_CERTIFICATE_REQUIRED`, a wrong CA and a wrong name on
+`SSLCertVerificationError`, and plain HTTP to the TLS port gets a 400.
+
+Known deviation from D405: **a daemon on this server's own machine is not
+refused over TLS.** Reaching it takes a client certificate its CA signed,
+which only somebody already holding that daemon has; an address cannot be
+judged "this machine" reliably behind containers and proxies anyway.
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)

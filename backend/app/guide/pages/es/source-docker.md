@@ -1,7 +1,7 @@
 # Docker
 
 Un demonio Docker en otra máquina, alcanzado mediante una de tus conexiones
-SSH. Ves sus contenedores, imágenes, volúmenes y redes, lo que el demonio dice
+SSH o por TCP con TLS. Ves sus contenedores, imágenes, volúmenes y redes, lo que el demonio dice
 de cada uno, los registros y procesos de un contenedor y los informes del
 propio demonio. Cómo funcionan las conexiones en general está en la página
 [Conexiones](connections.md).
@@ -29,9 +29,9 @@ propio demonio. Cómo funcionan las conexiones en general está en la página
 
 ## Conexión
 
-Al demonio nunca se llega directamente. Crea primero una **conexión SSH** a la
-máquina donde corre; después la página **Conexión** de una conexión Docker
-pide:
+**Transporte** elige cómo se llega al demonio: **Socket por SSH** o **TCP con
+TLS**, más abajo. Para el socket, crea primero una **conexión SSH** a la
+máquina donde corre el demonio; después la página **Conexión** pide:
 
 - **Conexión SSH**: una de tus conexiones SSH. Su cuenta debe poder usar el
   socket del demonio; en la mayoría de máquinas, está en el grupo `docker`;
@@ -52,6 +52,25 @@ El demonio debe hablar la API 1.41 o más reciente (Docker 20.10 en adelante).
 
 El demonio Docker de la máquina donde corre el propio DataPlayer nunca se
 ofrece: quien tiene ese socket tiene la máquina.
+
+## Por TCP con TLS
+
+A un demonio que escucha en TCP con TLS mutuo — `dockerd --tlsverify`,
+normalmente en el puerto 2376 — se llega sin SSH. El formulario pide:
+
+- **Host** y **Puerto**: el host tal como lo nombra el certificado del demonio;
+- **Certificado de CA**: `ca.pem`, la autoridad que firmó el del demonio;
+- **Certificado de cliente** y **Clave de cliente**: `cert.pem` y `key.pem`,
+  que el demonio acepta. La clave no debe estar cifrada.
+
+Pega cada archivo entero, con la línea `-----BEGIN`. **Túnel SSH** queda en
+**Directamente** salvo que el puerto solo se alcance desde otra red; entonces
+el host es el nombre con que lo alcanza el servidor SSH.
+
+Un demonio en TCP sin TLS — puerto 2375 — se rechaza, y la comprobación lo
+dice: quien alcanza ese puerto es dueño de la máquina. También dice qué falló:
+un certificado que la CA no firmó, un host para el que el certificado no es, o
+un certificado de cliente que el demonio no acepta.
 
 ## El catálogo
 
@@ -180,5 +199,4 @@ contraseñas del contenedor.
 
 ## Lo que Docker aún no tiene aquí
 
-- Un demonio alcanzado por TLS en lugar de SSH
 - Registros privados, y crear o ejecutar contenedores nuevos

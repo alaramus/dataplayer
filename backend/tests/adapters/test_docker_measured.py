@@ -15,7 +15,7 @@ from app.adapters.clickhouse.options import ClickhouseOptions
 from app.adapters.docker.adapter import DockerAdapter
 from app.adapters.docker.connect import address, environment
 from app.adapters.docker.metrics import container_samples, cpu_percent, memory_used
-from app.adapters.docker.options import DockerOptions
+from app.adapters.docker.options import DockerSshOptions
 from app.adapters.mongodb.options import MongodbOptions
 from app.adapters.mysql.options import MysqlOptions
 from app.adapters.postgres.options import PostgresOptions
@@ -283,7 +283,7 @@ def _adapter(inspected: dict[str, Any]) -> DockerAdapter:
         return httpx.Response(404, json={"message": "no such container"})
 
     return DockerAdapter(
-        DockerOptions(ssh_connection=THROUGH), _Loopback(), httpx.MockTransport(handler)
+        DockerSshOptions(ssh_connection=THROUGH), _Loopback(), httpx.MockTransport(handler)
     )
 
 

@@ -10,7 +10,7 @@ from app.adapters.catalog import ImageNode
 from app.adapters.docker.adapter import DockerAdapter
 from app.adapters.docker.catalog import parse
 from app.adapters.docker.inventory import network_kind, ports_of, state_of
-from app.adapters.docker.options import DockerOptions
+from app.adapters.docker.options import DockerSshOptions
 from app.adapters.docker.session import spoken
 from app.adapters.docker.tables import log_rows
 from app.adapters.fetch import FetchRequest
@@ -45,7 +45,7 @@ def _adapter(answers: dict[str, httpx.Response], api: str = "1.57") -> DockerAda
         return httpx.Response(404, json={"message": "no such thing at /var/lib/docker"})
 
     adapter = DockerAdapter(
-        DockerOptions(ssh_connection=THROUGH),
+        DockerSshOptions(ssh_connection=THROUGH),
         _Loopback(),
         httpx.MockTransport(handler),
     )
@@ -124,14 +124,14 @@ def test_ids_name_what_the_daemon_will_not_reuse() -> None:
 @pytest.mark.parametrize("socket", ["docker.sock", "/var/../run/docker.sock", "/a\x00b", "/" + "x" * 255])
 def test_a_socket_is_an_absolute_plain_path(socket: str) -> None:
     with pytest.raises(ValidationError):
-        DockerOptions(ssh_connection=THROUGH, socket=socket)
+        DockerSshOptions(ssh_connection=THROUGH, socket=socket)
 
 
 def test_an_ssh_connection_is_required() -> None:
     with pytest.raises(ValidationError):
-        DockerOptions.model_validate({"socket": "/var/run/docker.sock"})
+        DockerSshOptions.model_validate({"socket": "/var/run/docker.sock"})
     with pytest.raises(ValidationError):
-        DockerOptions(ssh_connection="")
+        DockerSshOptions(ssh_connection="")
 
 
 def test_the_version_spoken_is_the_lower_and_never_below_the_floor() -> None:

@@ -1,7 +1,7 @@
 # Docker
 
 Ein Docker-Daemon auf einem anderen Rechner, erreicht über eine Ihrer
-SSH-Verbindungen. Sie sehen seine Container, Images, Volumes und Netzwerke,
+SSH-Verbindungen oder über TCP mit TLS. Sie sehen seine Container, Images, Volumes und Netzwerke,
 was der Daemon über jedes sagt, Logs und Prozesse eines Containers und die
 Berichte des Daemons selbst. Wie Verbindungen allgemein funktionieren, steht
 auf der Seite [Verbindungen](connections.md).
@@ -29,9 +29,10 @@ auf der Seite [Verbindungen](connections.md).
 
 ## Verbinden
 
-Der Daemon wird nie direkt erreicht. Legen Sie zuerst eine
-**SSH-Verbindung** zum Rechner an, auf dem er läuft; die Seite **Verbindung**
-einer Docker-Verbindung fragt dann nach:
+**Transport** legt fest, wie der Daemon erreicht wird: **Socket über SSH**
+oder **TCP mit TLS**, siehe unten. Für den Socket legen Sie zuerst eine
+**SSH-Verbindung** zum Rechner an, auf dem der Daemon läuft; die Seite
+**Verbindung** fragt dann nach:
 
 - **SSH-Verbindung**: eine Ihrer SSH-Verbindungen. Ihr Konto muss den Socket
   des Daemons benutzen dürfen — auf den meisten Rechnern ist es dafür in der
@@ -54,6 +55,25 @@ Der Daemon muss API 1.41 oder neuer sprechen (Docker 20.10 und später).
 
 Der Docker-Daemon des Rechners, auf dem DataPlayer selbst läuft, wird nie
 angeboten: Wer diesen Socket hat, hat den Rechner.
+
+## Über TCP mit TLS
+
+Ein Daemon, der auf TCP mit gegenseitigem TLS lauscht — `dockerd --tlsverify`,
+meist auf Port 2376 —, wird ohne SSH erreicht. Das Formular fragt nach:
+
+- **Host** und **Port**: der Host so, wie das Zertifikat des Daemons ihn nennt;
+- **CA-Zertifikat**: `ca.pem`, die Stelle, die das des Daemons signiert hat;
+- **Client-Zertifikat** und **Client-Schlüssel**: `cert.pem` und `key.pem`,
+  die der Daemon akzeptiert. Der Schlüssel darf nicht verschlüsselt sein.
+
+Fügen Sie jede Datei ganz ein, mit der Zeile `-----BEGIN`. **SSH-Tunnel**
+bleibt auf **Direkt**, außer der Port ist nur aus einem anderen Netz
+erreichbar; dann ist der Host der Name, unter dem der SSH-Server ihn erreicht.
+
+Ein Daemon auf TCP ohne TLS — Port 2375 — wird abgelehnt, und die Prüfung sagt
+es: Wer diesen Port erreicht, besitzt den Rechner. Die Prüfung sagt auch, was
+fehlschlug: ein Zertifikat, das die CA nicht signiert hat, ein Host, für den
+das Zertifikat nicht gilt, oder ein Client-Zertifikat, das der Daemon ablehnt.
 
 ## Der Katalog
 
@@ -185,5 +205,4 @@ das, denn das Formular trägt die Passwörter des Containers.
 
 ## Was Docker hier noch nicht hat
 
-- Einen Daemon, der über TLS statt SSH erreicht wird
 - Private Registries, und neue Container anlegen oder starten

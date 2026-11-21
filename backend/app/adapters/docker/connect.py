@@ -4,7 +4,9 @@ The types declare the images their servers run as (`ContainerImage`), so this
 module keeps no list of them. The draft goes through the Docker source's own
 SSH connection (D282): the published port at `127.0.0.1` when the container
 publishes the server's port, its address on its network otherwise, both as the
-SSH server sees them.
+SSH server sees them. A daemon reached over TLS with no tunnel (D418) is seen
+from here: a port published on every address is at the daemon's host, and a
+port on its loopback or a container's network address is out of reach.
 """
 
 from collections.abc import Mapping
@@ -19,14 +21,15 @@ from app.adapters.actions import (
 from app.adapters.catalog import NodeKind
 from app.adapters.docker.actions import NoParams
 from app.adapters.docker.catalog import parse
+from app.adapters.docker.options import DockerTlsOptions
 from app.adapters.docker.session import DockerSession, segment
 from app.adapters.registry import AdapterType, ContainerImage, type_for_image
 from app.core.access import Access
 from app.core.translation import N_, say
 
-# A port published on every address, or on this machine's own, is reached at
-# the loopback address of the SSH server.
-_LOOPBACK_BINDINGS = frozenset({"", "0.0.0.0", "::", "127.0.0.1", "::1"})
+# A port published on every address, or on the machine's loopback only.
+_EVERY_ADDRESS = frozenset({"", "0.0.0.0", "::"})
+_LOOPBACK = frozenset({"127.0.0.1", "::1"})
 
 
 def environment(inspected: dict[str, Any]) -> dict[str, str]:
@@ -44,8 +47,14 @@ def image_of(inspected: dict[str, Any]) -> str:
     return str((inspected.get("Config") or {}).get("Image") or "")
 
 
-def address(inspected: dict[str, Any], port: int) -> tuple[str, int] | None:
-    """Where the server is, as the daemon's machine sees it, or None."""
+def address(
+    inspected: dict[str, Any], port: int, daemon_host: str | None = None
+) -> tuple[str, int] | None:
+    """Where the server is, or None.
+
+    As the daemon's machine sees it; or, given `daemon_host`, as this server
+    sees it from outside that machine.
+    """
     wanted = f"{port}/tcp"
     settings = inspected.get("NetworkSettings") or {}
     host_config = inspected.get("HostConfig") or {}
@@ -61,9 +70,17 @@ def address(inspected: dict[str, Any], port: int) -> tuple[str, int] | None:
             if not published.isdigit():
                 continue
             host_ip = str(binding.get("HostIp") or "")
-            return ("127.0.0.1" if host_ip in _LOOPBACK_BINDINGS else host_ip), int(published)
+            if host_ip in _EVERY_ADDRESS:
+                return daemon_host or "127.0.0.1", int(published)
+            if host_ip in _LOOPBACK:
+                if daemon_host is None:
+                    return "127.0.0.1", int(published)
+                continue
+            return host_ip, int(published)
     if host_config.get("NetworkMode") == "host":
-        return "127.0.0.1", port
+        return daemon_host or "127.0.0.1", port
+    if daemon_host is not None:
+        return None
     for network in (settings.get("Networks") or {}).values():
         ip = network.get("IPAddress") if isinstance(network, dict) else None
         if ip:
@@ -113,7 +130,10 @@ class OpenAsConnection(Action[NoParams]):
                 say("No connection type here runs as {image}", image=image_of(inspected)),
             )
         adapter_type, image = declared
-        where = address(inspected, image.port)
+        options = self._session.options
+        tunnel = options.tunnel
+        seen_from = None if tunnel or not isinstance(options, DockerTlsOptions) else options.host
+        where = address(inspected, image.port, seen_from)
         if where is None:
             raise ActionRefused(
                 "not_applicable",
@@ -128,6 +148,6 @@ class OpenAsConnection(Action[NoParams]):
                 **image.options(environment(inspected)),
                 "host": host,
                 "port": port,
-                "ssh_tunnel": self._session.options.ssh_connection,
+                "ssh_tunnel": tunnel,
             },
         )

@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from app.adapters.docker.options import DockerOptions
+from app.adapters.docker.options import DockerSshOptions
 from app.adapters.docker.session import DockerSession
 from app.adapters.docker_api.client import EngineClient
 from app.adapters.registry import AdapterContext
@@ -31,7 +31,9 @@ class Through:
         self._ssh = ssh
 
     async def endpoint(self, connection_id: uuid.UUID, host: str, port: int) -> tuple[str, int]:
-        raise AssertionError("a Docker source forwards a socket, not a port")
+        """A daemon on TCP reached through the SSH server, as `docker-tls` (D418)."""
+        assert str(connection_id) == THROUGH
+        return await self._ssh.forward(host, port)
 
     async def socket_endpoint(self, connection_id: uuid.UUID, path: str) -> tuple[str, int]:
         assert str(connection_id) == THROUGH
@@ -54,8 +56,8 @@ async def open_through() -> Through:
     return Through(SshAdapter(options, AdapterContext(home_dir=Path("."))))
 
 
-def options(socket: str = "/var/run/docker.sock") -> DockerOptions:
-    return DockerOptions(ssh_connection=THROUGH, socket=socket)
+def options(socket: str = "/var/run/docker.sock") -> DockerSshOptions:
+    return DockerSshOptions(ssh_connection=THROUGH, socket=socket)
 
 
 async def make(engine: EngineClient, name: str, body: dict[str, object]) -> str:

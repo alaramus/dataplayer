@@ -26,7 +26,6 @@ from app.adapters.operations import (
     OperationTarget,
     UnitOutcome,
 )
-from app.adapters.protocol import AdapterError
 from app.core.access import Access
 from app.core.translation import N_, say
 
@@ -200,9 +199,7 @@ class PullImage(Action[PullParams]):
             raise ActionRefused("conflict", say("The Docker server could not do that")) from None
         except EngineUnreachable:
             # The pull may have finished on the daemon without our hearing it.
-            raise AdapterError(
-                "network", say("The Docker server stopped answering through the SSH connection")
-            ) from None
+            raise self._session.unreachable() from None
         return "completed"
 
     async def observe(

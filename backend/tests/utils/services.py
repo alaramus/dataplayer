@@ -18,6 +18,7 @@ import struct
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cache
+from pathlib import Path
 from typing import NoReturn
 from urllib.parse import urlsplit
 
@@ -87,6 +88,8 @@ _PROTOCOLS = {
     "s3": _Protocol(9000, b"GET / HTTP/1.0\r\n\r\n", (b"H",)),
     # An IMAP server speaks first, with its `* OK` greeting.
     "imap": _Protocol(143, b"", (b"*",)),
+    # A Docker daemon with TLS answers plain HTTP with a 400 of its own.
+    "docker": _Protocol(2376, b"GET /_ping HTTP/1.0\r\n\r\n", (b"H",)),
 }
 
 _required = False
@@ -211,6 +214,26 @@ DOCKER_REMOTE = Server(
         "TEST_DOCKER_REMOTE_URL", "ssh://dataplayer:dataplayer@127.0.0.1:2223"
     ),
 )
+
+# A Docker daemon on TCP with mutual TLS (`docker-tls` in compose.override.yml),
+# which makes its own CA and certificates on first start (D418).
+DOCKER_TLS = Server(
+    name="the Docker daemon on TCP with TLS",
+    variable="TEST_DOCKER_TLS_URL",
+    start="docker compose up -d docker-tls",
+    read=lambda: os.environ.get("TEST_DOCKER_TLS_URL", "docker://127.0.0.1:2376"),
+)
+
+
+def docker_tls_certificates() -> Path:
+    """Where the TLS daemon left its client's ca.pem, cert.pem and key.pem."""
+    return Path(
+        os.environ.get(
+            "TEST_DOCKER_TLS_CERTS",
+            str(Path(__file__).resolve().parents[3] / "deploy/docker-tls/certs/client"),
+        )
+    )
+
 
 # The development MySQL and MariaDB (`mysql` and `mariadb` in
 # compose.override.yml), signing in as root. Both, because the one source
@@ -403,6 +426,7 @@ SERVERS = (
     TIMESCALE,
     SSH,
     DOCKER_REMOTE,
+    DOCKER_TLS,
     MYSQL,
     MARIADB,
     CLICKHOUSE,
