@@ -1,0 +1,55 @@
+{
+ "Architecture": "amd64",
+ "Author": "",
+ "Comment": "buildkit.dockerfile.v0",
+ "Config": {
+  "AttachStderr": false,
+  "AttachStdin": false,
+  "AttachStdout": false,
+  "Cmd": [
+   "/bin/sh"
+  ],
+  "Domainname": "",
+  "Entrypoint": null,
+  "Env": [
+   "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  ],
+  "Hostname": "",
+  "Image": "",
+  "Labels": null,
+  "OnBuild": null,
+  "OpenStdin": false,
+  "StdinOnce": false,
+  "Tty": false,
+  "User": "",
+  "Volumes": null,
+  "WorkingDir": "/"
+ },
+ "Created": "2026-04-16T23:53:26.803599608Z",
+ "DockerVersion": "",
+ "GraphDriver": {
+  "Data": null,
+  "Name": "overlayfs"
+ },
+ "Id": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+ "Metadata": {
+  "LastTagTime": "2026-11-21T18:44:02.146162942Z"
+ },
+ "Os": "linux",
+ "Parent": "",
+ "RepoDigests": [
+  "alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "postgres@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+ ],
+ "RepoTags": [
+  "alpine:3.20",
+  "postgres:dp-test"
+ ],
+ "RootFS": {
+  "Layers": [
+   "sha256:08bc4e534116aa76b16015484b82eac51f9a593416feae9296c8a2d4bb7aa4a2"
+  ],
+  "Type": "layers"
+ },
+ "Size": 12102484
+}

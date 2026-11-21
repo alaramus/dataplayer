@@ -401,39 +401,58 @@ judged "this machine" reliably behind containers and proxies anyway.
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
 
-## D422. A container's inspect opens on its view
+## D422. An inspect opens on its view
 
-The container node and its **Inspect** declare `[view "Overview", tree "As
-JSON"]`; the view (D419, [views.md](views.md)) is built by `docker/card.py`
-from the inspect the tree reads, and nothing else is asked of the daemon.
-Image, volume and network keep `[tree "Inspect"]` until slice 2.
+A container, an image, a volume and a network, and each one's **Inspect**,
+declare `[view "Overview", tree "As JSON"]`; the view (D419,
+[views.md](views.md)) is built by `docker/card.py` (a container, and the
+values every Docker view reads alike) and `docker/cards.py` (the rest) from
+the inspect the tree reads.
 
-- **Header**: the name; the state word of D407 read from inspect (running and
-  healthy `good`, starting, restarting and removing `busy`, unhealthy, failed
-  and dead `bad`, paused `warning`, stopped, never started and unknown
-  `neutral`); the image as a link to its node.
-- **Sections**: Overview — id, created, started (running) or finished and
-  exit code, restart policy and count, command and entrypoint as code,
-  working directory, user, the Compose project as a link to its level and the
-  service; Health, only when a check is defined or reported — status, failing
-  streak, the check, the last results newest first; Network — the mode, the
-  published ports one row per address (an exposed port with no binding has
-  an empty host), the networks with address and gateway as links; Storage —
-  mounts, a volume as a link, a bind as its path; Environment — pairs,
-  sensitive by name (D421: `PASSWORD`, `PASSWD`, `SECRET`, `TOKEN`, `KEY`,
-  `CREDENTIAL`, `PRIVATE`, case-folded); Labels — pairs, collapsed;
-  Resources — memory, CPUs and processes, `empty` when the daemon says 0.
-- **Notices** above it: killed for memory (`OOMKilled`), and more than three
-  restarts.
+- **Container.** Header: the name; the state word of D407 read from inspect
+  (running and healthy `good`, starting, restarting and removing `busy`,
+  unhealthy, failed and dead `bad`, paused `warning`, stopped, never started
+  and unknown `neutral`); the image as a link. Sections: Overview — id,
+  created, started (running) or finished and exit code, restart policy and
+  count, command and entrypoint as code, working directory, user, the Compose
+  project as a link to its level and the service; Health, only when a check is
+  defined or reported — status, failing streak, the check, the last results
+  newest first; Network — the mode, published ports one row per address, the
+  networks with address and gateway as links; Storage — mounts, a volume as a
+  link; Environment — pairs, sensitive by name (D421: `PASSWORD`, `PASSWD`,
+  `SECRET`, `TOKEN`, `KEY`, `CREDENTIAL`, `PRIVATE`, case-folded); Labels —
+  collapsed; Resources — memory, CPUs and processes, `empty` when the daemon
+  says 0. Notices above: killed for memory, more than three restarts.
+- **Image.** Tags as chips, id, size, created, platform, entrypoint, command,
+  working directory, user, exposed ports, the layers counted as a link to its
+  History; the containers that run it with their state; environment; labels.
+- **Volume.** Driver, mount point, scope, created; the containers that mount
+  it, their state, where and whether writable; options; labels.
+- **Network.** Id, driver, scope, internal, attachable, IPv6, created; the
+  subnets, gateways and ranges; the containers on it with IPv4, IPv6 and MAC
+  as its inspect names them; options and labels, collapsed.
+- **What changed is told** (on D414). An open view's node — the leaf or its
+  Inspect — is followed like a level: `/events` is opened for it alone if no
+  level is shown, and `views_told` names the views an event is about. A
+  container's event tells its view, and every image and volume view shown,
+  since they list container states; a network's connect or disconnect tells
+  the network and the container; an image's tag, untag or delete tells that
+  image, and a pull — which names a reference, not an id — every image view;
+  a volume's create, destroy, mount or unmount tells that volume. A health
+  check's exec is not an event any view shows.
 
 Docker's `created` state is worded "never started": the English key
 "created" is shared with another package, whose Russian is feminine.
 
 Known deviations:
 
-- **The view does not follow the daemon's events.** D414 tells a level and a
-  Logs tab; a view tab is reread by hand until slice 2.
-- **Image, volume and network have no view yet**, and so a link to one shows
-  its level in the catalog, where its Inspect is the tree.
+- **An image's and a volume's view read the container list too**, one request
+  beside the inspect: who uses them is not in their inspect, and is counted
+  from the containers as the levels count it (D407). A network's inspect
+  names its own containers.
+- **A view is told only while a catalog of the connection is open.** The
+  watch is held by the catalog panel (D303), as a Logs tab's is.
+- **A container linked from a view shows its level in the catalog**, since a
+  container is walked into (D408).
 
 Spec: [A view of a document](../../decisions/2026-11-21-document-views-design.md)

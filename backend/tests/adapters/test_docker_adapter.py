@@ -162,14 +162,16 @@ async def test_a_container_holds_its_views(
     assert card.header.title == "dp-test-web"
 
 
-async def test_only_a_container_has_a_view_yet(
+async def test_an_image_volume_and_network_open_on_their_views(
     adapter: DockerAdapter, stand: dict[str, str]
 ) -> None:
     del stand
-    images = await adapter.list_children("images")
-    assert [one.kind for one in images[0].representations] == ["tree"]
-    with pytest.raises(ValueError):
-        await adapter.read_content(ContentRequest(node_id=images[0].id, representation="view"))
+    for group in ("images", "volumes", "networks"):
+        [first, *_] = await adapter.list_children(group)
+        assert [one.kind for one in first.representations] == ["view", "tree"]
+        view = await adapter.read_content(ContentRequest(node_id=first.id, representation="view"))
+        assert isinstance(view, DocumentView)
+        assert view.header.title == first.name
 
 
 async def test_a_path_leads_through_the_project(

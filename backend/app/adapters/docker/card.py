@@ -2,7 +2,8 @@
 
 Built from the inspect the source already reads for the tree; nothing else is
 asked of the daemon. A plain function of that document, so a recorded inspect
-is enough to test it.
+is enough to test it. The values every Docker view reads the same way are
+here too; `cards.py` holds the image's, the volume's and the network's.
 """
 
 from typing import Any
@@ -84,6 +85,11 @@ _HEALTH_WORDS = {
 }
 
 
+def state_value(state: ContainerState) -> StateValue:
+    """The state word of D407 and its tone (D422)."""
+    return StateValue(word=say(_WORDS[state]), tone=_TONES[state])
+
+
 def is_sensitive(name: str) -> bool:
     folded = name.upper()
     return any(word in folded for word in _SENSITIVE)
@@ -91,10 +97,10 @@ def is_sensitive(name: str) -> bool:
 
 def inspected_state(inspect: dict[str, Any]) -> ContainerState:
     """The state word of D407, read from inspect rather than from the list."""
-    state = _dict(inspect.get("State"))
+    state = as_dict(inspect.get("State"))
     status = str(state.get("Status") or "")
     if status == "running":
-        health = str(_dict(state.get("Health")).get("Status") or "")
+        health = str(as_dict(state.get("Health")).get("Status") or "")
         if health in ("healthy", "unhealthy", "starting"):
             return health  # type: ignore[return-value] # narrowed by the tuple above
         return "running"
@@ -106,9 +112,9 @@ def inspected_state(inspect: dict[str, Any]) -> ContainerState:
 
 
 def container_view(inspect: dict[str, Any]) -> DocumentView:
-    state = _dict(inspect.get("State"))
-    config = _dict(inspect.get("Config"))
-    host = _dict(inspect.get("HostConfig"))
+    state = as_dict(inspect.get("State"))
+    config = as_dict(inspect.get("Config"))
+    host = as_dict(inspect.get("HostConfig"))
     word = inspected_state(inspect)
     blocks: list[ViewBlock] = [*_notices(inspect, state), _overview(inspect, state, config, host)]
     health = _health(config, state)
@@ -117,11 +123,11 @@ def container_view(inspect: dict[str, Any]) -> DocumentView:
     blocks += [
         _network(inspect, host),
         _storage(inspect),
-        SectionBlock(title=say("Environment"), blocks=[_environment(config)]),
+        SectionBlock(title=say("Environment"), blocks=[environment_pairs(config)]),
         SectionBlock(
             title=say("Labels"),
             collapsed=True,
-            blocks=[pairs([ViewPair(name=k, value=v) for k, v in sorted(_labels(config).items())])],
+            blocks=[pairs([ViewPair(name=k, value=v) for k, v in sorted(labels_in(config).items())])],
         ),
         _resources(host),
     ]
@@ -129,7 +135,7 @@ def container_view(inspect: dict[str, Any]) -> DocumentView:
         header=ViewHeader(
             title=str(inspect.get("Name") or "").lstrip("/") or str(inspect.get("Id", ""))[:12],
             subtitle=_image(inspect, config),
-            state=StateValue(word=say(_WORDS[word]), tone=_TONES[word]),
+            state=state_value(word),
         ),
         blocks=blocks,
     )
@@ -159,12 +165,12 @@ def _overview(
     running = state.get("Running") is True
     fields = [
         ViewField(label=say("ID"), value=code(str(inspect.get("Id", "")))),
-        ViewField(label=say("Created"), value=_at(inspect.get("Created"))),
+        ViewField(label=say("Created"), value=at_value(inspect.get("Created"))),
     ]
     if running:
-        fields.append(ViewField(label=say("Started"), value=_at(state.get("StartedAt"))))
+        fields.append(ViewField(label=say("Started"), value=at_value(state.get("StartedAt"))))
     else:
-        fields.append(ViewField(label=say("Finished"), value=_at(state.get("FinishedAt"))))
+        fields.append(ViewField(label=say("Finished"), value=at_value(state.get("FinishedAt"))))
         exit_code = state.get("ExitCode")
         fields.append(
             ViewField(
@@ -174,16 +180,16 @@ def _overview(
                 else EmptyValue(),
             )
         )
-    policy = _dict(host.get("RestartPolicy"))
+    policy = as_dict(host.get("RestartPolicy"))
     fields += [
-        ViewField(label=say("Restart policy"), value=_word(policy.get("Name"))),
-        ViewField(label=say("Restarts"), value=_count(inspect.get("RestartCount"))),
-        ViewField(label=say("Command"), value=_command(config.get("Cmd"))),
-        ViewField(label=say("Entrypoint"), value=_command(config.get("Entrypoint"))),
-        ViewField(label=say("Working directory"), value=_word(config.get("WorkingDir"))),
-        ViewField(label=say("User"), value=_word(config.get("User"))),
+        ViewField(label=say("Restart policy"), value=word_value(policy.get("Name"))),
+        ViewField(label=say("Restarts"), value=count_value(inspect.get("RestartCount"))),
+        ViewField(label=say("Command"), value=command_value(config.get("Cmd"))),
+        ViewField(label=say("Entrypoint"), value=command_value(config.get("Entrypoint"))),
+        ViewField(label=say("Working directory"), value=word_value(config.get("WorkingDir"))),
+        ViewField(label=say("User"), value=word_value(config.get("User"))),
     ]
-    labels = _labels(config)
+    labels = labels_in(config)
     project = labels.get(COMPOSE_PROJECT)
     if project:
         fields.append(
@@ -192,16 +198,16 @@ def _overview(
                 value=LinkValue(text=project, node_id=project_id(project)),
             )
         )
-        fields.append(ViewField(label=say("Compose service"), value=_word(labels.get(COMPOSE_SERVICE))))
+        fields.append(ViewField(label=say("Compose service"), value=word_value(labels.get(COMPOSE_SERVICE))))
     return SectionBlock(title=say("Overview"), blocks=[FieldsBlock(fields=fields)])
 
 
 def _health(config: dict[str, Any], state: dict[str, Any]) -> SectionBlock | None:
-    check = _dict(config.get("Healthcheck"))
+    check = as_dict(config.get("Healthcheck"))
     tests = check.get("Test")
     # `["NONE"]` switches off a check the image declared.
     defined = isinstance(tests, list) and bool(tests) and tests[0] != "NONE"
-    health = _dict(state.get("Health"))
+    health = as_dict(state.get("Health"))
     if not defined and not health:
         return None
     status = str(health.get("Status") or "none")
@@ -213,15 +219,15 @@ def _health(config: dict[str, Any], state: dict[str, Any]) -> SectionBlock | Non
                 tone=_HEALTH_TONES.get(status, "neutral"),
             ),
         ),
-        ViewField(label=say("Failing streak"), value=_count(health.get("FailingStreak"))),
+        ViewField(label=say("Failing streak"), value=count_value(health.get("FailingStreak"))),
     ]
     if isinstance(tests, list) and defined:
         # The first word says how the rest runs, not what runs.
         command = tests[1:] if tests[0] in ("CMD", "CMD-SHELL") else tests
-        fields.append(ViewField(label=say("Check"), value=_command(command)))
+        fields.append(ViewField(label=say("Check"), value=command_value(command)))
     rows: list[list[ViewValue]] = [
         [
-            _at(entry.get("Start")),
+            at_value(entry.get("Start")),
             NumberValue(value=entry["ExitCode"]) if isinstance(entry.get("ExitCode"), int) else EmptyValue(),
             code(str(entry.get("Output") or "").strip()),
         ]
@@ -238,9 +244,9 @@ def _health(config: dict[str, Any], state: dict[str, Any]) -> SectionBlock | Non
 
 
 def _network(inspect: dict[str, Any], host: dict[str, Any]) -> SectionBlock:
-    settings = _dict(inspect.get("NetworkSettings"))
+    settings = as_dict(inspect.get("NetworkSettings"))
     ports: list[list[ViewValue]] = []
-    for port, bindings in sorted(_dict(settings.get("Ports")).items()):
+    for port, bindings in sorted(as_dict(settings.get("Ports")).items()):
         if not isinstance(bindings, list) or not bindings:
             ports.append([text(port), EmptyValue(), EmptyValue()])
             continue
@@ -251,28 +257,28 @@ def _network(inspect: dict[str, Any], host: dict[str, Any]) -> SectionBlock:
             ports.append(
                 [
                     text(port),
-                    _word(binding.get("HostIp")),
+                    word_value(binding.get("HostIp")),
                     # An identifier, not a quantity: 8080, never "8,080".
                     text(host_port) if host_port else EmptyValue(),
                 ]
             )
     networks: list[list[ViewValue]] = []
-    for name, endpoint in sorted(_dict(settings.get("Networks")).items()):
-        endpoint = _dict(endpoint)
+    for name, endpoint in sorted(as_dict(settings.get("Networks")).items()):
+        endpoint = as_dict(endpoint)
         network_id = str(endpoint.get("NetworkID") or "")
         networks.append(
             [
                 LinkValue(text=name, node_id=leaf_id("network", network_id))
                 if len(network_id) == 64
                 else text(name),
-                _word(endpoint.get("IPAddress")),
-                _word(endpoint.get("Gateway")),
+                word_value(endpoint.get("IPAddress")),
+                word_value(endpoint.get("Gateway")),
             ]
         )
     return SectionBlock(
         title=say("Network"),
         blocks=[
-            FieldsBlock(fields=[ViewField(label=say("Network mode"), value=_word(host.get("NetworkMode")))]),
+            FieldsBlock(fields=[ViewField(label=say("Network mode"), value=word_value(host.get("NetworkMode")))]),
             table([say("Container port"), say("Host address"), say("Host port")], ports),
             table([say("Network"), say("Address"), say("Gateway")], networks),
         ],
@@ -295,7 +301,7 @@ def _storage(inspect: dict[str, Any]) -> SectionBlock:
         )
         rows.append(
             [
-                _word(kind),
+                word_value(kind),
                 source,
                 code(str(mount.get("Destination") or "")),
                 BooleanValue(value=mount.get("RW") is not False),
@@ -307,7 +313,7 @@ def _storage(inspect: dict[str, Any]) -> SectionBlock:
     )
 
 
-def _environment(config: dict[str, Any]) -> PairsBlock:
+def environment_pairs(config: dict[str, Any]) -> PairsBlock:
     found: list[ViewPair] = []
     for entry in config.get("Env") or []:
         if not isinstance(entry, str):
@@ -347,21 +353,21 @@ def _image(inspect: dict[str, Any], config: dict[str, Any]) -> ViewValue:
     return text(named) if named else EmptyValue()
 
 
-def _at(value: Any) -> ViewValue:
+def at_value(value: Any) -> ViewValue:
     return moment(datetime_of(instant(value)))
 
 
-def _word(value: Any) -> ViewValue:
+def word_value(value: Any) -> ViewValue:
     return text(str(value)) if isinstance(value, str) and value else EmptyValue()
 
 
-def _count(value: Any) -> ViewValue:
+def count_value(value: Any) -> ViewValue:
     if isinstance(value, int) and not isinstance(value, bool):
         return NumberValue(value=value)
     return EmptyValue()
 
 
-def _command(value: Any) -> ViewValue:
+def command_value(value: Any) -> ViewValue:
     if isinstance(value, list) and value:
         return code(" ".join(_quoted(str(part)) for part in value))
     if isinstance(value, str) and value:
@@ -374,7 +380,7 @@ def _quoted(part: str) -> str:
     return part if part and not any(c.isspace() or c in "\"'" for c in part) else repr(part)
 
 
-def _labels(config: dict[str, Any]) -> dict[str, str]:
+def labels_in(config: dict[str, Any]) -> dict[str, str]:
     labels = config.get("Labels")
     return {str(k): str(v) for k, v in labels.items()} if isinstance(labels, dict) else {}
 
@@ -385,5 +391,5 @@ def _positive(value: Any) -> int | None:
     return None
 
 
-def _dict(value: Any) -> dict[str, Any]:
+def as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}

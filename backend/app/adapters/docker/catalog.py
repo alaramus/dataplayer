@@ -79,15 +79,11 @@ _PATTERNS: dict[Leaf, re.Pattern[str]] = {
 }
 
 TABLE = NodeRepresentation(kind="table", title=N_("View as table"))
-INSPECT = NodeRepresentation(kind="tree", title=N_("Inspect"))
-# A container's inspect opens on what it means, its JSON one click away (D422).
+# An inspect opens on what it means, its JSON one click away (D422).
 OVERVIEW = NodeRepresentation(kind="view", title=N_("Overview"))
 AS_JSON = NodeRepresentation(kind="tree", title=N_("As JSON"))
 _OPENS: dict[Leaf, list[NodeRepresentation]] = {
-    "container": [OVERVIEW, AS_JSON],
-    "image": [INSPECT],
-    "volume": [INSPECT],
-    "network": [INSPECT],
+    leaf: [OVERVIEW, AS_JSON] for leaf in ("container", "image", "volume", "network")
 }
 
 
@@ -206,7 +202,7 @@ def image_node(image: dict[str, Any], containers: list[dict[str, Any]]) -> Image
     return ImageNode(
         id=leaf_id("image", image_id),
         name=image_title(image),
-        representations=worded_titles([INSPECT]),
+        representations=worded_titles(_OPENS["image"]),
         tags=tags_of(image),
         size_bytes=size if isinstance(size, int) and size >= 0 else None,
         created_at=datetime_of(moment(image.get("Created"))),
@@ -219,7 +215,7 @@ def volume_node(volume: dict[str, Any], containers: list[dict[str, Any]]) -> Vol
     return VolumeNode(
         id=leaf_id("volume", name),
         name=name,
-        representations=worded_titles([INSPECT]),
+        representations=worded_titles(_OPENS["volume"]),
         driver=str(volume.get("Driver") or "local"),
         created_at=datetime_of(instant(volume.get("CreatedAt"))),
         containers=len(users_of_volume(containers, name)),
@@ -230,7 +226,7 @@ def network_node(network: dict[str, Any], containers: list[dict[str, Any]]) -> N
     return NetworkNode(
         id=leaf_id("network", str(network.get("Id"))),
         name=str(network.get("Name")),
-        representations=worded_titles([INSPECT]),
+        representations=worded_titles(_OPENS["network"]),
         driver=str(network.get("Driver") or ""),
         scope=str(network["Scope"]) if network.get("Scope") else None,
         internal=bool(network.get("Internal")),

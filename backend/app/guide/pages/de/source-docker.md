@@ -104,8 +104,16 @@ das Zertifikat nicht gilt, oder ein Client-Zertifikat, das der Daemon ablehnt.
   neu startete oder wegen Speichermangels beendet wurde. Image, Volume,
   Netzwerk und Compose-Projekt sind Links, die sie im Katalog zeigen.
 - **Als JSON** schaltet denselben Tab auf das, was der Daemon sagt, als
-  JSON-Baum, und **Überblick** zurück. Ein Image, ein Volume oder ein
-  Netzwerk öffnet sich als JSON-Baum.
+  JSON-Baum, und **Überblick** zurück.
+- **Untersuchen** eines Images, Volumes oder Netzwerks öffnet sich ebenfalls
+  als Überblick: beim Image Tags, Größe, Plattform, Befehl und Schichten (ein
+  Link auf seinen **Verlauf**) mit den Containern, die es ausführen; beim
+  Volume Treiber und Einhängepunkt mit den Containern, die es einhängen, und
+  wo; beim Netzwerk Subnetze mit den Containern darin und ihren Adressen.
+- Ein offener Überblick liest sich neu, wenn der Daemon eine Änderung an
+  dem meldet, was er zeigt — ein Container gestartet, pausiert, mit einem
+  Netzwerk verbunden oder gesund geworden —, solange ein Katalog dieser
+  Verbindung offen ist.
 - Eine Variable, deren Name PASSWORD, PASSWD, SECRET, TOKEN, KEY,
   CREDENTIAL oder PRIVATE enthält, erscheint als Punkte, bis Sie auf ihr
   Auge drücken, und wird erst dann kopiert. Das verbirgt sie vor einem

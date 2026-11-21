@@ -101,8 +101,16 @@ un certificado de cliente que el demonio no acepta.
   tres veces o se detuvo por falta de memoria. La imagen, un volumen, una
   red y el proyecto de Compose son enlaces que los muestran en el catálogo.
 - **Como JSON** cambia la misma pestaña a lo que dice el demonio, en árbol
-  JSON, y **Resumen** la devuelve. Una imagen, un volumen o una red se abre
-  en árbol JSON.
+  JSON, y **Resumen** la devuelve.
+- **Inspeccionar** de una imagen, un volumen o una red también se abre en un
+  resumen: de una imagen, sus etiquetas, tamaño, plataforma, comando y capas
+  (un enlace a su **Historial**) con los contenedores que la ejecutan; de un
+  volumen, su controlador y punto de montaje con los contenedores que lo
+  montan, y dónde; de una red, sus subredes con los contenedores que hay en
+  ella y sus direcciones.
+- Un resumen abierto se vuelve a leer cuando el demonio informa de un cambio
+  en lo que muestra —un contenedor iniciado, en pausa, conectado a una red o
+  que pasa a estar sano— mientras haya un catálogo de esta conexión abierto.
 - Una variable cuyo nombre contiene PASSWORD, PASSWD, SECRET, TOKEN, KEY,
   CREDENTIAL o PRIVATE se muestra como puntos hasta que pulses su ojo, y
   solo se copia una vez mostrada. Eso la oculta de un vistazo, no de quien

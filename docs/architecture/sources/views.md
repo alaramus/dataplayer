@@ -44,8 +44,7 @@ before.
 
 Known deviations:
 
-- **Only Docker's container has a view.** Image, volume and network are the
-  next slice (D422).
+- **Only Docker has views** (D422): its container, image, volume and network.
 - **Opening the inspect node is not opening the container.** A container is
   walked into (D408), so a click on it shows Inspect, Logs and Processes, and
   Inspect opens on the view. The spec asked whether a book (D51) could open

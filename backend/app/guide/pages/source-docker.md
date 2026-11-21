@@ -98,8 +98,15 @@ or a client certificate the daemon does not accept.
   killed for running out of memory. The image, a volume, a network and the
   Compose project are links that show them in the catalog.
 - **As JSON** switches the same tab to what the daemon says, as a JSON tree,
-  and **Overview** switches it back. An image, a volume or a network opens
-  as the JSON tree.
+  and **Overview** switches it back.
+- An image's, a volume's and a network's **Inspect** opens on an overview
+  too: an image's tags, size, platform, command and layers (a link to its
+  History) with the containers that run it; a volume's driver and mount point
+  with the containers that mount it and where; a network's subnets with the
+  containers on it and their addresses.
+- An open overview reads itself again when the daemon reports a change to
+  what it shows — a container started, paused, connected to a network or
+  newly healthy — while a catalog of this connection is open.
 - A variable whose name holds PASSWORD, PASSWD, SECRET, TOKEN, KEY,
   CREDENTIAL or PRIVATE is shown as dots until you press its eye, and is
   copied only once shown. That hides it from a glance, not from a reader:

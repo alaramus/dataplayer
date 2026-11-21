@@ -101,8 +101,16 @@ pas, ou un certificat client que le démon refuse.
   volume, un réseau et le projet Compose sont des liens qui les montrent
   dans le catalogue.
 - **En JSON** bascule le même onglet sur ce que dit le démon, en arbre JSON,
-  et **Vue d'ensemble** le ramène. Une image, un volume ou un réseau s'ouvre
-  en arbre JSON.
+  et **Vue d'ensemble** le ramène.
+- **Inspecter** d'une image, d'un volume ou d'un réseau s'ouvre aussi sur
+  une vue d'ensemble : pour une image, ses tags, sa taille, sa plateforme, sa
+  commande et ses couches (un lien vers son **Historique**) avec les
+  conteneurs qui l'exécutent ; pour un volume, son pilote et son point de
+  montage avec les conteneurs qui le montent, et où ; pour un réseau, ses
+  sous-réseaux avec les conteneurs qui y sont et leurs adresses.
+- Une vue d'ensemble ouverte se relit quand le démon signale un changement
+  de ce qu'elle montre — un conteneur démarré, mis en pause, connecté à un
+  réseau ou devenu sain — tant qu'un catalogue de cette connexion est ouvert.
 - Une variable dont le nom contient PASSWORD, PASSWD, SECRET, TOKEN, KEY,
   CREDENTIAL ou PRIVATE s'affiche en points jusqu'à ce que vous appuyiez
   sur son œil, et ne se copie qu'une fois affichée. Elle est cachée d'un

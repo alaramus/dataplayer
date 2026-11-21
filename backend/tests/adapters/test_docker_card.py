@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from app.adapters.docker.card import container_view, is_sensitive
+from app.adapters.docker.cards import image_view, network_view, volume_view
 from app.adapters.views import (
     BooleanValue,
     BytesValue,
@@ -20,6 +21,7 @@ from app.adapters.views import (
     EmptyValue,
     FieldsBlock,
     LinkValue,
+    ListValue,
     NoticeBlock,
     NumberValue,
     PairsBlock,
@@ -27,6 +29,7 @@ from app.adapters.views import (
     StateValue,
     TableBlock,
     ViewValue,
+    code,
     text,
 )
 
@@ -180,3 +183,76 @@ def test_a_few_restarts_are_not_told() -> None:
 def test_a_view_survives_the_json_it_crosses_as() -> None:
     view = container_view(_recorded("healthy"))
     assert DocumentView.model_validate_json(view.model_dump_json()) == view
+
+
+# --- an image, a volume and a network (D422, slice 2) ------------------------
+# `image.json`, `volume.json` and `network.json` are alpine:3.20, dp-test-data
+# and dp-test-net as the stand's daemon answered; `containers.json` is the
+# stand's dp-test containers as the list answers them.
+
+
+def _containers() -> list[dict[str, Any]]:
+    listed: list[dict[str, Any]] = json.loads((RECORDED / "containers.json").read_text(encoding="utf-8"))
+    return listed
+
+
+def test_an_image_shows_its_tags_size_and_who_runs_it() -> None:
+    inspect = _recorded("image")
+    view = image_view(inspect, _containers())
+    assert view.header.title == "alpine:3.20"
+    overview = _fields(view, "Overview")
+    tags = overview["Tags"]
+    assert isinstance(tags, ListValue) and "alpine:3.20" in tags.items
+    assert overview["Size"] == BytesValue(value=inspect["Size"])
+    layers = overview["Layers"]
+    assert isinstance(layers, LinkValue) and layers.node_id == f"image:{inspect['Id']}/history"
+    [users] = _tables(view, "Containers")
+    names = [row[0] for row in users.rows]
+    assert all(isinstance(one, LinkValue) for one in names)
+    assert {one.text for one in names if isinstance(one, LinkValue)} >= {"dp-test-web", "dp-test-failed"}
+    states = {row[0].text: row[1] for row in users.rows if isinstance(row[0], LinkValue)}
+    assert states["dp-test-failed"] == StateValue(word="failed", tone="bad")
+
+
+def test_an_image_nobody_runs_has_an_empty_table_not_a_missing_one() -> None:
+    view = image_view(_recorded("image"), [])
+    [users] = _tables(view, "Containers")
+    assert users.rows == []
+
+
+def test_a_volume_names_who_mounts_it_and_where() -> None:
+    view = volume_view(_recorded("volume"), _containers())
+    assert view.header.title == "dp-test-data"
+    overview = _fields(view, "Overview")
+    assert overview["Mount point"] == code("/var/lib/docker/volumes/dp-test-data/_data")
+    [mounts] = _tables(view, "Containers")
+    assert len(mounts.rows) == 1
+    who, state, destination, writable = mounts.rows[0]
+    assert isinstance(who, LinkValue) and who.text == "dp-test-web"
+    assert destination == code("/data")
+    assert writable == BooleanValue(value=True)
+    assert state == StateValue(word="running", tone="good")
+
+
+def test_a_network_shows_its_subnets_and_containers_with_addresses() -> None:
+    inspect = _recorded("network")
+    view = network_view(inspect)
+    assert view.header.title == "dp-test-net"
+    [subnets] = _tables(view, "Addresses")
+    assert subnets.rows[0][:2] == [text("172.20.0.0/16"), text("172.20.0.1")]
+    [attached] = _tables(view, "Containers")
+    who, ipv4, ipv6, _ = attached.rows[0]
+    assert isinstance(who, LinkValue) and who.node_id.startswith("container:")
+    assert ipv4 == text("172.20.0.2/16")
+    assert isinstance(ipv6, EmptyValue)
+    assert _fields(view, "Overview")["Internal"] == BooleanValue(value=False)
+    assert _section(view, "Labels").collapsed
+
+
+def test_every_view_survives_the_json_it_crosses_as() -> None:
+    for view in (
+        image_view(_recorded("image"), _containers()),
+        volume_view(_recorded("volume"), _containers()),
+        network_view(_recorded("network")),
+    ):
+        assert DocumentView.model_validate_json(view.model_dump_json()) == view

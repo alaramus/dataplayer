@@ -24,6 +24,7 @@ from app.adapters.docker.actions import (
     plain_actions,
 )
 from app.adapters.docker.card import container_view
+from app.adapters.docker.cards import image_view, network_view, volume_view
 from app.adapters.docker.catalog import (
     GROUPS,
     Group,
@@ -83,6 +84,7 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.tunnels import TunnelAccess
+from app.adapters.views import DocumentView
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_, say
 
@@ -263,8 +265,6 @@ class DockerAdapter:
         # The node itself, or its Inspect view: the same answer (D408).
         if named.leaf is None or named.view not in (None, "inspect"):
             raise ValueError(say("This opens as a table"))
-        if request.representation == "view" and named.leaf != "container":
-            raise ValueError(say("This opens as what the Docker server says about it"))
         body = await self._inspect(named)
         if request.representation == "view":
             # The same inspect the tree draws, read as what it means (D422).
@@ -274,7 +274,7 @@ class DockerAdapter:
                 document = None
             if not isinstance(document, dict):
                 raise AdapterError("unknown", say("The Docker server did not answer with JSON"))
-            return container_view(document)
+            return await self._view(named, document)
         try:
             return JsonContent(value=json_tree(jsontext.load(body.decode("utf-8"))))
         except ValueError:
@@ -283,6 +283,19 @@ class DockerAdapter:
                 notice=say("The Docker server did not answer with JSON"),
             )
 
+
+    async def _view(self, named: Named, inspect: dict[str, Any]) -> DocumentView:
+        if named.leaf == "container":
+            return container_view(inspect)
+        if named.leaf == "network":
+            # A network's inspect names its own containers.
+            return network_view(inspect)
+        # Who uses an image or mounts a volume is counted from the containers,
+        # which the levels read the same way (D407).
+        containers = (await read_containers(self._session)).items
+        if named.leaf == "image":
+            return image_view(inspect, containers)
+        return volume_view(inspect, containers)
 
     # --- metrics and search (D415, D416) ------------------------------------------
 
