@@ -1,4 +1,4 @@
-"""A Docker daemon on another machine as a source (D405–D409).
+"""A Docker daemon on another machine as a source (D405–D417).
 
 Its containers, images, volumes and networks, a container's logs and
 processes, and the daemon's own reports, read through one of the owner's SSH
@@ -6,7 +6,8 @@ connections. No driver of its own: the Engine API client is the one the
 services use (D406), and `asyncssh` stays in the SSH adapter.
 """
 
-from typing import Any
+from collections.abc import AsyncIterator
+from typing import Any, ClassVar
 
 import httpx
 
@@ -35,6 +36,7 @@ from app.adapters.docker.catalog import (
     views_of,
     volume_node,
 )
+from app.adapters.docker.connect import OpenAsConnection
 from app.adapters.docker.inventory import (
     read_containers,
     read_images,
@@ -42,6 +44,8 @@ from app.adapters.docker.inventory import (
     read_volumes,
 )
 from app.adapters.docker.jobs import CommitContainer, PullImage, job_actions
+from app.adapters.docker.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.docker.metrics import samples
 from app.adapters.docker.options import DEFAULT_SOCKET, PODMAN_SOCKET, DockerOptions
 from app.adapters.docker.reports import (
     REPORTS,
@@ -52,14 +56,25 @@ from app.adapters.docker.reports import (
     report_node,
     section_node,
 )
+from app.adapters.docker.search import DockerSearch
 from app.adapters.docker.session import DockerSession, segment
 from app.adapters.docker.tables import DockerTables
 from app.adapters.docker.terminal import ContainerTerminal
 from app.adapters.docker.watch import DockerWatch
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, CatalogFace, register
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.tunnels import TunnelAccess
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_, say
@@ -75,6 +90,9 @@ _INSPECT_PATHS = {
 class DockerAdapter:
     """Facade over a session and the capabilities built on it (D2b)."""
 
+    # A container is not rows: Docker's tables are copied from the grid (D164).
+    catalog_clipboard: ClassVar[bool] = False
+
     def __init__(
         self,
         options: DockerOptions,
@@ -83,10 +101,12 @@ class DockerAdapter:
     ) -> None:
         self._session = DockerSession(options, tunnels, transport)
         self._tables = DockerTables(self._session)
+        self._search = DockerSearch(self._session)
+        self._connect = OpenAsConnection(self._session)
         self._actions = ActionSet(
             plain_actions(self._session)
             + job_actions(self._session)
-            + [ContainerTerminal(self._session)]
+            + [ContainerTerminal(self._session), self._connect]
         )
 
     async def check_connection(self) -> ConnectionCheckResult:
@@ -246,6 +266,32 @@ class DockerAdapter:
             )
 
 
+    # --- metrics and search (D415, D416) ------------------------------------------
+
+    async def metric_samples(self) -> list[MetricSample]:
+        return await samples(self._session)
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    def enumerate_names(
+        self, limit: int, bounds: SearchBounds
+    ) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names are four lists read whole, whatever the daemon holds; nothing
+        else is searched."""
+        del last
+        return "cheap" if field == "names" else "costly"
+
     # --- told when what is on screen changes (D414, D303) -----------------------
 
     async def watch_changes(self, sink: ChangeSink) -> ChangeWatch:
@@ -259,6 +305,7 @@ class DockerAdapter:
         return (
             *LIFECYCLE,
             ContainerTerminal,
+            OpenAsConnection,
             CommitContainer,
             *REMOVALS.values(),
             PullImage,
@@ -288,6 +335,10 @@ class DockerAdapter:
                 CommitContainer.name,
                 ContainerTerminal.name,
             }
+            # Offered only where a type declares the image (D417): one read of
+            # the container, the menu's own.
+            if await self._connect.offered(node_id):
+                wanted.add(OpenAsConnection.name)
         elif named.leaf is not None:
             wanted = {REMOVALS[named.leaf].name}
         elif named.project:
@@ -316,7 +367,8 @@ _GROUP_OF: dict[str, Group] = {
         "connections. See its containers by Compose project, its images, "
         "volumes and networks, what the daemon says about each, a container's "
         "logs and processes, an image's layers, and the engine's disk usage "
-        "and events."
+        "and events. Running containers are measured for dashboards, and a "
+        "database's container opens as a connection of its own."
     ),
     options_schema=DockerOptions,
     adapter_class=DockerAdapter,

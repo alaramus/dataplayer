@@ -22,6 +22,7 @@ it the user would be offered class names. Every title is marked `N_` and
 worded by the route that hands the schema out (D226).
 """
 
+from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -99,3 +100,15 @@ PostgresOptions = Annotated[
     PostgresUserPassword | PostgresNoAuth,
     Field(discriminator="auth_method"),
 ]
+
+
+def container_options(env: Mapping[str, str]) -> dict[str, Any]:
+    """A container of the official image as a connection (D417): its
+    `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB`, defaulting as the
+    image does."""
+    user = env.get("POSTGRES_USER") or "postgres"
+    found: dict[str, Any] = {"user": user, "database": env.get("POSTGRES_DB") or user}
+    if env.get("POSTGRES_HOST_AUTH_METHOD") == "trust":
+        return {**found, "auth_method": "no_auth"}
+    password = env.get("POSTGRES_PASSWORD")
+    return {**found, "auth_method": "user_password", **({"password": password} if password else {})}

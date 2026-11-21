@@ -14,6 +14,7 @@ démon lui-même. Le fonctionnement des connexions est décrit sur la page
 - Les journaux d'un conteneur au fil de l'écriture, et ses processus
 - Les couches d'une image et les instructions qui les ont créées
 - Le moteur : versions, pilotes, CPU, mémoire, espace disque, événements
+- CPU, mémoire, réseau et disque des conteneurs en marche
 
 ## Ce que vous pouvez modifier
 
@@ -24,6 +25,7 @@ démon lui-même. Le fonctionnement des connexions est décrit sur la page
 - Nouveaux volumes et réseaux
 - Images publiques tirées, et un conteneur enregistré dans une image
 - Un shell dans un conteneur en marche, dans un terminal
+- Le conteneur d'une base de données ouvert comme connexion
 
 ## Connexion
 
@@ -145,8 +147,42 @@ apparaissent au fil de l'écriture, au plus toutes les deux secondes. Le niveau
 du catalogue où vous êtes se relit quand le démon le change : un conteneur qui
 s'arrête, une image tirée, un volume supprimé — par DataPlayer ou par d'autres.
 
+## Des métriques sur un tableau de bord
+
+Activez la collecte pour la connexion, puis ajoutez à un tableau de bord la
+disposition **Conteneurs Docker**. Chaque relevé mesure jusqu'à cinquante
+conteneurs en marche, par nom : le CPU — 100 % est un CPU entièrement occupé,
+il peut donc dépasser 100 % —, la mémoire sans le cache que le système peut
+reprendre, le trafic réseau et disque par seconde, et les processus de chacun.
+Il compte aussi les conteneurs en marche, en pause et arrêtés ; **Conteneurs
+non mesurés** compte ceux qui dépassent les cinquante. Un relevé prend environ
+une seconde : le démon mesure chaque conteneur deux fois pour connaître son
+usage du CPU.
+
+## Recherche
+
+La recherche du catalogue et la recherche sur tout trouvent par nom les
+conteneurs, les projets Compose, les images par n'importe laquelle de leurs
+étiquettes, les volumes et les réseaux. Dans un dossier, elle ne cherche que
+dans ce dossier.
+
+## Le conteneur d'une base de données comme connexion
+
+Sélectionnez un conteneur PostgreSQL, MySQL, MariaDB, Redis, MongoDB ou
+ClickHouse et choisissez **Ouvrir comme connexion**. Le formulaire d'une
+nouvelle connexion s'ouvre, rempli d'après le conteneur :
+
+- la même connexion SSH, comme tunnel SSH ;
+- le port publié sur `127.0.0.1`, sinon l'adresse propre du conteneur ;
+- l'utilisateur, le mot de passe et la base avec lesquels il a démarré.
+
+Vérifiez et enregistrez. Une image est reconnue par son nom sur Docker Hub,
+comme `postgres` ou `mariadb` ; une image d'un autre registre ne l'est pas.
+L'image officielle de Redis reçoit son mot de passe en ligne de commande,
+saisissez-le donc vous-même. Seul le propriétaire de la connexion Docker peut
+le faire, car le formulaire porte les mots de passe du conteneur.
+
 ## Ce que Docker n'a pas encore ici
 
-- Des métriques sur un tableau de bord, et la recherche
 - Un démon atteint par TLS plutôt que par SSH
 - Les registres privés, et créer ou lancer de nouveaux conteneurs

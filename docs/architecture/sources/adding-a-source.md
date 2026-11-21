@@ -46,6 +46,9 @@ template files to read.
    relation model, fetch with filters and sort, summary, content (DDL),
    features. `@register(...)` in `adapter.py`; the package imported in
    `adapters/__init__.py`; locales registered in the package's `__init__.py`.
+   A server that runs in a container declares its images there too
+   (`images=`), so a Docker source can open its container as a connection
+   (D417).
 2. **Console.** Statement classes from the engine's own parser where it has
    one; what reaches outside the source refused by family; runs, held
    transactions, rehearsal (D66), explain, metadata, formatting.

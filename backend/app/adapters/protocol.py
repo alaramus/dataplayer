@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, ClassVar, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -576,6 +576,18 @@ class SearchesContents(Protocol):
         raises, for the same reasons.
         """
         ...
+
+
+@runtime_checkable
+class DeclaresCatalogClipboard(Protocol):
+    """Whether ticked nodes of this catalog are copied, cut and pasted into (D164).
+
+    Declared, because a source whose nodes are things rather than rows can
+    still serve rows to a paste: Docker's tables are copied from the grid,
+    and Copy over a container in its catalog would only fail at Paste.
+    """
+
+    catalog_clipboard: ClassVar[bool]
 
 
 @runtime_checkable

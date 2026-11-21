@@ -40,7 +40,7 @@ from app.adapters.mongodb.export import MongodbExport
 from app.adapters.mongodb.fetch import MongodbFetch
 from app.adapters.mongodb.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.mongodb.metrics import MongodbMetrics
-from app.adapters.mongodb.options import MongodbOptions
+from app.adapters.mongodb.options import MongodbOptions, container_options
 from app.adapters.mongodb.query import MongodbExecution, MongodbQuery
 from app.adapters.mongodb.relation import MongodbRelation
 from app.adapters.mongodb.report_pages import report_page
@@ -73,7 +73,7 @@ from app.adapters.query import (
     QueryProfile,
     QueryRequest,
 )
-from app.adapters.registry import AdapterContext, register
+from app.adapters.registry import AdapterContext, ContainerImage, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.resources import Pooling
 from app.adapters.row_commands import RowCommand, RowCommandResult
@@ -415,6 +415,7 @@ class MongodbAdapter:
     ),
     options_schema=MongodbOptions,
     adapter_class=MongodbAdapter,
+    images=(ContainerImage(("mongo",), 27017, container_options),),
 )
 def _build(options: MongodbOptions, context: AdapterContext) -> MongodbAdapter:
     return MongodbAdapter(options, context.pooling, context.tunnels)

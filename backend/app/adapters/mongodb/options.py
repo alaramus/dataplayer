@@ -5,6 +5,7 @@ optional: it says where the catalog opens, and one connection reaches every
 database its user may see.
 """
 
+from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -80,3 +81,20 @@ MongodbOptions = Annotated[
     MongodbUserPassword | MongodbNoPassword,
     Field(discriminator="auth_method"),
 ]
+
+
+def container_options(env: Mapping[str, str]) -> dict[str, Any]:
+    """A container of the official image as a connection (D417): the root
+    user it made, defined in `admin`, when it made one."""
+    database = env.get("MONGO_INITDB_DATABASE") or ""
+    user = env.get("MONGO_INITDB_ROOT_USERNAME")
+    if not user:
+        return {"auth_method": "no_password", "database": database}
+    password = env.get("MONGO_INITDB_ROOT_PASSWORD")
+    return {
+        "auth_method": "user_password",
+        "user": user,
+        "database": database,
+        "auth_source": "admin",
+        **({"password": password} if password else {}),
+    }

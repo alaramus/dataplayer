@@ -9,7 +9,7 @@ import uuid
 
 from fastapi import APIRouter
 
-from app.adapters.protocol import DataAdapter
+from app.adapters.protocol import DataAdapter, DeclaresCatalogClipboard
 from app.adapters.resources import ResourcesDep
 from app.connectors.access import resolve_adapter
 from app.connectors.action_lookup import perform
@@ -183,6 +183,8 @@ async def clipboard_offer(
     source, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
+    if isinstance(source, DeclaresCatalogClipboard) and not source.catalog_clipboard:
+        return ClipboardOffer(takes_paste=False)
     return ClipboardOffer(
         can_copy=await _can_hold(source, access, request.node_ids, "copy"),
         can_cut=await _can_hold(source, access, request.node_ids, "move"),

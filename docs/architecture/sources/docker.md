@@ -7,12 +7,13 @@ volumes, networks and the daemon's reports (D407), what a node opens as
 (D408), who may do what and how a refusal is said (D409), a container's
 lifecycle (D410), removing, pruning and making volumes and networks (D411),
 pull and commit as jobs (D412), a terminal inside a container (D413) and what
-changed told as it happens (D414). The contract
+changed told as it happens (D414), metrics (D415), search (D416) and a
+database's container opened as a connection (D417). The contract
 every source type follows is in [contract.md](contract.md); the SSH tunnel it
 rides is D282 in [ssh.md](ssh.md). Read this before changing the `docker`
 adapter or `app/adapters/docker_api`.
 
-Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414.
+Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414, D415, D416, D417.
 
 ## D405. Only a remote daemon, its socket forwarded through an SSH connection
 
@@ -109,6 +110,10 @@ the API's own fields; registry mirrors and proxies left out), **Disk usage**
 (`/system/df`, asked only when opened, with a two-minute timeout) and
 **Events** (the last hour, `until` set so the stream ends, newest first, at
 most 2,000).
+
+The catalog has no Copy, Cut or Paste (`catalog_clipboard = False`, D164): a
+container, an image, a volume or a network is not rows, and a table of them,
+a container's logs or its processes are copied from the grid.
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
 
@@ -282,3 +287,70 @@ Known deviations from the spec:
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
 
+
+## D415. Running containers are measured from `stats`
+
+Docker implements `SupportsMetrics` (`docker/metrics.py`). A poll reads the
+containers and `/containers/{id}/stats?stream=false` of at most 50 running
+ones, by name, concurrently; the others are counted in `engine`/`skipped`.
+Per container, labelled by its name: `cpu` as `docker stats` says it (the
+share of one CPU between the two samples the daemon pairs, above 100 when
+several are busy), `memory` less the page cache the kernel may take back
+(`inactive_file`, `total_inactive_file` on cgroup v1), `memory_percent` of the
+limit, `network_in`/`network_out` summed over interfaces and
+`disk_read`/`disk_write` as counters (D127), and `processes`. `engine` counts
+running, paused and stopped containers. A container gone between the list and
+its `stats` is left out rather than failing the poll. The preset is
+**Docker containers**.
+
+*Checked*, Engine 29.10: without `one-shot` the daemon waits about a second to
+pair the samples — one second alone, thirty at once in two, inside the poll's
+ten — and with it the pair is empty, so the CPU percent could not be read.
+
+Known deviation from the spec: **the skipped are counted, not named** — a
+metric is a number, and a name per skipped container would be a series each.
+
+Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D416. Search reads the four lists once
+
+`docker/search.py` implements `SupportsNodeSearch` and `EnumeratesNames` over
+what the catalog reads: containers under their Compose project, the projects
+themselves, images by any of their tags (`full_name` holds every tag of an
+image with several), volumes and networks. A search starts at the top, in a
+group or in a project; a leaf or the System section is refused. Each kept
+name is scoped to the level it is listed on. A list past the inventory's
+ceiling says the search stopped short. `search_cost` is cheap for names and
+costly for anything else, which is not searched.
+
+Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D417. A database's container opens as a connection of its own type
+
+A source type declares the images its server runs as in its registration:
+`register(images=(ContainerImage(repositories, port, options),))`
+(`adapters/registry.py`), `options` turning the container's environment into
+the type's options other than host, port and tunnel by the image's own
+conventions. PostgreSQL (`postgres`, `postgis/postgis`, `pgvector/pgvector`,
+`timescale/timescaledb`, `-ha`), MySQL (`mysql`, `mariadb`,
+`percona/percona-server`), Redis (`redis`, `redis/redis-stack-server`,
+`valkey/valkey`, `bitnami/redis`), MongoDB (`mongo`) and ClickHouse
+(`clickhouse/clickhouse-server`, `clickhouse`, over HTTP on 8123) declare
+theirs. An image is matched by its repository without tag, digest and Docker
+Hub's `docker.io/library/` (`repository_of`); one from another registry is
+not matched.
+
+**Open as connection** (`docker/connect.py`) is a `PreparesConnector` action of
+a container, offered only where a type declares its image — the menu reads the
+container's inspect for it — and requiring `own`, because the draft carries
+passwords read from the environment, which an owner already sees in Inspect.
+The draft is named after the container and goes through the Docker source's
+own SSH connection (`ssh_tunnel`, D282): the server's port published on every
+address or on loopback is `127.0.0.1` and that port, one published on another
+address is that address, `--network host` is `127.0.0.1` and the port, and
+otherwise the container's first network address and the port, as the SSH
+server sees them. A stopped container is read from the bindings it asked for.
+A password the environment does not hold is left to the form, and the official
+Redis image, which takes its password on the command line, drafts no password.
+
+Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)

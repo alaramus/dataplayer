@@ -336,19 +336,48 @@ async def test_the_clipboard_offer_says_what_a_selection_can_be_held_as(
     assert await offer(database, [f"{schema}.regions"]) == {
         "can_copy": {"available": True, "reason": None},
         "can_cut": None,
+        "takes_paste": True,
     }
     assert await offer(database, [schema]) == {
         "can_copy": {"available": False, "reason": "Copy a table or a view"},
         "can_cut": None,
+        "takes_paste": True,
     }
     assert await offer(database, []) == {
         "can_copy": {"available": False, "reason": "Tick a row to use this"},
         "can_cut": None,
+        "takes_paste": True,
     }
     assert await offer(files, [filename]) == {
         "can_copy": {"available": True, "reason": None},
         "can_cut": {"available": True, "reason": None},
+        "takes_paste": True,
     }
+
+
+async def test_a_catalog_that_declares_no_clipboard_draws_no_copy_or_paste(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Docker's tables are copied from the grid; its catalog holds nothing (D164).
+
+    Answered before the daemon is asked anything, so no daemon is needed.
+    """
+    response = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"docker {uuid.uuid4()}",
+            "adapter_type": "docker",
+            "options": {"ssh_connection": str(uuid.uuid4()), "socket": "/var/run/docker.sock"},
+        },
+    )
+    assert response.status_code == 200, response.text
+    offered = await client.post(
+        f"{BASE}/{response.json()['id']}/clipboard/offer",
+        headers=normal_user_token_headers,
+        json={"node_ids": ["containers"]},
+    )
+    assert offered.json() == {"can_copy": None, "can_cut": None, "takes_paste": False}
 
 
 async def test_a_csv_file_becomes_a_table_in_a_schema(

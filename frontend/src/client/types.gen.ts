@@ -2335,6 +2335,10 @@ export type ChosenStart = {
 export type ClipboardOffer = {
   can_copy?: Availability | null
   can_cut?: Availability | null
+  /**
+   * Takes Paste
+   */
+  takes_paste?: boolean
 }
 
 /**

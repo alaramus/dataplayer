@@ -301,8 +301,9 @@ draw has lines dropped with a count shown, never a stalled stream.
 `/containers/{id}/stats?stream=false` for running containers — CPU percent
 from the delta the daemon pairs in `precpu_stats`, memory used and limit,
 network and block I/O — at most 50 containers a poll, concurrently, the rest
-named as skipped (*to check* the cost: without `one-shot` the daemon waits
-about a second per container to pair samples).
+counted as skipped (*checked*, Engine 29.10: without `one-shot` the daemon
+waits about a second to pair samples, thirty containers at once take two; with
+it the pair is empty and the CPU percent cannot be read).
 
 **D416. Search** enumerates names (`EnumeratesNames`): containers, image
 tags, volumes, networks, and the Compose projects; `SupportsNodeSearch` over

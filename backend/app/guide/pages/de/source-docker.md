@@ -14,6 +14,7 @@ auf der Seite [Verbindungen](connections.md).
 - Die Logs eines Containers, während sie entstehen, und seine Prozesse
 - Die Schichten eines Images und die Anweisungen dahinter
 - Die Engine: Versionen, Treiber, CPUs, Speicher, Platz, Ereignisse
+- CPU, Speicher, Netzwerk und Datenträger laufender Container
 
 ## Was Sie ändern können
 
@@ -24,6 +25,7 @@ auf der Seite [Verbindungen](connections.md).
 - Neue Volumes und Netzwerke
 - Öffentliche Images ziehen, einen Container als Image festschreiben
 - Eine Shell in einem laufenden Container, in einem Terminal
+- Den Container einer Datenbank als eigene Verbindung öffnen
 
 ## Verbinden
 
@@ -147,8 +149,41 @@ Katalogs, auf der Sie stehen, liest sich neu, wenn der Daemon sie ändert: ein
 Container stoppt, ein Image wird gezogen, ein Volume entfernt — durch
 DataPlayer oder durch jemand anderen.
 
+## Metriken auf einem Dashboard
+
+Schalten Sie für die Verbindung die Erfassung ein und fügen Sie einem
+Dashboard das Layout **Docker-Container** hinzu. Jede Abfrage misst bis zu
+fünfzig laufende Container, nach Name: CPU — 100% ist eine voll ausgelastete
+CPU, also kann es mehr als 100% werden —, Speicher ohne den Cache, den das
+System zurücknehmen kann, Netzwerk- und Datenträgerverkehr pro Sekunde und die
+Prozesse in jedem. Sie zählt auch laufende, pausierte und gestoppte Container;
+**Nicht gemessene Container** zählt die laufenden über fünfzig. Eine Abfrage
+dauert etwa eine Sekunde: Der Daemon misst jeden Container zweimal, um seine
+CPU-Nutzung zu bestimmen.
+
+## Suche
+
+Die Suche im Katalog und die Suche über alles finden Container,
+Compose-Projekte, Images nach jedem ihrer Tags, Volumes und Netzwerke nach
+Name. In einem Ordner sucht sie nur in diesem Ordner.
+
+## Der Container einer Datenbank als Verbindung
+
+Wählen Sie einen Container von PostgreSQL, MySQL, MariaDB, Redis, MongoDB oder
+ClickHouse und dann **Als Verbindung öffnen**. Ein Formular für eine neue
+Verbindung öffnet sich, ausgefüllt aus dem Container:
+
+- dieselbe SSH-Verbindung, als SSH-Tunnel;
+- der veröffentlichte Port auf `127.0.0.1`, sonst die Adresse des Containers;
+- Benutzer, Passwort und Datenbank, mit denen der Container gestartet wurde.
+
+Prüfen und speichern Sie es. Ein Image wird an seinem Namen auf Docker Hub
+erkannt, etwa `postgres` oder `mariadb`; eines aus einer anderen Registry
+nicht. Das offizielle Redis-Image erhält sein Passwort auf der Befehlszeile,
+also geben Sie es selbst ein. Nur der Eigentümer der Docker-Verbindung kann
+das, denn das Formular trägt die Passwörter des Containers.
+
 ## Was Docker hier noch nicht hat
 
-- Metriken auf einem Dashboard, und die Suche
 - Einen Daemon, der über TLS statt SSH erreicht wird
 - Private Registries, und neue Container anlegen oder starten

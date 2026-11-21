@@ -14,6 +14,7 @@ propio demonio. Cómo funcionan las conexiones en general está en la página
 - Los registros de un contenedor según se escriben, y sus procesos
 - Las capas de una imagen y las instrucciones que las crearon
 - El motor: versiones, controladores, CPU, memoria, disco, eventos
+- CPU, memoria, red y disco de los contenedores en marcha en un panel
 
 ## Qué puedes cambiar
 
@@ -24,6 +25,7 @@ propio demonio. Cómo funcionan las conexiones en general está en la página
 - Nuevos volúmenes y redes
 - Imágenes públicas descargadas, y un contenedor guardado en una imagen
 - Un shell dentro de un contenedor en marcha, en una terminal
+- El contenedor de una base de datos abierto como conexión propia
 
 ## Conexión
 
@@ -143,8 +145,40 @@ nivel del catálogo en el que estás se vuelve a leer cuando el demonio lo
 cambia: un contenedor que se detiene, una imagen descargada, un volumen
 eliminado — por DataPlayer o por cualquier otro.
 
+## Métricas en un panel
+
+Activa el envío de métricas de la conexión y añade a un panel el diseño
+**Contenedores Docker**. Cada sondeo mide hasta cincuenta contenedores en
+marcha, por nombre: CPU —100% es una CPU ocupada del todo, así que puede pasar
+de 100%—, memoria sin la caché que el sistema puede recuperar, tráfico de red
+y de disco por segundo, y los procesos de cada uno. También cuenta los
+contenedores en marcha, en pausa y detenidos; **Contenedores sin medir** cuenta
+los que pasan de cincuenta. Un sondeo tarda alrededor de un segundo: el
+demonio mide cada contenedor dos veces para saber su uso de CPU.
+
+## Búsqueda
+
+La búsqueda del catálogo y la búsqueda sobre todo encuentran por nombre
+contenedores, proyectos de Compose, imágenes por cualquiera de sus etiquetas,
+volúmenes y redes. Dentro de una carpeta, busca solo en esa carpeta.
+
+## El contenedor de una base de datos como conexión
+
+Selecciona un contenedor de PostgreSQL, MySQL, MariaDB, Redis, MongoDB o
+ClickHouse y elige **Abrir como conexión**. Se abre el formulario de una
+conexión nueva, rellenado a partir del contenedor:
+
+- la misma conexión SSH, como su túnel SSH;
+- el puerto publicado en `127.0.0.1`, o si no la dirección del contenedor;
+- el usuario, la contraseña y la base con que se inició el contenedor.
+
+Revísalo y guárdalo. Una imagen se reconoce por su nombre en Docker Hub, como
+`postgres` o `mariadb`; una de otro registro, no. La imagen oficial de Redis
+recibe su contraseña en la línea de órdenes, así que escríbela tú. Solo el
+propietario de la conexión Docker puede hacerlo, porque el formulario lleva las
+contraseñas del contenedor.
+
 ## Lo que Docker aún no tiene aquí
 
-- Métricas en un panel, y la búsqueda
 - Un demonio alcanzado por TLS en lugar de SSH
 - Registros privados, y crear o ejecutar contenedores nuevos

@@ -55,7 +55,7 @@ from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.metadata import PostgresGeneration, PostgresMetadata
 from app.adapters.postgres.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.postgres.metrics import PostgresMetrics
-from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.options import PostgresOptions, container_options
 from app.adapters.postgres.query import (
     PostgresExecution,
     PostgresQuery,
@@ -104,7 +104,7 @@ from app.adapters.references import (
     FollowReferenceRequest,
     ReferenceTarget,
 )
-from app.adapters.registry import AdapterContext, CatalogFace, register
+from app.adapters.registry import AdapterContext, CatalogFace, ContainerImage, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -569,6 +569,7 @@ class PostgresAdapter:
     ),
     options_schema=PostgresOptions,
     adapter_class=PostgresAdapter,
+    images=(ContainerImage(("postgres", "postgis/postgis", "pgvector/pgvector", "timescale/timescaledb", "timescale/timescaledb-ha"), 5432, container_options),),
     # The servers that are PostgreSQL under another name, a card each (D377):
     # an extension's image, or a hosted PostgreSQL whose card fills in what
     # its provider always names the same and says where the rest is found.

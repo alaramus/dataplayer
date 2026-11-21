@@ -53,7 +53,7 @@ from app.adapters.mysql.keys import MysqlKeys
 from app.adapters.mysql.metadata import MysqlGeneration, MysqlMetadata
 from app.adapters.mysql.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.mysql.metrics import MysqlMetrics
-from app.adapters.mysql.options import MysqlOptions
+from app.adapters.mysql.options import MysqlOptions, container_options
 from app.adapters.mysql.query import MysqlExecution, MysqlQuery, MysqlTransaction
 from app.adapters.mysql.references import MysqlReferences
 from app.adapters.mysql.relation import MysqlRelation
@@ -93,7 +93,7 @@ from app.adapters.references import (
     FollowReferenceRequest,
     ReferenceTarget,
 )
-from app.adapters.registry import AdapterContext, CatalogFace, register
+from app.adapters.registry import AdapterContext, CatalogFace, ContainerImage, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -473,6 +473,7 @@ class MysqlAdapter:
     ),
     options_schema=MysqlOptions,
     adapter_class=MysqlAdapter,
+    images=(ContainerImage(("mysql", "mariadb", "percona/percona-server"), 3306, container_options),),
     # Two products, one type (D228): a card each, so MariaDB is found as
     # itself, and each offers to start its own server (D244). Percona Server
     # and the hosted MySQL are cards of it too (D377).

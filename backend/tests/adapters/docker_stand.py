@@ -59,16 +59,18 @@ def options(socket: str = "/var/run/docker.sock") -> DockerOptions:
 
 
 async def make(engine: EngineClient, name: str, body: dict[str, object]) -> str:
-    """A container by name, made once and found again on later runs."""
+    """A container by name, made once and found again on later runs, started:
+    a stand restarted stops every container it held."""
     found = await engine.request(
         "GET", f"/containers/{name}/json", expected=(200, 404)
     )
     if found.status == 200:
-        return str(found.json()["Id"])
-    made = await engine.request(
-        "POST", "/containers/create", params={"name": name}, json=body, expected=(201,)
-    )
-    container = str(made.json()["Id"])
+        container = str(found.json()["Id"])
+    else:
+        made = await engine.request(
+            "POST", "/containers/create", params={"name": name}, json=body, expected=(201,)
+        )
+        container = str(made.json()["Id"])
     await engine.request("POST", f"/containers/{container}/start", expected=(204, 304))
     return container
 

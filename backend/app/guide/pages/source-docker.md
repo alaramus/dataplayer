@@ -14,6 +14,7 @@ own reports. How connections work in general is on the
 - A container's logs as they are written, and the processes in it
 - An image's layers and the instructions that made them
 - The engine: versions, drivers, CPUs, memory, disk usage, recent events
+- Running containers' CPU, memory, network and disk on a dashboard
 
 ## What you can change
 
@@ -24,6 +25,7 @@ own reports. How connections work in general is on the
 - New volumes and networks
 - Public images pulled, and a container committed to an image
 - A shell inside a running container, in a terminal
+- A database's container opened as a connection of its own
 
 ## Connecting
 
@@ -137,8 +139,40 @@ them, at most every two seconds. The level you stand on in the catalog reads
 itself again when the daemon changes it: a container that stops, an image
 pulled, a volume removed — by DataPlayer or by anybody else.
 
+## Metrics on a dashboard
+
+Switch on reporting for the connection, then add the **Docker containers**
+layout to a dashboard. Each poll measures up to fifty running containers, by
+name: CPU — 100% is one CPU fully busy, so it can pass 100% — memory without
+the cache the system can take back, network and disk traffic per second, and
+the processes in each. It also counts running, paused and stopped containers;
+**Containers not measured** counts the running ones past the fifty. A poll
+takes about a second: the daemon measures each container twice to tell its
+CPU use.
+
+## Search
+
+The catalog's search and the search over everything find containers, Compose
+projects, images by any of their tags, volumes and networks by name. Inside a
+folder, the search looks in that folder only.
+
+## A database's container as a connection
+
+Select a container of PostgreSQL, MySQL, MariaDB, Redis, MongoDB or ClickHouse
+and choose **Open as connection**. A new connection form opens, filled in from
+the container:
+
+- the same SSH connection, as its SSH tunnel;
+- the published port at `127.0.0.1`, or else the container's own address;
+- the user, password and database the container was started with.
+
+Check it and save. An image is recognised by its name on Docker Hub, such as
+`postgres` or `mariadb`; one from another registry is not. The official Redis
+image takes its password on its command line, so type it in. Only the owner of
+the Docker connection can do this, because the form carries the container's
+passwords.
+
 ## What Docker does not have here yet
 
-- Metrics on a dashboard, and search
 - A daemon reached over TLS rather than SSH
 - Private registries, and creating or running new containers
