@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any
 
 from app.adapters.binance.catalog import Place
@@ -22,13 +22,18 @@ from app.adapters.fetch import (
     FetchRequest,
     FetchResult,
     Filter,
-    FilterOp,
-    InFilter,
-    NullFilter,
     ScalarFilter,
     Sort,
 )
-from app.adapters.relation import ColumnType, TypeCategory
+from app.adapters.listed import (
+    RANGE_OPS,
+    checked_filters,
+    checked_sorts,
+    column,
+    listed_column,
+    listed_page,
+    milliseconds_of,
+)
 from app.core.translation import say
 
 # How deep a page may reach into candles or trades, read a request at a time.
@@ -36,62 +41,11 @@ DEPTH_CEILING = 10_000
 DEFAULT_BOOK_LEVELS = 100
 HOUR_MS = 3_600_000
 
-_TEXT_OPS: list[FilterOp] = ["eq", "ne", "contains", "starts_with", "in"]
-_ORDER_OPS: list[FilterOp] = ["eq", "ne", "gt", "gte", "lt", "lte"]
-_RANGE_OPS: list[FilterOp] = ["gt", "gte", "lt", "lte"]
-_NULL_OPS: list[FilterOp] = ["is_null", "is_not_null"]
-
-_SQL: dict[TypeCategory, str] = {
-    "string": "text",
-    "number": "numeric",
-    "datetime": "timestamptz",
-    "boolean": "boolean",
-}
-
-
-def _column(
-    name: str,
-    category: TypeCategory,
-    ops: list[FilterOp] | None = None,
-    *,
-    sql: str | None = None,
-    sortable: bool = False,
-    nullable: bool = False,
-) -> FetchColumn:
-    return FetchColumn(
-        name=name,
-        type=ColumnType(sql=sql or _SQL[category], category=category),
-        sortable=sortable,
-        filter_operators=ops or [],
-        nullable=nullable,
-    )
-
-
-def listed_column(
-    name: str, category: TypeCategory, *, nullable: bool = False
-) -> FetchColumn:
-    """A column of a list read whole: sorted and filtered here, by anything."""
-    ops = list(_TEXT_OPS if category == "string" else _ORDER_OPS)
-    if nullable:
-        ops += _NULL_OPS
-    return _column(name, category, ops, sortable=True, nullable=nullable)
-
-
 def moment(milliseconds: int | None) -> str | None:
     if milliseconds is None:
         return None
     at = datetime.fromtimestamp(milliseconds / 1000, tz=UTC)
     return at.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
-def milliseconds_of(column: str, text: str) -> int:
-    try:
-        at = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
-    except ValueError:
-        raise ValueError(say("{column} takes a date and time", column=column)) from None
-    if at.tzinfo is None:
-        at = at.replace(tzinfo=UTC)
-    return int(at.timestamp() * 1000)
 
 
 def _whole_number(column: str, text: str) -> int:
@@ -109,111 +63,7 @@ def boolean_of(value: Any) -> str | None:
     return None if not isinstance(value, bool) else ("true" if value else "false")
 
 
-def _checked(filters: list[Filter], columns: list[FetchColumn]) -> None:
-    offered = {column.name: column.filter_operators for column in columns}
-    for one in filters:
-        ops = offered.get(one.column)
-        if ops is None:
-            raise ValueError(say("Unknown column: {column}", column=one.column))
-        if one.op not in ops:
-            raise ValueError(
-                say("{column} cannot be filtered that way", column=one.column)
-            )
-
-
-def _sorts_checked(sort: list[Sort], columns: list[FetchColumn]) -> None:
-    sortable = {column.name for column in columns if column.sortable}
-    for one in sort:
-        if one.column not in sortable:
-            raise ValueError(say("{column} cannot be sorted", column=one.column))
-
-
 # --- a list read whole: Tickers and Symbols ----------------------------------
-
-
-def _key(category: TypeCategory, text: str | None) -> Any:
-    """What a cell is compared by: a number by its value, a moment by its time."""
-    if text is None:
-        return None
-    if category == "number":
-        try:
-            return Decimal(text)
-        except InvalidOperation:
-            return None
-    if category == "datetime":
-        return milliseconds_of("", text)
-    return text.casefold()
-
-
-def _matcher(
-    one: Filter, index: int, category: TypeCategory
-) -> Callable[[list[str | None]], bool]:
-    if isinstance(one, NullFilter):
-        wanted_null = one.op == "is_null"
-        return lambda row: (row[index] is None) == wanted_null
-    if isinstance(one, InFilter):
-        wanted = {_key(category, value) for value in one.values}
-        return lambda row: _key(category, row[index]) in wanted
-    assert isinstance(one, ScalarFilter)
-    if category == "number":
-        try:
-            Decimal(one.value)
-        except InvalidOperation:
-            raise ValueError(
-                say("{column} takes a number", column=one.column)
-            ) from None
-    if category == "datetime":
-        milliseconds_of(one.column, one.value)
-    needle = _key(category, one.value)
-    op = one.op
-
-    def matches(row: list[str | None]) -> bool:
-        value = _key(category, row[index])
-        if value is None:
-            return op == "ne"
-        if op == "contains":
-            return bool(needle in value)
-        if op == "starts_with":
-            return bool(value.startswith(needle))
-        return bool(
-            {
-                "eq": value == needle,
-                "ne": value != needle,
-                "gt": value > needle,
-                "gte": value >= needle,
-                "lt": value < needle,
-                "lte": value <= needle,
-            }[op]
-        )
-
-    return matches
-
-
-def listed_page(
-    columns: list[FetchColumn],
-    rows: list[list[str | None]],
-    filters: list[Filter],
-    sort: list[Sort],
-) -> list[list[str | None]]:
-    """Rows of a list read whole, filtered and sorted as asked."""
-    _checked(filters, columns)
-    _sorts_checked(sort, columns)
-    names = [column.name for column in columns]
-    categories = [column.type.category for column in columns]
-    for one in filters:
-        index = names.index(one.column)
-        keep = _matcher(one, index, categories[index])
-        rows = [row for row in rows if keep(row)]
-    for order in reversed(sort):
-        index = names.index(order.column)
-        category = categories[index]
-        present = [row for row in rows if _key(category, row[index]) is not None]
-        absent = [row for row in rows if _key(category, row[index]) is None]
-        present.sort(
-            key=lambda row: _key(category, row[index]), reverse=order.descending
-        )
-        rows = present + absent
-    return rows
 
 
 TICKER_COLUMNS = [
@@ -355,18 +205,18 @@ def paged(
 # --- candles --------------------------------------------------------------------
 
 CANDLE_COLUMNS = [
-    _column("open_time", "datetime", _RANGE_OPS, sortable=True),
-    _column("close_time", "datetime"),
-    _column("open", "number"),
-    _column("high", "number"),
-    _column("low", "number"),
-    _column("close", "number"),
-    _column("volume", "number"),
-    _column("quote_volume", "number"),
-    _column("trades", "number", sql="bigint"),
-    _column("taker_buy_volume", "number"),
-    _column("taker_buy_quote_volume", "number"),
-    _column("closed", "boolean"),
+    column("open_time", "datetime", RANGE_OPS, sortable=True),
+    column("close_time", "datetime"),
+    column("open", "number"),
+    column("high", "number"),
+    column("low", "number"),
+    column("close", "number"),
+    column("volume", "number"),
+    column("quote_volume", "number"),
+    column("trades", "number", sql="bigint"),
+    column("taker_buy_volume", "number"),
+    column("taker_buy_quote_volume", "number"),
+    column("closed", "boolean"),
 ]
 
 
@@ -519,8 +369,8 @@ async def read_candles(
 
 
 def checked_candles(filters: list[Filter], sort: list[Sort]) -> None:
-    _checked(filters, CANDLE_COLUMNS)
-    _sorts_checked(sort, CANDLE_COLUMNS)
+    checked_filters(filters, CANDLE_COLUMNS)
+    checked_sorts(sort, CANDLE_COLUMNS)
 
 
 async def candles_page(
@@ -554,13 +404,13 @@ async def candles_page(
 # --- trades ------------------------------------------------------------------
 
 TRADE_COLUMNS = [
-    _column("id", "number", ["eq", *_RANGE_OPS], sql="bigint", sortable=True),
-    _column("price", "number"),
-    _column("quantity", "number"),
-    _column("first_trade_id", "number", sql="bigint"),
-    _column("last_trade_id", "number", sql="bigint"),
-    _column("time", "datetime", _RANGE_OPS),
-    _column("buyer_is_maker", "boolean"),
+    column("id", "number", ["eq", *RANGE_OPS], sql="bigint", sortable=True),
+    column("price", "number"),
+    column("quantity", "number"),
+    column("first_trade_id", "number", sql="bigint"),
+    column("last_trade_id", "number", sql="bigint"),
+    column("time", "datetime", RANGE_OPS),
+    column("buyer_is_maker", "boolean"),
 ]
 
 
@@ -693,8 +543,8 @@ async def read_trades(
 async def trades_page(
     session: BinanceSession, place: Place, request: FetchRequest
 ) -> FetchResult:
-    _checked(request.filters, TRADE_COLUMNS)
-    _sorts_checked(request.sort, TRADE_COLUMNS)
+    checked_filters(request.filters, TRADE_COLUMNS)
+    checked_sorts(request.sort, TRADE_COLUMNS)
     if _too_deep(request):
         raise ValueError(
             say(
@@ -744,11 +594,11 @@ async def trades_page(
 # --- the order book ---------------------------------------------------------
 
 BOOK_COLUMNS = [
-    _column("side", "string", ["eq"]),
-    _column("level", "number", ["lt", "lte"], sql="integer"),
-    _column("price", "number"),
-    _column("quantity", "number"),
-    _column("cumulative_quantity", "number"),
+    column("side", "string", ["eq"]),
+    column("level", "number", ["lt", "lte"], sql="integer"),
+    column("price", "number"),
+    column("quantity", "number"),
+    column("cumulative_quantity", "number"),
 ]
 
 
@@ -769,8 +619,8 @@ def book_rows(answer: dict[str, Any], levels: int) -> list[list[str | None]]:
 async def book_page(
     session: BinanceSession, place: Place, request: FetchRequest
 ) -> FetchResult:
-    _checked(request.filters, BOOK_COLUMNS)
-    _sorts_checked(request.sort, BOOK_COLUMNS)
+    checked_filters(request.filters, BOOK_COLUMNS)
+    checked_sorts(request.sort, BOOK_COLUMNS)
     assert place.symbol is not None
     levels = DEFAULT_BOOK_LEVELS
     sides = {"bid", "ask"}

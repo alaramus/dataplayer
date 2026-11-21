@@ -200,6 +200,18 @@ SSH = Server(
     ),
 )
 
+# A Docker daemon behind an SSH server (`docker-remote` in
+# compose.override.yml), signing in as `dataplayer` with that password; the
+# daemon's socket is /var/run/docker.sock there (D405).
+DOCKER_REMOTE = Server(
+    name="the Docker daemon behind SSH",
+    variable="TEST_DOCKER_REMOTE_URL",
+    start="docker compose up -d docker-remote",
+    read=lambda: os.environ.get(
+        "TEST_DOCKER_REMOTE_URL", "ssh://dataplayer:dataplayer@127.0.0.1:2223"
+    ),
+)
+
 # The development MySQL and MariaDB (`mysql` and `mariadb` in
 # compose.override.yml), signing in as root. Both, because the one source
 # type speaks to both and they differ where the catalog looks (D228).
@@ -390,6 +402,7 @@ SERVERS = (
     REDIS,
     TIMESCALE,
     SSH,
+    DOCKER_REMOTE,
     MYSQL,
     MARIADB,
     CLICKHOUSE,

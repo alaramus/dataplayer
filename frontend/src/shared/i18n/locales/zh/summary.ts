@@ -27,6 +27,10 @@ export const summary: Messages["summary"] = {
     exchange: "交换器",
     symbol: "交易对",
     feed: "市场数据表",
+    container: "容器",
+    image: "镜像",
+    volume: "卷",
+    network: "网络",
   },
   encodings: {
     utf_8: "UTF-8",

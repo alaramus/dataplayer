@@ -1,0 +1,102 @@
+# Docker
+
+Ein Docker-Daemon auf einem anderen Rechner, erreicht über eine Ihrer
+SSH-Verbindungen. Sie sehen seine Container, Images, Volumes und Netzwerke,
+was der Daemon über jedes sagt, Logs und Prozesse eines Containers und die
+Berichte des Daemons selbst. Wie Verbindungen allgemein funktionieren, steht
+auf der Seite [Verbindungen](connections.md).
+
+## Was Sie sehen können
+
+- Container, nach Compose-Projekt gruppiert, laufend oder nicht
+- Images, Volumes und Netzwerke, und welche Container sie nutzen
+- Was der Daemon über jedes davon sagt, als JSON-Baum
+- Die Logs eines Containers, Neuestes zuerst, und seine Prozesse
+- Die Schichten eines Images und die Anweisungen dahinter
+- Die Engine: Versionen, Treiber, CPUs, Speicher, Platz, Ereignisse
+
+## Verbinden
+
+Der Daemon wird nie direkt erreicht. Legen Sie zuerst eine
+**SSH-Verbindung** zum Rechner an, auf dem er läuft; die Seite **Verbindung**
+einer Docker-Verbindung fragt dann nach:
+
+- **SSH-Verbindung**: eine Ihrer SSH-Verbindungen. Ihr Konto muss den Socket
+  des Daemons benutzen dürfen — auf den meisten Rechnern ist es dafür in der
+  Gruppe `docker`;
+- **Socket**: wo der Daemon auf diesem Rechner lauscht.
+  `/var/run/docker.sock` für Docker, `/run/user/<uid>/docker.sock` für
+  rootloses Docker. Die Karte **Podman** trägt `/run/podman/podman.sock` ein;
+  ein rootloses Podman nutzt `/run/user/<uid>/podman/podman.sock`, und sein
+  Socket muss eingeschaltet sein
+  (`systemctl --user enable --now podman.socket`).
+
+Der Socket wird über die SSH-Verbindung weitergeleitet, so wie eine Datenbank
+über einen SSH-Tunnel erreicht wird; der SSH-Server muss das erlauben
+(`AllowStreamLocalForwarding`, standardmäßig an). Sagt die Prüfung, der
+Socket konnte nicht geöffnet werden, stimmt eines von drei Dingen nicht, und
+OpenSSH sagt nicht welches: unter dem Pfad lauscht nichts, das Konto darf ihn
+nicht benutzen, oder die Weiterleitung ist aus.
+
+Der Daemon muss API 1.41 oder neuer sprechen (Docker 20.10 und später).
+
+Der Docker-Daemon des Rechners, auf dem DataPlayer selbst läuft, wird nie
+angeboten: Wer diesen Socket hat, hat den Rechner.
+
+## Der Katalog
+
+- **System** enthält die Berichte des Daemons, siehe unten.
+- **Container** enthält einen Ordner pro Compose-Projekt, benannt nach dem
+  Label, das Compose schreibt, und **Ohne Projekt** für den Rest. Jeder
+  Container zeigt seinen Zustand in einem Wort — läuft, gesund, ungesund,
+  startet, pausiert, startet neu, gestoppt, fehlgeschlagen, erstellt oder
+  tot — daneben den Status des Daemons, sein Image, seinen Compose-Dienst und
+  seine veröffentlichten Ports.
+- **Images** listet jedes Image nach seiner Id, mit oder ohne Tag, mit Größe
+  und der Zahl der Container, die es nutzen.
+- **Volumes** listet jedes Volume nach Namen; **Netzwerke** jedes Netzwerk,
+  die drei von Docker zuerst, jedes als eingebaut, Compose oder eigenes
+  markiert.
+- Jeder dieser Ordner öffnet sich auch als Tabelle, nach jeder Spalte
+  filter- und sortierbar. Mehr als zehntausend einer Art werden nicht
+  aufgeführt.
+
+## Wie sich ein Knoten öffnet
+
+- Ein Container, ein Image, ein Volume oder ein Netzwerk öffnet sich als das,
+  was der Daemon darüber sagt, als JSON-Baum. Beim Container gehört seine
+  Umgebung dazu, die oft Passwörter enthält: Jeder, mit dem Sie diese
+  Verbindung teilen, sieht sie.
+- In einem Container: **Logs** — Zeit, Strom (stdout oder stderr) und Text
+  jeder Zeile, Neuestes zuerst, bis zu zehntausend Zeilen zurück, eine Zeile
+  bei 16 KB gekürzt — und **Prozesse**, was jetzt darin läuft. Ein gestoppter
+  Container hat keine.
+- In einem Image: **Verlauf**, seine Schichten.
+- In einem Volume oder Netzwerk: **Container**, die es nutzen.
+
+## Der Abschnitt System
+
+- **Engine**: Versionen des Daemons, Betriebssystem, Kernel, Treiber, CPUs,
+  Speicher und die Zahl der Container und Images, unter den Namen des
+  Daemons. Registry-Spiegel und Proxys fehlen: Sie können Passwörter
+  enthalten.
+- **Speicherbelegung**: jedes Image, jeder Container, jedes Volume und jeder
+  Build-Cache-Eintrag mit Größe, und ob Entfernen Platz freigäbe. Der Daemon
+  misst dafür jedes Volume, das kann dauern.
+- **Ereignisse**: was in der letzten Stunde geschah, Neuestes zuerst.
+
+## Wenn etwas abgelehnt wird
+
+- Lehnt die SSH-Verbindung oder der Socket ab, steht die ganze Verbindung,
+  und jeder Bildschirm sagt warum.
+- Ein Daemon hinter einem Autorisierungs-Plugin oder einem filternden Proxy
+  kann eine Anfrage ablehnen: Das heißt dann **Der Docker-Server hat das nicht
+  erlaubt**.
+
+## Was Docker hier noch nicht hat
+
+- Container starten, stoppen, neu starten und entfernen
+- Images, Volumes und Netzwerke entfernen und aufräumen; Images ziehen
+- Ein Terminal im Container, und Logs, die live mitlaufen
+- Metriken auf einem Dashboard, und die Suche
+- Einen Daemon, der über TLS statt SSH erreicht wird

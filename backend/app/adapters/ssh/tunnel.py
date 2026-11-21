@@ -1,5 +1,9 @@
 """Connections carried through an SSH server to an address it reaches (D282).
 
+The target is a host and port, or a Unix socket on the SSH server itself,
+opened as a `direct-streamlocal@openssh.com` channel: a Docker daemon's socket
+(D405).
+
 One listener on loopback per SSH connection and target. Every connection a
 driver makes to it becomes a channel of one signed-in session, made again when
 the server has closed it, so the port a pool was built with keeps working
@@ -15,6 +19,7 @@ made it.
 import asyncio
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import asyncssh
@@ -35,12 +40,15 @@ _CHUNK = 65_536
 
 
 class Forwarder:
-    """A port on loopback that reaches `host:port` from one SSH server."""
+    """A port on loopback that reaches `host:port`, or a socket, from one SSH server."""
 
-    def __init__(self, options: SshOptions, host: str, port: int) -> None:
+    def __init__(
+        self, options: SshOptions, host: str, port: int, socket: str | None = None
+    ) -> None:
         self._options = options
         self._host = host
         self._port = port
+        self._socket = socket
         self.loop = asyncio.get_running_loop()
         # The key the last caller held. A channel opened later, for a pool
         # filling itself, signs in again with it; the caller asked the keyring
@@ -90,7 +98,7 @@ class Forwarder:
             try:
                 # One channel opened and closed: whether this server forwards
                 # at all, and whether it reaches the target, is said now.
-                _, writer = await connection.open_connection(self._host, self._port)
+                _, writer = await self._open(connection)
                 writer.close()
             except asyncssh.ChannelOpenError as failure:
                 connection.close()
@@ -101,8 +109,27 @@ class Forwarder:
             self._connection = connection
             return connection
 
+    async def _open(
+        self, connection: asyncssh.SSHClientConnection
+    ) -> tuple[asyncssh.SSHReader[bytes], asyncssh.SSHWriter[bytes]]:
+        if self._socket is not None:
+            return await connection.open_unix_connection(self._socket, encoding=None)
+        return await connection.open_connection(self._host, self._port, encoding=None)
+
     def _refused(self, failure: asyncssh.ChannelOpenError) -> AdapterError:
         logger.warning("SSH tunnel refused: %r", failure)
+        if self._socket is not None:
+            # OpenSSH answers a missing socket, one the account may not open
+            # and socket forwarding switched off alike: "open failed", code 2
+            # (checked on OpenSSH 10.3). So one sentence names all three.
+            return AdapterError(
+                "config",
+                say(
+                    "The SSH server could not open {socket}: nothing may be listening there, {user} may not be allowed to use it (the docker group), or AllowStreamLocalForwarding is off",
+                    socket=self._socket,
+                    user=self._options.username,
+                ),
+            )
         if failure.code == asyncssh.OPEN_ADMINISTRATIVELY_PROHIBITED:
             return AdapterError(
                 "config",
@@ -124,9 +151,7 @@ class Forwarder:
         try:
             try:
                 connection = await self._connected()
-                remote_reader, remote_writer = await connection.open_connection(
-                    self._host, self._port
-                )
+                remote_reader, remote_writer = await self._open(connection)
             except (AdapterError, asyncssh.Error, OSError, TimeoutError) as failure:
                 # The driver sees its connection closed and says so; what went
                 # wrong is said to the next caller of `endpoint`.
@@ -169,13 +194,35 @@ class Tunnels:
     async def endpoint(
         self, options: SshOptions, signing: SigningKey | None, host: str, port: int
     ) -> tuple[str, int]:
+        return await self._forwarder(
+            (identity_of(options), host.lower(), port),
+            lambda: Forwarder(options, host, port),
+            signing,
+        )
+
+    async def socket_endpoint(
+        self, options: SshOptions, signing: SigningKey | None, path: str
+    ) -> tuple[str, int]:
+        """A port on loopback reaching a Unix socket on the SSH server (D405)."""
+        return await self._forwarder(
+            # No host name has a slash, so a path never meets a host's key.
+            (identity_of(options), path, 0),
+            lambda: Forwarder(options, "", 0, socket=path),
+            signing,
+        )
+
+    async def _forwarder(
+        self,
+        key: tuple[str, str, int],
+        make: Callable[[], Forwarder],
+        signing: SigningKey | None,
+    ) -> tuple[str, int]:
         await self._sweep()
-        key = (identity_of(options), host.lower(), port)
         found = self._forwarders.get(key)
         # A forwarder belongs to the loop that made it; a test's loop or a
         # second process never reaches one of another's.
         if found is None or found.loop is not asyncio.get_running_loop():
-            found = Forwarder(options, host, port)
+            found = make()
             self._forwarders[key] = found
         return await found.endpoint(signing)
 

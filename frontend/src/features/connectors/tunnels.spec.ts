@@ -57,6 +57,17 @@ describe("withTunnelChoices", () => {
     expect(field?.choices).toContainEqual({ value: "theirs", label: "The owner's SSH connection" })
   })
 
+  it("offers no directly when the field is required", () => {
+    const [field] = withTunnelChoices(
+      [{ ...tunnel, name: "ssh_connection", required: true }],
+      [connection({ id: "s1", name: "bastion" })],
+      {},
+      WORDS
+    )
+
+    expect(field?.choices).toEqual([{ value: "s1", label: "bastion" }])
+  })
+
   it("leaves every other field as it is", () => {
     expect(withTunnelChoices([host], [connection({})], {}, WORDS)).toEqual([host])
   })

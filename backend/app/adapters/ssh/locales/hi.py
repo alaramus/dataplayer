@@ -89,4 +89,6 @@ MESSAGES: dict[str, str] = {
     # Reaching a server through an SSH connection (D282).
     "The SSH server does not forward connections; AllowTcpForwarding is off there": "SSH सर्वर कनेक्शन आगे नहीं भेजता; वहाँ AllowTcpForwarding बंद है",
     "The SSH server could not reach {host}:{port}": "SSH सर्वर {host}:{port} तक नहीं पहुँच सका",
+    # A socket forwarded for a Docker source (D405).
+    "The SSH server could not open {socket}: nothing may be listening there, {user} may not be allowed to use it (the docker group), or AllowStreamLocalForwarding is off": "SSH सर्वर {socket} नहीं खोल सका: शायद वहाँ कुछ सुन नहीं रहा, {user} को इसका उपयोग करने की अनुमति न हो (docker समूह), या AllowStreamLocalForwarding बंद है",
 }

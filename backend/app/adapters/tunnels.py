@@ -56,12 +56,23 @@ class TunnelAccess(Protocol):
         """A local address that reaches `host:port` from the SSH server."""
         ...
 
+    async def socket_endpoint(self, connection_id: uuid.UUID, path: str) -> tuple[str, int]:
+        """A local address that reaches a Unix socket on the SSH server (D405)."""
+        ...
+
 
 @runtime_checkable
 class ForwardsPorts(Protocol):
     """A source that can carry connections to an address it reaches."""
 
     async def forward(self, host: str, port: int) -> tuple[str, int]: ...
+
+
+@runtime_checkable
+class ForwardsSockets(Protocol):
+    """A source that can carry connections to a Unix socket on its server (D405)."""
+
+    async def forward_socket(self, path: str) -> tuple[str, int]: ...
 
 
 async def reach(

@@ -96,4 +96,6 @@ MESSAGES: dict[str, str] = {
     'Follow changes as they happen': "Suivre les changements au fil de l'eau",
     "Show a node's details": "Afficher les détails d'un nœud",
     "Your personal storage is full: {used} MB of {limit} MB in use": "Votre stockage personnel est plein : {used} Mo sur {limit} Mo utilisés",
+    # A category of sources (D405).
+    "Containers": "Conteneurs",
 }

@@ -22,6 +22,7 @@ file holds which decision.
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
 | [duckdb.md](duckdb.md) | change how a DuckDB file is opened, how the engine is locked to the owner's storage, what its catalog shows, how its values and pages are read, its rows and structure changed and its tables designed, its reports, search, export and catalog actions, copying its tables, backing it up, its lab, a DuckDB file in a file source or one made here, or its console |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
+| [docker.md](docker.md) | change how a Docker daemon is reached through an SSH connection, the Engine API client shared with services, what its catalog shows of containers, images, volumes and networks, what a node opens as, or how a refusal is said |
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
 | [binance.md](binance.md) | change how Binance is reached and kept under its rate limit, what its catalog shows of markets, quote assets, symbols and feeds, or how tickers, symbols, candles, trades and the order book are read as rows, read on by a link, reported, measured and searched |
 | [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read, messages sent, topics and groups changed, its reports, metrics, search and export, its service and lab, or its console |
@@ -145,6 +146,17 @@ from the catalog's description with their rows as DuckDB's text (D400), the
 file is backed up as itself after a checkpoint (D401), the lab is a file
 (D402), a `.duckdb` in a file source lists its tables and connects (D403), and
 one is made here as SQLite's is (D404).
+
+**Docker** — a daemon on another machine, its socket forwarded through one
+of the owner's SSH connections and spoken to as the Engine API, at the lower
+of its version and 1.47, never below 1.41 (D405), with the client the managed
+services use (D406). System reports, then containers by Compose project,
+images, volumes and networks, each state one word and the counts the daemon
+leaves out counted from the containers, every level a table narrowed in
+memory (D407). A node opens as its inspect JSON; a container holds its logs
+and processes, an image its history, a volume and a network their containers
+(D408). Read only for now; a 403 from a proxy is said apart from the socket
+refusing (D409).
 
 **ClickHouse** — a server reached over its HTTP interface with the
 application's own client, every value one of the server's parameters and every
@@ -320,6 +332,13 @@ backend/app/adapters/
 │                       table_copy.py, backup.py, samples.py + sample_data/
 │                       (the lab), file_tables.py (a file seen from a file
 │                       source), made_here.py, adapter.py
+├── docker_api/         client.py (the Engine API over a transport it is
+│                       handed), frames.py, hijack.py: shared with services
+├── docker/             session.py (the forwarded socket, the version),
+│                       inventory.py (lists read whole, states, counts),
+│                       catalog.py (ids and nodes), tables.py (levels and
+│                       views as rows), reports.py (System), options.py,
+│                       adapter.py
 ├── clickhouse/         session.py (the HTTP interface, its errors, addresses)
 │                       and pool.py (a kept client), sql.py (names and
 │                       parameters), inspection.py (system.tables, once),

@@ -10,7 +10,8 @@ export interface TunnelWords {
 
 /**
  * A field that names the SSH connection a database goes through (D282),
- * offered as a choice of the person's own SSH connections.
+ * offered as a choice of the person's own SSH connections, and "directly"
+ * first unless the field is required.
  *
  * The schema says what the field is for (`x-ui-purpose: ssh-connection`);
  * only this screen knows which connections there are. One the form holds and
@@ -33,11 +34,14 @@ export function withTunnelChoices(
       typeof held === "string" && held !== "" && !own.some((one) => one.id === held)
         ? [{ value: held, label: words.someone_elses }]
         : []
+    // A required one has no "directly": a Docker daemon is only ever reached
+    // through an SSH connection (D405).
+    const directly = field.required ? [] : [{ value: "", label: words.directly }]
     return {
       ...field,
       kind: "select",
       choices: [
-        { value: "", label: words.directly },
+        ...directly,
         ...own.map((connection) => ({ value: connection.id, label: connection.name })),
         ...unseen,
       ],

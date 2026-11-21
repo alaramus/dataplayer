@@ -77,6 +77,12 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   // the rule below makes a leaf with nothing to open a place (D317).
   symbol: "leaf",
   feed: "leaf",
+  // Walked into for their views — what the daemon says about one, a
+  // container's logs and processes — each opened from the level (D408).
+  container: "container",
+  image: "container",
+  volume: "container",
+  network: "container",
 }
 
 export interface ListNode {
@@ -177,6 +183,10 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   exchange: "alt_route",
   symbol: "currency_exchange",
   feed: "table_rows",
+  container: "deployed_code",
+  image: "layers",
+  volume: "hard_drive",
+  network: "lan",
 }
 
 /** A market's feeds drawn by what they hold (D317). */
@@ -387,6 +397,17 @@ function captionOf(node: CatalogNode): string | undefined {
         : node.exchange_type
     case "symbol":
       return `${node.base} / ${node.quote}`
+    case "container":
+      return containerCaption(node)
+    case "image":
+      return imageCaption(node)
+    case "volume":
+      return usedCaption(node.driver, node.containers)
+    case "network":
+      return usedCaption(
+        `${node.driver} · ${t(`catalog.nodes.network_${node.network_kind ?? "user"}`)}`,
+        node.containers
+      )
     case "database":
       // Said even when it is nothing: a database with no keys in it is a fact
       // about the server, and an empty caption reads as one nobody counted.
@@ -517,6 +538,26 @@ function streamCaption(node: Extract<CatalogNode, { kind: "amqp_stream" }>): str
   return parts.length === 0 ? undefined : parts.join(" · ")
 }
 
+/** A container's state in one word, its image, and what it publishes (D407). */
+function containerCaption(node: Extract<CatalogNode, { kind: "container" }>): string {
+  const parts = [t(`catalog.nodes.container_${node.state ?? "unknown"}`)]
+  if (node.image) parts.push(node.image)
+  if ((node.ports ?? []).length > 0) parts.push((node.ports ?? []).join(", "))
+  return parts.join(" · ")
+}
+
+/** An image's size and how many containers use it (D407). */
+function imageCaption(node: Extract<CatalogNode, { kind: "image" }>): string | undefined {
+  const parts: string[] = []
+  if (node.size_bytes !== null && node.size_bytes !== undefined) parts.push(formatSize(node.size_bytes))
+  if ((node.containers ?? 0) > 0) parts.push(counted(node.containers ?? 0, "container"))
+  return parts.length === 0 ? undefined : parts.join(" · ")
+}
+
+function usedCaption(what: string, containers: number | undefined): string {
+  return (containers ?? 0) > 0 ? `${what} · ${counted(containers ?? 0, "container")}` : what
+}
+
 /** A number of seconds in the largest unit that still says something. */
 export function formatDuration(seconds: number): string {
   if (seconds < 60) return t("catalog.duration.seconds", { n: seconds })
@@ -549,6 +590,7 @@ type Noun =
   | "partition"
   | "message"
   | "consumer"
+  | "container"
 
 function counted(count: number, noun: Noun): string {
   return t(`catalog.count.${noun}`, { n: count }, count)

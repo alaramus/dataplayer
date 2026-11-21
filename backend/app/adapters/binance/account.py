@@ -16,8 +16,6 @@ from app.adapters.binance.feeds import (
     boolean_of,
     contract_size_of,
     in_quote,
-    listed_column,
-    listed_page,
     moment,
     paged,
     whole_of,
@@ -26,6 +24,7 @@ from app.adapters.binance.markets import SPOT, Market
 from app.adapters.binance.session import BinanceSession, decimal_text
 from app.adapters.catalog import FeedName
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult, Sort
+from app.adapters.listed import listed_column, listed_page
 from app.core.translation import N_, say
 
 # How many orders or own trades of a symbol a page holds: one request's worth.

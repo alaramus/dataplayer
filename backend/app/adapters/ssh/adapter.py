@@ -86,6 +86,11 @@ class SshAdapter(Explorer):
         signing = await self._session.signing_key()
         return await TUNNELS.endpoint(self._session.options, signing, host, port)
 
+    async def forward_socket(self, path: str) -> tuple[str, int]:
+        """A local address reaching a Unix socket on this server (D405)."""
+        signing = await self._session.signing_key()
+        return await TUNNELS.socket_endpoint(self._session.options, signing, path)
+
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
 
