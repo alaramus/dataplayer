@@ -77,12 +77,12 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   // the rule below makes a leaf with nothing to open a place (D317).
   symbol: "leaf",
   feed: "leaf",
-  // Walked into for their views — what the daemon says about one, a
-  // container's logs and processes — each opened from the level (D408).
-  container: "container",
-  image: "container",
-  volume: "container",
-  network: "container",
+  // These nodes open as their preferred representation; any source-owned
+  // pages are offered by that representation rather than by a catalog level.
+  container: "leaf",
+  image: "leaf",
+  volume: "leaf",
+  network: "leaf",
 }
 
 export interface ListNode {

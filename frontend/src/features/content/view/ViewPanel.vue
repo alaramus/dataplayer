@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import type { ContentRequest, NodeRepresentation } from "@/client"
+import type { ContentRequest, NodeRepresentation, ViewPage } from "@/client"
 import { REPRESENTATION_ICONS } from "@/features/catalog/nodes"
 import { useContent } from "@/features/content/api"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
@@ -21,14 +21,17 @@ import { otherRepresentations } from "./view"
  * A node's document as its source says what it means (D419).
  *
  * Knows no source: every block is drawn by its kind, and a new source's view
- * is a function in its adapter and nothing here. Each other way the node
- * opens is a button, and switches this tab to it; the JSON is one of them.
+ * is a function in its adapter and nothing here. Other representations
+ * switch this tab; source-owned pages open their own node tabs. The JSON
+ * is one of the representations.
  */
 const props = defineProps<{
   panelId: string
   connectorId: string
   nodeId: string
   title: string
+  connectorName: string
+  adapterType: string
   representations?: NodeRepresentation[]
 }>()
 
@@ -51,6 +54,24 @@ function show(kind: NodeRepresentation["kind"]) {
   workspace.switchRepresentation(props.panelId, kind)
 }
 
+function openPage(page: ViewPage) {
+  const [preferred] = page.representations
+  if (preferred === undefined) return
+  workspace.openRepresentation({
+    connectorId: props.connectorId,
+    nodeId: page.node_id,
+    title: `${props.title} — ${page.title}`,
+    connectorName: props.connectorName,
+    adapterType: props.adapterType,
+    representations: page.representations,
+    describable: false,
+  })
+}
+
+function iconFor(page: ViewPage) {
+  return REPRESENTATION_ICONS[page.representations[0]?.kind ?? "table"]
+}
+
 useReloadable(() => props.panelId, async () => {
   await content.refetch()
 })
@@ -71,6 +92,17 @@ useReloadable(() => props.panelId, async () => {
           layout="toolbar"
           :data-testid="`view-show-${other.kind}`"
           @click="show(other.kind)"
+        />
+        <AppButton
+          v-for="(page, index) in view?.pages ?? []"
+          :key="page.node_id"
+          variant="quiet"
+          size="sm"
+          :icon="iconFor(page)"
+          :label="page.title"
+          layout="toolbar"
+          :data-testid="`view-page-${index}`"
+          @click="openPage(page)"
         />
         <PanelCommands
           :panel-id="panelId"

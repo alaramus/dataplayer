@@ -15,7 +15,7 @@ every source type follows is in [contract.md](contract.md); the SSH tunnel it
 rides is D282 in [ssh.md](ssh.md). Read this before changing the `docker`
 adapter or `app/adapters/docker_api`.
 
-Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414, D415, D416, D417, D418, D422.
+Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414, D415, D416, D417, D418, D422, D423.
 
 ## D405. Only a remote daemon, its socket forwarded through an SSH connection
 
@@ -121,14 +121,15 @@ Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-sou
 
 ## D408. What a node opens as
 
-A container, image, volume or network is walked into, and holds its views:
-**Inspect** first, the daemon's JSON for it as a read-only tree (D295), then
-tables — a container's **Logs** and **Processes**, an image's **History**, a
-volume's and a network's **Containers**. Opened from elsewhere — a search, a
-link — the node itself answers as its Inspect does; a container's opens on
-its view (D422). Walked rather than
-opened because a node that opens and holds nodes opens as a workbook does
-(D51), and that tab offers only sibling tables: the logs were out of reach.
+A container, image, volume or network opens directly as its own node on
+the **Overview** view and declares `[view, tree]` (D422). This direct opening
+replaces the former catalog expansion in this decision (D423). **As JSON**
+switches that same tab to the daemon's read-only tree (D295). Its `DocumentView`
+lists the related table pages: a container's **Logs** and **Processes**, an
+image's **History**, and a volume's or network's **Containers** (D423). Each
+page opens in a separate tab. The node is not a catalog level and its pages are
+not rows there; their source-issued IDs still read and resolve through
+`path_to`.
 
 Logs are read with `timestamps=true` and `tail` = offset + limit, at most
 10,000 lines, and shown newest first as time, stream and text; a container
@@ -146,7 +147,10 @@ Known deviations:
   they are not filtered or sorted.
 - **A Containers row does not open its container.** The grid's link is a
   relation's foreign key with a predicate; the container is found in the
-  catalog.
+  catalog. A link in a document view and a search result do open the
+  container's preferred view, with its pages (D423). A link in a document view and a search result do open the
+  container's preferred view, with its pages (D423). A link in a document view and a search result do open the
+  container's preferred view, with its pages (D423).
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
 
@@ -403,11 +407,11 @@ Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-sou
 
 ## D422. An inspect opens on its view
 
-A container, an image, a volume and a network, and each one's **Inspect**,
-declare `[view "Overview", tree "As JSON"]`; the view (D419,
-[views.md](views.md)) is built by `docker/card.py` (a container, and the
-values every Docker view reads alike) and `docker/cards.py` (the rest) from
-the inspect the tree reads.
+A container, image, volume and network declare `[view "Overview", tree
+"As JSON"]` on the node itself. The view (D419, [views.md](views.md)) is built
+by `docker/card.py` (a container, and the values every Docker view reads
+alike) and `docker/cards.py` (the rest) from the inspect the tree reads. The
+view's source-owned pages are described in D423.
 
 - **Container.** Header: the name; the state word of D407 read from inspect
   (running and healthy `good`, starting, restarting and removing `busy`,
@@ -452,7 +456,28 @@ Known deviations:
   names its own containers.
 - **A view is told only while a catalog of the connection is open.** The
   watch is held by the catalog panel (D303), as a Logs tab's is.
-- **A container linked from a view shows its level in the catalog**, since a
-  container is walked into (D408).
 
 Spec: [A view of a document](../../decisions/2026-11-21-document-views-design.md)
+
+## D423. Docker nodes open directly and advertise their pages
+
+Containers, images, volumes and networks are catalog leaves. Clicking one
+opens its first representation, the **Overview** view; its tab uses the node's
+name. The old level that listed Inspect and the table pages is gone. Catalog
+actions on these nodes keep their existing targets and menu.
+
+The source adds `pages` to the `DocumentView` response. Each page carries its
+source-issued `node_id`, localized `title` and ordered `representations`. The
+client draws a button for each page in the view header and opens its preferred
+representation in a separate tab named `<node> — <page>`. The view and **As
+JSON** still replace each other in the same tab through `switchRepresentation`
+(D419); the client has no Docker-specific branch.
+
+Docker advertises Logs and Processes for a container, History for an image,
+and Containers for a volume or network. `list_children` validates a Docker
+node and returns no catalog rows, while these child IDs remain valid for row
+fetches and `path_to`. Search and links resolve to the node's own preferred
+representation, so they open the same view with the same page buttons. The
+existing D414 IDs keep the log stream and the card event refresh working.
+
+Spec: [Docker node pages and opening](../../decisions/2026-11-21-docker-node-pages-design.md)

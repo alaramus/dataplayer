@@ -84,7 +84,7 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.tunnels import TunnelAccess
-from app.adapters.views import DocumentView
+from app.adapters.views import DocumentView, ViewPage
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_, say
 
@@ -148,8 +148,10 @@ class DockerAdapter:
         if named.leaf is not None:
             if named.view is not None:
                 return []
+            # Keep the missing-node refusal while this node no longer exposes
+            # its pages as a catalog level (D423).
             await self._inspect(named)
-            return views_of(named.leaf, named.key)
+            return []
         return await self._level(named)
 
     async def _level(self, named: Named) -> list[CatalogNode]:
@@ -285,17 +287,25 @@ class DockerAdapter:
 
 
     async def _view(self, named: Named, inspect: dict[str, Any]) -> DocumentView:
+        assert named.leaf is not None
         if named.leaf == "container":
-            return container_view(inspect)
-        if named.leaf == "network":
+            document = container_view(inspect)
+        elif named.leaf == "network":
             # A network's inspect names its own containers.
-            return network_view(inspect)
-        # Who uses an image or mounts a volume is counted from the containers,
-        # which the levels read the same way (D407).
-        containers = (await read_containers(self._session)).items
-        if named.leaf == "image":
-            return image_view(inspect, containers)
-        return volume_view(inspect, containers)
+            document = network_view(inspect)
+        else:
+            # Who uses an image or mounts a volume is counted from the containers,
+            # which the levels read the same way (D407).
+            containers = (await read_containers(self._session)).items
+            if named.leaf == "image":
+                document = image_view(inspect, containers)
+            else:
+                document = volume_view(inspect, containers)
+        pages = [
+            ViewPage(node_id=page.id, title=page.name, representations=page.representations)
+            for page in views_of(named.leaf, named.key)[1:]
+        ]
+        return document.model_copy(update={"pages": pages})
 
     # --- metrics and search (D415, D416) ------------------------------------------
 

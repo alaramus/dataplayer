@@ -146,44 +146,61 @@ async def test_inspect_is_the_daemons_json_as_a_tree(
     assert "Config" in [entry.name for entry in content.value.entries]
 
 
-async def test_a_container_holds_its_views(
+async def test_a_container_opens_on_its_view_and_announces_separate_pages(
     adapter: DockerAdapter, stand: dict[str, str]
 ) -> None:
-    views = await adapter.list_children(f"container:{stand['web']}")
-    assert [node.id.rsplit("/", 1)[1] for node in views] == ["inspect", "logs", "processes"]
-    # Its inspect opens on the view, its JSON one click away (D422).
-    assert [one.kind for one in views[0].representations] == ["view", "tree"]
-    content = await adapter.read_content(
-        ContentRequest(node_id=views[0].id, representation="tree")
-    )
+    node_id = f"container:{stand['web']}"
+    [node] = [one for one in await adapter.list_children("project:dp-test") if one.id == node_id]
+    assert node.has_children is False
+    assert [one.kind for one in node.representations] == ["view", "tree"]
+    assert await adapter.list_children(node_id) == []
+
+    content = await adapter.read_content(ContentRequest(node_id=node_id, representation="tree"))
     assert isinstance(content, JsonContent)
-    card = await adapter.read_content(ContentRequest(node_id=views[0].id, representation="view"))
+    card = await adapter.read_content(ContentRequest(node_id=node_id, representation="view"))
     assert isinstance(card, DocumentView)
     assert card.header.title == "dp-test-web"
+    assert [(page.node_id.rsplit("/", 1)[1], page.title) for page in card.pages] == [
+        ("logs", "Logs"),
+        ("processes", "Processes"),
+    ]
+    assert all([one.kind for one in page.representations] == ["table"] for page in card.pages)
 
 
-async def test_an_image_volume_and_network_open_on_their_views(
+async def test_images_volumes_and_networks_open_on_their_views_and_announce_pages(
     adapter: DockerAdapter, stand: dict[str, str]
 ) -> None:
     del stand
-    for group in ("images", "volumes", "networks"):
+    expected_pages = {"images": ["history"], "volumes": ["containers"], "networks": ["containers"]}
+    for group, expected in expected_pages.items():
         [first, *_] = await adapter.list_children(group)
+        assert first.has_children is False
         assert [one.kind for one in first.representations] == ["view", "tree"]
+        assert await adapter.list_children(first.id) == []
         view = await adapter.read_content(ContentRequest(node_id=first.id, representation="view"))
         assert isinstance(view, DocumentView)
         assert view.header.title == first.name
+        assert [page.node_id.rsplit("/", 1)[1] for page in view.pages] == expected
 
 
-async def test_a_path_leads_through_the_project(
+async def test_paths_lead_to_pages_through_their_nodes(
     adapter: DockerAdapter, stand: dict[str, str]
 ) -> None:
-    path = await adapter.path_to(f"container:{stand['web']}/logs")
-    assert [node.id for node in path] == [
-        "containers",
-        f"project:{PROJECT}",
-        f"container:{stand['web']}",
+    images = await adapter.list_children("images")
+    alpine = next(node for node in images if isinstance(node, ImageNode) and IMAGE in node.tags)
+    networks = await adapter.list_children("networks")
+    network = next(node for node in networks if node.name == "dp-test-net")
+    page_ids = [
         f"container:{stand['web']}/logs",
+        f"container:{stand['web']}/processes",
+        f"{alpine.id}/history",
+        "volume:dp-test-data/containers",
+        f"{network.id}/containers",
     ]
+    for page_id in page_ids:
+        path = await adapter.path_to(page_id)
+        assert path[-2].id == page_id.rsplit("/", 1)[0]
+        assert path[-1].id == page_id
 
 
 async def test_a_container_that_is_gone_is_not_found(adapter: DockerAdapter) -> None:

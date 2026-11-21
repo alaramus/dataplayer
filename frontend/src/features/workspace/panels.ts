@@ -834,6 +834,8 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
               connectorId: panel.connectorId,
               nodeId: panel.nodeId,
               title: panel.title,
+              connectorName: panel.connectorName,
+              adapterType: panel.adapterType,
               representations: panel.representations,
             })
             : h(TreePanelView, {

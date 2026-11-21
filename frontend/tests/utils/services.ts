@@ -13,7 +13,7 @@ const REPOSITORY_ROOT = fileURLToPath(new URL("../../../", import.meta.url))
 const PROBE_TIMEOUT_MS = 1000
 const COMPOSE_TIMEOUT_MS = 5000
 
-type Service = "redis" | "ssh" | "metrics" | "kafka" | "zookeeper"
+type Service = "redis" | "ssh" | "metrics" | "kafka" | "zookeeper" | "docker-remote"
 
 const START_COMMANDS: Record<Service, string> = {
   redis: "docker compose up -d redis",
@@ -21,6 +21,7 @@ const START_COMMANDS: Record<Service, string> = {
   metrics: "docker compose up -d metrics",
   kafka: "docker compose up -d kafka",
   zookeeper: "docker compose up -d zookeeper",
+  "docker-remote": "docker compose up -d --build docker-remote",
 }
 
 /** Send a server-protocol hello and require a reply, not just an open port. */
@@ -83,6 +84,8 @@ async function serviceAnswers(service: Service): Promise<boolean> {
       // The development ZooKeeper's client port on this machine; it answers
       // the four-letter `srvr` with its version (compose.override.yml).
       return tcpServerAnswers("127.0.0.1", 2182, "srvr", ["Zookeeper"])
+    case "docker-remote":
+      return tcpServerAnswers("127.0.0.1", 2223, "SSH-2.0-dataplayer-probe\r\n", ["SSH-"])
     case "metrics":
     case "kafka":
       // The collector receives UDP without replying, and Kafka answers only
@@ -102,6 +105,7 @@ export async function requireE2EService(service: Service): Promise<void> {
     metrics: "The metrics collector is not running as a Docker Compose service",
     kafka: "Kafka is not running as a Docker Compose service",
     zookeeper: "ZooKeeper does not answer at 127.0.0.1:2182",
+    "docker-remote": "The Docker test stand SSH server does not answer at 127.0.0.1:2223",
   }
   test.skip(
     true,

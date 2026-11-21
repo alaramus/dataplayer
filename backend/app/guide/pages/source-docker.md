@@ -78,46 +78,42 @@ or a client certificate the daemon does not accept.
 - **System** holds the daemon's reports, below.
 - **Containers** holds one folder per Compose project, named by the label
   Compose writes, and **Standalone** for the rest. Each container shows its
-  state in one word — running, healthy, unhealthy, starting, paused,
-  restarting, stopped, failed, created or dead — with the daemon's own status
-  beside it, its image, its Compose service and its published ports.
-- **Images** lists every image by its id, tagged or not, with its size and
-  how many containers use it.
-- **Volumes** lists every volume by name; **Networks** every network, Docker's
-  own three first, each marked built-in, Compose or user.
-- Each of these folders opens as a table too, which can be filtered and
-  sorted by any column. More than ten thousand of a kind are not listed.
+  state in one word with the daemon's status, image, Compose service and
+  published ports beside it.
+- **Images** lists every image by its id, tagged or not, with its size and how
+  many containers use it. **Volumes** lists every volume by name; **Networks**
+  lists each network, Docker's own three first, marked built-in, Compose or user.
+- Each group opens as a table too, which can be filtered and sorted by any
+  column. More than ten thousand of a kind are not listed.
+- Clicking a container, image, volume or network opens its overview directly in
+  a tab named for that node. It does not open another catalog level. Node
+  actions remain in the catalog menu.
 
 ## What a node opens as
 
-- A container's **Inspect** opens on its **Overview**: the state, the image,
-  when it was created and started or how it exited, the restart policy and
-  count, the command, the health check and its last results, published
-  ports, networks with their addresses, mounts, environment, labels and
-  limits. A notice says when it restarted more than three times or was
-  killed for running out of memory. The image, a volume, a network and the
-  Compose project are links that show them in the catalog.
-- **As JSON** switches the same tab to what the daemon says, as a JSON tree,
-  and **Overview** switches it back.
-- An image's, a volume's and a network's **Inspect** opens on an overview
-  too: an image's tags, size, platform, command and layers (a link to its
-  History) with the containers that run it; a volume's driver and mount point
-  with the containers that mount it and where; a network's subnets with the
-  containers on it and their addresses.
-- An open overview reads itself again when the daemon reports a change to
-  what it shows — a container started, paused, connected to a network or
-  newly healthy — while a catalog of this connection is open.
+- Click a container to open its overview in a tab named for the container:
+  its state, image, creation and start or exit, restart policy and count,
+  command, health check and recent results, ports, networks and addresses,
+  mounts, environment, labels and resource limits. A notice says when it
+  restarted more than three times or was killed for running out of memory.
+- **As JSON** switches that same tab to the daemon's read-only tree, and the
+  overview switches it back. The image, volume, network and Compose project in
+  the card are links; opening one shows its own overview.
+- The card's **Logs** and **Processes** buttons open separate table tabs named
+  for the container and page, such as `dp-test-web — Logs`. Logs show time,
+  stream and text, newest first, up to ten thousand lines; each line is cut at
+  16 KB. Processes show what runs now; a stopped container has none.
+- An image's **History** button opens its layers in a separate tab. A volume's
+  or network's **Containers** button opens the containers that use it, also in
+  a separate tab. The overview tab keeps the node's name.
+- A card opened from search or a link has the same page buttons. An open card
+  reads itself again when the daemon reports a change to what it shows, while
+  a connection catalog is open.
 - A variable whose name holds PASSWORD, PASSWD, SECRET, TOKEN, KEY,
-  CREDENTIAL or PRIVATE is shown as dots until you press its eye, and is
-  copied only once shown. That hides it from a glance, not from a reader:
-  the JSON shows it plainly, and anybody you share this connection with sees
-  a container's environment.
-- Inside a container: **Logs** — the time, the stream (stdout or stderr) and
-  the text of each line, newest first, as far back as ten thousand lines, a
-  line cut at 16 KB — and **Processes**, what runs in it now. A stopped
-  container has none.
-- Inside an image: **History**, its layers.
-- Inside a volume or a network: **Containers**, the ones that use it.
+  CREDENTIAL or PRIVATE is shown as dots until you press its eye, and is copied
+  only once shown. That hides it from a glance, not from a reader: the JSON
+  shows it plainly, and anybody you share this connection with sees a
+  container's environment.
 
 ## The System section
 

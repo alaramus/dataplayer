@@ -27,6 +27,8 @@ MESSAGES: dict[str, str] = {
     "Inspect": "检查",
     "What the Docker server says about it": "Docker 服务器对它的说明",
     "Logs": "日志",
+    "Overview": "概览",
+    "Processes": "进程",
     "What it printed, newest first": "它输出的内容，最新的在前",
     "What runs inside it now": "其中当前运行的进程",
     "History": "历史",

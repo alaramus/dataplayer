@@ -98,4 +98,5 @@ MESSAGES: dict[str, str] = {
     "Your personal storage is full: {used} MB of {limit} MB in use": "Votre stockage personnel est plein : {used} Mo sur {limit} Mo utilisés",
     # A category of sources (D405).
     "Containers": "Conteneurs",
+    "View as table": "Afficher sous forme de tableau",
 }

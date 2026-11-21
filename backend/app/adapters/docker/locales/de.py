@@ -27,6 +27,8 @@ MESSAGES: dict[str, str] = {
     "Inspect": "Untersuchen",
     "What the Docker server says about it": "Was der Docker-Server darüber sagt",
     "Logs": "Logs",
+    "Overview": "Überblick",
+    "Processes": "Prozesse",
     "What it printed, newest first": "Was er ausgegeben hat, das Neueste zuerst",
     "What runs inside it now": "Was jetzt darin läuft",
     "History": "Verlauf",

@@ -151,7 +151,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/s3](docs/architecture/sources/s3.md) | D379–D382 |
 | [sources/ftp](docs/architecture/sources/ftp.md) | D384–D386 |
 | [sources/duckdb](docs/architecture/sources/duckdb.md) | D387–D404 |
-| [sources/docker](docs/architecture/sources/docker.md) | D405–D418, D422 |
+| [sources/docker](docs/architecture/sources/docker.md) | D405–D418, D422, D423 |
 | [sources/views](docs/architecture/sources/views.md) | D419–D421 |
 
 ## Working rules

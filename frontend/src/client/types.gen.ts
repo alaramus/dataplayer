@@ -5043,6 +5043,10 @@ export type DocumentView = {
         kind: "notice"
       } & NoticeBlock)
   >
+  /**
+   * Pages
+   */
+  pages?: Array<ViewPage>
 }
 
 /**
@@ -9945,9 +9949,7 @@ export type NodeReplacement = {
  *
  * One way a source says a node may be opened.
  *
- * The order in ``CatalogNode.representations`` matters: the first one is the
- * source's preferred representation. ``kind`` is the viewer contract and
- * ``title`` is the wording used when another representation is offered.
+ * The order in a node's representations matters: the first one is preferred.
  */
 export type NodeRepresentation = {
   /**
@@ -17549,6 +17551,26 @@ export type ViewNode = {
    */
   is_system?: boolean
   specialization?: TimescaleContinuousAggregate | null
+}
+
+/**
+ * ViewPage
+ *
+ * A source-owned page of the node shown by this view.
+ */
+export type ViewPage = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
 }
 
 /**

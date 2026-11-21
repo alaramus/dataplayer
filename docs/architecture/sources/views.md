@@ -3,8 +3,8 @@
 For a source that describes a node in a JSON document of its own — Docker's
 inspect, a topic's configuration, an object's metadata — and wants to say what
 that document means. How a node opens at all is [content.md](content.md)
-(D47); the JSON tree beside a view is D295 there. Docker's views are D422 in
-[docker.md](docker.md).
+(D47); the JSON tree beside a view is D295 there. Docker's views and pages
+are D422–D423 in [docker.md](docker.md).
 
 Decisions here: D419, D420, D421.
 
@@ -28,13 +28,19 @@ before.
   the same tab: one binding draws both and picks the component as it draws
   (`panels.ts`), and `switchRepresentation` rewrites the panel in place. A
   content panel carries the node's `representations` only where one is a
-  view, so a stored panel of any other kind is unchanged. A representation
-  drawn by another kind of tab (a table) opens that tab. The choice is not
+  view, so a stored panel of any other kind is unchanged. The choice is not
   remembered: the node opens on its first representation again.
+- **Other pages open separately.** A `DocumentView` may carry source-owned
+  `pages`, each with a node id, title and ordered representations. `ViewPanel`
+  draws one button per page and opens its preferred representation in a new
+  tab named for the node and page. These buttons do not use
+  `switchRepresentation`; that still switches the view and its JSON in place.
+  Because pages arrive with the view, a node opened from search or a link gets
+  the same buttons without a client rule for its source.
 - **A link opens what the catalog would.** A `link` value carries a node id
   of the same connection, never taken apart (D21); the client reads the
-  source's path to it, shows a level in the catalog and opens a node that
-  opens by its first representation.
+  source's path to it. A node without readable content shows its level in the
+  catalog; an openable node opens by its first representation.
 - **Read only.** A view shows; a node's actions stay in the catalog's menu
   (D9).
 - **Bounded.** At most 200 blocks, counting a section's children; a table of
@@ -45,13 +51,9 @@ before.
 Known deviations:
 
 - **Only Docker has views** (D422): its container, image, volume and network.
-- **Opening the inspect node is not opening the container.** A container is
-  walked into (D408), so a click on it shows Inspect, Logs and Processes, and
-  Inspect opens on the view. The spec asked whether a book (D51) could open
-  its first page's representation; it can — `openRepresentation` takes the
-  first of the node's own list — but a container opened as a book would lose
-  its Logs, which is why D408 walks in. The container node itself declares
-  `[view, tree]` too, so opened from a search or a link it opens on the view.
+- **Docker pages are no longer catalog levels** (D423). Its nodes open
+  directly on their view; the view advertises the separate table pages. A
+  linked or searched Docker node resolves to the same view and buttons.
 
 Spec: [A view of a document](../../decisions/2026-11-21-document-views-design.md)
 

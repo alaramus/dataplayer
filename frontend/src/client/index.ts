@@ -2047,6 +2047,7 @@ export type {
   ViewField,
   ViewHeader,
   ViewNode,
+  ViewPage,
   ViewPair,
   VolumeNode,
   WidgetLayout,

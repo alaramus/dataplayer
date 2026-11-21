@@ -119,12 +119,14 @@ decision about Inspect itself, not about views.
 
 ## Docker's views (D422)
 
-The container's **Inspect** view (D408) and the container node itself declare
-`[view "Overview", tree "As JSON"]` (*checked*: a book, D51, opens by the
-first of its own representations; a container is not a book but walked into,
-D408, so a click on it shows Inspect, Logs and Processes, and Inspect opens
-on the view — opened from a search or a link, the container itself does). The view is built from the inspect the source
-already reads; nothing else is asked of the daemon.
+The container node declares `[view "Overview", tree "As JSON"]`. The
+original D422 catalog expansion was replaced by direct opening in D423: a
+click on a container opens its view, and that response advertises Logs and
+Processes as separate table tabs. Images advertise History; volumes and
+networks advertise Containers. A search result or a link to an openable
+Docker node resolves to the same preferred view and its pages (D423). The
+view is built from the inspect the source already reads; nothing else is
+asked of the daemon.
 
 - **Container.** The header is the name, the state word of D407 with its tone
   (running and healthy `good`, starting and restarting `busy`, unhealthy and
@@ -147,14 +149,15 @@ already reads; nothing else is asked of the daemon.
   containers mounting it as links.
 - **Network.** Driver, scope, internal, the subnets and gateways, and the
   containers on it with their addresses, as links.
-- **What changed is told.** A view tab is told by the watch of D414 when the
-  daemon reports an event about its container, image, volume or network, and
-  reads itself again, as a level does now.
+- **What changed is told.** An open view tab is told by the watch of D414
+  when the daemon reports an event about its container, image, volume or
+  network, and reads itself again. The level which lists those nodes is no
+  longer part of opening one (D423).
 
 ## Where it is written down
 
 D419–D421 in a new architecture file, `docs/architecture/sources/views.md`,
-because `content.md` is at 28 KB of its 32; D422 in
+because `content.md` is at 28 KB of its 32; D422–D423 in
 [sources/docker.md](../architecture/sources/docker.md). The renderer and its
 blocks are added to the `/ui-kit` showcase with every block and every value
 kind, which the kit's test already demands of a component in `shared/ui`

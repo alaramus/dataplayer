@@ -27,6 +27,8 @@ MESSAGES: dict[str, str] = {
     "Inspect": "जाँचें",
     "What the Docker server says about it": "Docker सर्वर इसके बारे में क्या बताता है",
     "Logs": "लॉग",
+    "Overview": "अवलोकन",
+    "Processes": "प्रक्रियाएँ",
     "What it printed, newest first": "इसने क्या छापा, नया पहले",
     "What runs inside it now": "इसमें अभी क्या चल रहा है",
     "History": "इतिहास",

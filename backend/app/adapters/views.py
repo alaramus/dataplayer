@@ -14,6 +14,8 @@ from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
+from app.adapters.representations import NodeRepresentation
+
 # The ceilings of D419. Past one a block says how many it left out; the
 # document beside the view has them all.
 MAX_BLOCKS = 200
@@ -25,6 +27,14 @@ Tone = Literal["good", "busy", "warning", "bad", "neutral"]
 
 class _Closed(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class ViewPage(_Closed):
+    """A source-owned page of the node shown by this view."""
+
+    node_id: str = Field(min_length=1, max_length=2048)
+    title: str = Field(min_length=1, max_length=200)
+    representations: list[NodeRepresentation] = Field(min_length=1, max_length=16)
 
 
 # --- values ------------------------------------------------------------------
@@ -203,6 +213,9 @@ class DocumentView(_Closed):
     kind: Literal["view"] = "view"
     header: ViewHeader
     blocks: list[ViewBlock] = Field(max_length=MAX_BLOCKS)
+    # Source-owned child pages are separate nodes; the client opens their
+    # preferred representation in another tab.
+    pages: list[ViewPage] = Field(default_factory=list, max_length=200)
 
     @model_validator(mode="after")
     def bounded(self) -> DocumentView:
