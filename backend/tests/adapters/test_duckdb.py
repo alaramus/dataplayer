@@ -286,7 +286,8 @@ async def test_a_read_past_its_clock_is_stopped(home: Path) -> None:
 
 
 async def test_the_catalog_lists_the_files_schemas(home: Path) -> None:
-    schemas = await _adapter(home).list_children(None)
+    # The file's reports come after its schemas (D398).
+    schemas = (await _adapter(home).list_children(None))[:-1]
 
     assert [node.id for node in schemas] == ["main", "sales\\.eu"]
     assert all(isinstance(node, SchemaNode) for node in schemas)

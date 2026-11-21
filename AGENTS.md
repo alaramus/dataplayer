@@ -33,7 +33,7 @@ documentation.
 | SQL over files, the DuckDB sandbox behind it | [sources/file-sql.md](docs/architecture/sources/file-sql.md) |
 | MySQL and MariaDB, their catalog, values, pages, row and structure edits, console, reports, search, catalog actions, copying tables, backups, metrics | [sources/mysql.md](docs/architecture/sources/mysql.md) |
 | SQLite, the file it opens and how, its catalog, what is read from a table's text, values, pages, row edits, structure changes, the table designer, reports, search, catalog actions and console | [sources/sqlite.md](docs/architecture/sources/sqlite.md) |
-| DuckDB, the file it opens and how, the engine locked to the owner's storage, its catalog, values and pages, row edits, structure changes, the table designer, its console | [sources/duckdb.md](docs/architecture/sources/duckdb.md) |
+| DuckDB, the file it opens and how, the engine locked to the owner's storage, its catalog, values and pages, row edits, structure changes, the table designer, reports, search, export, catalog actions, its console | [sources/duckdb.md](docs/architecture/sources/duckdb.md) |
 | ClickHouse, its HTTP interface, its catalog, values, pages, row edits, structure changes, the table designer, reports, search, export, catalog actions and console | [sources/clickhouse.md](docs/architecture/sources/clickhouse.md) |
 | ZooKeeper, the server it reaches, its znode tree, a znode's data, stat, ACL and children, making and deleting znodes, reports, metrics, search, export, its service and lab, zkCli | [sources/zookeeper.md](docs/architecture/sources/zookeeper.md) |
 | Kafka, the cluster it reaches, its topics and consumer groups, a topic's messages as rows, a group's positions and lag, sending messages, making and changing topics, moving a group's positions or deleting a group, reports, metrics, search, export, its service and lab, Kafka's tools in a terminal | [sources/kafka.md](docs/architecture/sources/kafka.md) |
@@ -147,7 +147,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/mail](docs/architecture/sources/mail.md) | D366–D376 |
 | [sources/s3](docs/architecture/sources/s3.md) | D379–D382 |
 | [sources/ftp](docs/architecture/sources/ftp.md) | D384–D386 |
-| [sources/duckdb](docs/architecture/sources/duckdb.md) | D387–D397 |
+| [sources/duckdb](docs/architecture/sources/duckdb.md) | D387–D399 |
 
 ## Working rules
 

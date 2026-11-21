@@ -1,20 +1,61 @@
-"""Walking the catalog of a DuckDB file: its schemas, then their relations (D389)."""
+"""Walking the catalog of a DuckDB file: its schemas, then their relations (D389),
+and the file's reports after them (D398)."""
 
 from collections.abc import Mapping
 from typing import Any
 
 from app.adapters import database_ids as ids
-from app.adapters.catalog import CatalogNode, SchemaNode, TableNode, ViewNode
+from app.adapters.catalog import (
+    CatalogNode,
+    ReportNode,
+    SchemaNode,
+    TableNode,
+    ViewNode,
+)
 from app.adapters.content import NodeRepresentation
 from app.adapters.duckdb.inspection import find_relation, list_relations, list_schemas
+from app.adapters.duckdb.reports import (
+    REPORTS,
+    SECTION_DESCRIPTION,
+    SECTION_ID,
+    SECTION_TITLE,
+    SystemReport,
+    in_section,
+    is_section,
+    report_for,
+)
 from app.adapters.duckdb.session import DuckdbSession, Reading
 from app.adapters.frameworks import detect_frameworks
 from app.adapters.protocol import NodeNotFound
 from app.adapters.words import worded_titles
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 TABLE_REPRESENTATION = NodeRepresentation(kind="table", title=N_("View as table"))
 DDL_REPRESENTATION = NodeRepresentation(kind="sql", title=N_("View DDL"))
+# A report has no DDL, but the statement it is made of answers the same
+# question: what is this, really (D55).
+REPORT_SQL_REPRESENTATION = NodeRepresentation(kind="sql", title=N_("View the statement"))
+
+
+def section_node() -> ReportNode:
+    """The file's own section of reports, listed after the schemas."""
+    return ReportNode(
+        id=SECTION_ID,
+        name=say(SECTION_TITLE),
+        description=say(SECTION_DESCRIPTION),
+        has_children=True,
+        representations=[],
+    )
+
+
+def report_node(report: SystemReport) -> ReportNode:
+    return ReportNode(
+        id=report.node_id,
+        name=say(report.title),
+        description=say(report.description),
+        has_children=False,
+        representations=worded_titles([TABLE_REPRESENTATION, REPORT_SQL_REPRESENTATION]),
+    )
 
 
 def schema_node(schema: str, tables: list[str]) -> SchemaNode:
@@ -67,7 +108,12 @@ class DuckdbCatalog:
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
-            return list(await self._session.inspection(_schemas))
+            return [*await self._session.inspection(_schemas), section_node()]
+        if is_section(node_id):
+            return [report_node(report) for report in REPORTS]
+        if in_section(node_id):
+            await self.path_to(node_id)
+            return []
         schema, relation = ids.parse(node_id)
         if relation is not None:
             await self.path_to(node_id)
@@ -85,6 +131,13 @@ class DuckdbCatalog:
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         """Every node from the root down to node_id, each confirmed in the file."""
+        if is_section(node_id):
+            return [section_node()]
+        if in_section(node_id):
+            report = report_for(node_id)
+            if report is None:
+                raise NodeNotFound(node_id)
+            return [section_node(), report_node(report)]
         schema, relation = ids.parse(node_id)
 
         def read(reading: Reading) -> tuple[list[str], list[str], dict[str, Any] | None]:

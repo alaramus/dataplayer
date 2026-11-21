@@ -13,12 +13,15 @@ Wie Verbindungen allgemein funktionieren, steht auf der Seite
 - Die DDL einer Relation, wie die Datei sie aufbewahrt, mit ihren Indizes
 - Listen, Structs und Maps, als JSON gezeigt
 - Die Ergebnisse Ihres SQL und DuckDBs Plan für eine Abfrage
+- Berichte: Größe der Datei, Sequenzen, Typen, Makros, DuckDBs Funktionen
+- Alle Zeilen einer Tabelle, einer Sicht oder eines Berichts, heruntergeladen
 
 ## Was Sie ändern können
 
 - Tabellendaten: Zellen, eingefügte Blöcke, neue und gelöschte Zeilen
 - Spalten, Indizes und eindeutige Schlüssel
 - Neue Tabellen, Objekt für Objekt entworfen oder aus Zeilen erstellt
+- Schemas anlegen und löschen; Tabellen und Sichten umbenennen und löschen
 - Daten und Struktur, über SQL in der Konsole
 
 ## Verbinden
@@ -180,6 +183,49 @@ gar nicht.
   in einem Zug mit der Tabelle. Ein Wert, den DuckDB nicht als Typ seiner
   Spalte lesen kann, lässt die Tabelle unerstellt.
 
+## Berichte
+
+**System** im Katalog enthält fünf Berichte. Sie werden wie Tabellen gelesen
+und lassen sich sortieren, filtern, herunterladen und als Diagramm zeigen.
+**Anweisung anzeigen** zeigt das SQL, das ein Bericht ausführt.
+
+- **Datenbank**: DuckDBs Version, die Größe der Datei, ihre belegten und freien
+  Blöcke und das Write-Ahead-Log.
+- **Sequenzen**, mit Start, Schritt und Grenzen. Eine Identität aus dem
+  Tabellen-Designer ist eine davon.
+- **Typen** der Datei selbst: Enums, Structs und andere Namen für einen Typ.
+- **Makros**: in SQL geschriebene Funktionen, die in der Datei gespeichert
+  sind, mit Parametern und Rumpf.
+- **Funktionen**, die in DuckDB eingebaut sind, und wie viele Signaturen jede
+  hat.
+- Die Einstellungen der Engine werden nicht gezeigt: Sie nennen Ordner des
+  Servers und sind hier fest.
+
+## Aktionen im Katalog
+
+- **Neues Schema** oben in der Verbindung. **Schema löschen** löscht jedes
+  Schema außer `main`; eines, das etwas enthält, braucht **Auch alles darin
+  löschen**, und die Frage zählt auf, was verschwindet. Ein Schema lässt sich
+  in DuckDB nicht umbenennen.
+- **Umbenennen** einer Tabelle oder Sicht. Danach wird jede Sicht neu gelesen,
+  und eine, die den alten Namen las, lehnt die Umbenennung ab und wird genannt.
+  DuckDB benennt keine Tabelle um, die einen eigenen Index hat oder auf die der
+  Schlüssel einer anderen Tabelle zeigt.
+- Eine Tabelle mit eigenem Fremdschlüssel wird nicht umbenannt: DuckDB behielte
+  den alten Namen in der Tabelle, auf die sie zeigt, und diese könnte dann
+  weder Zeilen löschen noch gelöscht werden.
+- **Löschen** einer Relation oder mehrerer zusammen. Das Löschen wird zuerst
+  probiert und rückgängig gemacht, sodass die Frage die Sichten nennt, die
+  nicht mehr funktionieren würden. Eine Tabelle, auf die der Schlüssel einer
+  anderen zeigt, wird abgelehnt, wenn jene nicht mitgelöscht wird. Eine
+  Sequenz, aus der nur die gelöschten Tabellen Werte nehmen, wie die einer
+  Identität, wird mitgelöscht.
+- **Aus CSV laden** macht aus einer Datei eine Tabelle im Schema, jede Spalte
+  als `VARCHAR`.
+- **Modell als Code** schreibt ein Schema oder eine Auswahl für ein ORM oder
+  ein Diagramm aus.
+- Zwischen Schemas wird nichts verschoben: DuckDB kann das nicht.
+
 ## SQL-Konsole
 
 **Neue Abfrage** unter **Abfragen** in der linken Leiste startet eine auf der
@@ -211,7 +257,6 @@ ausprobiert und rückgängig gemacht, bevor die Konsole Sie danach fragt.
 
 ## Was DuckDB hier noch nicht hat
 
-- Katalogaktionen, alle Zeilen herunterladen, Sicherungen und Tabellen
-  kopieren. Sie kommen später.
+- Tabellen kopieren und Sicherungen. Sie kommen später.
 - Eine Datei auf einem SSH-Server oder in einer anderen Verbindung lässt sich
   nicht als Datenbank öffnen.

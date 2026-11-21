@@ -14,12 +14,15 @@ Le fonctionnement général des connexions est décrit à la page
 - Le DDL d'une relation, tel que le fichier le garde, avec ses index
 - Listes, structs et maps, affichés en JSON
 - Les résultats du SQL que vous écrivez, et le plan de DuckDB
+- Des rapports : taille du fichier, séquences, types, macros, fonctions
+- Toutes les lignes d'une table, d'une vue ou d'un rapport, téléchargées
 
 ## Ce que vous pouvez modifier
 
 - Données des tables : cellules, blocs collés, lignes ajoutées ou supprimées
 - Les colonnes, index et clés uniques
 - De nouvelles tables, conçues objet par objet ou créées à partir de lignes
+- Schémas créés et supprimés ; tables et vues renommées et supprimées
 - Les données et la structure, par le SQL de la console
 
 ## Se connecter
@@ -179,6 +182,48 @@ ou pas du tout.
   avec la table d'un seul coup. Une valeur que DuckDB ne peut pas lire dans le
   type de sa colonne laisse la table non créée.
 
+## Rapports
+
+**Système** dans le catalogue contient cinq rapports. Ils se lisent comme des
+tables et peuvent être triés, filtrés, téléchargés et tracés. **Afficher
+l'instruction** montre le SQL qu'exécute un rapport.
+
+- **Base de données** : la version de DuckDB, la taille du fichier, ses blocs
+  utilisés et libres, et le journal d'écriture anticipée.
+- **Séquences**, avec leur départ, leur pas et leurs bornes. Une identité créée
+  par le concepteur de tables en est une.
+- **Types** propres au fichier : enums, structs et autres noms pour un type.
+- **Macros** : fonctions écrites en SQL et conservées dans le fichier, avec
+  leurs paramètres et leur corps.
+- **Fonctions** intégrées à DuckDB, et le nombre de signatures de chacune.
+- Les réglages du moteur ne sont pas affichés : ils nomment des dossiers du
+  serveur, et ils sont fixes ici.
+
+## Actions du catalogue
+
+- **Nouveau schéma** en haut de la connexion. **Supprimer le schéma** supprime
+  tout schéma sauf `main` ; un schéma qui contient quelque chose demande
+  **Supprimer aussi tout son contenu**, et la question compte ce qui part. Un
+  schéma ne peut pas être renommé dans DuckDB.
+- **Renommer** une table ou une vue. Chaque vue est ensuite relue, et une vue
+  qui lisait l'ancien nom refuse le renommage et est nommée. DuckDB ne renomme
+  pas une table qui a son propre index ou vers laquelle pointe la clé d'une
+  autre table.
+- Une table qui a sa propre clé étrangère n'est pas renommée : DuckDB garderait
+  l'ancien nom dans la table qu'elle cite, qui ne pourrait alors ni supprimer
+  ses lignes ni être supprimée.
+- **Supprimer** une relation ou plusieurs ensemble. La suppression est d'abord
+  essayée puis annulée, si bien que la question nomme les vues qui cesseraient
+  de fonctionner. Une table vers laquelle pointe la clé d'une autre est
+  refusée, sauf si cette autre est supprimée avec elle. Une séquence dont
+  seules les tables supprimées tirent des valeurs, comme celle d'une identité,
+  part avec elles.
+- **Charger depuis un CSV** crée dans le schéma une table à partir d'un
+  fichier, chaque colonne en `VARCHAR`.
+- **Modèle en code** écrit un schéma ou une sélection pour un ORM ou un
+  diagramme.
+- Rien ne passe d'un schéma à l'autre : DuckDB ne le peut pas.
+
 ## Console SQL
 
 **Nouvelle requête** sous **Requêtes** dans la barre de gauche en lance une sur
@@ -211,7 +256,6 @@ avant que la console vous pose la question.
 
 ## Ce que DuckDB n'a pas encore ici
 
-- Les actions du catalogue, télécharger toutes les lignes, les sauvegardes et
-  la copie de tables. Ils viendront plus tard.
+- La copie de tables et les sauvegardes. Elles viendront plus tard.
 - Un fichier sur un serveur SSH, ou dans une autre connexion, ne peut pas être
   ouvert comme base de données.

@@ -130,7 +130,8 @@ constraints — primary key, unique, foreign key, check, not null — from
 statement gave (*checked*) — and a foreign key's target is in the same schema,
 since DuckDB refuses one into another (*checked*); indexes from
 `duckdb_indexes()`. A relation's DDL is the `sql` DuckDB keeps for it.
-Sequences, types and macros are catalog nodes of the actions slice.
+Sequences, types and macros are catalog nodes of the actions slice — in the
+end reports of its System section instead (D398).
 
 ## Values (D390)
 
@@ -190,6 +191,6 @@ is not there yet.
 4. **Structure changes and the table designer**, within what `ALTER TABLE`
    accepts — DuckDB refuses dropping a column a constraint names (*checked*).
 5. **Reports, search, export, catalog actions**, with sequences, types and
-   macros in the catalog.
+   macros in the catalog — as reports, it turned out (D398, D399).
 6. **Copying tables, backups, the lab, a `.duckdb` file in a file source, and
    Create DuckDB here** — SQLite's D259–D263 counterparts.

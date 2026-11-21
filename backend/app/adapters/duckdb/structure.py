@@ -113,6 +113,54 @@ async def restructure[T](
         connection.execute("COMMIT")
         return answer
 
+    return await _carried(session, job)
+
+
+async def rehearse(
+    session: DuckdbSession, work: Callable[[duckdb.DuckDBPyConnection], None]
+) -> list[str]:
+    """Carry `work` out and roll it back, naming the views it would leave
+    unable to bind (D399).
+
+    A failed bind aborts the transaction, so after each view found broken the
+    work is carried out again to try the views after it: as many runs as
+    broken views, plus one.
+    """
+
+    def job(connection: duckdb.DuckDBPyConnection) -> list[str]:
+        before = _broken_views(connection)
+        remaining = [view for view in _views(connection) if view not in before]
+        broken: list[str] = []
+        while True:
+            connection.execute("BEGIN")
+            try:
+                work(connection)
+                # A view the work dropped is gone, not broken.
+                present = set(_views(connection))
+                failed = next(
+                    (
+                        at
+                        for at, view in enumerate(remaining)
+                        if view in present and not _binds(connection, view)
+                    ),
+                    None,
+                )
+            finally:
+                try:
+                    connection.execute("ROLLBACK")
+                except duckdb.TransactionException:
+                    pass
+            if failed is None:
+                return broken
+            broken.append(remaining[failed][1])
+            remaining = remaining[failed + 1 :]
+
+    return await _carried(session, job)
+
+
+async def _carried[T](
+    session: DuckdbSession, job: Callable[[duckdb.DuckDBPyConnection], T]
+) -> T:
     handle = await session.handle()
     try:
         return await handle.call(job)

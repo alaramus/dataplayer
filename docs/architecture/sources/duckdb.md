@@ -3,13 +3,14 @@
 What a DuckDB source is, how it opens its file and locks the engine to the
 owner's storage, how it reads its catalog, how its values and pages cross
 to the grid and how its rows are changed there, how its structure is changed and
-tables designed, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
+tables designed, what it reports, how it is searched and exported, what its
+catalog can be asked to do, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md); the other DuckDB in the server, the sandbox
 behind SQL over files, is in [file-sql.md](file-sql.md). Read this before
 changing the `duckdb` adapter.
 
-Decisions here: D387, D388, D389, D390, D391, D392, D393, D394, D395, D396, D397.
+Decisions here: D387, D388, D389, D390, D391, D392, D393, D394, D395, D396, D397, D398, D399.
 
 ## D387. A DuckDB source is one file of its owner's storage, opened per call
 
@@ -246,3 +247,54 @@ DuckDB names constraints itself. Collations are DuckDB's built-in `NOCASE`,
 `NOACCENT` and `NFC`.
 
 Spec: [Changing DuckDB structure](../../decisions/2026-11-20-duckdb-structure-design.md)
+
+## D398. Reports are DuckDB's catalog functions; search reads the catalog whole
+
+A **System** section after the schemas, id `\system`, holds the file's
+reports: Database (DuckDB's version and `pragma_database_size()` without the
+memory figures), Sequences, Types and Macros of the file, and DuckDB's
+built-in Functions. Each is a statement of the package read as a subquery
+with the page's filters, sorting and paging, its columns typed by `DESCRIBE`
+and its values cast to text as a relation's (D390). Nothing is written through
+a report, no table is made of one, and a row of one is not a record.
+Sequences, types and macros are reports rather than catalog nodes: nothing
+here acts on them but the console.
+
+Settings and extensions are not reported: the settings name paths of the
+server (D388), and `duckdb_extensions()` reads the extension directory, which
+the lock refuses.
+
+Search reads every relation of every schema, and for a column search every
+column, in one inspection and classes names with the shared word rule in
+Python; it is cheap for every field. It starts at the top, in a schema, or
+among the reports, found by their titles. An export takes the page's read on
+one connection a batch at a time.
+
+Spec: [DuckDB reports, search, export and catalog actions](../../decisions/2026-11-21-duckdb-actions-design.md)
+
+## D399. A drop is rehearsed; a table with a foreign key is not renamed
+
+The catalog offers New schema, Drop schema, Rename, Drop, Load from CSV,
+Create table and Model as code. A schema is not renamed and nothing moves
+between schemas: DuckDB parses neither.
+
+A rename is `ALTER TABLE` or `ALTER VIEW … RENAME TO`, every view bound after
+it in its transaction (D396), so one that read the old name refuses it. A
+table with an index of its own, or one another table's key points at, is
+refused by DuckDB, and the refusal says why. A drop — of relations together,
+or of a schema with `CASCADE` — is rehearsed: carried out, every view bound,
+and rolled back; the preview names each view that would stop working. Views
+go first, then tables, one pointing at another of the selection before it; a
+key from outside the selection blocks the drop. A sequence only the dropped tables
+take values from, as the designer's identity, goes with them. `main` is not dropped. A
+loaded CSV file is a table of `VARCHAR` columns made with its rows in one
+transaction (D397).
+
+Known deviations:
+
+- **A table with a foreign key of its own is not renamed.** DuckDB renames
+  it but keeps the old name as the dependent of the table the key points at,
+  which can then neither delete a row nor be dropped, even after the renamed
+  table is gone and the file reopened.
+
+Spec: [DuckDB reports, search, export and catalog actions](../../decisions/2026-11-21-duckdb-actions-design.md)

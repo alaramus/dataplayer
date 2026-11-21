@@ -1,7 +1,9 @@
-"""A relation's DDL, as the file keeps it: its statement, then its indexes' (D389)."""
+"""A relation's DDL, as the file keeps it: its statement, then its indexes' (D389);
+a report's own statement (D398)."""
 
 from app.adapters.content import ContentRequest, ContentResult, SqlContent
 from app.adapters.duckdb.relation import DuckdbRelation
+from app.adapters.duckdb.reports import report_for
 from app.core.translation import say
 
 MAX_DDL_BYTES = 256 * 1024
@@ -19,6 +21,9 @@ class DuckdbContent:
                     representation=request.representation,
                 )
             )
+        report = report_for(request.node_id)
+        if report is not None:
+            return SqlContent(text=" ".join(report.statement.split()) + ";", truncated=False)
         facts = await self._relation.facts(request.node_id)
         statements = [facts.text or "", *(index.definition or "" for index in facts.indexes)]
         ddl = "\n\n".join(statement.strip() for statement in statements if statement.strip())

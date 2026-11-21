@@ -12,12 +12,16 @@ How connections work in general is on the [Connections](connections.md) page.
 - A relation's DDL, as the file keeps it, with its indexes
 - Lists, structs and maps, shown as JSON
 - The results of SQL you write, and DuckDB's plan for a query
+- Reports on the file: its size, sequences, types, macros and DuckDB's
+  functions
+- Every row of a table, a view or a report, downloaded
 
 ## What you can change
 
 - Table data: edit cells, paste blocks, insert and delete rows
 - Columns, indexes and unique keys
 - New tables, designed object by object or made from rows
+- Schemas made and dropped; tables and views renamed and dropped
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -157,6 +161,44 @@ the comments, run together: the table is made whole or not at all.
 - Rows kept as a table, or a file loaded into one, arrive with the table in one
   go. A value DuckDB cannot read as its column's type leaves the table unmade.
 
+## Reports
+
+**System** in the catalog holds five reports. They are read like tables, and
+can be sorted, filtered, downloaded and charted. **View the statement** shows
+the SQL a report runs.
+
+- **Database**: DuckDB's version, the file's size, its blocks used and free,
+  and the write-ahead log.
+- **Sequences**, with where each starts, its step and bounds. An identity made
+  by the table designer is one.
+- **Types** of the file's own: enums, structs and other names for a type.
+- **Macros**: functions written in SQL and kept in the file, with their
+  parameters and body.
+- **Functions** DuckDB has built in, and how many signatures each has.
+- The engine's settings are not shown: they name folders of the server, and
+  they are fixed here.
+
+## Catalog actions
+
+- **New schema** at the top of the connection. **Drop schema** drops any schema
+  but `main`; one that holds anything needs **Also drop everything in it**, and
+  the question counts what goes. A schema cannot be renamed in DuckDB.
+- **Rename** a table or a view. Every view is read again afterwards, and one
+  that read the old name refuses the rename and is named. DuckDB refuses to
+  rename a table with an index of its own or one another table's key points at.
+- A table with a foreign key of its own is not renamed: DuckDB would keep the
+  old name in the table it points at, which could then neither delete its rows
+  nor be dropped.
+- **Drop** one relation or several together. The drop is tried out first and
+  undone, so the question names the views that would stop working. A table
+  another table's key points at is refused unless that table is dropped with
+  it. A sequence only the dropped tables take values from, as an identity's,
+  goes with them.
+- **Load from CSV** makes a table of a file in the schema, every column as
+  `VARCHAR`.
+- **Model as code** writes a schema or a selection out for an ORM or a diagram.
+- Nothing is moved between schemas: DuckDB cannot.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -185,7 +227,6 @@ console asks you about it.
 
 ## What DuckDB does not have here yet
 
-- Catalog actions, downloading every row, backups and copying tables. They come
-  later.
+- Copying tables and backups. They come later.
 - A file on an SSH server, or inside another connection, cannot be opened as a
   database.

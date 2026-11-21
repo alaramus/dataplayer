@@ -62,7 +62,8 @@ async def test_a_file_is_checked_browsed_read_and_described(
     assert check["ok"], check
 
     schemas = await get("catalog")
-    assert [node["name"] for node in schemas] == ["main", "sales.eu"]
+    # The schemas, then the file's reports (D398).
+    assert [node["id"] for node in schemas] == ["main", "sales\\.eu", "\\system"]
     relations = await get("catalog", node_id="main")
     assert {node["name"] for node in relations} >= {"items", "labels", "cheap"}
 
@@ -99,19 +100,26 @@ async def test_a_path_out_of_the_storage_is_refused_by_the_form(
 
 
 @pytest.mark.usefixtures("home")
-async def test_what_it_does_not_do_is_refused_as_not_implemented(
+async def test_the_catalog_is_searched_and_a_backup_is_not_offered(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     connector = await _connector(client, normal_user_token_headers, {"path": FILE})
 
-    response = await client.get(
+    found = await client.get(
         f"{BASE}/{connector}/catalog/search",
         headers=normal_user_token_headers,
         params={"query": "items"},
     )
+    offer = await client.get(
+        f"{settings.API_V1_STR}/backups/offer",
+        headers=normal_user_token_headers,
+        params={"connector_id": connector},
+    )
 
-    # Searching the catalog comes in a later slice, and the capability is not claimed (D2).
-    assert response.status_code == 501, response.text
+    assert found.status_code == 200, found.text
+    assert [match["node"]["id"] for match in found.json()["matches"]] == ["main.items"]
+    # Backups come in a later slice, and the capability is not claimed (D2).
+    assert offer.status_code == 501, offer.text
 
 
 @pytest.mark.usefixtures("home")

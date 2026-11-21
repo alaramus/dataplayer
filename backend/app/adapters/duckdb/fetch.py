@@ -1,4 +1,4 @@
-"""Reading rows out of a DuckDB relation a page at a time (D390, D391).
+"""Reading rows out of a DuckDB relation, or a report, a page at a time (D390, D391, D398).
 
 Names reach a statement only after they are found among the relation's own
 columns, and only through `Identifier`; values go through placeholders.
@@ -11,11 +11,13 @@ import duckdb
 
 from app.adapters.duckdb.inspection import RelationFacts
 from app.adapters.duckdb.relation import DuckdbRelation
-from app.adapters.duckdb.rows import RowShape, selected, writable
+from app.adapters.duckdb.reports import SystemReport, in_section, report_for
+from app.adapters.duckdb.rows import RowShape, writable
 from app.adapters.duckdb.session import DuckdbSession, Reading
 from app.adapters.duckdb.sql import SQL, Composable, Composed, Identifier
-from app.adapters.duckdb.types import is_nested, shown
+from app.adapters.duckdb.types import build_column_type, is_nested, shown
 from app.adapters.fetch import (
+    PAGE_COMMANDS,
     FetchColumn,
     FetchReference,
     FetchRequest,
@@ -141,33 +143,65 @@ def ordering_of(facts: RelationFacts) -> list[Composable]:
 
 @dataclass(frozen=True)
 class PreparedRead:
-    """One validated read, shared by a page and, later, an export."""
+    """One validated read, shared by a page and an export.
 
-    facts: RelationFacts
+    `source` is what the statement selects from: a relation, or a report's
+    own statement as a subquery (D55).
+    """
+
+    source: Composable
     shape: RowShape
+    facts: RelationFacts | None
+    report: SystemReport | None
     request: FetchRequest
 
     @property
     def columns(self) -> list[FetchColumn]:
         return self.shape.columns
 
-    def statement(self, params: list[Any]) -> Composed:
+    def statement(self, params: list[Any], columns: list[FetchColumn] | None = None) -> Composed:
         """SELECT, WHERE and ORDER BY, without a page."""
         known = {column.name: column for column in self.columns}
         conditions = [_condition(filter_, known, params) for filter_ in self.request.filters]
+        chosen = self.columns if columns is None else columns
         statement: Composed = SQL("SELECT {} FROM {}").format(
-            selected(self.shape), Identifier(self.facts.schema, self.facts.name)
+            SQL(", ").join(shown(Identifier(column.name), column.type) for column in chosen),
+            self.source,
         )
         if conditions:
             statement += SQL(" WHERE ") + SQL(" AND ").join(conditions)
+        sorted_by = {item.column for item in self.request.sort}
         ordering: list[Composable] = [
             SQL("{} DESC" if item.descending else "{} ASC").format(Identifier(item.column))
             for item in self.request.sort
         ]
-        ordering += ordering_of(self.facts)
+        if self.facts is not None:
+            ordering += ordering_of(self.facts)
+        elif self.report is not None:
+            ordering += [
+                SQL("{} ASC").format(Identifier(name))
+                for name in self.report.stable_order
+                if name not in sorted_by
+            ]
         if ordering:
             statement += SQL(" ORDER BY ") + SQL(", ").join(ordering)
         return statement
+
+
+def _report_columns(reading: Reading, statement: str) -> list[FetchColumn]:
+    described = reading.tuples("DESCRIBE (" + statement + ")")
+    columns: list[FetchColumn] = []
+    for row in described:
+        type_ = build_column_type(str(row[1]))
+        columns.append(
+            FetchColumn(
+                name=str(row[0]),
+                type=type_,
+                sortable=not is_nested(type_),
+                filter_operators=column_capabilities(type_),
+            )
+        )
+    return columns
 
 
 class DuckdbFetch:
@@ -176,8 +210,22 @@ class DuckdbFetch:
         self._relation = relation
 
     async def prepare(self, request: FetchRequest) -> PreparedRead:
-        facts = await self._relation.facts(request.node_id, structure=False)
-        prepared = PreparedRead(facts=facts, shape=shape_of(facts), request=request)
+        report = report_for(request.node_id)
+        if report is not None:
+            prepared = await self._report(report, request)
+        elif in_section(request.node_id):
+            raise ValueError(
+                say('"{node_id}" is not a report of this source', node_id=request.node_id)
+            )
+        else:
+            facts = await self._relation.facts(request.node_id, structure=False)
+            prepared = PreparedRead(
+                source=Identifier(facts.schema, facts.name),
+                shape=shape_of(facts),
+                facts=facts,
+                report=None,
+                request=request,
+            )
         known = {column.name: column for column in prepared.columns}
         for used in [item.column for item in request.filters] + [
             item.column for item in request.sort
@@ -191,6 +239,21 @@ class DuckdbFetch:
         # the file is read.
         prepared.statement([])
         return prepared
+
+    async def _report(self, report: SystemReport, request: FetchRequest) -> PreparedRead:
+        """A report's columns as DuckDB describes them; nothing is written through it."""
+        columns = await self._session.inspection(
+            lambda reading: _report_columns(reading, report.statement)
+        )
+        refused = say('"{title}" is a report and holds no rows of its own', title=say(report.title))
+        return PreparedRead(
+            # A statement of this package, never a request's.
+            source=SQL("(" + report.statement + ") AS report"),
+            shape=RowShape(columns=columns, key=[], update_reason=refused, insert_reason=refused),
+            facts=None,
+            report=report,
+            request=request,
+        )
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         prepared = await self.prepare(request)
@@ -211,12 +274,15 @@ class DuckdbFetch:
         shape = prepared.shape
         page = [[None if cell is None else str(cell) for cell in row] for row in rows[: request.limit]]
         facts = prepared.facts
+        report = prepared.report
         return FetchResult(
             columns=shape.columns,
             rows=page,
             has_more=len(rows) > request.limit,
             row_handles=[shape.handle_of(cells) for cells in page],
-            references=[
+            references=[]
+            if facts is None
+            else [
                 FetchReference(
                     name=key.name,
                     columns=key.columns,
@@ -230,6 +296,14 @@ class DuckdbFetch:
             insert_reason=shape.insert_reason,
             delete_supported=shape.update_supported,
             delete_reason=shape.update_reason,
+            # A row of a report is a line of an answer, not a thing (D111).
+            record_supported=report is None,
+            record_reason=None if report is None else shape.update_reason,
+            # A report is the file describing itself, and a table made of it
+            # would be a copy of a moment nobody can refresh (D72).
+            page_commands=list(PAGE_COMMANDS)
+            if report is None
+            else [command for command in PAGE_COMMANDS if command != "create_relation"],
         )
 
 

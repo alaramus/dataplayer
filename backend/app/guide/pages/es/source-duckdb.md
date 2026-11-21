@@ -13,12 +13,15 @@ Cómo funcionan las conexiones en general está en la página
 - El DDL de una relación, como lo guarda el archivo, con sus índices
 - Listas, structs y maps, mostrados como JSON
 - Los resultados del SQL que escribes y el plan de DuckDB
+- Informes: tamaño del archivo, secuencias, tipos, macros y funciones
+- Todas las filas de una tabla, una vista o un informe, descargadas
 
 ## Qué puedes cambiar
 
 - Datos de tablas: editar celdas, pegar bloques, insertar y borrar filas
 - Columnas, índices y claves únicas
 - Tablas nuevas, diseñadas objeto por objeto o creadas a partir de filas
+- Esquemas creados y eliminados; tablas y vistas renombradas y eliminadas
 - Datos y estructura, mediante SQL en la consola
 
 ## Conectarse
@@ -174,6 +177,47 @@ crea.
   tabla de una vez. Un valor que DuckDB no puede leer como el tipo de su
   columna deja la tabla sin crear.
 
+## Informes
+
+**Sistema** en el catálogo contiene cinco informes. Se leen como tablas y se
+pueden ordenar, filtrar, descargar y representar en gráficos. **Mostrar la
+instrucción** muestra el SQL que ejecuta un informe.
+
+- **Base de datos**: la versión de DuckDB, el tamaño del archivo, sus bloques
+  usados y libres, y el registro de escritura anticipada.
+- **Secuencias**, con su inicio, su paso y sus límites. Una identidad creada
+  por el diseñador de tablas es una de ellas.
+- **Tipos** propios del archivo: enums, structs y otros nombres para un tipo.
+- **Macros**: funciones escritas en SQL y guardadas en el archivo, con sus
+  parámetros y su cuerpo.
+- **Funciones** integradas en DuckDB, y cuántas firmas tiene cada una.
+- La configuración del motor no se muestra: nombra carpetas del servidor y aquí
+  es fija.
+
+## Acciones del catálogo
+
+- **Nuevo esquema** en la parte superior de la conexión. **Eliminar esquema**
+  elimina cualquier esquema salvo `main`; uno que contiene algo necesita
+  **Eliminar también todo su contenido**, y la pregunta cuenta lo que se va. En
+  DuckDB un esquema no se puede renombrar.
+- **Renombrar** una tabla o una vista. Después se vuelve a leer cada vista, y
+  una que leía el nombre antiguo rechaza el cambio y se nombra. DuckDB no
+  renombra una tabla con un índice propio ni una a la que apunta la clave de
+  otra tabla.
+- Una tabla con clave foránea propia no se renombra: DuckDB conservaría el
+  nombre antiguo en la tabla a la que apunta, que ya no podría borrar sus filas
+  ni ser eliminada.
+- **Eliminar** una relación o varias juntas. La eliminación se prueba primero y
+  se deshace, así que la pregunta nombra las vistas que dejarían de funcionar.
+  Una tabla a la que apunta la clave de otra se rechaza salvo que esa otra se
+  elimine con ella. Una secuencia de la que solo toman valores las tablas
+  eliminadas, como la de una identidad, se elimina con ellas.
+- **Cargar desde CSV** crea en el esquema una tabla a partir de un archivo,
+  cada columna como `VARCHAR`.
+- **Modelo como código** escribe un esquema o una selección para un ORM o un
+  diagrama.
+- Nada se mueve entre esquemas: DuckDB no puede.
+
 ## Consola SQL
 
 **Nueva consulta** en **Consultas** de la barra izquierda inicia una en la
@@ -204,7 +248,6 @@ borrado se prueba primero y se deshace antes de que la consola te pregunte.
 
 ## Lo que DuckDB aún no tiene aquí
 
-- Las acciones del catálogo, descargar todas las filas, las copias de seguridad
-  y copiar tablas. Llegarán más adelante.
+- Copiar tablas y las copias de seguridad. Llegarán más adelante.
 - Un archivo en un servidor SSH, o dentro de otra conexión, no se puede abrir
   como base de datos.

@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -21,12 +22,13 @@ from app.adapters.constraints import (
     DropConstraintRequest,
 )
 from app.adapters.content import ContentRequest, ContentResult
-from app.adapters.duckdb.actions import DUCKDB_ACTION_TYPES, DuckdbActions
+from app.adapters.duckdb.actions import DUCKDB_ACTION_TYPES, DropRelation, DuckdbActions
 from app.adapters.duckdb.catalog import DuckdbCatalog
 from app.adapters.duckdb.columns import DuckdbColumns
 from app.adapters.duckdb.content import DuckdbContent
 from app.adapters.duckdb.design import DuckdbTableDesign
 from app.adapters.duckdb.explain import DuckdbExplain
+from app.adapters.duckdb.export import DuckdbExport
 from app.adapters.duckdb.features import DuckdbFeatures
 from app.adapters.duckdb.fetch import DuckdbFetch
 from app.adapters.duckdb.keys import DuckdbKeys
@@ -36,10 +38,12 @@ from app.adapters.duckdb.query import DuckdbExecution, DuckdbQuery, DuckdbTransa
 from app.adapters.duckdb.references import DuckdbReferences
 from app.adapters.duckdb.relation import DuckdbRelation
 from app.adapters.duckdb.relation_changes import DuckdbRelationChanges
+from app.adapters.duckdb.search import DuckdbSearch
 from app.adapters.duckdb.session import DuckdbSession
 from app.adapters.duckdb.statements import format_text
 from app.adapters.duckdb.summary import DuckdbSummaries
 from app.adapters.duckdb.update import DuckdbUpdate
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
@@ -73,6 +77,15 @@ from app.adapters.relation_changes import (
     CreateRelationRequest,
     CreateRelationResult,
     NewRelationOptions,
+)
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
 )
 from app.adapters.summary import NodeSummary
 from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
@@ -119,6 +132,35 @@ class DuckdbAdapter:
         self._design = DuckdbTableDesign(self._session, self._catalog, self._relation)
         self._relations = DuckdbRelationChanges(self._session, self._catalog)
         self._actions = DuckdbActions(self._session, self._catalog)
+        self._search = DuckdbSearch(self._session)
+        self._export = DuckdbExport(self._session, self._fetch)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """The file is on this server's disk, and its catalog is read whole (D398)."""
+        return "cheap"
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    async def search_columns(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_columns(request, bounds)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        return self._export.export_rows(request)
+
+    async def drop_created(self, node_id: str) -> None:
+        drop = self._actions.action(DropRelation.name)
+        if not isinstance(drop, DropRelation):
+            raise TypeError("drop_relation is not the drop this adapter registers")
+        await drop.perform_on_set([node_id], {})
 
     @classmethod
     def action_types(cls) -> tuple[ActionType, ...]:
