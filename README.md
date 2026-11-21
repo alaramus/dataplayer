@@ -43,6 +43,8 @@ are encrypted at rest and never leave the backend.
   <img src="frontend/public/icons/services/azure.svg" height="20" alt=""> **Azure Database** and
   <img src="frontend/public/icons/services/googlecloud.svg" height="20" alt=""> **Cloud SQL** for PostgreSQL and for MySQL.
 - <img src="frontend/public/icons/services/sqlite.svg" height="20" alt=""> **SQLite**: open a database file and browse and edit its tables.
+- <img src="frontend/public/icons/services/duckdb.svg" height="20" alt=""> **DuckDB**: open a database file, browse and edit its
+  tables, design them, run its SQL and back the file up, with the engine confined to your own storage.
 - <img src="frontend/public/icons/services/clickhouse.svg" height="20" alt=""> **ClickHouse**: A ClickHouse server, over its HTTP interface.
 - <img src="frontend/public/icons/services/mongodb.svg" height="20" alt=""> **MongoDB**: databases and collections, documents read and changed as
   whole rows, fields and indexes, and a console in the shell's own syntax.
@@ -64,6 +66,11 @@ are encrypted at rest and never leave the backend.
   preview, upload and download, and a terminal in the browser.
 - <img src="frontend/public/icons/services/ftp.svg" height="20" alt=""> **FTP and FTPS servers**: the same file explorer, signing in with a
   password or anonymously, over explicit or implicit TLS.
+- <img src="frontend/public/icons/services/docker.svg" height="20" alt=""> **Docker** and
+  <img src="frontend/public/icons/services/podman.svg" height="20" alt=""> **Podman**: the containers, images, volumes and
+  networks of a daemon on another machine, reached through one of your SSH connections — a container's logs,
+  processes and inspect, its start, stop, restart, pause and kill, a terminal inside it, and the daemon's own
+  reports.
 - <img src="frontend/public/icons/services/aws.svg" height="20" alt=""> **Amazon S3** and the stores that speak its API —
   <img src="frontend/public/icons/services/minio.svg" height="20" alt=""> **MinIO**,
   <img src="frontend/public/icons/services/rustfs.svg" height="20" alt=""> **RustFS**,
@@ -199,7 +206,7 @@ panel with examples — the bundled PostgreSQL under several names, file storage
 and Redis — run `bun run seed:connectors` from the repository root. Adminer,
 Mailcatcher and the servers the tests and examples point at — Redis, SSH,
 MySQL, MariaDB, ClickHouse, MongoDB, Greenmail, ZooKeeper, Kafka, RabbitMQ,
-Cassandra, ScyllaDB, the RustFS S3 store and the other products of those types: Valkey, KeyDB,
+Cassandra, ScyllaDB, the RustFS S3 store, the two Docker daemons and the other products of those types: Valkey, KeyDB,
 Dragonfly, Redpanda, Percona Server, Citus, ParadeDB and TiDB — start on
 request: `docker compose --profile tools up -d`.
 
