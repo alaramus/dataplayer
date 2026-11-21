@@ -240,7 +240,10 @@ are five: `file_copy` (D161), `file_move` (D163), `relation_csv` (D165),
 - Copy and Cut are drawn for a source with its own Paste (D74) as before, and
   otherwise from the clipboard answer: a mode no kind serves for this source is
   not drawn, and a selection a kind refuses is drawn disabled with the reason.
-  A PostgreSQL table has Copy and no Cut.
+  A PostgreSQL table has Copy and no Cut. A source declaring
+  `catalog_clipboard = False` (`DeclaresCatalogClipboard`) draws neither, nor
+  Paste (`takes_paste`): Docker's nodes are things, and its tables are copied
+  from the grid.
 - A request carries up to 1000 ids; a kind states its own smaller ceiling as a
   reason.
 - The same registry answers what two connections can give each other

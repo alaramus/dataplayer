@@ -96,4 +96,6 @@ MESSAGES: dict[str, str] = {
     'Follow changes as they happen': 'बदलाव होते ही उन पर नज़र रखें',
     "Show a node's details": 'किसी नोड का विवरण दिखाएँ',
     "Your personal storage is full: {used} MB of {limit} MB in use": "आपका निजी संग्रहण भर गया है: {limit} MB में से {used} MB उपयोग में",
+    # A category of sources (D405).
+    "Containers": "कंटेनर",
 }

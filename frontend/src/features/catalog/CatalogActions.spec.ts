@@ -292,6 +292,19 @@ describe("catalog action subjects", () => {
     wrapper.unmount()
   })
 
+  it("draws no Paste in a catalog that declares it takes none", () => {
+    holdNodes("another", ["public.people"], "copy")
+    answers.offers = [copying]
+    answers.hold = { can_copy: null, can_cut: null, takes_paste: false }
+    const wrapper = menu()
+
+    const names = items(wrapper).map((item) => item.name)
+    expect(names).not.toContain("client:cross-paste")
+    expect(names).not.toContain("client:cross-paste-into")
+    expect(items(wrapper).map((item) => item.label)).not.toContain("Copy")
+    wrapper.unmount()
+  })
+
   it("lets a source with its own Paste hold anything ticked", () => {
     const wrapper = menu([rename, load, paste])
 

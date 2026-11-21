@@ -79,7 +79,9 @@ Factory = Callable[[Any, AdapterContext], DataAdapter]
 # What kind of thing a source is, for the one screen that groups them. A
 # closed set rather than a free string: a category is a set of values, so a
 # typo has to fail to compile instead of quietly creating a group of one.
-Category = Literal["sql", "document", "keyvalue", "stream", "market", "files", "mail"]
+Category = Literal[
+    "sql", "document", "keyvalue", "stream", "market", "files", "mail", "containers"
+]
 
 # The wording lives beside the set it names, on the server, so the client is
 # never a second place where a category is called something.
@@ -91,6 +93,7 @@ CATEGORY_TITLES: dict[Category, str] = {
     "market": N_("Market data"),
     "files": N_("Files & Storage"),
     "mail": N_("Mail"),
+    "containers": N_("Containers"),
 }
 
 
@@ -174,6 +177,24 @@ class CatalogFace:
 
 
 @dataclass(frozen=True)
+class ContainerImage:
+    """Images a type's server runs as in a container, and how such a container
+    becomes a connection of the type (D417).
+
+    Declared by the type, so no list kept elsewhere drifts from the types.
+    """
+
+    # As Docker names them, without a tag and without Docker Hub's own prefix:
+    # `postgres`, `timescale/timescaledb`.
+    repositories: tuple[str, ...]
+    # Where the server listens inside the container.
+    port: int
+    # The options other than host, port and tunnel, from the container's
+    # environment by the image's own conventions (`POSTGRES_PASSWORD`).
+    options: Callable[[Mapping[str, str]], dict[str, Any]]
+
+
+@dataclass(frozen=True)
 class AdapterType:
     name: str
     title: str
@@ -191,6 +212,7 @@ class AdapterType:
     factory: Factory
     # Empty for a type that is one product: it is its own card.
     faces: tuple[CatalogFace, ...] = ()
+    images: tuple[ContainerImage, ...] = ()
 
 
 _registry: dict[str, AdapterType] = {}
@@ -206,6 +228,7 @@ def register(
     adapter_class: type[DataAdapter],
     catalog_shape: CatalogShape = "levels",
     faces: tuple[CatalogFace, ...] = (),
+    images: tuple[ContainerImage, ...] = (),
 ) -> Callable[[Factory], Factory]:
     """Register a source type. Applied to the driver factory.
 
@@ -227,10 +250,39 @@ def register(
             adapter_class=adapter_class,
             factory=factory,
             faces=faces,
+            images=images,
         )
         return factory
 
     return decorator
+
+
+_DOCKER_HUB = ("docker.io/", "index.docker.io/", "registry-1.docker.io/")
+
+
+def repository_of(image: str) -> str:
+    """An image reference without its tag, digest and Docker Hub's prefixes:
+    `docker.io/library/postgres:16@sha256:…` is `postgres`."""
+    name = image.partition("@")[0]
+    slash = name.rfind("/")
+    colon = name.rfind(":")
+    if colon > slash:
+        name = name[:colon]
+    for prefix in _DOCKER_HUB:
+        if name.startswith(prefix):
+            name = name[len(prefix) :]
+            break
+    return name.removeprefix("library/").lower()
+
+
+def type_for_image(image: str) -> tuple[AdapterType, ContainerImage] | None:
+    """The source type whose server an image is, by what the types declare."""
+    repository = repository_of(image)
+    for adapter_type in _registry.values():
+        for declared in adapter_type.images:
+            if repository in declared.repositories:
+                return adapter_type, declared
+    return None
 
 
 def cache_windows_of(adapter_type: AdapterType) -> SourceCacheWindows | None:

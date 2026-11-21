@@ -24,7 +24,7 @@ from app.adapters.clickhouse.indexes import ClickhouseIndexes
 from app.adapters.clickhouse.metadata import ClickhouseGeneration, ClickhouseMetadata
 from app.adapters.clickhouse.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.clickhouse.metrics import ClickhouseMetrics
-from app.adapters.clickhouse.options import ClickhouseOptions
+from app.adapters.clickhouse.options import ClickhouseOptions, container_options
 from app.adapters.clickhouse.query import ClickhouseExecution, ClickhouseQuery
 from app.adapters.clickhouse.relation import ClickhouseRelation
 from app.adapters.clickhouse.relation_changes import ClickhouseRelationChanges
@@ -80,7 +80,7 @@ from app.adapters.query import (
     QueryProfile,
     QueryRequest,
 )
-from app.adapters.registry import AdapterContext, register
+from app.adapters.registry import AdapterContext, ContainerImage, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -446,6 +446,7 @@ class ClickhouseAdapter:
     ),
     options_schema=ClickhouseOptions,
     adapter_class=ClickhouseAdapter,
+    images=(ContainerImage(("clickhouse/clickhouse-server", "clickhouse"), 8123, container_options),),
 )
 def _build(options: ClickhouseOptions, context: AdapterContext) -> ClickhouseAdapter:
     return ClickhouseAdapter(options, context.pooling, context.tunnels)

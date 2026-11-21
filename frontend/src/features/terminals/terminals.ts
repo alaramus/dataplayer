@@ -1,6 +1,7 @@
 import type { AdapterTypeInfo, ConnectorPublic } from "@/client"
 import { t } from "@/shared/i18n"
 
+import type { TerminalTarget } from "./frames"
 import type { LinkState } from "./terminalLink"
 
 /**
@@ -13,6 +14,8 @@ import type { LinkState } from "./terminalLink"
 export interface OpenTerminal {
   id: string
   connectorId: string
+  /** The node a terminal was opened on, when not the connection's own shell (D413). */
+  target?: TerminalTarget | null
   /** Its number among the terminals of one connection, kept while it is open. */
   ordinal: number
 }
@@ -119,6 +122,7 @@ export function nextOrdinal(open: readonly OpenTerminal[], connectorId: string):
 
 /** A terminal's tab: the connection's name now, and its number past the first. */
 export function terminalTitle(terminal: OpenTerminal, connectorName: string | null): string {
+  if (terminal.target) return terminal.target.title
   const name = connectorName ?? t("terminals.connection")
   return terminal.ordinal === 1 ? name : t("terminals.numbered", { name, n: terminal.ordinal })
 }

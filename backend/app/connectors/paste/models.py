@@ -195,6 +195,9 @@ class ClipboardOffer(BaseModel):
 
     can_copy: Availability | None = None
     can_cut: Availability | None = None
+    # False for a catalog that declares it takes no Paste either, so the line
+    # is not drawn rather than drawn off.
+    takes_paste: bool = True
 
 
 ForeseenKind = Literal["file", "folder", "table"]

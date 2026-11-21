@@ -96,6 +96,11 @@ describe("what a terminal is called", () => {
     expect(terminalTitle({ id: "t2", connectorId: "c1", ordinal: 2 }, "prod")).toBe("prod (2)")
   })
 
+  it("is its node's name when it was opened on one", () => {
+    const target = { action: "docker_terminal", nodeId: "container:abc", params: {}, title: "web" }
+    expect(terminalTitle({ id: "t3", connectorId: "c1", ordinal: 3, target }, "prod")).toBe("web")
+  })
+
   it("keeps its number when an earlier one closes", () => {
     const open = [
       { id: "t1", connectorId: "c1", ordinal: 1 },

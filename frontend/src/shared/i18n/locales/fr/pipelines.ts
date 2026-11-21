@@ -97,6 +97,10 @@ export const pipelines: Messages["pipelines"] = {
       exchange: "échange",
       symbol: "symbole",
       feed: "flux",
+      container: "conteneur",
+      image: "image",
+      volume: "volume",
+      network: "réseau",
     },
   },
   card_picker: {

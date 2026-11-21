@@ -47,6 +47,11 @@ the connection does not know, and their query console covers what is typed. A te
 it would be a second driver implementing `SupportsTerminal`, and nothing above
 the adapter would change.
 
+A terminal may also be opened on one node by an action whose form opens it
+rather than running: the first frame then names the action, the node and the
+form, and the action must be offered there. Docker's container shell is the
+first (D413, in [sources/docker.md](sources/docker.md)).
+
 ## D148. A terminal is a socket of its own
 
 Every other thing the server says without being asked travels on the one

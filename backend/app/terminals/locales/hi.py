@@ -14,4 +14,7 @@ MESSAGES: dict[str, str] = {
     "Frame not understood": "फ़्रेम समझा नहीं गया",
     "This terminal is already open": "यह टर्मिनल पहले से खुला है",
     "This server cannot start a console": "यह सर्वर कंसोल शुरू नहीं कर सकता",
+    # A terminal on one node (D413).
+    "No terminal opens here": "यहाँ कोई टर्मिनल नहीं खुलता",
+    "The terminal's settings are not valid": "टर्मिनल की सेटिंग्स मान्य नहीं हैं",
 }

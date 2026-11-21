@@ -9,6 +9,7 @@ The database is optional, unlike PostgreSQL's. A MySQL database is a schema
 says where the catalog opens rather than what it is confined to.
 """
 
+from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -76,3 +77,23 @@ MysqlOptions = Annotated[
     MysqlUserPassword | MysqlNoPassword,
     Field(discriminator="auth_method"),
 ]
+
+
+def container_options(env: Mapping[str, str]) -> dict[str, Any]:
+    """A container of the MySQL or MariaDB image as a connection (D417): the
+    user it made with its database when there is one, root otherwise."""
+    database = env.get("MYSQL_DATABASE") or env.get("MARIADB_DATABASE") or ""
+    user = env.get("MYSQL_USER") or env.get("MARIADB_USER")
+    password = env.get("MYSQL_PASSWORD") or env.get("MARIADB_PASSWORD")
+    if not (user and password):
+        user = "root"
+        password = env.get("MYSQL_ROOT_PASSWORD") or env.get("MARIADB_ROOT_PASSWORD")
+    empty = env.get("MYSQL_ALLOW_EMPTY_PASSWORD") or env.get("MARIADB_ALLOW_EMPTY_ROOT_PASSWORD")
+    if user == "root" and not password and empty:
+        return {"auth_method": "no_password", "user": user, "database": database}
+    return {
+        "auth_method": "user_password",
+        "user": user,
+        "database": database,
+        **({"password": password} if password else {}),
+    }

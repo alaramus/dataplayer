@@ -125,6 +125,10 @@ export type ActionInfo = {
    */
   produces_job?: boolean
   /**
+   * Opens Terminal
+   */
+  opens_terminal?: boolean
+  /**
    * Takes Set
    */
   takes_set: boolean
@@ -171,6 +175,10 @@ export type ActionInfo = {
     | "exchange"
     | "symbol"
     | "feed"
+    | "container"
+    | "image"
+    | "volume"
+    | "network"
   >
   /**
    * Bulk
@@ -382,7 +390,7 @@ export type AdapterTypeInfo = {
   /**
    * Category
    */
-  category: "sql" | "document" | "keyvalue" | "stream" | "market" | "files" | "mail"
+  category: "sql" | "document" | "keyvalue" | "stream" | "market" | "files" | "mail" | "containers"
   /**
    * Category Title
    */
@@ -1964,6 +1972,10 @@ export type CardRow = {
     | "exchange"
     | "symbol"
     | "feed"
+    | "container"
+    | "image"
+    | "volume"
+    | "network"
     | null
   /**
    * Trail
@@ -2323,6 +2335,10 @@ export type ChosenStart = {
 export type ClipboardOffer = {
   can_copy?: Availability | null
   can_cut?: Availability | null
+  /**
+   * Takes Paste
+   */
+  takes_paste?: boolean
 }
 
 /**
@@ -3203,6 +3219,81 @@ export type ConsumerGroupNode = {
    * Members
    */
   members?: number | null
+}
+
+/**
+ * ContainerNode
+ *
+ * One container of a Docker daemon, running or not (D407).
+ *
+ * Holds its logs and its processes; opened itself, it is what the daemon says
+ * about it. Named by its id, which survives a rename.
+ */
+export type ContainerNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "container"
+  /**
+   * State
+   */
+  state?:
+    | "running"
+    | "healthy"
+    | "unhealthy"
+    | "starting"
+    | "paused"
+    | "restarting"
+    | "stopped"
+    | "failed"
+    | "created"
+    | "removing"
+    | "dead"
+    | "unknown"
+  /**
+   * Status
+   */
+  status?: string | null
+  /**
+   * Image
+   */
+  image?: string | null
+  /**
+   * Project
+   */
+  project?: string | null
+  /**
+   * Service
+   */
+  service?: string | null
+  /**
+   * Ports
+   */
+  ports?: Array<string>
 }
 
 /**
@@ -7067,6 +7158,58 @@ export type ImageContents = {
 }
 
 /**
+ * ImageNode
+ *
+ * One image of a Docker daemon, by its id; untagged ones too (D407).
+ */
+export type ImageNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "image"
+  /**
+   * Tags
+   */
+  tags?: Array<string>
+  /**
+   * Size Bytes
+   */
+  size_bytes?: number | null
+  /**
+   * Created At
+   */
+  created_at?: string | null
+  /**
+   * Containers
+   */
+  containers?: number
+}
+
+/**
  * ImportPreview
  *
  * The first rows as they would arrive, and nothing about the target.
@@ -9286,6 +9429,62 @@ export type Negation = {
 }
 
 /**
+ * NetworkNode
+ *
+ * One network of a Docker daemon, by its id (D407).
+ */
+export type NetworkNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "network"
+  /**
+   * Driver
+   */
+  driver: string
+  /**
+   * Scope
+   */
+  scope?: string | null
+  /**
+   * Internal
+   */
+  internal?: boolean
+  /**
+   * Network Kind
+   */
+  network_kind?: "built_in" | "compose" | "user"
+  /**
+   * Containers
+   */
+  containers?: number
+}
+
+/**
  * NewPassword
  */
 export type NewPassword = {
@@ -9488,6 +9687,18 @@ export type NodeMatch = {
     | ({
         kind: "feed"
       } & FeedNode)
+    | ({
+        kind: "container"
+      } & ContainerNode)
+    | ({
+        kind: "image"
+      } & ImageNode)
+    | ({
+        kind: "volume"
+      } & VolumeNode)
+    | ({
+        kind: "network"
+      } & NetworkNode)
   /**
    * Parent Id
    */
@@ -9659,6 +9870,10 @@ export type NodeSummary = {
     | "exchange"
     | "symbol"
     | "feed"
+    | "container"
+    | "image"
+    | "volume"
+    | "network"
   /**
    * Representations
    */
@@ -9858,6 +10073,18 @@ export type NodeTarget = {
     | ({
         kind: "feed"
       } & FeedNode)
+    | ({
+        kind: "container"
+      } & ContainerNode)
+    | ({
+        kind: "image"
+      } & ImageNode)
+    | ({
+        kind: "volume"
+      } & VolumeNode)
+    | ({
+        kind: "network"
+      } & NetworkNode)
     | null
 }
 
@@ -12494,6 +12721,18 @@ export type ReferencedRows = {
     | ({
         kind: "feed"
       } & FeedNode)
+    | ({
+        kind: "container"
+      } & ContainerNode)
+    | ({
+        kind: "image"
+      } & ImageNode)
+    | ({
+        kind: "volume"
+      } & VolumeNode)
+    | ({
+        kind: "network"
+      } & NetworkNode)
   connector?: ReferenceConnection | null
   /**
    * Filters
@@ -12796,6 +13035,18 @@ export type RelationCreated = {
     | ({
         kind: "feed"
       } & FeedNode)
+    | ({
+        kind: "container"
+      } & ContainerNode)
+    | ({
+        kind: "image"
+      } & ImageNode)
+    | ({
+        kind: "volume"
+      } & VolumeNode)
+    | ({
+        kind: "network"
+      } & NetworkNode)
   /**
    * Inserted
    */
@@ -13302,6 +13553,10 @@ export type ResultRow = {
     | "exchange"
     | "symbol"
     | "feed"
+    | "container"
+    | "image"
+    | "volume"
+    | "network"
 }
 
 /**
@@ -16829,6 +17084,54 @@ export type ViewNode = {
 }
 
 /**
+ * VolumeNode
+ *
+ * One volume of a Docker daemon, by its name (D407).
+ */
+export type VolumeNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "volume"
+  /**
+   * Driver
+   */
+  driver: string
+  /**
+   * Created At
+   */
+  created_at?: string | null
+  /**
+   * Containers
+   */
+  containers?: number
+}
+
+/**
  * WidgetLayout
  */
 export type WidgetLayout = {
@@ -18757,6 +19060,18 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "feed"
       } & FeedNode)
+    | ({
+        kind: "container"
+      } & ContainerNode)
+    | ({
+        kind: "image"
+      } & ImageNode)
+    | ({
+        kind: "volume"
+      } & VolumeNode)
+    | ({
+        kind: "network"
+      } & NetworkNode)
   >
 }
 
@@ -20064,6 +20379,18 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "feed"
       } & FeedNode)
+    | ({
+        kind: "container"
+      } & ContainerNode)
+    | ({
+        kind: "image"
+      } & ImageNode)
+    | ({
+        kind: "volume"
+      } & VolumeNode)
+    | ({
+        kind: "network"
+      } & NetworkNode)
   >
 }
 

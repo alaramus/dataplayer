@@ -196,6 +196,7 @@ from app.adapters.table_design import (
     TablePlan,
     TablePlanRequest,
 )
+from app.adapters.terminal import OpensTerminal
 from app.adapters.update import (
     CellsUpdated,
     DeleteRowsRequest,
@@ -2935,6 +2936,8 @@ class ActionInfo(ActionAvailability):
     # Carried out as an owned job through its own route rather than awaited
     # (D123). Derived like the rest; such an action always requires review.
     produces_job: bool = False
+    # Whether its form opens a terminal on the node instead of running (D413).
+    opens_terminal: bool = False
     # Whether a selection is carried out in one request rather than repeated
     # per node, and whether that one request can be previewed. Derived from
     # the capabilities, so what the API says cannot drift from what the action
@@ -3009,6 +3012,7 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         previews=isinstance(action, Previews),
         requires_plan_review=isinstance(action, RequiresReviewedPlan | ProducesJob),
         produces_job=isinstance(action, ProducesJob),
+        opens_terminal=isinstance(action, OpensTerminal),
         takes_set=isinstance(action, TakesNodeSet),
         previews_set=isinstance(action, PreviewsSet),
         downloads=isinstance(action, ProducesDownload),

@@ -3,6 +3,7 @@ from app.adapters import (  # noqa: F401
     binance,
     cassandra,
     clickhouse,
+    docker,
     duckdb,
     file,
     ftp,

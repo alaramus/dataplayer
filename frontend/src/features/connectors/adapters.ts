@@ -28,6 +28,9 @@ const ICONS: Record<string, string> = {
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",
   ftp: "img:/icons/services/ftp.svg",
+  docker: "img:/icons/services/docker.svg",
+  // A card of the `docker` type (D405).
+  podman: "img:/icons/services/podman.svg",
   mail: "img:/icons/services/mail.svg",
   // A card of the `mail` type (D373).
   gmail: "img:/icons/services/gmail.svg",
@@ -96,6 +99,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   market: "candlestick_chart",
   files: "folder",
   mail: "mail",
+  containers: "deployed_code",
 }
 
 export const UNKNOWN_CATEGORY_ICON = "category"

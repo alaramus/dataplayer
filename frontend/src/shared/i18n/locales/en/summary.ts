@@ -25,6 +25,10 @@ export const summary = {
     exchange: "Exchange",
     symbol: "Symbol",
     feed: "Market table",
+    container: "Container",
+    image: "Image",
+    volume: "Volume",
+    network: "Network",
   },
   encodings: {
     utf_8: "UTF-8",

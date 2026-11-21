@@ -8,6 +8,7 @@ import { serverUrl } from "@/shared/servers/context"
 import { useAuthStore } from "@/stores/auth"
 import { currentLanguage } from "@/shared/i18n"
 
+import type { TerminalTarget } from "./frames"
 import { openTerminalLink } from "./terminalLink"
 import type { LinkState, TerminalLink } from "./terminalLink"
 import { afterClosing, nextOrdinal } from "./terminals"
@@ -66,6 +67,7 @@ function connect(session: TerminalSession) {
       url: socketUrl(),
       token,
       connectorId: session.connectorId,
+      target: session.target ?? null,
       size: { cols: session.screen.cols, rows: session.screen.rows },
       onOutput: (data) => {
         session.screen.write(data)
@@ -80,7 +82,7 @@ function connect(session: TerminalSession) {
   )
 }
 
-function openOn(connectorId: string): string {
+function openOn(connectorId: string, target: TerminalTarget | null = null): string {
   const screen = markRaw(
     new Terminal({
       fontFamily: MONOSPACE,
@@ -96,6 +98,7 @@ function openOn(connectorId: string): string {
   sessions.value.push({
     id,
     connectorId,
+    target,
     ordinal: nextOrdinal(sessions.value, connectorId),
     state: { kind: "connecting" },
     screen,

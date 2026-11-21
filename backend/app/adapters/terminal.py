@@ -8,7 +8,7 @@ driver's alone.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -58,6 +58,22 @@ class SupportsTerminal(Protocol):
         Raises `AdapterError` when it cannot be had, in the same words the rest
         of the source uses: a locked key, a server key that does not match.
         """
+        ...
+
+
+@runtime_checkable
+class OpensTerminal(Protocol):
+    """An action whose outcome is a terminal on one node, not a change (D413).
+
+    Its form says which program and as whom; the terminal socket names the
+    action, the node and the form, and the action is offered, checked and
+    granted like any other — what it needs is its own `requires`.
+    """
+
+    async def open_terminal(
+        self, node_id: str | None, raw: Mapping[str, Any], size: TerminalSize
+    ) -> Terminal:
+        """A running program; raises what `perform` raises, and AdapterError."""
         ...
 
 

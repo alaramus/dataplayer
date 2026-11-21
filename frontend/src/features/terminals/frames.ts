@@ -28,13 +28,34 @@ export interface TerminalSize {
   rows: number
 }
 
-export function openingFrame(token: string, connectorId: string, size: TerminalSize): string {
+/**
+ * A terminal on one node rather than on the connection: the action whose form
+ * opened it, the node and the form, checked by the server as the action is
+ * (D413).
+ */
+export interface TerminalTarget {
+  action: string
+  nodeId: string | null
+  params: Record<string, unknown>
+  /** What the terminal's tab is called: the node, not the connection. */
+  title: string
+}
+
+export function openingFrame(
+  token: string,
+  connectorId: string,
+  size: TerminalSize,
+  target: TerminalTarget | null = null
+): string {
   return JSON.stringify({
     type: "open",
     token,
     connector_id: connectorId,
     cols: size.cols,
     rows: size.rows,
+    ...(target === null
+      ? {}
+      : { action: target.action, node_id: target.nodeId, params: target.params }),
   })
 }
 

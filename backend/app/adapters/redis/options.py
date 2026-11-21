@@ -7,6 +7,7 @@ something half of its users must leave empty — and a `SecretStr | None` that
 D4's schema split would not recognise as a secret at all.
 """
 
+from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -68,3 +69,13 @@ class RedisNoAuth(_RedisBase):
 RedisOptions = Annotated[
     RedisPassword | RedisNoAuth, Field(discriminator="auth_method")
 ]
+
+
+def container_options(env: Mapping[str, str]) -> dict[str, Any]:
+    """A Redis container as a connection (D417). The official image takes its
+    password on the command line rather than from the environment, so only
+    `REDIS_PASSWORD` — Bitnami's and others' — is read."""
+    password = env.get("REDIS_PASSWORD")
+    if password:
+        return {"auth_method": "password", "password": password}
+    return {"auth_method": "no_auth"}

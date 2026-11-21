@@ -97,6 +97,10 @@ export const pipelines: Messages["pipelines"] = {
       exchange: "交换器",
       symbol: "交易对",
       feed: "数据表",
+      container: "容器",
+      image: "镜像",
+      volume: "卷",
+      network: "网络",
     },
   },
   card_picker: {

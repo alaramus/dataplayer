@@ -5,6 +5,7 @@ optional, as MySQL's is: a ClickHouse database is a schema to the catalog, and
 one connection reaches every database its user may see (D267).
 """
 
+from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -79,3 +80,18 @@ ClickhouseOptions = Annotated[
     ClickhouseUserPassword | ClickhouseNoPassword,
     Field(discriminator="auth_method"),
 ]
+
+
+def container_options(env: Mapping[str, str]) -> dict[str, Any]:
+    """A container of the official image as a connection over HTTP (D417):
+    `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD` and `CLICKHOUSE_DB`, `default`
+    when not set."""
+    found: dict[str, Any] = {
+        "user": env.get("CLICKHOUSE_USER") or "default",
+        "database": env.get("CLICKHOUSE_DB") or "",
+        "secure": False,
+    }
+    password = env.get("CLICKHOUSE_PASSWORD")
+    if password:
+        return {**found, "auth_method": "user_password", "password": password}
+    return {**found, "auth_method": "no_password"}

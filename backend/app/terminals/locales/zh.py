@@ -14,4 +14,7 @@ MESSAGES: dict[str, str] = {
     "Frame not understood": "无法理解该帧",
     "This terminal is already open": "此终端已打开",
     "This server cannot start a console": "此服务器无法启动控制台",
+    # A terminal on one node (D413).
+    "No terminal opens here": "此处不能打开终端",
+    "The terminal's settings are not valid": "终端的设置无效",
 }

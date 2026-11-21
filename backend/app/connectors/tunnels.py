@@ -15,7 +15,7 @@ from app.adapters import options as options_schema
 from app.adapters import registry
 from app.adapters.protocol import AdapterError
 from app.adapters.registry import AdapterContext
-from app.adapters.tunnels import ForwardsPorts, tunnel_of
+from app.adapters.tunnels import ForwardsPorts, ForwardsSockets, tunnel_of
 from app.connectors import service
 from app.connectors.models import Connector
 from app.connectors.ssh_keys import OwnerKeys, SshKeyUse
@@ -33,6 +33,21 @@ class OwnerTunnels:
     async def endpoint(
         self, connection_id: uuid.UUID, host: str, port: int
     ) -> tuple[str, int]:
+        adapter, name = await self._through(connection_id)
+        if not isinstance(adapter, ForwardsPorts):
+            raise AdapterError("config", say("{name} cannot carry a tunnel", name=name))
+        return await adapter.forward(host, port)
+
+    async def socket_endpoint(
+        self, connection_id: uuid.UUID, path: str
+    ) -> tuple[str, int]:
+        adapter, name = await self._through(connection_id)
+        if not isinstance(adapter, ForwardsSockets):
+            raise AdapterError("config", say("{name} cannot carry a tunnel", name=name))
+        return await adapter.forward_socket(path)
+
+    async def _through(self, connection_id: uuid.UUID) -> tuple[object, str]:
+        """The owner's SSH connection, built, and its name for a refusal."""
         async with async_session_maker() as session:
             connector = await session.get(Connector, connection_id)
         if connector is None or connector.owner_id != self._owner_id:
@@ -61,11 +76,7 @@ class OwnerTunnels:
                 ),
             )
         )
-        if not isinstance(adapter, ForwardsPorts):
-            raise AdapterError(
-                "config", say("{name} cannot carry a tunnel", name=connector.name)
-            )
-        return await adapter.forward(host, port)
+        return adapter, connector.name
 
 
 async def uses(

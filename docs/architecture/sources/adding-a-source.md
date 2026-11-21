@@ -15,12 +15,14 @@ newest adapter of the same shape before writing a line.
 | A document store | `mongodb/` |
 | A broker or a stream | `kafka/`, `rabbitmq/` |
 | A storage of files | [explorer.md](explorer.md), `s3/`, `ftp/` |
+| A server reached only through an SSH connection, an HTTP API with no paging | `docker/` |
 
 Shared pieces to use instead of writing again: `database_ids.py` (schema and
 relation in one node id, D229), `home_file.py` (a file below the home, D247),
 `made_here.py` (a database file made here, D263), `row_handles.py`,
 `csv_load.py`, `model_code.py`, `table_copy.py` (`is_one_fragment`),
-`search.py` (`class_of_name`, `Kept`).
+`search.py` (`class_of_name`, `Kept`), `listed.py` (a list read whole,
+filtered and sorted in memory), `tunnels.py` (`reach`, `socket_endpoint`).
 
 ## Before any code: facts and a spec
 
@@ -44,6 +46,9 @@ template files to read.
    relation model, fetch with filters and sort, summary, content (DDL),
    features. `@register(...)` in `adapter.py`; the package imported in
    `adapters/__init__.py`; locales registered in the package's `__init__.py`.
+   A server that runs in a container declares its images there too
+   (`images=`), so a Docker source can open its container as a connection
+   (D417).
 2. **Console.** Statement classes from the engine's own parser where it has
    one; what reaches outside the source refused by family; runs, held
    transactions, rehearsal (D66), explain, metadata, formatting.
@@ -118,5 +123,12 @@ template files to read.
   changes its quotes throughout and buries the change.
 - Patch scripts go in a file in the scratchpad, not in a heredoc: bash eats
   backslashes and quotes in one.
+- A new node kind is a class in `adapters/catalog.py`, its name in
+  `NodeKind`, and on the client its shape and icon in
+  `features/catalog/nodes.ts`, its caption, its word in the `summary` and
+  `pipelines` locales of every language, and `src/client` regenerated.
+- An SSH server refuses a forwarded Unix socket the same way whatever the
+  reason (OpenSSH 10.3: code 2, "open failed"); do not promise a person which
+  of the reasons it was.
 - Look at what the screen shows before calling a slice done: a unit test does
   not prove a label, a button or a translation reaches the person.

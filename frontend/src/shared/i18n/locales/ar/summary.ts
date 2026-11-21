@@ -27,6 +27,10 @@ export const summary: Messages["summary"] = {
     exchange: "مبادلة",
     symbol: "رمز",
     feed: "جدول السوق",
+    container: "حاوية",
+    image: "صورة",
+    volume: "وحدة تخزين",
+    network: "شبكة",
   },
   encodings: {
     utf_8: "UTF-8",

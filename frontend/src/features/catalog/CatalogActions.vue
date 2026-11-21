@@ -167,6 +167,20 @@ const held = computed(() => heldFor(props.connectorId))
 const canHold = computed(() =>
   commands.value.some((command) => needsClipboard(command))
 )
+// Asked only of a source without a Paste of its own, and only once its own
+// actions have answered: until then it is not known which one this is.
+// Whether this source can hold a selection at all, asked once rather than per
+// tick: what is held is judged when it is pasted, by the paste's own offers.
+const holdOffer = useQuery({
+  queryKey: computed(() => ["clipboard-offer", props.connectorId]),
+  enabled: computed(() => level.data.value !== undefined && !canHold.value),
+  retry: false,
+  staleTime: Infinity,
+  queryFn: async () => (await ConnectorsService.clipboardOffer({
+    path: { connector_id: props.connectorId },
+    body: { node_ids: [] },
+  })).data,
+})
 /**
  * A selection the application pastes: from another connection (D161, D163),
  * or from this one when the source has no Paste of its own — which is how a
@@ -176,6 +190,8 @@ const canHold = computed(() =>
 const crossHeld = computed(() => {
   const clipped = clipboard.value
   if (clipped === null) return null
+  // A catalog that declares it takes nothing draws no Paste (D164).
+  if (holdOffer.data.value?.takes_paste === false) return null
   if (clipped.connectorId !== props.connectorId) return clipped
   return level.data.value !== undefined && !canHold.value ? clipped : null
 })
@@ -211,20 +227,6 @@ const crossOffers = useQuery({
 })
 const crossLines = computed(() => pasteLines(crossOffers.data.value ?? []))
 const crossUsable = computed(() => usableOffers(crossLines.value.paste))
-// Asked only of a source without a Paste of its own, and only once its own
-// actions have answered: until then it is not known which one this is.
-// Whether this source can hold a selection at all, asked once rather than per
-// tick: what is held is judged when it is pasted, by the paste's own offers.
-const holdOffer = useQuery({
-  queryKey: computed(() => ["clipboard-offer", props.connectorId]),
-  enabled: computed(() => level.data.value !== undefined && !canHold.value),
-  retry: false,
-  staleTime: Infinity,
-  queryFn: async () => (await ConnectorsService.clipboardOffer({
-    path: { connector_id: props.connectorId },
-    body: { node_ids: [] },
-  })).data,
-})
 const holds = computed(() =>
   holdLines(canHold.value, props.checkedIds.length, holdOffer.data.value)
 )

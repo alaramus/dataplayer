@@ -36,7 +36,7 @@ from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key
 from app.adapters.redis.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.redis.metrics import RedisMetrics
 from app.adapters.redis.model import RedisModel
-from app.adapters.redis.options import RedisOptions
+from app.adapters.redis.options import RedisOptions, container_options
 from app.adapters.redis.reports import (
     REPORTS as SYSTEM_REPORTS,
 )
@@ -67,7 +67,7 @@ from app.adapters.redis.url import (
     compose_url_with_password,
     options_from_url,
 )
-from app.adapters.registry import AdapterContext, CatalogFace, register
+from app.adapters.registry import AdapterContext, CatalogFace, ContainerImage, register
 from app.adapters.relation import RelationModel
 from app.adapters.search import (
     LastSearch,
@@ -326,6 +326,7 @@ class RedisAdapter:
     ),
     options_schema=RedisOptions,
     adapter_class=RedisAdapter,
+    images=(ContainerImage(("redis", "redis/redis-stack-server", "valkey/valkey", "bitnami/redis"), 6379, container_options),),
     # Forks that answer as Redis does, a card each (D377), and Dragonfly,
     # which answers so but for how it is signed into (D378).
     faces=(

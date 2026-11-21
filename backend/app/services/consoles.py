@@ -15,6 +15,8 @@ import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
+from app.adapters.docker_api.hijack import UpgradeRefused, upgrade_request
+from app.adapters.docker_api.hijack import upgraded as read_upgrade
 from app.adapters.terminal import ConsoleProgram, TerminalSize
 from app.core.config import settings
 from app.core.translation import say
@@ -77,27 +79,17 @@ def console_body(program: ConsoleProgram, labels: Mapping[str, str]) -> dict[str
 
 
 def attach_request(container: str) -> bytes:
-    return (
-        f"POST /containers/{container}/attach?stream=1&stdin=1&stdout=1&stderr=1 HTTP/1.1\r\n"
-        "Host: docker\r\n"
-        "Upgrade: tcp\r\n"
-        "Connection: Upgrade\r\n"
-        "Content-Length: 0\r\n"
-        "\r\n"
-    ).encode()
+    return upgrade_request(
+        f"/containers/{container}/attach?stream=1&stdin=1&stdout=1&stderr=1"
+    )
 
 
 async def upgraded(reader: asyncio.StreamReader) -> None:
     """Read the daemon's answer to the attach up to where the stream begins."""
-    async with asyncio.timeout(ATTACH_SECONDS):
-        head = await reader.readuntil(b"\r\n\r\n")
-    status = head.split(b"\r\n", 1)[0].split(b" ")
-    code = int(status[1]) if len(status) > 1 and status[1].isdigit() else 0
-    # 101 from a daemon that honours the upgrade; 200 from an old one that
-    # hijacks the connection without saying so.
-    if code not in (101, 200):
-        logger.warning("Docker refused to attach a console: %s", head[:200])
-        raise ConsoleRefused(say("The console could not be attached"))
+    try:
+        await read_upgrade(reader, ATTACH_SECONDS)
+    except UpgradeRefused:
+        raise ConsoleRefused(say("The console could not be attached")) from None
 
 
 class DockerConsole:

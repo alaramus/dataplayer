@@ -45,6 +45,8 @@ export interface ActionCommand {
   preparesConnector?: boolean
   /** Performed at once, without a form, and its result's address opened (D334). */
   opensAddress?: boolean
+  /** Its form opens a terminal on the node instead of running (D413). */
+  opensTerminal?: boolean
   requiresPlanReview?: boolean
   /**
    * Whether the server carries it out as an owned job: the request is
@@ -98,6 +100,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       downloads: action.downloads,
       preparesConnector: action.prepares_connector === true,
       opensAddress: action.opens_address === true,
+      opensTerminal: action.opens_terminal === true,
       requiresPlanReview: action.requires_plan_review === true,
       producesJob: action.produces_job === true,
       actsOn: action.acts_on,

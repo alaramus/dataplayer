@@ -352,6 +352,82 @@ class FeedNode(BaseNode):
     interval: str | None = None
 
 
+# What a Docker container is doing, in one word read from the daemon's state,
+# status and health check (D407).
+ContainerState = Literal[
+    "running",
+    "healthy",
+    "unhealthy",
+    "starting",
+    "paused",
+    "restarting",
+    "stopped",
+    "failed",
+    "created",
+    "removing",
+    "dead",
+    "unknown",
+]
+
+
+class ContainerNode(BaseNode):
+    """One container of a Docker daemon, running or not (D407).
+
+    Holds its logs and its processes; opened itself, it is what the daemon says
+    about it. Named by its id, which survives a rename.
+    """
+
+    kind: Literal["container"] = "container"
+    has_children: bool = True
+    state: ContainerState = "unknown"
+    # The daemon's own words beside it: "Exited (3) 2 hours ago".
+    status: str | None = None
+    image: str | None = None
+    # The Compose project and service, from the labels Compose writes.
+    project: str | None = None
+    service: str | None = None
+    # Published ports as `host:container/protocol`.
+    ports: list[str] = Field(default_factory=list)
+
+
+class ImageNode(BaseNode):
+    """One image of a Docker daemon, by its id; untagged ones too (D407)."""
+
+    kind: Literal["image"] = "image"
+    has_children: bool = True
+    tags: list[str] = Field(default_factory=list)
+    size_bytes: int | None = None
+    created_at: datetime | None = None
+    # Counted from the containers' image ids: the list of images leaves it out.
+    containers: int = 0
+
+
+class VolumeNode(BaseNode):
+    """One volume of a Docker daemon, by its name (D407)."""
+
+    kind: Literal["volume"] = "volume"
+    has_children: bool = True
+    driver: str
+    created_at: datetime | None = None
+    containers: int = 0
+
+
+# Docker's own three, the ones a Compose project made, and anybody else's.
+NetworkKind = Literal["built_in", "compose", "user"]
+
+
+class NetworkNode(BaseNode):
+    """One network of a Docker daemon, by its id (D407)."""
+
+    kind: Literal["network"] = "network"
+    has_children: bool = True
+    driver: str
+    scope: str | None = None
+    internal: bool = False
+    network_kind: NetworkKind = "user"
+    containers: int = 0
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
@@ -373,7 +449,11 @@ CatalogNode = Annotated[
     | AmqpStreamNode
     | ExchangeNode
     | SymbolNode
-    | FeedNode,
+    | FeedNode
+    | ContainerNode
+    | ImageNode
+    | VolumeNode
+    | NetworkNode,
     Field(discriminator="kind"),
 ]
 
@@ -402,6 +482,10 @@ NodeKind = Literal[
     "exchange",
     "symbol",
     "feed",
+    "container",
+    "image",
+    "volume",
+    "network",
 ]
 
 

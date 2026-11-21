@@ -32,6 +32,8 @@ import FileToRelationDialog from "@/features/catalog/FileToRelationDialog.vue"
 import ModelCodeDialog from "@/features/catalog/ModelCodeDialog.vue"
 import HypertableSettings from "@/features/hypertableDesign/HypertableSettings.vue"
 import TableDesigner from "@/features/tableDesign/TableDesigner.vue"
+import { useTerminals } from "@/features/terminals/useTerminals"
+import { useBottomPanel } from "@/features/workspace/useBottomPanel"
 import { formatSize } from "@/features/catalog/nodes"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
@@ -368,6 +370,24 @@ function forget(index: number) {
   files.value = files.value.filter((_, at) => at !== index)
 }
 
+/**
+ * An action whose form opens a terminal on its node (D413): the shell starts
+ * in the panel at the foot, and the server checks the action as it would run.
+ */
+function openTerminal(command: ActionCommand, params: Record<string, unknown>) {
+  const nodeId = props.nodeIds[0] ?? null
+  // Asked here rather than when the dialog is made: the terminals belong to
+  // the page, and most forms never open one.
+  useTerminals().openOn(props.connectorId, {
+    action: command.name,
+    nodeId,
+    params,
+    title: props.targetNode?.label ?? props.nodeLabel,
+  })
+  useBottomPanel().show("terminals")
+  close()
+}
+
 async function submit() {
   const command = props.command
   if (!command) return
@@ -381,6 +401,10 @@ async function submit() {
   if (params === null) return
   if (reviewMissing.value) {
     failure.value = t("catalog.action_dialog.review_plan")
+    return
+  }
+  if (command.opensTerminal) {
+    openTerminal(command, params)
     return
   }
   if (command.producesJob) {
