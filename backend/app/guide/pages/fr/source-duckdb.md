@@ -23,6 +23,8 @@ Le fonctionnement général des connexions est décrit à la page
 - Les colonnes, index et clés uniques
 - De nouvelles tables, conçues objet par objet ou créées à partir de lignes
 - Schémas créés et supprimés ; tables et vues renommées et supprimées
+- Des tables copiées avec leur structure, vers un autre fichier DuckDB ou ici
+- Le fichier entier, sauvegardé et restauré
 - Les données et la structure, par le SQL de la console
 
 ## Se connecter
@@ -52,6 +54,20 @@ ou charger une extension, ou déverser un gros tri sur le disque. Une vue du
 fichier qui lit un fichier ailleurs est refusée à l'ouverture. Les fichiers de
 votre stockage se nomment depuis sa racine avec `~/`, par exemple
 `~/data/sales.parquet`.
+
+## Une base à vous
+
+**Nouvelle connexion** propose **Créer DuckDB ici**, des deux manières dont on
+démarre un serveur. **Le configurer pour moi** crée
+`databases/dataplayer.duckdb` dans votre stockage, rempli d'un laboratoire
+d'organisations, de personnes, de projets et de tâches, et enregistre la
+connexion pour vous. **Me laisser choisir** demande le nom, le dossier et s'il
+faut le remplir. Un nom déjà pris reçoit un numéro au lieu de remplacer le
+fichier. Le fichier est ordinaire : on le renomme, le télécharge ou le supprime
+dans **Fichiers**.
+
+Un fichier DuckDB que vous voyez déjà dans une connexion **Fichiers** peut être
+connecté depuis là : **Connecter en DuckDB** remplit cette fenêtre pour vous.
 
 ## Le catalogue
 
@@ -224,6 +240,37 @@ l'instruction** montre le SQL qu'exécute un rapport.
   diagramme.
 - Rien ne passe d'un schéma à l'autre : DuckDB ne le peut pas.
 
+## Copier des tables
+
+**Copiez** des tables dans le catalogue et **Collez**-les dans un schéma d'une
+autre connexion DuckDB, ou de celle-ci. Elles arrivent avec leurs colonnes,
+valeurs par défaut, clés, contrôles, index et commentaires ; la fenêtre demande
+les mêmes choses que pour PostgreSQL, montre chaque instruction et n'exécute
+rien avant **Copier**.
+
+- Chaque valeur arrive exactement telle qu'elle était, listes, structs et maps
+  compris. Une table avec une colonne `UNION` n'est pas copiée : son texte ne
+  dit pas quel membre est une valeur.
+- Une colonne dont la valeur par défaut prend la valeur suivante d'une
+  séquence, comme une identité, reçoit dans la copie une séquence à elle, qui
+  continue là où celle de l'original continuerait.
+- DuckDB vérifie une clé étrangère immédiatement : une table est donc créée et
+  remplie après les tables de la copie vers lesquelles elle pointe. Une clé ne
+  peut pointer que dans son propre schéma.
+- La copie est une transaction : les tables, leurs lignes et leurs index
+  arrivent ensemble ou pas du tout.
+
+## Sauvegardes
+
+**Sauvegardes**, dans le menu d'actions du catalogue, fonctionne comme pour
+PostgreSQL, pour le fichier qu'ouvre la connexion.
+
+- La sauvegarde est une copie du fichier, prise après que DuckDB y a écrit son
+  journal. Tant qu'un autre programme écrit dans le fichier, elle est refusée.
+- **Restaurer** remplace tout le contenu du fichier par la sauvegarde. Un
+  fichier qui n'est pas une base DuckDB est refusé avant que rien ne soit
+  écrit.
+
 ## Console SQL
 
 **Nouvelle requête** sous **Requêtes** dans la barre de gauche en lance une sur
@@ -256,6 +303,5 @@ avant que la console vous pose la question.
 
 ## Ce que DuckDB n'a pas encore ici
 
-- La copie de tables et les sauvegardes. Elles viendront plus tard.
 - Un fichier sur un serveur SSH, ou dans une autre connexion, ne peut pas être
   ouvert comme base de données.

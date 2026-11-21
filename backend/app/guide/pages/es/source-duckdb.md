@@ -22,6 +22,8 @@ Cómo funcionan las conexiones en general está en la página
 - Columnas, índices y claves únicas
 - Tablas nuevas, diseñadas objeto por objeto o creadas a partir de filas
 - Esquemas creados y eliminados; tablas y vistas renombradas y eliminadas
+- Tablas copiadas con su estructura, a otro archivo DuckDB o a este
+- El archivo entero, con copia de seguridad y restauración
 - Datos y estructura, mediante SQL en la consola
 
 ## Conectarse
@@ -51,6 +53,19 @@ cargar una extensión, ni volcar a disco una ordenación grande. Una vista del
 archivo que lee un archivo de otro sitio se rechaza al abrirla. Los archivos
 de tu almacenamiento se nombran desde su raíz con `~/`, como
 `~/data/sales.parquet`.
+
+## Una base propia
+
+**Nueva conexión** ofrece **Crear DuckDB aquí**, de las dos maneras en que se
+inicia un servidor. **Configúralo por mí** crea `databases/dataplayer.duckdb`
+en tu almacenamiento, lleno de un laboratorio de organizaciones, personas,
+proyectos y tareas, y guarda la conexión por ti. **Déjame elegir** pide el
+nombre, la carpeta y si llenarlo. Un nombre ya usado recibe un número en lugar
+de reemplazar el archivo. El archivo es uno corriente: renómbralo, descárgalo o
+bórralo en **Archivos**.
+
+Un archivo DuckDB que ya ves en una conexión de **Archivos** se puede conectar
+desde allí: **Conectar como DuckDB** rellena esta ventana por ti.
 
 ## El catálogo
 
@@ -218,6 +233,36 @@ instrucción** muestra el SQL que ejecuta un informe.
   diagrama.
 - Nada se mueve entre esquemas: DuckDB no puede.
 
+## Copiar tablas
+
+**Copia** tablas en el catálogo y **pégalas** en un esquema de otra conexión
+DuckDB o de esta. Llegan con sus columnas, valores por defecto, claves,
+comprobaciones, índices y comentarios; la ventana pregunta lo mismo que en
+PostgreSQL, muestra cada instrucción y no ejecuta nada antes de **Copiar**.
+
+- Cada valor llega exactamente como era, listas, structs y maps incluidos. Una
+  tabla con una columna `UNION` no se copia: su texto no dice qué miembro es un
+  valor.
+- Una columna cuyo valor por defecto toma el siguiente valor de una secuencia,
+  como una identidad, recibe en la copia una secuencia propia que sigue donde
+  seguiría la del original.
+- DuckDB comprueba una clave foránea al instante, así que una tabla se crea y
+  se llena después de las tablas de la copia a las que apunta. Una clave solo
+  puede apuntar a su propio esquema.
+- La copia es una transacción: las tablas, sus filas y sus índices llegan
+  juntos o no llegan.
+
+## Copias de seguridad
+
+**Copias de seguridad**, en el menú de acciones del catálogo, funciona como en
+PostgreSQL, para el archivo que abre la conexión.
+
+- La copia de seguridad es una copia del archivo, hecha después de que DuckDB
+  haya escrito su registro en él. Mientras otro programa escribe en el archivo,
+  se rechaza.
+- **Restaurar** reemplaza todo el contenido del archivo por la copia. Un
+  archivo que no es una base DuckDB se rechaza antes de escribir nada.
+
 ## Consola SQL
 
 **Nueva consulta** en **Consultas** de la barra izquierda inicia una en la
@@ -248,6 +293,5 @@ borrado se prueba primero y se deshace antes de que la consola te pregunte.
 
 ## Lo que DuckDB aún no tiene aquí
 
-- Copiar tablas y las copias de seguridad. Llegarán más adelante.
 - Un archivo en un servidor SSH, o dentro de otra conexión, no se puede abrir
   como base de datos.

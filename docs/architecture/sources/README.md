@@ -19,7 +19,7 @@ file holds which decision.
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [sqlite.md](sqlite.md) | change how a SQLite file is opened and guarded, what its catalog shows, what is read from a table's text, how its values and pages are read, or how its tables are copied and the file backed up |
-| [duckdb.md](duckdb.md) | change how a DuckDB file is opened, how the engine is locked to the owner's storage, what its catalog shows, how its values and pages are read, its rows and structure changed and its tables designed, its reports, search, export and catalog actions, or its console |
+| [duckdb.md](duckdb.md) | change how a DuckDB file is opened, how the engine is locked to the owner's storage, what its catalog shows, how its values and pages are read, its rows and structure changed and its tables designed, its reports, search, export and catalog actions, copying its tables, backing it up, its lab, a DuckDB file in a file source or one made here, or its console |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
 | [binance.md](binance.md) | change how Binance is reached and kept under its rate limit, what its catalog shows of markets, quote assets, symbols and feeds, or how tickers, symbols, candles, trades and the order book are read as rows, read on by a link, reported, measured and searched |
@@ -139,7 +139,11 @@ after; a foreign key, a check or a dropped constraint is refused (D396). The
 designer's identity is a sequence and a generated column is virtual (D397).
 Reports read DuckDB's catalog functions, search reads the catalog whole, and
 every row is exported (D398); a drop is rehearsed with every view bound, and a
-table with a foreign key of its own is not renamed (D399).
+table with a foreign key of its own is not renamed (D399). Tables are copied
+from the catalog's description with their rows as DuckDB's text (D400), the
+file is backed up as itself after a checkpoint (D401), the lab is a file
+(D402), a `.duckdb` in a file source lists its tables and connects (D403), and
+one is made here as SQLite's is (D404).
 
 **ClickHouse** — a server reached over its HTTP interface with the
 application's own client, every value one of the server's parameters and every
@@ -312,7 +316,9 @@ backend/app/adapters/
 │                       keys.py (structure), vocabulary.py, design.py (the
 │                       designer), relation_changes.py, actions.py,
 │                       reports.py (System), search.py, export.py,
-│                       adapter.py
+│                       table_copy.py, backup.py, samples.py + sample_data/
+│                       (the lab), file_tables.py (a file seen from a file
+│                       source), made_here.py, adapter.py
 ├── clickhouse/         session.py (the HTTP interface, its errors, addresses)
 │                       and pool.py (a kept client), sql.py (names and
 │                       parameters), inspection.py (system.tables, once),
@@ -338,6 +344,7 @@ backend/app/adapters/
 │                       table_copy.py, backup.py, metrics.py, samples.py,
 │                       console.py (mongosh), summary.py, adapter.py
 ├── database_ids.py     a database and a relation as one node id (D229)
+├── made_here.py        a database file made in its owner's storage (D263, D404)
 ├── row_handles.py      a handle of values and a digest of the row (D234, D272)
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and

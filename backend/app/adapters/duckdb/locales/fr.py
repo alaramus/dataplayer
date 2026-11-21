@@ -75,4 +75,10 @@ MESSAGES: dict[str, str] = {
     '{count} sequences': '{count} séquences',
     '{count} types': '{count} types',
     'Sequence {name} goes with it: only what is dropped takes values from it': 'La séquence {name} part avec elle : seul ce qui est supprimé en tire des valeurs',
+    'Comment on {subject}': 'Commentaire sur {subject}',
+    '{label}: {name} cannot point into another schema, and is not copied': "{label} : {name} ne peut pas pointer vers un autre schéma et n'est pas copié",
+    '{name} is a union, whose text does not say which member it holds': '{name} est une union, dont le texte ne dit pas quel membre elle contient',
+    'The file is not a DuckDB database': "Le fichier n'est pas une base de données DuckDB",
+    'This file is not a DuckDB backup': "Ce fichier n'est pas une sauvegarde DuckDB",
+    'The database file cannot be read': 'Le fichier de base de données ne peut pas être lu',
 }

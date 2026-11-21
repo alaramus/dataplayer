@@ -1,4 +1,5 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +23,9 @@ from app.adapters.constraints import (
     DropConstraintRequest,
 )
 from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.duckdb import made_here
 from app.adapters.duckdb.actions import DUCKDB_ACTION_TYPES, DropRelation, DuckdbActions
+from app.adapters.duckdb.backup import DuckdbBackup
 from app.adapters.duckdb.catalog import DuckdbCatalog
 from app.adapters.duckdb.columns import DuckdbColumns
 from app.adapters.duckdb.content import DuckdbContent
@@ -42,6 +45,7 @@ from app.adapters.duckdb.search import DuckdbSearch
 from app.adapters.duckdb.session import DuckdbSession
 from app.adapters.duckdb.statements import format_text
 from app.adapters.duckdb.summary import DuckdbSummaries
+from app.adapters.duckdb.table_copy import DIALECT, DuckdbTableCopy
 from app.adapters.duckdb.update import DuckdbUpdate
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
@@ -52,7 +56,14 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
-from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.made_here import FOLDER, STEM
+from app.adapters.protocol import (
+    BackupAvailability,
+    BackupProgram,
+    ConnectionCheckResult,
+    MadeSource,
+    MakeChoice,
+)
 from app.adapters.query import (
     ExplainRequest,
     ExplainResult,
@@ -88,6 +99,14 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.summary import NodeSummary
+from app.adapters.table_copy import (
+    Arrived,
+    CopiedTable,
+    RowsOf,
+    TableCopyPlan,
+    TableCopyRequest,
+    TableRows,
+)
 from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -134,6 +153,70 @@ class DuckdbAdapter:
         self._actions = DuckdbActions(self._session, self._catalog)
         self._search = DuckdbSearch(self._session)
         self._export = DuckdbExport(self._session, self._fetch)
+        self._table_copy = DuckdbTableCopy(self._session, self._relations)
+        self._backup = DuckdbBackup(self._session)
+
+    makes_here_file = f"{FOLDER}/{STEM}{made_here.SUFFIX}"
+
+    @classmethod
+    def make_source_here(cls, home_dir: Path, choice: MakeChoice) -> MadeSource:
+        """A new file, `databases/dataplayer.duckdb` with the lab unless chosen (D404)."""
+        return made_here.make(home_dir, choice)
+
+    @classmethod
+    def unmake_source_here(cls, home_dir: Path, made: MadeSource) -> None:
+        made_here.unmake(home_dir, made)
+
+    @classmethod
+    def source_file_here(cls, options: Mapping[str, Any]) -> str | None:
+        return made_here.file_of(options)
+
+    @classmethod
+    def remove_source_here(cls, home_dir: Path, path: str) -> None:
+        made_here.remove(home_dir, path)
+
+    async def backup_availability(self) -> BackupAvailability:
+        return await self._backup.backup_availability()
+
+    async def backup_program(self, *, into: str) -> BackupProgram:
+        """The file, its log checkpointed into it, copied byte by byte (D401)."""
+        return await self._backup.backup_program(into=into)
+
+    async def restore_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_program(from_file=from_file)
+
+    async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_inventory_program(from_file=from_file)
+
+    def validate_restore_inventory(self, lines: Sequence[str]) -> None:
+        self._backup.validate_restore_inventory(lines)
+
+    def restore_archive_reason(self, head: bytes) -> str | None:
+        return self._backup.restore_archive_reason(head)
+
+    table_copy_dialect = DIALECT
+
+    @property
+    def table_copy_database(self) -> str:
+        return self._table_copy.table_copy_database
+
+    async def describe_for_copy(self, node_ids: list[str]) -> list[CopiedTable]:
+        return await self._table_copy.describe_for_copy(node_ids)
+
+    async def free_table_names(self, place_node_id: str, wanted: list[str]) -> list[str]:
+        return await self._table_copy.free_table_names(place_node_id, wanted)
+
+    async def plan_table_copy(self, request: TableCopyRequest) -> TableCopyPlan:
+        return await self._table_copy.plan_table_copy(request)
+
+    def reading_tables(self) -> AbstractAsyncContextManager[TableRows]:
+        return self._table_copy.reading_tables()
+
+    async def carry_table_copy(
+        self, request: TableCopyRequest, rows_of: RowsOf, arrived: Arrived
+    ) -> None:
+        """Tables, sequences, rows and indexes in one transaction, parents first (D400)."""
+        await self._table_copy.carry_table_copy(request, rows_of, arrived)
 
     @classmethod
     def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:

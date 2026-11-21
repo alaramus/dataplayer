@@ -100,7 +100,7 @@ async def test_a_path_out_of_the_storage_is_refused_by_the_form(
 
 
 @pytest.mark.usefixtures("home")
-async def test_the_catalog_is_searched_and_a_backup_is_not_offered(
+async def test_the_catalog_is_searched_and_a_backup_is_offered(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     connector = await _connector(client, normal_user_token_headers, {"path": FILE})
@@ -118,8 +118,9 @@ async def test_the_catalog_is_searched_and_a_backup_is_not_offered(
 
     assert found.status_code == 200, found.text
     assert [match["node"]["id"] for match in found.json()["matches"]] == ["main.items"]
-    # Backups come in a later slice, and the capability is not claimed (D2).
-    assert offer.status_code == 501, offer.text
+    # The type can name a backup program (D401); whether this server can run
+    # one is the offer's own answer.
+    assert offer.status_code == 200, offer.text
 
 
 @pytest.mark.usefixtures("home")
@@ -160,3 +161,29 @@ async def test_the_console_runs_and_rehearses(
     [statement] = run["statements"]
     page = await client.get(f"{queries}/results/{statement['result_id']}", headers=headers)
     assert page.json()["rows"][0] == ["1", "one"]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_database_is_made_here_with_its_connection(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], home: Path
+) -> None:
+    """Create DuckDB here, as Create SQLite here (D404)."""
+    headers = normal_user_token_headers
+    name = f"lab {uuid.uuid4().hex[:8]}"
+
+    types = await client.get(f"{settings.API_V1_STR}/adapter-types/", headers=headers)
+    made = await client.post(
+        f"{BASE}/made-here",
+        headers=headers,
+        json={"adapter_type": "duckdb", "choice": {"name": name, "folder": "work"}},
+    )
+
+    said = {item["name"]: item for item in types.json()}["duckdb"]
+    assert (said["makes_here"], said["makes_here_wal"]) == (True, False)
+    assert made.status_code == 200, made.text
+    connector = made.json()
+    file = f"work/{name.replace(' ', '-')}.duckdb"
+    assert connector["config"]["path"] == file
+    assert (home / file).is_file()
+    tables = await client.get(f"{BASE}/{connector['id']}/catalog", headers=headers, params={"node_id": "main"})
+    assert "tasks" in {node["name"] for node in tables.json()}

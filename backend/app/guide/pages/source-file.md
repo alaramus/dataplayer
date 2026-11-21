@@ -36,6 +36,9 @@ list of its tables and views, with roughly how many rows each holds.
 makes a new SQLite connection to it. Only a file in your personal storage
 can be connected; elsewhere the action is shown off, with the reason.
 
+A DuckDB file (`.duckdb`, `.ddb`) opens the same way, and **Connect as DuckDB**
+makes a DuckDB connection to it.
+
 ## The catalog
 
 - The path of the level you are on is shown at the top. **Copy the path of this

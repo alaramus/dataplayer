@@ -75,4 +75,10 @@ MESSAGES: dict[str, str] = {
     '{count} sequences': 'تسلسلات: {count}',
     '{count} types': 'أنواع: {count}',
     'Sequence {name} goes with it: only what is dropped takes values from it': 'يُحذف التسلسل {name} معه: لا يأخذ منه القيم إلا ما يُحذف',
+    'Comment on {subject}': 'تعليق على {subject}',
+    '{label}: {name} cannot point into another schema, and is not copied': '{label}: لا يمكن أن يشير {name} إلى مخطط آخر، فلا يُنسخ',
+    '{name} is a union, whose text does not say which member it holds': '{name} اتحاد لا يقول نصه أيّ عضو يحمل',
+    'The file is not a DuckDB database': 'الملف ليس قاعدة بيانات DuckDB',
+    'This file is not a DuckDB backup': 'هذا الملف ليس نسخة احتياطية من DuckDB',
+    'The database file cannot be read': 'لا يمكن قراءة ملف قاعدة البيانات',
 }

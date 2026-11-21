@@ -22,6 +22,9 @@ Wie Verbindungen allgemein funktionieren, steht auf der Seite
 - Spalten, Indizes und eindeutige Schlüssel
 - Neue Tabellen, Objekt für Objekt entworfen oder aus Zeilen erstellt
 - Schemas anlegen und löschen; Tabellen und Sichten umbenennen und löschen
+- Tabellen mit ihrer Struktur kopiert, in eine andere DuckDB-Datei oder in
+  diese
+- Die ganze Datei, gesichert und wiederhergestellt
 - Daten und Struktur, über SQL in der Konsole
 
 ## Verbinden
@@ -51,6 +54,21 @@ Erweiterung installieren oder laden oder eine große Sortierung auf die Platte
 auslagern. Eine Sicht in der Datei, die eine Datei anderswo liest, wird beim
 Öffnen abgelehnt. Dateien Ihres Speichers werden von seiner Wurzel aus mit `~/`
 benannt, etwa `~/data/sales.parquet`.
+
+## Eine eigene Datenbank
+
+**Neue Verbindung** bietet **DuckDB hier erstellen** an, auf die zwei Arten,
+auf die ein Server gestartet wird. **Für mich einrichten** legt
+`databases/dataplayer.duckdb` in Ihrem Speicher an, gefüllt mit einem Labor aus
+Organisationen, Personen, Projekten und Aufgaben, und speichert die Verbindung
+für Sie. **Selbst auswählen** fragt nach Name, Ordner und ob Beispieldaten
+hinein sollen. Ein schon vergebener Name erhält eine Nummer, statt die Datei zu
+ersetzen. Die Datei ist eine gewöhnliche: Umbenennen, Herunterladen oder
+Löschen geht in **Dateien**.
+
+Eine DuckDB-Datei, die Sie schon in einer **Dateien**-Verbindung sehen, lässt
+sich von dort verbinden: **Als DuckDB verbinden** füllt dieses Fenster für Sie
+aus.
 
 ## Der Katalog
 
@@ -226,6 +244,38 @@ und lassen sich sortieren, filtern, herunterladen und als Diagramm zeigen.
   ein Diagramm aus.
 - Zwischen Schemas wird nichts verschoben: DuckDB kann das nicht.
 
+## Tabellen kopieren
+
+**Kopieren** Sie Tabellen im Katalog und **Fügen** Sie sie in ein Schema einer
+anderen DuckDB-Verbindung **ein** oder dieser. Sie kommen mit ihren Spalten,
+Standardwerten, Schlüsseln, Prüfungen, Indizes und Kommentaren an; das Fenster
+fragt dasselbe wie bei PostgreSQL, zeigt jede Anweisung und führt nichts vor
+**Kopieren** aus.
+
+- Jeder Wert kommt genau so an, wie er war, Listen, Structs und Maps
+  eingeschlossen. Eine Tabelle mit einer `UNION`-Spalte wird nicht kopiert: Ihr
+  Text sagt nicht, welches Element ein Wert ist.
+- Eine Spalte, deren Standardwert den nächsten Wert einer Sequenz nimmt, wie
+  bei einer Identität, erhält in der Kopie eine eigene Sequenz, die dort
+  weiterzählt, wo die des Originals es täte.
+- DuckDB prüft einen Fremdschlüssel sofort, also wird eine Tabelle nach den
+  Tabellen der Kopie angelegt und gefüllt, auf die sie zeigt. Ein Schlüssel
+  kann nur in sein eigenes Schema zeigen.
+- Die Kopie ist eine Transaktion: Tabellen, Zeilen und Indizes kommen zusammen
+  an oder gar nicht.
+
+## Sicherungen
+
+**Sicherungen** im Aktionsmenü des Katalogs funktionieren wie bei PostgreSQL,
+für die Datei, die die Verbindung öffnet.
+
+- Die Sicherung ist eine Kopie der Datei, gezogen, nachdem DuckDB sein Log in
+  sie geschrieben hat. Solange ein anderes Programm in die Datei schreibt, wird
+  sie abgelehnt.
+- **Wiederherstellen** ersetzt alles in der Datei durch die Sicherung. Eine
+  Datei, die keine DuckDB-Datenbank ist, wird abgelehnt, bevor etwas
+  geschrieben wird.
+
 ## SQL-Konsole
 
 **Neue Abfrage** unter **Abfragen** in der linken Leiste startet eine auf der
@@ -257,6 +307,5 @@ ausprobiert und rückgängig gemacht, bevor die Konsole Sie danach fragt.
 
 ## Was DuckDB hier noch nicht hat
 
-- Tabellen kopieren und Sicherungen. Sie kommen später.
 - Eine Datei auf einem SSH-Server oder in einer anderen Verbindung lässt sich
   nicht als Datenbank öffnen.

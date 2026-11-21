@@ -48,6 +48,7 @@ from app.adapters.content import (
 from app.adapters.explorer import archive
 from app.adapters.explorer.binary import bytes_look_binary
 from app.adapters.explorer.formats import (
+    database_engine,
     format_of,
     offers_source,
     representations_inside_archive,
@@ -176,7 +177,7 @@ class ExplorerContent:
             raise ValueError(
                 say('This file does not offer the "{representation}" representation', representation="database")
             )
-        reader = database_reader("sqlite")
+        reader = database_reader(database_engine(source.name) or "")
         if reader is None:
             raise ValueError(say("This server cannot read database files"))
         with self._storage.local_file(place) as local:

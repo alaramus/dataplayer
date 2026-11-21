@@ -75,4 +75,10 @@ MESSAGES: dict[str, str] = {
     '{count} sequences': '{count} अनुक्रम',
     '{count} types': '{count} प्रकार',
     'Sequence {name} goes with it: only what is dropped takes values from it': 'अनुक्रम {name} भी साथ में हटता है: उससे मान केवल वही लेता है जो हटाया जा रहा है',
+    'Comment on {subject}': '{subject} पर टिप्पणी',
+    '{label}: {name} cannot point into another schema, and is not copied': '{label}: {name} किसी दूसरे स्कीमा की ओर इशारा नहीं कर सकता, इसलिए कॉपी नहीं होता',
+    '{name} is a union, whose text does not say which member it holds': '{name} एक यूनियन है, जिसके टेक्स्ट से पता नहीं चलता कि उसमें कौन-सा सदस्य है',
+    'The file is not a DuckDB database': 'यह फ़ाइल DuckDB डेटाबेस नहीं है',
+    'This file is not a DuckDB backup': 'यह फ़ाइल DuckDB का बैकअप नहीं है',
+    'The database file cannot be read': 'डेटाबेस फ़ाइल पढ़ी नहीं जा सकती',
 }

@@ -4,13 +4,15 @@ What a DuckDB source is, how it opens its file and locks the engine to the
 owner's storage, how it reads its catalog, how its values and pages cross
 to the grid and how its rows are changed there, how its structure is changed and
 tables designed, what it reports, how it is searched and exported, what its
-catalog can be asked to do, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
+catalog can be asked to do, how its tables are copied and the file backed up,
+its lab, a DuckDB file seen from a file source and one made here, and how its
+SQL console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md); the other DuckDB in the server, the sandbox
 behind SQL over files, is in [file-sql.md](file-sql.md). Read this before
 changing the `duckdb` adapter.
 
-Decisions here: D387, D388, D389, D390, D391, D392, D393, D394, D395, D396, D397, D398, D399.
+Decisions here: D387, D388, D389, D390, D391, D392, D393, D394, D395, D396, D397, D398, D399, D400, D401, D402, D403, D404.
 
 ## D387. A DuckDB source is one file of its owner's storage, opened per call
 
@@ -298,3 +300,81 @@ Known deviations:
   table is gone and the file reopened.
 
 Spec: [DuckDB reports, search, export and catalog actions](../../decisions/2026-11-21-duckdb-actions-design.md)
+
+## D400. A copied table is described from the catalog, its rows as DuckDB's text
+
+A table is described from DuckDB's catalog: each column's type as
+`duckdb_columns()` spells it — an enum with its labels, so a user type needs no
+description of its own — its requirement, default and generation, the keys and
+checks of `duckdb_constraints()`, foreign keys as links, each index's keys read
+after `ON` in its `CREATE INDEX`, and the comments. A default that is exactly
+`nextval` of a sequence of the file travels as an identity, and the copy makes
+`<table>_<column>_seq` for it, starting where the original would go next
+(D397). A view is refused, and so is a table with a `UNION` column.
+
+Rows travel as JSON lines of the text DuckDB casts each value to, and the
+destination casts them back by the column's type, which is exact for every
+type but a union. The copy is one transaction: sequences and tables first,
+each table after every table of the copy it points at, since DuckDB checks a
+key at once against a table that must exist; then rows in that order, then
+indexes and comments. Inside one file the rows are copied by `INSERT … SELECT`.
+A link may keep its original only inside one file and one schema (D389).
+
+Spec: [Copying DuckDB tables, backing a file up, the lab, and a file seen from a file source](../../decisions/2026-11-21-duckdb-copy-design.md)
+
+## D401. A file is backed up as itself, its log checkpointed into it
+
+The backup program is a script for plain Python in `python:3.14-slim`, as
+SQLite's (D260), with no DuckDB in it: before it is named, the connection runs
+`CHECKPOINT`, which writes the log into the file, and the script copies the
+file byte by byte. It refuses while a `.wal` lies beside the file, since
+another program is then writing. A restore must begin with DuckDB's header,
+`DUCK` after eight bytes, is refused while the file it replaces has a log, and
+is written beside the file and moved into place.
+
+Known deviations:
+
+- **The copy is not DuckDB's own.** A program that opens the file between the
+  checkpoint and the copy and writes leaves a `.wal`, which the script sees;
+  one that writes and closes in that moment is copied as it left the file.
+
+Spec: [Copying DuckDB tables, backing a file up, the lab, and a file seen from a file source](../../decisions/2026-11-21-duckdb-copy-design.md)
+
+## D402. The lab is a file
+
+A DuckDB source starts no server, so its sample is `lab.duckdb`, the lab of
+the other samples told in DuckDB's terms — enums, a struct, a list, a map,
+`HUGEINT`, `TIMESTAMPTZ`, intervals, JSON, a blob, sequences behind
+identities, a virtual generated column, checks, foreign keys, an index, a
+view, a macro, a second schema and a table with no key — written by
+`app.seed_storage` into the development superuser's storage and opened by the
+`duckdb-lab` connection `bun run seed:connectors` adds.
+
+Spec: [Copying DuckDB tables, backing a file up, the lab, and a file seen from a file source](../../decisions/2026-11-21-duckdb-copy-design.md)
+
+## D403. A DuckDB file in a file source shows its tables and connects
+
+A file named `.duckdb` or `.ddb` offers the `database` representation, as a
+SQLite file does (D262): its tables and views with DuckDB's estimates, the
+engine and the size, at most a thousand, one outside `main` named with its
+schema. It is opened read only by an engine sealed to the file's folder
+(D388), under a clock; a file without DuckDB's header says so. The explorer
+asks for the reader by the engine its name says; this package registers it.
+
+**Connect as DuckDB** drafts a DuckDB connection to the file, owner only, in
+personal storage only, as Connect as SQLite does; each is offered for its own
+engine's files, and the database panel offers whichever the server does.
+
+Spec: [Copying DuckDB tables, backing a file up, the lab, and a file seen from a file source](../../decisions/2026-11-21-duckdb-copy-design.md)
+
+## D404. A DuckDB database is made here as a file
+
+**Create DuckDB here** is Create SQLite here (D263) for a `.duckdb`: left to
+the server, `databases/dataplayer.duckdb` with the lab of D402; chosen, the
+folder, the name, and the lab or an empty database. Where and under what name
+is one shared rule, `adapters/made_here.py`. DuckDB always keeps its log, so
+the type says it has no write-ahead log to choose and the form leaves the
+choice out; the type also says which file the server would make. A connection
+deleted with its file takes the `.wal` beside it.
+
+Spec: [Copying DuckDB tables, backing a file up, the lab, and a file seen from a file source](../../decisions/2026-11-21-duckdb-copy-design.md)

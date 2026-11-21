@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from app.adapters.made_here import stem_of
 from app.adapters.protocol import MakeChoice, MakesSourceHere
 from app.adapters.sqlite.adapter import SqliteAdapter
-from app.adapters.sqlite.made_here import stem_of
 from app.adapters.sqlite.options import SqliteOptions
 
 

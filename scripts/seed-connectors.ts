@@ -133,6 +133,8 @@ async function main() {
     { name: "redis-cache", adapter_type: "redis", options: redisCacheOptions() },
     // The lab file prestart writes into the superuser's storage (D261).
     { name: "sqlite-lab", adapter_type: "sqlite", options: { path: "lab.db" } },
+    // The DuckDB lab beside it (D402).
+    { name: "duckdb-lab", adapter_type: "duckdb", options: { path: "lab.duckdb" } },
     // Public market data: nothing to start and nothing secret (D316).
     { name: "binance", adapter_type: "binance", options: { endpoint: "binance" } },
   ];

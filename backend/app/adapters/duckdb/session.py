@@ -87,6 +87,21 @@ def _is_a_file(connection: duckdb.DuckDBPyConnection) -> bool:
     return row is not None and row[0] is not None
 
 
+def open_read_only(path: Path) -> duckdb.DuckDBPyConnection:
+    """A file opened read only and sealed to its own folder, for a look at
+    what it holds from a file source (D403); the caller closes it."""
+    with _SEALING:
+        connection = duckdb.connect(str(path), read_only=True, config=_CONFIG)
+        try:
+            _seal(connection, path.parent)
+            if not _is_a_file(connection):
+                raise duckdb.InvalidInputException("not a database")
+        except BaseException:
+            connection.close()
+            raise
+    return connection
+
+
 def classify(
     exc: BaseException, *, fallback_message: str = N_("Query failed")
 ) -> tuple[ErrorKind, str]:
@@ -208,6 +223,18 @@ class DuckdbSession:
     @property
     def options(self) -> DuckdbOptions:
         return self._options
+
+    def path(self) -> str:
+        """Where the file is on this server's disk, judged as every open is."""
+        return str(self._home_file.to_open())
+
+    def place(self) -> str:
+        """The file's path, to tell whether two connections open one file;
+        the path as given when it is refused."""
+        try:
+            return str(self._home_file.path())
+        except AdapterError:
+            return self._options.path
 
     @property
     def home(self) -> Path:

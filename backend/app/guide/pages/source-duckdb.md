@@ -22,6 +22,8 @@ How connections work in general is on the [Connections](connections.md) page.
 - Columns, indexes and unique keys
 - New tables, designed object by object or made from rows
 - Schemas made and dropped; tables and views renamed and dropped
+- Tables copied with their structure, into another DuckDB file or this one
+- The whole file, backed up and restored
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -47,6 +49,19 @@ outside your personal storage, reach the network, install or load an
 extension, or spill a large sort to disk. A view in the file that reads a file
 elsewhere is refused when it is opened. Files of your own storage are named
 from its top with `~/`, such as `~/data/sales.parquet`.
+
+## A database of your own
+
+**New connection** offers **Create DuckDB here**, with the same two ways a
+server is started. **Set it up for me** makes `databases/dataplayer.duckdb` in
+your storage, filled with a lab of organizations, people, projects and tasks,
+and saves the connection for you. **Let me choose** asks for the name, the
+folder and whether to fill it. A name already taken gets a number rather than
+replacing the file. The file is an ordinary one: rename, download or delete it
+in **Files**.
+
+A DuckDB file you already see in a **Files** connection can be connected from
+there: **Connect as DuckDB** fills this window in for you.
 
 ## The catalog
 
@@ -199,6 +214,34 @@ the SQL a report runs.
 - **Model as code** writes a schema or a selection out for an ORM or a diagram.
 - Nothing is moved between schemas: DuckDB cannot.
 
+## Copying tables
+
+**Copy** tables in the catalog and **Paste** them into a schema of another
+DuckDB connection, or of this one. They arrive with their columns, defaults,
+keys, checks, indexes and comments; the window asks the same things as on
+PostgreSQL, shows every statement and runs nothing before **Copy**.
+
+- Every value arrives exactly as it was, lists, structs and maps included. A
+  table with a `UNION` column is not copied: its text does not say which member
+  a value is.
+- A column whose default takes the next value of a sequence, as an identity's,
+  gets a sequence of its own in the copy, continuing where the original's
+  would.
+- DuckDB checks a foreign key at once, so a table is made and filled after the
+  tables of the copy it points at. A key can point only into its own schema.
+- The copy is one transaction: the tables, their rows and their indexes arrive
+  together or not at all.
+
+## Backups
+
+**Backups**, in the catalog's actions menu, works as on PostgreSQL, for the
+file the connection opens.
+
+- The backup is a copy of the file, taken after DuckDB has written its log into
+  it. While another program writes to the file, the backup is refused.
+- **Restore** replaces everything in the file with the backup. A file that is
+  not a DuckDB database is refused before anything is written.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -227,6 +270,5 @@ console asks you about it.
 
 ## What DuckDB does not have here yet
 
-- Copying tables and backups. They come later.
 - A file on an SSH server, or inside another connection, cannot be opened as a
   database.

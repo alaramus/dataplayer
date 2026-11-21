@@ -39,6 +39,9 @@ le menu d'actions du fichier, crée une nouvelle connexion SQLite vers lui.
 Seul un fichier de votre stockage personnel peut être connecté ; ailleurs,
 l'action est désactivée et en donne la raison.
 
+Un fichier DuckDB (`.duckdb`, `.ddb`) s'ouvre de la même façon, et **Connecter
+en DuckDB** crée une connexion DuckDB vers lui.
+
 ## Le catalogue
 
 - Le chemin du niveau où vous vous trouvez est affiché en haut. **Copier le

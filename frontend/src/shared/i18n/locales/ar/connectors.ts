@@ -57,7 +57,7 @@ export const connectors: Messages["connectors"] = {
     made: "تم إنشاء {name} في {where}",
     failed: "تعذّر إنشاء قاعدة البيانات",
     automatic:
-      "ينشئ databases/dataplayer.db في تخزينك، مع بيانات عيّنة ليكون هناك ما يُنظر إليه، ويسمّي الاتصال على اسم الملف.",
+      "ينشئ {file} في تخزينك، مع بيانات عيّنة ليكون هناك ما يُنظر إليه، ويسمّي الاتصال على اسم الملف.",
     name_placeholder: "dataplayer",
     folder: "المجلد",
     folder_placeholder: "databases",

@@ -15,10 +15,10 @@ let registry = createReloadRegistry()
 let createConnector = vi.fn()
 
 /** The action as the server describes it, offered or greyed with a reason. */
-function connectAction(applicable: boolean, reason: string | null = null) {
+function connectAction(applicable: boolean, reason: string | null = null, engine = "sqlite") {
   return {
-    name: "connect_sqlite",
-    title: "Connect as SQLite",
+    name: `connect_${engine}`,
+    title: engine === "sqlite" ? "Connect as SQLite" : "Connect as DuckDB",
     applicable,
     unavailable_reason: reason,
     available_node_ids: applicable ? ["data/shop.db"] : [],
@@ -164,5 +164,24 @@ describe("a database file opened from a file source (D262)", () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="database-connect"]').exists()).toBe(false)
+  })
+
+  it("connects a DuckDB file by the action offered for it (D403)", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(LAB as never)
+    // Both are listed; only the DuckDB one is offered for this file.
+    vi.spyOn(ConnectorsService, "readActions").mockResolvedValue({
+      data: [connectAction(false), connectAction(true, null, "duckdb")],
+    } as never)
+    const prepare = vi
+      .spyOn(ConnectorsService, "prepareConnectorAction")
+      .mockResolvedValue({ data: { name: "shop.duckdb", adapter_type: "duckdb", options: {} } } as never)
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    expect(wrapper.get('[data-testid="database-connect"]').text()).toContain("Connect as DuckDB")
+    await wrapper.get('[data-testid="database-connect"]').trigger("click")
+    await flushPromises()
+
+    expect(prepare.mock.calls[0]?.[0]).toMatchObject({ path: { action_name: "connect_duckdb" } })
   })
 })

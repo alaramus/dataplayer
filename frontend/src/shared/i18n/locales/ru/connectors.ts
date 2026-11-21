@@ -55,7 +55,7 @@ export const connectors: Messages["connectors"] = {
     make: "Создать",
     made: "«{name}» создано в {where}",
     failed: "Не удалось создать базу данных",
-    automatic: "Создаёт databases/dataplayer.db в вашем хранилище, с примерами данных, чтобы было на что посмотреть, и называет подключение по файлу.",
+    automatic: "Создаёт {file} в вашем хранилище, с примерами данных, чтобы было на что посмотреть, и называет подключение по файлу.",
     name_placeholder: "dataplayer",
     folder: "Папка",
     folder_placeholder: "databases",

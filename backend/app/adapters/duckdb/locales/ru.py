@@ -75,4 +75,10 @@ MESSAGES: dict[str, str] = {
     '{count} sequences': 'Последовательностей: {count}',
     '{count} types': 'Типов: {count}',
     'Sequence {name} goes with it: only what is dropped takes values from it': 'Последовательность {name} удаляется вместе с ней: значения из неё берёт только удаляемое',
+    'Comment on {subject}': 'Комментарий к {subject}',
+    '{label}: {name} cannot point into another schema, and is not copied': '{label}: {name} не может указывать в другую схему и не копируется',
+    '{name} is a union, whose text does not say which member it holds': '{name} — объединение (UNION), по тексту которого не понять, какой вариант в нём хранится',
+    'The file is not a DuckDB database': 'Файл не является базой данных DuckDB',
+    'This file is not a DuckDB backup': 'Этот файл не является резервной копией DuckDB',
+    'The database file cannot be read': 'Не удаётся прочитать файл базы данных',
 }

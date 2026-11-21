@@ -75,4 +75,10 @@ MESSAGES: dict[str, str] = {
     '{count} sequences': '{count} 个序列',
     '{count} types': '{count} 个类型',
     'Sequence {name} goes with it: only what is dropped takes values from it': '序列 {name} 会一并删除：只有被删除的内容从中取值',
+    'Comment on {subject}': '{subject} 的注释',
+    '{label}: {name} cannot point into another schema, and is not copied': '{label}：{name} 不能指向其他模式，因此不会复制',
+    '{name} is a union, whose text does not say which member it holds': '{name} 是联合类型，其文本无法说明它包含的是哪个成员',
+    'The file is not a DuckDB database': '该文件不是 DuckDB 数据库',
+    'This file is not a DuckDB backup': '此文件不是 DuckDB 备份',
+    'The database file cannot be read': '无法读取数据库文件',
 }
