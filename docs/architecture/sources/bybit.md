@@ -7,7 +7,7 @@ connection reports, measures and finds. What Bybit shares with every exchange
 is in [market.md](market.md); the contract every source keeps is in
 [contract.md](contract.md).
 
-Decisions here: D426, D427, D430.
+Decisions here: D426, D427, D428, D430.
 
 ## D426. Bybit's public market data over v5 REST, its requests counted here
 
@@ -92,6 +92,35 @@ Known deviations:
 - **A ticker has no weighted price, trade count or open and close times,
   and a candle no trade count or taker volumes**: Bybit does not send them,
   and the columns are left out rather than empty.
+
+Spec: [A Bybit source, and what exchanges share](../../decisions/2026-11-22-bybit-source-design.md)
+
+## D428. Candles and trades read on, trades by their time
+
+- **`SupportsReadingOn`** (D312) for a symbol's trades and its candle
+  series (`bybit/reading.py`); the bookmark is kept by DataPlayer, as
+  Binance's is (D319).
+- **Candles** as Binance's: `""` is the next candle's open time, the line the
+  open time of the candle still open, a block one request of up to a
+  thousand; a fresh reader's `earliest` is the last day.
+- **Trades by time**, as Bybit has nothing to page by: `""` is the time of
+  the next trade to read, the line the newest trade's time plus one. A block
+  is taken from the trades Bybit answers; one cut inside a millisecond reads
+  that millisecond again, and the made table's key, `id` (`row_key`), keeps
+  a trade read twice once. A fresh reader's `earliest` is the oldest trade
+  Bybit answers.
+- **Lost trades.** When Bybit's answer is full and its oldest trade is newer
+  than the bookmark, what lay between is gone: the reader moves to the oldest
+  and one trade is counted lost, as the number is not known.
+
+Known deviations:
+
+- **A lost count of one means "some"**: Bybit gives no id or count to say how
+  many.
+- **A link into a table it did not make, with no key, may get a trade twice**
+  when a block was cut inside a millisecond.
+- **A link run less often than a busy symbol makes a thousand trades loses
+  trades**; switched on (D315) it reads them within seconds.
 
 Spec: [A Bybit source, and what exchanges share](../../decisions/2026-11-22-bybit-source-design.md)
 
