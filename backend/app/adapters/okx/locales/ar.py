@@ -1,0 +1,27 @@
+"""What OKX says, بالعربية (D226)."""
+
+MESSAGES: dict[str, str] = {
+    "Could not reach OKX": "تعذّر الوصول إلى OKX",
+    "Demo trading": "التداول التجريبي",
+    "Demo trading, with an API key": "التداول التجريبي، مع مفتاح API",
+    "OKX": "OKX",
+    "OKX Europe": "OKX Europe",
+    "OKX Europe, with an API key": "OKX Europe، مع مفتاح API",
+    "OKX connection": "اتصال OKX",
+    "OKX did not answer in time": "لم يستجب OKX في الوقت المناسب",
+    "OKX does not accept this API key here: check the key, its passphrase, its permissions and the addresses it is limited to": "لا يقبل OKX مفتاح API هذا هنا: تحقق من المفتاح وعبارة مروره وأذوناته والعناوين المقصور عليها",
+    "OKX does not serve this address or region; choose another endpoint": "لا يخدم OKX هذا العنوان أو هذه المنطقة؛ اختر نقطة وصول أخرى",
+    "OKX is not answering": "OKX لا يستجيب",
+    "OKX refused the request (code {code})": "رفض OKX الطلب (الرمز {code})",
+    "OKX refuses requests from this address for {seconds} s more": "يرفض OKX الطلبات من هذا العنوان لمدة {seconds} ث أخرى",
+    "OKX's clock and this server's differ too much": "ساعة OKX وساعة هذا الخادم مختلفتان كثيرًا",
+    "OKX's public market data: spot, USDT and USDC futures and inverse futures, perpetual and dated. See every symbol's last day and trading rules, read a symbol's candles of any interval, its trades of the last three months and its order book as rows, and watch its market live. Nothing is changed on OKX.": "بيانات السوق العامة في OKX: الفوري والعقود الآجلة بـ USDT وUSDC والعقود الآجلة العكسية، الدائمة وذات الاستحقاق. اطّلع على آخر يوم وقواعد التداول لكل رمز، واقرأ شموع الرمز بأي فاصل زمني وصفقاته في الأشهر الثلاثة الأخيرة ودفتر أوامره كصفوف، وراقب سوقه مباشرة. لا يُغيَّر شيء في OKX.",
+    "OKX's rate limit is nearly spent; try again in {seconds} s": "حد الطلبات في OKX على وشك النفاد؛ أعد المحاولة بعد {seconds} ث",
+    "OKX, with an API key": "OKX، مع مفتاح API",
+    "Passphrase": "عبارة المرور",
+    "Requests a path in its window": "طلبات المسار في نافذته",
+    "The endpoint, OKX's maintenance, and whether each market answers": "نقطة الوصول، وصيانة OKX، وهل يستجيب كل سوق",
+    "The requests this connection made of each path in its window against where it stops, how long OKX takes to answer, and whether each market answers.": "طلبات هذا الاتصال لكل مسار في نافذته مقارنة بالحد الذي يتوقف عنده، والوقت الذي يستغرقه OKX للرد، وهل يستجيب كل سوق.",
+    "What OKX allows this address on each path asked so far, what was used, and where this stops": "ما يسمح به OKX لهذا العنوان على كل مسار طُلب حتى الآن، وما استُخدم، وأين يتوقف هذا الاتصال",
+    "What OKX and this connection say about themselves": "ما يقوله OKX وهذا الاتصال عن نفسيهما",
+}

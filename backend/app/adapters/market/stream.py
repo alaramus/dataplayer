@@ -42,6 +42,9 @@ class StreamSpec:
     # Sent every `ping_seconds` while the socket is open.
     ping: str | None = None
     ping_seconds: float = 20.0
+    # What the exchange answers a ping with when that is not JSON, skipped
+    # rather than read as a broken message (D425).
+    pong: str | None = None
 
     @property
     def key(self) -> str:
@@ -58,6 +61,7 @@ class MarketStream:
     greeting: tuple[str, ...] = ()
     ping: str | None = None
     ping_seconds: float = 20.0
+    pong: str | None = None
     # Statuses that mean the exchange will not serve this address, and the
     # refusal each watcher is then told.
     refusals: dict[int, AdapterError] = field(default_factory=dict)
@@ -80,6 +84,7 @@ class MarketStream:
             greeting=spec.greeting,
             ping=spec.ping,
             ping_seconds=spec.ping_seconds,
+            pong=spec.pong,
             refusals=refusals,
             exchange=exchange,
         )
@@ -131,6 +136,8 @@ class MarketStream:
                     pinging = asyncio.create_task(self._keep_alive(socket))
                     try:
                         async for message in socket:
+                            if self.pong is not None and message == self.pong:
+                                continue
                             self._publish(json.loads(message))
                     finally:
                         pinging.cancel()

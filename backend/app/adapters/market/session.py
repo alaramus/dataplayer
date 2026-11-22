@@ -76,6 +76,8 @@ class Kept:
     # One budget for every market, where the exchange limits the address as
     # a whole rather than each market (D426).
     address: Budget | None = None
+    # Budgets by what else an exchange limits, such as each path (D432).
+    budgets: dict[str, Budget] = field(default_factory=dict)
     # By stream key; a stream is dropped here by its last watcher.
     streams: dict[str, Closable] = field(default_factory=dict)
 
@@ -161,19 +163,36 @@ class MarketSession[M: Market]:
         del market, path, params
         return 1
 
+    def budget(
+        self, kept: Kept, market: M, path: str, params: dict[str, str]
+    ) -> Budget:
+        """What a request spends from: its market's, or the address's."""
+        del path, params
+        return budget_of(kept, market.key)
+
+    # Whether a request over the ceiling waits for the next window rather
+    # than being refused: an exchange whose windows are seconds long, where
+    # an export of a few dozen requests would otherwise fail half way (D432).
+    paces = False
+
+    def headers(self) -> dict[str, str]:
+        """What every request carries, such as which environment it asks."""
+        return {}
+
     def reported_used(self, response: httpx.Response) -> int | None:
         """What the exchange says this address used of the window, if it says."""
         del response
         return None
 
     def signed_request(
-        self, state: MarketState, params: dict[str, str]
+        self, state: MarketState, path: str, params: dict[str, str]
     ) -> tuple[str, dict[str, str]]:
         """The signed query string and the headers naming the key (D322).
 
-        An exchange with no key reads nothing that needs one.
+        `path` is what `get` was asked for, for an exchange that signs it
+        (D425). An exchange with no key reads nothing that needs one.
         """
-        del state, params
+        del state, path, params
         raise ValueError(say("This connection has no API key"))
 
     def answer(self, response: httpx.Response, budget: Budget, node_id: str) -> Any:
@@ -230,27 +249,35 @@ class MarketSession[M: Market]:
         signed: bool = False,
     ) -> Any:
         state = kept.markets[market.key]
-        budget = budget_of(kept, market.key)
-        now = time.time()
+        budget = self.budget(kept, market, name, params)
         weight = self.weight(market, name, params)
-        try:
-            before = budget.admit(weight, now)
-        except Held as held:
-            raise AdapterError(
-                "unknown", say(self.words.held, seconds=held.seconds)
-            ) from None
-        except OverBudget as over:
-            raise AdapterError(
-                "unknown", say(self.words.spent, seconds=over.seconds)
-            ) from None
+        while True:
+            now = time.time()
+            try:
+                before = budget.admit(weight, now)
+                break
+            except Held as held:
+                raise AdapterError(
+                    "unknown", say(self.words.held, seconds=held.seconds)
+                ) from None
+            except OverBudget as over:
+                if not self.paces or weight > budget.ceiling:
+                    raise AdapterError(
+                        "unknown", say(self.words.spent, seconds=over.seconds)
+                    ) from None
+                await asyncio.sleep(budget.until_next(now))
         url = self.url(market, name)
         try:
             if signed:
-                query, headers = self.signed_request(state, params)
+                query, headers = self.signed_request(state, name, params)
                 target = f"{url}?{query}" if query else url
-                response = await kept.client.get(target, headers=headers)
+                response = await kept.client.get(
+                    target, headers={**self.headers(), **headers}
+                )
             else:
-                response = await kept.client.get(url, params=params)
+                response = await kept.client.get(
+                    url, params=params, headers=self.headers()
+                )
         except httpx.TimeoutException:
             raise AdapterError("timeout", say(self.words.timeout)) from None
         except httpx.TransportError:
@@ -366,12 +393,16 @@ class MarketSession[M: Market]:
                     await self._get(kept, market, self.ping_path, {}, "")
                 except AdapterError as failure:
                     found[market.key] = Pinged(
-                        replace(budget_of(kept, market.key)), None, failure.message
+                        replace(self.budget(kept, market, self.ping_path, {})),
+                        None,
+                        failure.message,
                     )
                     continue
                 elapsed = (time.perf_counter() - started) * 1000
                 found[market.key] = Pinged(
-                    replace(budget_of(kept, market.key)), elapsed, None
+                    replace(self.budget(kept, market, self.ping_path, {})),
+                    elapsed,
+                    None,
                 )
         return found
 

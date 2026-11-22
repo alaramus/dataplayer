@@ -1,0 +1,27 @@
+"""What OKX says, हिन्दी में (D226)."""
+
+MESSAGES: dict[str, str] = {
+    "Could not reach OKX": "OKX तक नहीं पहुँच सके",
+    "Demo trading": "डेमो ट्रेडिंग",
+    "Demo trading, with an API key": "डेमो ट्रेडिंग, API कुंजी के साथ",
+    "OKX": "OKX",
+    "OKX Europe": "OKX Europe",
+    "OKX Europe, with an API key": "OKX Europe, API कुंजी के साथ",
+    "OKX connection": "OKX कनेक्शन",
+    "OKX did not answer in time": "OKX ने समय पर जवाब नहीं दिया",
+    "OKX does not accept this API key here: check the key, its passphrase, its permissions and the addresses it is limited to": "OKX यहाँ यह API कुंजी स्वीकार नहीं करता: कुंजी, उसका पासफ़्रेज़, उसकी अनुमतियाँ और वे पते जांचें जिन तक वह सीमित है",
+    "OKX does not serve this address or region; choose another endpoint": "OKX इस पते या क्षेत्र को सेवा नहीं देता; कोई दूसरा एंडपॉइंट चुनें",
+    "OKX is not answering": "OKX जवाब नहीं दे रहा",
+    "OKX refused the request (code {code})": "OKX ने अनुरोध अस्वीकार किया (कोड {code})",
+    "OKX refuses requests from this address for {seconds} s more": "OKX इस पते से अनुरोध {seconds} सेकंड और अस्वीकार करेगा",
+    "OKX's clock and this server's differ too much": "OKX की घड़ी और इस सर्वर की घड़ी में बहुत अंतर है",
+    "OKX's public market data: spot, USDT and USDC futures and inverse futures, perpetual and dated. See every symbol's last day and trading rules, read a symbol's candles of any interval, its trades of the last three months and its order book as rows, and watch its market live. Nothing is changed on OKX.": "OKX का सार्वजनिक बाज़ार डेटा: स्पॉट, USDT और USDC फ़्यूचर्स और इनवर्स फ़्यूचर्स, सतत और तारीख़ वाले। हर सिंबल का पिछला दिन और ट्रेडिंग नियम देखें, किसी सिंबल की किसी भी अंतराल की कैंडल, पिछले तीन महीनों के ट्रेड और ऑर्डर बुक पंक्तियों के रूप में पढ़ें, और उसका बाज़ार लाइव देखें। OKX पर कुछ नहीं बदला जाता।",
+    "OKX's rate limit is nearly spent; try again in {seconds} s": "OKX की अनुरोध सीमा लगभग खत्म है; {seconds} सेकंड बाद फिर कोशिश करें",
+    "OKX, with an API key": "OKX, API कुंजी के साथ",
+    "Passphrase": "पासफ़्रेज़",
+    "Requests a path in its window": "हर पथ के अनुरोध उसकी विंडो में",
+    "The endpoint, OKX's maintenance, and whether each market answers": "एंडपॉइंट, OKX का रखरखाव, और क्या हर बाज़ार जवाब देता है",
+    "The requests this connection made of each path in its window against where it stops, how long OKX takes to answer, and whether each market answers.": "इस कनेक्शन ने हर पथ पर उसकी विंडो में कितने अनुरोध किए बनाम यह कहाँ रुकता है, OKX जवाब देने में कितना समय लेता है, और क्या हर बाज़ार जवाब देता है।",
+    "What OKX allows this address on each path asked so far, what was used, and where this stops": "अब तक पूछे गए हर पथ पर OKX इस पते को कितना देता है, कितना इस्तेमाल हुआ, और यह कहाँ रुकता है",
+    "What OKX and this connection say about themselves": "OKX और यह कनेक्शन अपने बारे में क्या कहते हैं",
+}

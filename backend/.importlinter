@@ -803,6 +803,7 @@ source_modules =
     app.adapters.cassandra
     app.adapters.binance
     app.adapters.bybit
+    app.adapters.okx
     app.adapters.mail
     app.adapters.s3
 forbidden_modules =
@@ -854,6 +855,7 @@ source_modules =
     app.adapters.cassandra
     app.adapters.binance
     app.adapters.bybit
+    app.adapters.okx
     app.adapters.mail
     app.adapters.ftp
 forbidden_modules =
@@ -872,6 +874,7 @@ allow_indirect_imports = True
 source_modules =
     app.adapters.binance
     app.adapters.bybit
+    app.adapters.okx
     app.core
     app.users
     app.realtime
@@ -944,6 +947,7 @@ source_modules =
     app.adapters.rabbitmq
     app.adapters.binance
     app.adapters.bybit
+    app.adapters.okx
 forbidden_modules =
     cassandra
 
@@ -979,6 +983,7 @@ forbidden_modules =
     app.adapters.rabbitmq
     app.adapters.binance
     app.adapters.bybit
+    app.adapters.okx
 
 # MCP's SDK, by the rule every driver follows: the module that serves /mcp
 # and the one that calls outside servers own it, and the tools know nothing of

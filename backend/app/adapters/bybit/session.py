@@ -125,13 +125,14 @@ class BybitSession(MarketSession[Market]):
         return host + path if path.startswith("/") else f"{host}/v5/market/{path}"
 
     def signed_request(
-        self, state: MarketState, params: dict[str, str]
+        self, state: MarketState, path: str, params: dict[str, str]
     ) -> tuple[str, dict[str, str]]:
         """The query as sent, and the headers that sign it (D431).
 
         Bybit signs the time, the key, the window and the query string as
         sent, one after another, with HMAC-SHA256 of the secret, in hex.
         """
+        del path
         key = key_of(self._options)
         if key is None:
             raise ValueError(say("This connection has no API key"))

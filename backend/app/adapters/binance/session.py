@@ -146,9 +146,10 @@ class BinanceSession(MarketSession[Market]):
         return int(reported) if reported is not None and reported.isdigit() else None
 
     def signed_request(
-        self, state: shared.MarketState, params: dict[str, str]
+        self, state: shared.MarketState, path: str, params: dict[str, str]
     ) -> tuple[str, dict[str, str]]:
         """The signed query string, and the header naming the key."""
+        del path
         key = key_of(self._options)
         if key is None:
             raise ValueError(say("This connection has no API key"))

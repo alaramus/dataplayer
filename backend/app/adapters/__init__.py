@@ -12,6 +12,7 @@ from app.adapters import (  # noqa: F401
     mail,
     mongodb,
     mysql,
+    okx,
     postgres,
     rabbitmq,
     redis,

@@ -53,6 +53,10 @@ class Budget:
     def seconds_left(self, now: float) -> int:
         return max(1, self.window_seconds - int(now % self.window_seconds))
 
+    def until_next(self, now: float) -> float:
+        """How long until the next window starts, to the millisecond."""
+        return self.window_seconds - now % self.window_seconds + 0.001
+
     def admit(self, weight: int, now: float) -> int:
         """What was used before this request, or a refusal before it is sent."""
         if self.held_until > now:

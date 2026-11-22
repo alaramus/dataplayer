@@ -1,0 +1,27 @@
+"""What OKX says, auf Deutsch (D226)."""
+
+MESSAGES: dict[str, str] = {
+    "Could not reach OKX": "OKX ist nicht erreichbar",
+    "Demo trading": "Demohandel",
+    "Demo trading, with an API key": "Demohandel, mit einem API-Schlüssel",
+    "OKX": "OKX",
+    "OKX Europe": "OKX Europe",
+    "OKX Europe, with an API key": "OKX Europe, mit einem API-Schlüssel",
+    "OKX connection": "OKX-Verbindung",
+    "OKX did not answer in time": "OKX hat nicht rechtzeitig geantwortet",
+    "OKX does not accept this API key here: check the key, its passphrase, its permissions and the addresses it is limited to": "OKX akzeptiert diesen API-Schlüssel hier nicht: Prüfen Sie den Schlüssel, seine Passphrase, seine Berechtigungen und die Adressen, auf die er beschränkt ist",
+    "OKX does not serve this address or region; choose another endpoint": "OKX bedient diese Adresse oder Region nicht; wählen Sie einen anderen Endpunkt",
+    "OKX is not answering": "OKX antwortet nicht",
+    "OKX refused the request (code {code})": "OKX hat die Anfrage abgelehnt (Code {code})",
+    "OKX refuses requests from this address for {seconds} s more": "OKX lehnt Anfragen von dieser Adresse noch {seconds} s ab",
+    "OKX's clock and this server's differ too much": "Die Uhr von OKX und die dieses Servers weichen zu sehr ab",
+    "OKX's public market data: spot, USDT and USDC futures and inverse futures, perpetual and dated. See every symbol's last day and trading rules, read a symbol's candles of any interval, its trades of the last three months and its order book as rows, and watch its market live. Nothing is changed on OKX.": "Die öffentlichen Marktdaten von OKX: Spot, USDT- und USDC-Futures und inverse Futures, unbefristet und mit Fälligkeit. Sehen Sie den letzten Tag und die Handelsregeln jedes Symbols, lesen Sie die Kerzen eines Symbols in jedem Intervall, seine Trades der letzten drei Monate und sein Orderbuch als Zeilen, und beobachten Sie seinen Markt live. Auf OKX wird nichts geändert.",
+    "OKX's rate limit is nearly spent; try again in {seconds} s": "Das Anfragelimit von OKX ist fast erschöpft; versuchen Sie es in {seconds} s erneut",
+    "OKX, with an API key": "OKX, mit einem API-Schlüssel",
+    "Passphrase": "Passphrase",
+    "Requests a path in its window": "Anfragen eines Pfads in seinem Fenster",
+    "The endpoint, OKX's maintenance, and whether each market answers": "Der Endpunkt, die Wartung von OKX und ob jeder Markt antwortet",
+    "The requests this connection made of each path in its window against where it stops, how long OKX takes to answer, and whether each market answers.": "Die Anfragen dieser Verbindung an jeden Pfad in seinem Fenster im Vergleich dazu, wo sie anhält, wie lange OKX zum Antworten braucht und ob jeder Markt antwortet.",
+    "What OKX allows this address on each path asked so far, what was used, and where this stops": "Was OKX dieser Adresse auf jedem bisher angefragten Pfad erlaubt, was verbraucht wurde und wo diese Verbindung anhält",
+    "What OKX and this connection say about themselves": "Was OKX und diese Verbindung über sich sagen",
+}

@@ -4,7 +4,7 @@ For changing what every exchange source has in common — the catalog of
 markets and symbols, the columns of a feed, the rate limit's ceiling, the
 Exchange reports, metrics, search, the live view's socket — or for adding an
 exchange. Each exchange's own file says what is its own:
-[binance.md](binance.md), [bybit.md](bybit.md). The contract every source
+[binance.md](binance.md), [bybit.md](bybit.md), [okx.md](okx.md). The contract every source
 keeps is in [contract.md](contract.md).
 
 Decisions here: D425.
@@ -39,7 +39,9 @@ Decisions here: D425.
   `quote_volume` the quote asset's on every market of every exchange; an
   exchange that counts in contracts or swaps the two says so in its rows,
   not in the columns. A column an exchange has no value for is left out with
-  `only`, never filled with nothing.
+  `only`, never filled with nothing; tickers with no `quote_volume` are
+  busiest by `volume`, and symbol columns an exchange has no value for are
+  named in `symbol_columns_left_out`.
 - **A market is what the shared code reads of it**: its key, title,
   intervals, whether it is futures, whether its symbols say what a contract
   is worth, its deepest book and the depth asked for a number of levels.
@@ -49,13 +51,23 @@ Decisions here: D425.
   counts by and its share 80%; an exchange whose window rolls counts in
   windows from their start at a share that keeps any two side by side under
   80% (D426).
-- **A budget is a market's or the address's.** An exchange that limits the
-  address as a whole puts one budget on `Kept.address` (`per_address`); the
-  rate-limit report and the `weight` metric then say it once, as the last
-  ping left it, labelled `address`.
+- **A budget is a market's, the address's, or whatever the exchange
+  limits.** An exchange that limits the address as a whole puts one budget
+  on `Kept.address` (`per_address`); the rate-limit report and the `weight`
+  metric then say it once, as the last ping left it, labelled `address`. One
+  that limits something else — OKX each path (D432) — chooses the budget in
+  `MarketSession.budget`, keeps it in `Kept.budgets`, and says it in a
+  report and metrics of its own.
+- **A short window is waited for, a long one refused.** With `paces` a
+  request over the ceiling sleeps until the next window; without, it is
+  refused with the seconds left. OKX's two seconds wait; Binance's minute
+  and Bybit's five seconds refuse.
+- **Every request carries `headers()`**, such as OKX's demo flag, and the
+  signing hook is given the path asked, as OKX signs it.
 - **A stream is kept by what it is told**: the address and the greeting
   together, so two symbols on one address are two sockets. A greeting is sent
-  again after every reconnect, and a ping every `ping_seconds` while open.
+  again after every reconnect, and a ping every `ping_seconds` while open; a
+  `pong` that is not JSON is skipped.
 - **Words are the exchange's.** The shared session says its refusals with
   the exchange's sentences (`Words`), so a person reads "Bybit", not "the
   exchange".

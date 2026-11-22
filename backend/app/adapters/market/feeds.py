@@ -36,19 +36,37 @@ TICKERS_REFRESH_SECONDS = 10
 def tickers_page(
     columns: list[FetchColumn], rows: list[list[str | None]], request: FetchRequest
 ) -> FetchResult:
-    """Every symbol's day, busiest by quote volume unless sorted otherwise."""
-    sort = request.sort or [Sort(column="quote_volume", descending=True)]
+    """Every symbol's day, busiest by quote volume unless sorted otherwise;
+    by volume where the exchange gives no quote volume (D433)."""
+    busiest = (
+        "quote_volume"
+        if any(one.name == "quote_volume" for one in columns)
+        else "volume"
+    )
+    sort = request.sort or [Sort(column=busiest, descending=True)]
     found = listed_page(columns, rows, request.filters, sort)
     return paged(columns, found, request, TICKERS_REFRESH_SECONDS)
 
 
 def symbols_page(
-    market: Market, symbols: list[Symbol], request: FetchRequest
+    market: Market,
+    symbols: list[Symbol],
+    request: FetchRequest,
+    left_out: frozenset[str] = frozenset(),
 ) -> FetchResult:
-    columns = symbol_columns(market)
+    """`left_out` names the columns the exchange has no value for (D433)."""
+    every = symbol_columns(market)
+    kept = [index for index, one in enumerate(every) if one.name not in left_out]
+    columns = [every[index] for index in kept]
     sort = request.sort or [Sort(column="symbol")]
     rows = listed_page(
-        columns, [symbol_row(market, one) for one in symbols], request.filters, sort
+        columns,
+        [
+            [row[index] for index in kept]
+            for row in (symbol_row(market, one) for one in symbols)
+        ],
+        request.filters,
+        sort,
     )
     return paged(columns, rows, request, None)
 

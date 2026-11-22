@@ -138,6 +138,7 @@ async function main() {
     // Public market data: nothing to start and nothing secret (D316).
     { name: "binance", adapter_type: "binance", options: { endpoint: "binance" } },
     { name: "bybit", adapter_type: "bybit", options: { endpoint: "bybit" } },
+    { name: "okx", adapter_type: "okx", options: { endpoint: "okx" } },
   ];
 
   let created = 0;

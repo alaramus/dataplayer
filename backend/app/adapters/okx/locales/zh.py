@@ -1,0 +1,27 @@
+"""What OKX says, 中文 (D226)."""
+
+MESSAGES: dict[str, str] = {
+    "Could not reach OKX": "无法连接到 OKX",
+    "Demo trading": "模拟交易",
+    "Demo trading, with an API key": "模拟交易，使用 API 密钥",
+    "OKX": "OKX",
+    "OKX Europe": "OKX Europe",
+    "OKX Europe, with an API key": "OKX Europe，使用 API 密钥",
+    "OKX connection": "OKX 连接",
+    "OKX did not answer in time": "OKX 未及时响应",
+    "OKX does not accept this API key here: check the key, its passphrase, its permissions and the addresses it is limited to": "OKX 在此不接受该 API 密钥：请检查密钥、其密码短语、其权限以及其限定的地址",
+    "OKX does not serve this address or region; choose another endpoint": "OKX 不为此地址或地区提供服务；请选择其他端点",
+    "OKX is not answering": "OKX 没有响应",
+    "OKX refused the request (code {code})": "OKX 拒绝了请求（代码 {code}）",
+    "OKX refuses requests from this address for {seconds} s more": "OKX 还将拒绝来自此地址的请求 {seconds} 秒",
+    "OKX's clock and this server's differ too much": "OKX 的时钟与此服务器的时钟相差太大",
+    "OKX's public market data: spot, USDT and USDC futures and inverse futures, perpetual and dated. See every symbol's last day and trading rules, read a symbol's candles of any interval, its trades of the last three months and its order book as rows, and watch its market live. Nothing is changed on OKX.": "OKX 的公开市场数据：现货、USDT 和 USDC 期货以及反向期货，永续和交割。查看每个交易对最近一天的行情和交易规则，以行的形式读取交易对任意周期的 K 线、最近三个月的成交和订单簿，并实时观察其市场。不会在 OKX 上更改任何内容。",
+    "OKX's rate limit is nearly spent; try again in {seconds} s": "OKX 的请求限额即将用尽；请在 {seconds} 秒后重试",
+    "OKX, with an API key": "OKX，使用 API 密钥",
+    "Passphrase": "密码短语",
+    "Requests a path in its window": "每个路径在其窗口内的请求",
+    "The endpoint, OKX's maintenance, and whether each market answers": "端点、OKX 的维护，以及每个市场是否响应",
+    "The requests this connection made of each path in its window against where it stops, how long OKX takes to answer, and whether each market answers.": "此连接在每个路径的窗口内发出的请求与其停止点的对比、OKX 的响应时间，以及每个市场是否响应。",
+    "What OKX allows this address on each path asked so far, what was used, and where this stops": "OKX 在已请求的每个路径上允许此地址的请求数、已使用的数量，以及此连接的停止点",
+    "What OKX and this connection say about themselves": "OKX 和此连接对自身的说明",
+}

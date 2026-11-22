@@ -28,6 +28,7 @@ file holds which decision.
 | [market.md](market.md) | change what every exchange shares — catalog, feed columns, the rate limit's ceiling, reports, metrics, search, the live socket — or add an exchange |
 | [binance.md](binance.md) | change how Binance is reached and kept under its rate limit, what its catalog shows of markets, quote assets, symbols and feeds, or how tickers, symbols, candles, trades and the order book are read as rows, read on by a link, reported, measured and searched |
 | [bybit.md](bybit.md) | change how Bybit is reached and its requests counted, what its catalog shows of spot, linear and inverse, how its feeds are read as rows, read on by a link and watched live, or its reports, metrics and search |
+| [okx.md](okx.md) | change how OKX is reached and each path's limit counted, what its catalog shows of spot, linear and inverse contracts, how its feeds are read as rows, or its reports, metrics and search |
 | [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read, messages sent, topics and groups changed, its reports, metrics, search and export, its service and lab, or its console |
 | [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed, its fields and indexes, its reports, search or catalog actions, or how its collections are copied, backed up and measured |
 | [mail.md](mail.md) | change how a mailbox is reached over IMAP and SMTP, what its Mail tab shows, how a letter is read, written, answered, forwarded and deleted, who may open it, or where an attachment is kept |
@@ -227,6 +228,12 @@ symbols, candles, the newest trades and the book as rows (D427); trades and
 candles read on (D428); the market watched live (D429); the Exchange section,
 metrics and search from the kept lists (D430); a key reading the unified
 account, signed the shared way (D431).
+
+**OKX** — public market data over v5 REST for spot, linear and inverse
+contracts on the shared layer (D425): each path's limit counted here and
+waited for (D432); contracts by what they count in, a contract's volume and
+size said as what it is worth, candles, trades by id and the book as rows
+(D433); the Exchange section, metrics per path and search (D436).
 
 **MongoDB** — one server through pymongo's asynchronous client, spoken to
 directly (D283): databases as schemas, their collections as tables named as

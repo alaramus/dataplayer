@@ -103,6 +103,8 @@ class MarketReading[M: Market]:
 
 class MarketAdapter[M: Market]:
     presets: ClassVar[tuple[MetricPreset, ...]] = ()
+    # Symbol columns the exchange has no value for, left out (D433).
+    symbol_columns_left_out: ClassVar[frozenset[str]] = frozenset()
 
     def __init__(
         self,
@@ -327,7 +329,9 @@ class MarketAdapter[M: Market]:
             return tickers_page(columns, rows, request)
         if place.what == "symbols":
             symbols = await self._market_session.symbols(place.market)
-            return symbols_page(place.market, symbols, request)
+            return symbols_page(
+                place.market, symbols, request, self.symbol_columns_left_out
+            )
         if place.feed == "candles":
             return await self.candles_page(place, request)
         if place.feed == "trades":

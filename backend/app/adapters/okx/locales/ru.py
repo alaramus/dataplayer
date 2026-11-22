@@ -1,0 +1,27 @@
+"""What OKX says, по-русски (D226)."""
+
+MESSAGES: dict[str, str] = {
+    "Could not reach OKX": "Не удалось связаться с OKX",
+    "Demo trading": "Демо-торговля",
+    "Demo trading, with an API key": "Демо-торговля, с ключом API",
+    "OKX": "OKX",
+    "OKX Europe": "OKX Europe",
+    "OKX Europe, with an API key": "OKX Europe, с ключом API",
+    "OKX connection": "Подключение OKX",
+    "OKX did not answer in time": "OKX не ответил вовремя",
+    "OKX does not accept this API key here: check the key, its passphrase, its permissions and the addresses it is limited to": "OKX не принимает здесь этот ключ API: проверьте ключ, его парольную фразу, его права и адреса, которыми он ограничен",
+    "OKX does not serve this address or region; choose another endpoint": "OKX не обслуживает этот адрес или регион; выберите другую точку доступа",
+    "OKX is not answering": "OKX не отвечает",
+    "OKX refused the request (code {code})": "OKX отклонил запрос (код {code})",
+    "OKX refuses requests from this address for {seconds} s more": "OKX не принимает запросы с этого адреса ещё {seconds} с",
+    "OKX's clock and this server's differ too much": "Часы OKX и этого сервера слишком расходятся",
+    "OKX's public market data: spot, USDT and USDC futures and inverse futures, perpetual and dated. See every symbol's last day and trading rules, read a symbol's candles of any interval, its trades of the last three months and its order book as rows, and watch its market live. Nothing is changed on OKX.": "Публичные рыночные данные OKX: спот, фьючерсы USDT и USDC и инверсные фьючерсы, бессрочные и с датой поставки. Последние сутки и правила торговли каждого символа, свечи любого интервала, сделки за последние три месяца и стакан символа — строками, и рынок символа вживую. На OKX ничего не меняется.",
+    "OKX's rate limit is nearly spent; try again in {seconds} s": "Лимит запросов OKX почти исчерпан; повторите через {seconds} с",
+    "OKX, with an API key": "OKX, с ключом API",
+    "Passphrase": "Парольная фраза",
+    "Requests a path in its window": "Запросы к пути за его окно",
+    "The endpoint, OKX's maintenance, and whether each market answers": "Точка доступа, обслуживание OKX и отвечает ли каждый рынок",
+    "The requests this connection made of each path in its window against where it stops, how long OKX takes to answer, and whether each market answers.": "Запросы этого подключения к каждому пути за его окно против его предела, время ответа OKX и отвечает ли каждый рынок.",
+    "What OKX allows this address on each path asked so far, what was used, and where this stops": "Сколько OKX позволяет этому адресу на каждом уже запрошенном пути, сколько потрачено и где это подключение остановится",
+    "What OKX and this connection say about themselves": "Что OKX и это подключение говорят о себе",
+}
