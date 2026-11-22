@@ -16,11 +16,12 @@ Decisions here: D316, D317, D318, D319, D320, D321, D322, D323, D365.
   with a key, market data only
   (`data-api.binance.vision` for spot), and the testnet with or without a
   key. Only a key and its secret are secret.
-- **httpx, one client a connection** (`binance/session.py`), kept in the
-  resource store as `BinanceKept` with what outlives a request: each market's
-  weight used this minute, a ban it is under, the symbol list (an hour) and
-  the last tickers (ten seconds). A draft and a check get a client of their
-  own, closed after them. `trust_env` is off.
+- **httpx, one client a connection** (`binance/session.py`, on the shared
+  session of [market.md](market.md), D425), kept in the resource store with
+  what outlives a request: each market's weight used this minute, a ban it
+  is under, the symbol list (an hour) and the last tickers (ten seconds). A
+  draft and a check get a client of their own, closed after them.
+  `trust_env` is off.
 - **The rate limit is kept under 80%.** Every answer's
   `X-MBX-USED-WEIGHT-1M` is read; a request whose weight, from Binance's
   published table in `markets.py`, would pass 80% of the market's limit is

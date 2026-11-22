@@ -1,9 +1,8 @@
 """How this application talks to Binance's REST, and nothing about what for (D316).
 
-One httpx client a connection, kept in the resource store with what must
-outlive a request: the weight each market has used this minute, a ban a
-market is under, the symbol list and the last tickers. A draft and a check
-get a client of their own, closed after them.
+The client, the budget and the lists are kept the shared way (D425); this
+says Binance's hosts, its weights, the header that reports the weight used,
+its codes of refusal and how a request of the account is signed (D322).
 
 Binance weighs every request and bans an address that keeps asking past its
 limit, so the weight it reports is read from every answer and a request that
@@ -11,35 +10,41 @@ would take a market past 80% of its limit is not sent. Nothing is retried by
 itself.
 """
 
-import asyncio
 import hashlib
 import hmac
 import logging
 import time
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-from dataclasses import dataclass, field, replace
-from decimal import Decimal, InvalidOperation
-from typing import Any, Protocol
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 
-from app.adapters.binance.markets import BY_KEY, HOSTS, MARKETS, Market, MarketKey
+from app.adapters.binance.markets import BY_KEY, HOSTS, MARKETS, Market
 from app.adapters.binance.options import HOSTS_OF, BinanceOptions, Hosts, key_of
-from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
+from app.adapters.market import session as shared
+from app.adapters.market.budget import CEILING_SHARE, Budget
+from app.adapters.market.session import Kept, MarketSession, Pinged, Words
+from app.adapters.market.shape import Symbol
+from app.adapters.market.values import decimal_text
+from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.resources import Pooling
-from app.core.logs import record_failure, with_ref
-from app.core.translation import say
+from app.core.translation import N_, say
+
+__all__ = [
+    "CEILING_SHARE",
+    "BinanceKept",
+    "BinanceSession",
+    "MarketState",
+    "Pinged",
+    "Symbol",
+    "decimal_text",
+    "make_client",
+    "symbols_of",
+]
 
 logger = logging.getLogger(__name__)
-
-TIMEOUT_SECONDS = 10.0
-# Of a market's limit a minute, the share this application spends at most:
-# the rest is left for whatever else asks from the same address.
-CEILING_SHARE = 0.8
-SYMBOLS_SECONDS = 3600.0
-TICKERS_SECONDS = 10.0
 
 UNKNOWN_SYMBOL = -1121
 # Futures answer trades of the last two days only.
@@ -52,119 +57,50 @@ REFUSED_KEY = {-2014, -2015, -1022, -2008}
 RECV_WINDOW = "10000"
 CLOCK_SECONDS = 3600.0
 
-
-@dataclass(frozen=True)
-class Symbol:
-    """A pair that trades, with the rules an order on it obeys."""
-
-    name: str
-    base: str
-    quote: str
-    status: str
-    contract_type: str | None = None
-    delivery_ms: int | None = None
-    onboard_ms: int | None = None
-    price_step: str | None = None
-    quantity_step: str | None = None
-    min_notional: str | None = None
-    # What one contract is worth in the quote asset, on COIN-M (D321).
-    contract_size: int | None = None
+WORDS = Words(
+    held=N_("Binance refuses requests from this address for {seconds} s more"),
+    spent=N_("Binance's rate limit is nearly spent; try again in {seconds} s"),
+    timeout=N_("Binance did not answer in time"),
+    unreachable=N_("Could not reach Binance"),
+)
 
 
 @dataclass
-class MarketState:
-    limit: int
-    used: int = 0
-    # The minute `used` was read in, as whole minutes since the epoch; Binance
-    # counts a minute from its start.
-    minute: int = -1
-    held_until: float = 0.0
-    symbols: list[Symbol] | None = None
-    symbols_at: float = 0.0
-    # When the list was read, by the wall clock, for a report to say.
-    symbols_read_at: float | None = None
-    # The read under way, which every asker waits on rather than starting
-    # another.
-    symbols_reading: asyncio.Task[list[Symbol]] | None = None
-    tickers: list[dict[str, Any]] | None = None
-    tickers_at: float = 0.0
-    # How far Binance's clock is ahead of this server's, for a signed
-    # request's time (D322), and when that was measured.
-    offset_ms: int = 0
-    offset_at: float | None = None
+class MarketState(shared.MarketState):
+    """A market's state, its window a minute: Binance counts weight by the minute."""
+
+    @property
+    def minute(self) -> int:
+        return self.window
+
+    @minute.setter
+    def minute(self, value: int) -> None:
+        self.window = value
 
 
-@dataclass(frozen=True)
-class Pinged:
-    """A market after a ping: what it keeps, how long it took, or why not."""
-
-    state: MarketState
-    latency_ms: float | None
-    failure: str | None
-
-
-class Closable(Protocol):
-    async def close(self) -> None: ...
-
-
-@dataclass
-class BinanceKept:
-    """What a connection keeps between requests, and its live streams (D323)."""
-
-    client: httpx.AsyncClient
-    markets: dict[MarketKey, MarketState] = field(
-        default_factory=lambda: {
-            key: MarketState(limit=BY_KEY[key].weight_limit) for key in MARKETS
-        }
-    )
-    # By stream address; a stream is dropped here by its last watcher.
-    streams: dict[str, Closable] = field(default_factory=dict)
-
-    def forget_stream(self, stream: Closable) -> None:
-        for url, kept in list(self.streams.items()):
-            if kept is stream:
-                del self.streams[url]
-
-    async def close(self) -> None:
-        for stream in list(self.streams.values()):
-            await stream.close()
-        self.streams.clear()
-        await self.client.aclose()
+# Binance's kept state is the shared one; the name stays for what reads it.
+BinanceKept = Kept
 
 
 def make_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(
-        timeout=httpx.Timeout(TIMEOUT_SECONDS),
-        # A proxy named in the backend's environment is not one the user chose.
-        trust_env=False,
-        headers={"User-Agent": "DataPlayer"},
-    )
+    return shared.make_client()
 
 
-def seconds_left_of_minute(now: float) -> int:
-    return max(1, 60 - int(now % 60))
+class BinanceSession(MarketSession[Market]):
+    name = "binance"
+    words = WORDS
 
-
-def decimal_text(value: Any) -> str | None:
-    """A number as Binance wrote it, checked to be one; never through a float."""
-    if value is None:
-        return None
-    text = str(value)
-    try:
-        Decimal(text)
-    except InvalidOperation:
-        return None
-    return text
-
-
-class BinanceSession:
     def __init__(self, options: BinanceOptions, pooling: Pooling | None) -> None:
+        super().__init__(pooling)
         self._options = options
-        self._pooling = pooling
 
     @property
     def options(self) -> BinanceOptions:
         return self._options
+
+    @property
+    def markets(self) -> Sequence[Market]:
+        return [BY_KEY[key] for key in MARKETS]
 
     def host(self, market: Market) -> str:
         return HOSTS[HOSTS_OF[self._options.endpoint]][market.key]
@@ -180,32 +116,26 @@ class BinanceSession:
 
     @property
     def keyed(self) -> bool:
-        """Whether this connection reads an account as well as the market."""
         return key_of(self._options) is not None
 
-    @asynccontextmanager
-    async def kept(self) -> AsyncIterator[BinanceKept]:
-        pooling = self._pooling
-        if pooling is not None and pooling.store.keeps:
-            key = f"binance:{pooling.connector_id}:{self._options.endpoint}"
+    def kept_key(self) -> str:
+        return self._options.endpoint
 
-            async def create() -> BinanceKept:
-                return BinanceKept(make_client())
+    def new_kept(self) -> Kept:
+        return Kept(
+            make_client(),
+            {key: MarketState(limit=BY_KEY[key].weight_limit) for key in MARKETS},
+        )
 
-            yield await pooling.store.get_or_create(key, BinanceKept, create)
-            return
-        kept = BinanceKept(make_client())
-        try:
-            yield kept
-        finally:
-            await kept.close()
+    def url(self, market: Market, path: str) -> str:
+        return self.host(market) + market.path(path)
 
-    async def get(
-        self, market: Market, name: str, params: dict[str, str], node_id: str = ""
-    ) -> Any:
-        """One request, its weight counted, its failure reduced."""
-        async with self.kept() as kept:
-            return await self._get(kept, market, name, params, node_id)
+    def weight(self, market: Market, path: str, params: dict[str, str]) -> int:
+        return market.weight(path, params)
+
+    def reported_used(self, response: httpx.Response) -> int | None:
+        reported = response.headers.get("x-mbx-used-weight-1m")
+        return int(reported) if reported is not None and reported.isdigit() else None
 
     async def signed(
         self, market: Market, name: str, params: dict[str, str], node_id: str = ""
@@ -229,7 +159,7 @@ class BinanceSession:
             "config", say("Binance's clock and this server's differ too much")
         )
 
-    async def _clock(self, kept: BinanceKept, market: Market, fresh: bool) -> None:
+    async def _clock(self, kept: Kept, market: Market, fresh: bool) -> None:
         state = kept.markets[market.key]
         now = time.monotonic()
         if (
@@ -246,8 +176,8 @@ class BinanceSession:
             state.offset_ms = int(server - (before + after) / 2)
             state.offset_at = now
 
-    def _stamped(
-        self, state: MarketState, params: dict[str, str]
+    def signed_request(
+        self, state: shared.MarketState, params: dict[str, str]
     ) -> tuple[str, dict[str, str]]:
         """The signed query string, and the header naming the key."""
         key = key_of(self._options)
@@ -269,75 +199,20 @@ class BinanceSession:
             "X-MBX-APIKEY": key.api_key.get_secret_value()
         }
 
-    async def _get(
-        self,
-        kept: BinanceKept,
-        market: Market,
-        name: str,
-        params: dict[str, str],
-        node_id: str,
-        signed: bool = False,
-    ) -> Any:
-        state = kept.markets[market.key]
-        now = time.time()
-        if state.held_until > now:
-            raise AdapterError(
-                "unknown",
-                say(
-                    "Binance refuses requests from this address for {seconds} s more",
-                    seconds=int(state.held_until - now) + 1,
-                ),
-            )
-        weight = market.weight(name, params)
-        minute = int(now // 60)
-        used = state.used if state.minute == minute else 0
-        if used + weight > state.limit * CEILING_SHARE:
-            raise AdapterError(
-                "unknown",
-                say(
-                    "Binance's rate limit is nearly spent; try again in {seconds} s",
-                    seconds=seconds_left_of_minute(now),
-                ),
-            )
-        url = self.host(market) + market.path(name)
-        try:
-            if signed:
-                query, headers = self._stamped(state, params)
-                response = await kept.client.get(f"{url}?{query}", headers=headers)
-            else:
-                response = await kept.client.get(url, params=params)
-        except httpx.TimeoutException:
-            raise AdapterError(
-                "timeout", say("Binance did not answer in time")
-            ) from None
-        except httpx.TransportError:
-            raise AdapterError("network", say("Could not reach Binance")) from None
-        reported = response.headers.get("x-mbx-used-weight-1m")
-        if reported is not None and reported.isdigit():
-            state.used = int(reported)
-            state.minute = minute
-        else:
-            state.used = used + weight
-            state.minute = minute
+    def answer(self, response: httpx.Response, budget: Budget, node_id: str) -> Any:
         if response.status_code == 200:
             return response.json()
-        raise self._refusal(response, state, node_id)
+        raise self._refusal(response, budget, node_id)
 
     def _refusal(
-        self, response: httpx.Response, state: MarketState, node_id: str
+        self, response: httpx.Response, budget: Budget, node_id: str
     ) -> Exception:
         status = response.status_code
         if status in {418, 429}:
             retry = response.headers.get("retry-after", "")
             seconds = int(retry) if retry.isdigit() else 60
-            state.held_until = time.time() + seconds
-            return AdapterError(
-                "unknown",
-                say(
-                    "Binance refuses requests from this address for {seconds} s more",
-                    seconds=seconds,
-                ),
-            )
+            budget.hold(time.time() + seconds)
+            return AdapterError("unknown", say(WORDS.held, seconds=seconds))
         if status == 451:
             return AdapterError(
                 "config",
@@ -368,27 +243,7 @@ class BinanceSession:
             )
         return AdapterError("network", say("Binance is not answering"))
 
-    async def symbols(self, market: Market) -> list[Symbol]:
-        """The market's trading symbols, read at most once an hour.
-
-        The read is a task of its own that a caller only waits on: a search
-        is cut off after two seconds (D200), and a read cancelled with it
-        would leave the list unread, so the next search would start from
-        nothing and be cut off again.
-        """
-        async with self.kept() as kept:
-            state = kept.markets[market.key]
-            now = time.monotonic()
-            if state.symbols is not None and now - state.symbols_at < SYMBOLS_SECONDS:
-                return state.symbols
-            reading = state.symbols_reading
-            if reading is None or reading.done():
-                reading = asyncio.create_task(self._read_symbols(kept, market))
-                reading.add_done_callback(_forget_failure)
-                state.symbols_reading = reading
-            return await asyncio.shield(reading)
-
-    async def _read_symbols(self, kept: BinanceKept, market: Market) -> list[Symbol]:
+    async def read_symbols(self, kept: Kept, market: Market) -> list[Symbol]:
         state = kept.markets[market.key]
         params = (
             {"symbolStatus": "TRADING", "showPermissionSets": "false"}
@@ -396,9 +251,6 @@ class BinanceSession:
             else {}
         )
         info = await self._get(kept, market, "exchangeInfo", params, "")
-        state.symbols = symbols_of(info)
-        state.symbols_at = time.monotonic()
-        state.symbols_read_at = time.time()
         for limit in info.get("rateLimits") or []:
             if (
                 limit.get("rateLimitType") == "REQUEST_WEIGHT"
@@ -407,53 +259,16 @@ class BinanceSession:
                 and isinstance(limit.get("limit"), int)
             ):
                 state.limit = limit["limit"]
-        return state.symbols
+        return symbols_of(info)
 
-    async def symbol(self, market: Market, name: str, node_id: str) -> Symbol:
-        """A symbol named by a client, found among the market's or not at all."""
-        for one in await self.symbols(market):
-            if one.name == name:
-                return one
-        raise NodeNotFound(node_id)
+    async def read_tickers(self, kept: Kept, market: Market) -> list[dict[str, Any]]:
+        answer = await self._get(kept, market, "ticker/24hr", {}, "")
+        return [one for one in answer if isinstance(one, dict)]
 
-    async def tickers(self, market: Market) -> list[dict[str, Any]]:
-        """Every symbol's last day, read at most once in ten seconds."""
-        async with self.kept() as kept:
-            state = kept.markets[market.key]
-            now = time.monotonic()
-            if state.tickers is not None and now - state.tickers_at < TICKERS_SECONDS:
-                return state.tickers
-            answer = await self._get(kept, market, "ticker/24hr", {}, "")
-            state.tickers = [one for one in answer if isinstance(one, dict)]
-            state.tickers_at = now
-            return state.tickers
-
-    async def states(self) -> dict[MarketKey, MarketState]:
-        """What each market has kept, as it stands: the weight, a ban, the lists."""
-        async with self.kept() as kept:
-            return {key: replace(state) for key, state in kept.markets.items()}
-
-    async def pinged(self) -> dict[MarketKey, Pinged]:
-        """Each market pinged, and what it kept just after.
-
-        One client for all of it: Binance reports the weight its address used
-        this minute on every answer, so a ping is what makes the count current
-        even for a connection that asked nothing else lately.
-        """
-        found: dict[MarketKey, Pinged] = {}
-        async with self.kept() as kept:
-            for key in MARKETS:
-                started = time.perf_counter()
-                try:
-                    await self._get(kept, BY_KEY[key], "ping", {}, "")
-                except AdapterError as failure:
-                    found[key] = Pinged(
-                        replace(kept.markets[key]), None, failure.message
-                    )
-                    continue
-                elapsed = (time.perf_counter() - started) * 1000
-                found[key] = Pinged(replace(kept.markets[key]), elapsed, None)
-        return found
+    async def server_time_ms(self, market: Market) -> int | None:
+        answer = await self.get(market, "time", {})
+        server = answer.get("serverTime") if isinstance(answer, dict) else None
+        return server if isinstance(server, int) else None
 
     async def system_status(self) -> str | None:
         """Binance's own word for its state, or nothing where the host has none.
@@ -470,35 +285,6 @@ class BinanceSession:
             if isinstance(status, int)
             else None
         )
-
-    async def check(self) -> ConnectionCheckResult:
-        """Each market's `ping`, in words that name no address."""
-        started = time.perf_counter()
-        try:
-            async with self.kept() as kept:
-                for key in MARKETS:
-                    await self._get(kept, BY_KEY[key], "ping", {}, "")
-        except AdapterError as failure:
-            return ConnectionCheckResult(
-                ok=False, message=failure.message, error_kind=failure.error_kind
-            )
-        except Exception as failure:  # noqa: BLE001 - a check answers, never raises
-            ref = record_failure(logger, "Binance check", failure, private=True)
-            return ConnectionCheckResult(
-                ok=False,
-                message=with_ref(say("Connection failed"), ref),
-                error_kind="unknown",
-            )
-        elapsed = int((time.perf_counter() - started) * 1000)
-        return ConnectionCheckResult(
-            ok=True, message=say("Connection successful"), latency_ms=elapsed
-        )
-
-
-def _forget_failure(task: asyncio.Task[list[Symbol]]) -> None:
-    """A read nobody waited for to the end fails quietly; the next asks again."""
-    if not task.cancelled():
-        task.exception()
 
 
 class StaleTimestamp(Exception):

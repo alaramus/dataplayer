@@ -2,85 +2,43 @@
 
 Every decimal stays the text Binance wrote, checked to be a number and never
 passed through a float; times arrive in milliseconds and leave as moments in
-UTC. Tickers and Symbols are a whole market read at once, so they sort and
-filter here; candles and trades are read from Binance a request at a time,
-and only what Binance can bound — a time, an id — narrows them.
+UTC. The lists and the book are read the shared way (D425); candles and
+trades are read from Binance a request at a time, and only what Binance can
+bound — a time, an id — narrows them.
 """
 
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from decimal import Decimal
 from typing import Any
 
-from app.adapters.binance.catalog import Place
 from app.adapters.binance.markets import Market
-from app.adapters.binance.session import BinanceSession, Symbol, decimal_text
-from app.adapters.fetch import (
-    FetchColumn,
-    FetchRequest,
-    FetchResult,
-    Filter,
-    ScalarFilter,
-    Sort,
+from app.adapters.binance.session import BinanceSession
+from app.adapters.fetch import FetchRequest, FetchResult, Filter, Sort
+from app.adapters.listed import checked_filters, checked_sorts, milliseconds_of
+from app.adapters.market.catalog import Place
+from app.adapters.market.columns import (
+    CANDLE_COLUMNS,
+    DEPTH_CEILING,
+    TRADE_COLUMNS,
+    Bounds,
+    bounds_of,
+    descending,
+    paged,
+    too_deep,
 )
-from app.adapters.listed import (
-    RANGE_OPS,
-    checked_filters,
-    checked_sorts,
-    column,
-    listed_column,
-    listed_page,
-    milliseconds_of,
+from app.adapters.market.values import (
+    boolean_of,
+    decimal_text,
+    in_quote,
+    moment,
+    whole_number,
+    whole_of,
 )
 from app.core.translation import say
 
-# How deep a page may reach into candles or trades, read a request at a time.
-DEPTH_CEILING = 10_000
-DEFAULT_BOOK_LEVELS = 100
 HOUR_MS = 3_600_000
 
-def moment(milliseconds: int | None) -> str | None:
-    if milliseconds is None:
-        return None
-    at = datetime.fromtimestamp(milliseconds / 1000, tz=UTC)
-    return at.isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-
-def _whole_number(column: str, text: str) -> int:
-    try:
-        return int(text)
-    except ValueError:
-        raise ValueError(say("{column} takes a whole number", column=column)) from None
-
-
-def whole_of(value: Any) -> int | None:
-    return value if isinstance(value, int) and not isinstance(value, bool) else None
-
-
-def boolean_of(value: Any) -> str | None:
-    return None if not isinstance(value, bool) else ("true" if value else "false")
-
-
-# --- a list read whole: Tickers and Symbols ----------------------------------
-
-
-TICKER_COLUMNS = [
-    listed_column("symbol", "string"),
-    listed_column("last_price", "number"),
-    listed_column("price_change", "number"),
-    listed_column("price_change_percent", "number"),
-    listed_column("weighted_avg_price", "number"),
-    listed_column("open_price", "number"),
-    listed_column("high_price", "number"),
-    listed_column("low_price", "number"),
-    listed_column("volume", "number"),
-    listed_column("quote_volume", "number"),
-    listed_column("trades", "number"),
-    listed_column("open_time", "datetime"),
-    listed_column("close_time", "datetime"),
-]
+type BinancePlace = Place[Market]
 
 _TICKER_FIELDS = (
     "lastPrice",
@@ -91,18 +49,6 @@ _TICKER_FIELDS = (
     "highPrice",
     "lowPrice",
 )
-
-
-def in_quote(contracts: Any, contract_size: int | None) -> str | None:
-    """A count of contracts as what they are worth in the quote asset (D321).
-
-    Exact: a contract is a whole number of the quote asset, so nothing is
-    divided and nothing rounds.
-    """
-    text = decimal_text(contracts)
-    if text is None or contract_size is None:
-        return None
-    return str(Decimal(text) * contract_size)
 
 
 def ticker_row(
@@ -132,92 +78,7 @@ def ticker_row(
     ]
 
 
-SPOT_SYMBOL_COLUMNS = [
-    listed_column("symbol", "string"),
-    listed_column("base", "string"),
-    listed_column("quote", "string"),
-    listed_column("status", "string"),
-    listed_column("price_step", "number", nullable=True),
-    listed_column("quantity_step", "number", nullable=True),
-    listed_column("min_notional", "number", nullable=True),
-]
-
-FUTURES_SYMBOL_COLUMNS = [
-    *SPOT_SYMBOL_COLUMNS,
-    listed_column("contract_type", "string", nullable=True),
-    listed_column("delivery_time", "datetime", nullable=True),
-    listed_column("listed_time", "datetime", nullable=True),
-]
-
-CONTRACT_SYMBOL_COLUMNS = [
-    *FUTURES_SYMBOL_COLUMNS,
-    listed_column("contract_size", "number", nullable=True),
-]
-
-# Binance dates a perpetual contract's delivery in 2100; it has none.
-_NEVER_MS = 4_000_000_000_000
-
-
-def symbol_columns(market: Market) -> list[FetchColumn]:
-    if market.key == "spot":
-        return SPOT_SYMBOL_COLUMNS
-    return CONTRACT_SYMBOL_COLUMNS if market.in_contracts else FUTURES_SYMBOL_COLUMNS
-
-
-def symbol_row(market: Market, one: Symbol) -> list[str | None]:
-    row: list[str | None] = [
-        one.name,
-        one.base,
-        one.quote,
-        one.status,
-        one.price_step,
-        one.quantity_step,
-        one.min_notional,
-    ]
-    if market.key != "spot":
-        delivery = one.delivery_ms
-        row += [
-            one.contract_type,
-            moment(delivery if delivery is not None and delivery < _NEVER_MS else None),
-            moment(one.onboard_ms),
-        ]
-    if market.in_contracts:
-        row.append(None if one.contract_size is None else str(one.contract_size))
-    return row
-
-
-def paged(
-    columns: list[FetchColumn],
-    rows: list[list[str | None]],
-    request: FetchRequest,
-    refresh_seconds: int | None,
-) -> FetchResult:
-    end = request.offset + request.limit
-    return FetchResult(
-        columns=columns,
-        rows=rows[request.offset : end],
-        has_more=len(rows) > end,
-        page_commands=["download", "chart", "share"],
-        refresh_seconds=refresh_seconds,
-    )
-
-
 # --- candles --------------------------------------------------------------------
-
-CANDLE_COLUMNS = [
-    column("open_time", "datetime", RANGE_OPS, sortable=True),
-    column("close_time", "datetime"),
-    column("open", "number"),
-    column("high", "number"),
-    column("low", "number"),
-    column("close", "number"),
-    column("volume", "number"),
-    column("quote_volume", "number"),
-    column("trades", "number", sql="bigint"),
-    column("taker_buy_volume", "number"),
-    column("taker_buy_quote_volume", "number"),
-    column("closed", "boolean"),
-]
 
 
 @dataclass(frozen=True)
@@ -266,42 +127,6 @@ async def contract_size_of(
     if not market.in_contracts:
         return None
     return (await session.symbol(market, symbol, node_id)).contract_size
-
-
-@dataclass(frozen=True)
-class Bounds:
-    """Where reading starts and stops, both included; None is open."""
-
-    low: int | None = None
-    high: int | None = None
-
-
-def bounds_of(filters: list[Filter], column: str, read: Callable[[str], int]) -> Bounds:
-    low: int | None = None
-    high: int | None = None
-    for one in filters:
-        if one.column != column or not isinstance(one, ScalarFilter):
-            continue
-        value = read(one.value)
-        if one.op in {"gt", "gte", "eq"}:
-            start = value + 1 if one.op == "gt" else value
-            low = start if low is None else max(low, start)
-        if one.op in {"lt", "lte", "eq"}:
-            stop = value - 1 if one.op == "lt" else value
-            high = stop if high is None else min(high, stop)
-    return Bounds(low, high)
-
-
-def descending(sort: list[Sort], column: str) -> bool:
-    """Newest first unless the page asks for the column ascending."""
-    for one in sort:
-        if one.column == column:
-            return one.descending
-    return True
-
-
-def _too_deep(request: FetchRequest) -> bool:
-    return request.offset + request.limit > DEPTH_CEILING
 
 
 async def read_candles(
@@ -374,10 +199,10 @@ def checked_candles(filters: list[Filter], sort: list[Sort]) -> None:
 
 
 async def candles_page(
-    session: BinanceSession, place: Place, request: FetchRequest, now_ms: int
+    session: BinanceSession, place: BinancePlace, request: FetchRequest, now_ms: int
 ) -> FetchResult:
     checked_candles(request.filters, request.sort)
-    if _too_deep(request):
+    if too_deep(request):
         raise ValueError(
             say(
                 "A page reaches at most {n} candles deep; narrow it by open time",
@@ -402,16 +227,6 @@ async def candles_page(
 
 
 # --- trades ------------------------------------------------------------------
-
-TRADE_COLUMNS = [
-    column("id", "number", ["eq", *RANGE_OPS], sql="bigint", sortable=True),
-    column("price", "number"),
-    column("quantity", "number"),
-    column("first_trade_id", "number", sql="bigint"),
-    column("last_trade_id", "number", sql="bigint"),
-    column("time", "datetime", RANGE_OPS),
-    column("buyer_is_maker", "boolean"),
-]
 
 
 def trade_row(item: dict[str, Any]) -> list[str | None]:
@@ -505,7 +320,7 @@ async def trade_bounds(
     filters: list[Filter],
     node_id: str,
 ) -> Bounds:
-    ids = bounds_of(filters, "id", lambda text: _whole_number("id", text))
+    ids = bounds_of(filters, "id", lambda text: whole_number("id", text))
     times = bounds_of(filters, "time", lambda text: milliseconds_of("time", text))
     low, high = ids.low, ids.high
     if times.low is not None:
@@ -541,11 +356,11 @@ async def read_trades(
 
 
 async def trades_page(
-    session: BinanceSession, place: Place, request: FetchRequest
+    session: BinanceSession, place: BinancePlace, request: FetchRequest
 ) -> FetchResult:
     checked_filters(request.filters, TRADE_COLUMNS)
     checked_sorts(request.sort, TRADE_COLUMNS)
-    if _too_deep(request):
+    if too_deep(request):
         raise ValueError(
             say(
                 "A page reaches at most {n} trades deep; narrow it by id or time",
@@ -591,56 +406,6 @@ async def trades_page(
     )
 
 
-# --- the order book ---------------------------------------------------------
-
-BOOK_COLUMNS = [
-    column("side", "string", ["eq"]),
-    column("level", "number", ["lt", "lte"], sql="integer"),
-    column("price", "number"),
-    column("quantity", "number"),
-    column("cumulative_quantity", "number"),
-]
-
-
-def book_rows(answer: dict[str, Any], levels: int) -> list[list[str | None]]:
-    rows: list[list[str | None]] = []
-    for side, key in (("bid", "bids"), ("ask", "asks")):
-        total = Decimal(0)
-        for level, entry in enumerate(answer.get(key) or [], start=1):
-            if level > levels:
-                break
-            price, quantity = decimal_text(entry[0]), decimal_text(entry[1])
-            if quantity is not None:
-                total += Decimal(quantity)
-            rows.append([side, str(level), price, quantity, str(total)])
-    return rows
-
-
-async def book_page(
-    session: BinanceSession, place: Place, request: FetchRequest
-) -> FetchResult:
-    checked_filters(request.filters, BOOK_COLUMNS)
-    checked_sorts(request.sort, BOOK_COLUMNS)
-    assert place.symbol is not None
-    levels = DEFAULT_BOOK_LEVELS
-    sides = {"bid", "ask"}
-    for one in request.filters:
-        if not isinstance(one, ScalarFilter):
-            continue
-        if one.column == "level":
-            wanted = _whole_number("level", one.value) - (1 if one.op == "lt" else 0)
-            levels = max(1, wanted)
-        if one.column == "side":
-            sides &= {one.value.casefold()}
-    market = place.market
-    levels = min(levels, market.depths[-1])
-    params = {"symbol": place.symbol, "limit": str(market.depth_for(levels))}
-    answer = await session.get(market, "depth", params, request.node_id)
-    rows = [row for row in book_rows(answer, levels) if row[0] in sides]
-    # The book changes many times a second; a page of it is a moment.
-    return paged(BOOK_COLUMNS, rows, request, 5)
-
-
 # --- the lists ------------------------------------------------------------------
 
 
@@ -655,28 +420,13 @@ async def ticker_rows(
     ]
 
 
-async def tickers_page(
-    session: BinanceSession, place: Place, request: FetchRequest
-) -> FetchResult:
-    sort = request.sort or [Sort(column="quote_volume", descending=True)]
-    rows = listed_page(
-        TICKER_COLUMNS, await ticker_rows(session, place.market), request.filters, sort
-    )
-    return paged(TICKER_COLUMNS, rows, request, 10)
+# --- the order book ---------------------------------------------------------
 
 
-async def symbol_rows(
-    session: BinanceSession, market: Market
-) -> list[list[str | None]]:
-    return [symbol_row(market, one) for one in await session.symbols(market)]
-
-
-async def symbols_page(
-    session: BinanceSession, place: Place, request: FetchRequest
-) -> FetchResult:
-    columns = symbol_columns(place.market)
-    sort = request.sort or [Sort(column="symbol")]
-    rows = listed_page(
-        columns, await symbol_rows(session, place.market), request.filters, sort
-    )
-    return paged(columns, rows, request, None)
+async def book_answer(
+    session: BinanceSession, market: Market, symbol: str, depth: int, node_id: str
+) -> dict[str, Any]:
+    """The book to a depth Binance accepts, its sides as `bids` and `asks`."""
+    params = {"symbol": symbol, "limit": str(depth)}
+    answer = await session.get(market, "depth", params, node_id)
+    return answer if isinstance(answer, dict) else {}

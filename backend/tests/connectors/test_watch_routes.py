@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from httpx import AsyncClient
 
-from app.adapters.binance import live as binance_live
+from app.adapters.market import stream as market_stream
 from app.core.config import settings
 from tests.adapters.binance_fixture import FakeBinance, install
 from tests.adapters.test_binance_live import FakeStreams
@@ -28,7 +28,7 @@ def fake_binance(monkeypatch: pytest.MonkeyPatch) -> FakeBinance:
 @pytest.fixture
 def streams(monkeypatch: pytest.MonkeyPatch) -> FakeStreams:
     fake = FakeStreams()
-    monkeypatch.setattr(binance_live, "connect", fake.connect)
+    monkeypatch.setattr(market_stream, "connect", fake.connect)
     return fake
 
 

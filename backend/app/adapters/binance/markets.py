@@ -9,31 +9,11 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.adapters.binance.options import Hosts
+from app.adapters.market.shape import INTERVAL_MS
 from app.core.translation import N_, say
 
 MarketKey = Literal["spot", "usdm", "coinm"]
 MARKETS: tuple[MarketKey, ...] = ("spot", "usdm", "coinm")
-
-INTERVAL_MS: dict[str, int] = {
-    "1s": 1_000,
-    "1m": 60_000,
-    "3m": 180_000,
-    "5m": 300_000,
-    "15m": 900_000,
-    "30m": 1_800_000,
-    "1h": 3_600_000,
-    "2h": 7_200_000,
-    "4h": 14_400_000,
-    "6h": 21_600_000,
-    "8h": 28_800_000,
-    "12h": 43_200_000,
-    "1d": 86_400_000,
-    "3d": 259_200_000,
-    "1w": 604_800_000,
-    # A month is not a fixed span; this is its longest, used only to say how
-    # far a page reaches, never to name a candle.
-    "1M": 2_678_400_000,
-}
 
 
 @dataclass(frozen=True)
@@ -59,6 +39,14 @@ class Market:
     account_path: str = "account"
     positions_path: str | None = None
     my_trades_path: str = "userTrades"
+
+    @property
+    def futures(self) -> bool:
+        return self.key != "spot"
+
+    @property
+    def max_depth(self) -> int:
+        return self.depths[-1]
 
     def path(self, name: str) -> str:
         """A name under the market's prefix, or a path of the host's own."""
@@ -176,7 +164,7 @@ COINM = Market(
     positions_path="positionRisk",
 )
 
-BY_KEY: dict[MarketKey, Market] = {"spot": SPOT, "usdm": USDM, "coinm": COINM}
+BY_KEY: dict[str, Market] = {"spot": SPOT, "usdm": USDM, "coinm": COINM}
 
 HOSTS: dict[Hosts, dict[MarketKey, str]] = {
     "binance": {

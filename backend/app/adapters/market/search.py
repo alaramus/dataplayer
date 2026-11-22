@@ -1,17 +1,18 @@
-"""Symbols found by name and by their assets, and every name for a kept list (D320).
+"""Symbols found by name and by their assets, and every name for a kept list (D320, D425).
 
-Read from the symbol list the connection keeps, so a search asks Binance for
-nothing it has not already read this hour. "btc" finds BTCUSDT by its name
-and ETHBTC by its quote asset; a name that matches itself outranks one that
-matches by an asset.
+Read from the symbol list the connection keeps, so a search asks the exchange
+for nothing it has not already read this hour. "btc" finds BTCUSDT by its
+name and ETHBTC by its quote asset; a name that matches itself outranks one
+that matches by an asset.
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
+from typing import Any
 
-from app.adapters.binance.catalog import market_node, place_of, quote_node, symbol_node
-from app.adapters.binance.markets import BY_KEY, MARKETS, Market, MarketKey
-from app.adapters.binance.session import BinanceSession, Symbol
+from app.adapters.market.catalog import Place, market_node, quote_node, symbol_node
+from app.adapters.market.session import MarketSession
+from app.adapters.market.shape import Market, Symbol
 from app.adapters.search import (
     Ancestor,
     Kept,
@@ -56,20 +57,23 @@ def _location(market: Market, symbol: Symbol) -> str:
     return f"{market_node(market).name} / {symbol.quote}"
 
 
-def _scope(node_id: str | None) -> tuple[tuple[MarketKey, ...], str | None]:
-    """The markets a search looks in, and the quote asset it keeps to."""
-    if node_id is None:
-        return MARKETS, None
-    try:
-        place = place_of(node_id)
-    except ValueError:
-        return MARKETS, None
-    return (place.market.key,), place.quote
-
-
-class BinanceSearch:
-    def __init__(self, session: BinanceSession) -> None:
+class MarketSearch[M: Market]:
+    def __init__(
+        self, session: MarketSession[M], place_of: Callable[[str], Place[M]]
+    ) -> None:
         self._session = session
+        self._place_of = place_of
+
+    def _scope(self, node_id: str | None) -> tuple[list[M], str | None]:
+        """The markets a search looks in, and the quote asset it keeps to."""
+        markets = list(self._session.markets)
+        if node_id is None:
+            return markets, None
+        try:
+            place = self._place_of(node_id)
+        except ValueError:
+            return markets, None
+        return [place.market], place.quote
 
     async def search_nodes(
         self, request: NodeSearchRequest, bounds: SearchBounds | None = None
@@ -78,16 +82,15 @@ class BinanceSearch:
         words = words_of(request.query)
         if not words:
             raise ValueError(say("A search needs something to look for"))
-        markets, quote = _scope(request.node_id)
-        kept: Kept[tuple[int, int, Market, Symbol]] = Kept(request.limit)
+        markets, quote = self._scope(request.node_id)
+        kept: Kept[tuple[int, int, Any, Symbol]] = Kept(request.limit)
         extent = 0
         # The markets' lists at once: read one after another they took longer
         # than a search waits for a connection.
         lists = await asyncio.gather(
-            *(self._session.symbols(BY_KEY[key]) for key in markets)
+            *(self._session.symbols(market) for market in markets)
         )
-        for key, symbols in zip(markets, lists, strict=True):
-            market = BY_KEY[key]
+        for market, symbols in zip(markets, lists, strict=True):
             for order, symbol in enumerate(symbols):
                 if quote is not None and symbol.quote != quote:
                     continue
@@ -121,12 +124,11 @@ class BinanceSearch:
     async def enumerate_names(
         self, limit: int, bounds: SearchBounds
     ) -> AsyncIterator[NameBatch]:
-        """Every trading symbol of both markets, scoped to its market (D213)."""
+        """Every trading symbol of every market, scoped to its market (D213)."""
         del bounds
         names: list[KeptName] = []
         notice = None
-        for key in MARKETS:
-            market = BY_KEY[key]
+        for market in self._session.markets:
             for symbol in await self._session.symbols(market):
                 if len(names) >= limit:
                     notice = say(
@@ -141,7 +143,7 @@ class BinanceSearch:
                         location=_location(market, symbol),
                         ancestors=_ancestors(market, symbol),
                         full_name=full_name(symbol),
-                        scope=key,
+                        scope=market.key,
                     )
                 )
         yield NameBatch(names=names, notice=notice)

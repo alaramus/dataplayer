@@ -860,11 +860,15 @@ forbidden_modules =
     s3transfer
 
 # A client socket to a market's streams, by the rule every driver follows:
-# the Binance adapter owns it (D323).
+# the shared layer of market data owns it, and the exchanges reach it only
+# through `app.adapters.market.stream` (D323, D425).
 [importlinter:contract:websocket-client-is-contained]
-name = the websockets client is imported only by the binance adapter
+name = the websockets client is imported only by the shared market-data layer
 type = forbidden
+# Direct imports only: an exchange holds a socket through the shared stream.
+allow_indirect_imports = True
 source_modules =
+    app.adapters.binance
     app.core
     app.users
     app.realtime

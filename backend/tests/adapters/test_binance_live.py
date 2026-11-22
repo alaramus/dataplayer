@@ -10,13 +10,13 @@ import pytest
 from websockets.exceptions import InvalidStatus
 from websockets.http11 import Response
 
-from app.adapters.binance import live as binance_live
 from app.adapters.binance.adapter import BinanceAdapter
 from app.adapters.binance.live import MarketStream, stream_urls
 from app.adapters.binance.markets import COINM, SPOT, USDM
 from app.adapters.binance.options import BinanceMain
 from app.adapters.binance.session import BinanceSession
 from app.adapters.live import LiveRows
+from app.adapters.market import stream as market_stream
 from app.adapters.protocol import AdapterError, NodeNotFound
 from tests.adapters.binance_fixture import TRADES, FakeBinance, install
 
@@ -70,7 +70,7 @@ def fake_binance(monkeypatch: pytest.MonkeyPatch) -> FakeBinance:
 @pytest.fixture
 def streams(monkeypatch: pytest.MonkeyPatch) -> FakeStreams:
     fake = FakeStreams()
-    monkeypatch.setattr(binance_live, "connect", fake.connect)
+    monkeypatch.setattr(market_stream, "connect", fake.connect)
     return fake
 
 

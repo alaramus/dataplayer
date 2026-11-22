@@ -1,49 +1,47 @@
 """A symbol watched live: its day, candles, book and trades as they change (D323).
 
-What a watch first says is read over REST, as the grid reads it; what
-changes after comes from Binance's market streams, which cost no weight.
-One upstream socket a symbol and interval for a connection, however many
-screens watch it: a stream is kept with the connection's client (D316),
-started by the first watcher and stopped by the last.
-
-Every batch is rows in the columns the grid already shows for the same
-feed, so the trade, book, candle and ticker rows read the same either way.
+The frame is shared (D425): the snapshot over REST, then the streams, one
+upstream socket a symbol and interval for a connection however many screens
+watch it. This says where Binance's streams are and what their messages mean;
+they cost no weight.
 """
 
-import asyncio
-import contextlib
-import json
-import logging
 import time
-from collections.abc import AsyncGenerator, AsyncIterator, Callable
-from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
+from collections.abc import AsyncGenerator, Sequence
 from typing import Any
 
-from websockets.asyncio.client import connect
-from websockets.exceptions import InvalidStatus, WebSocketException
-
 from app.adapters.binance.feeds import (
-    BOOK_COLUMNS,
-    CANDLE_COLUMNS,
-    TICKER_COLUMNS,
-    TRADE_COLUMNS,
     Candle,
-    book_rows,
     contract_size_of,
     read_candles,
     ticker_row,
     trade_row,
-    whole_of,
 )
 from app.adapters.binance.markets import Market, MarketKey
 from app.adapters.binance.options import Hosts
 from app.adapters.binance.session import BinanceSession
 from app.adapters.live import LiveRows
+from app.adapters.market.columns import (
+    BOOK_COLUMNS,
+    CANDLE_COLUMNS,
+    TICKER_COLUMNS,
+    TRADE_COLUMNS,
+    book_rows,
+    names,
+)
+from app.adapters.market.live import (
+    BOOK_LEVELS,
+    DEFAULT_INTERVAL,
+    SNAPSHOT_CANDLES,
+    SNAPSHOT_TRADES,
+    watch,
+)
+from app.adapters.market.stream import MarketStream, StreamSpec
+from app.adapters.market.values import whole_of
 from app.adapters.protocol import AdapterError
 from app.core.translation import say
 
-logger = logging.getLogger(__name__)
+__all__ = ["DEFAULT_INTERVAL", "BinanceLive", "MarketStream", "stream_urls"]
 
 # Where each market's streams are, by the hosts an endpoint speaks to.
 STREAM_HOSTS: dict[Hosts, dict[MarketKey, str]] = {
@@ -63,18 +61,6 @@ STREAM_HOSTS: dict[Hosts, dict[MarketKey, str]] = {
         "coinm": "wss://dstream.binancefuture.com",
     },
 }
-
-DEFAULT_INTERVAL = "1m"
-SNAPSHOT_CANDLES = 300
-SNAPSHOT_TRADES = 100
-BOOK_LEVELS = 20
-# A watcher that falls this far behind loses the oldest batches first: a
-# book or a candle is replaced by the next one anyway.
-QUEUE_SIZE = 500
-OPEN_TIMEOUT_SECONDS = 10.0
-RETRY_SECONDS = (1.0, 2.0, 5.0, 10.0, 30.0)
-
-type Item = dict[str, Any] | AdapterError
 
 
 def stream_urls(hosts: Hosts, market: Market, symbol: str, interval: str) -> list[str]:
@@ -97,83 +83,13 @@ def stream_urls(hosts: Hosts, market: Market, symbol: str, interval: str) -> lis
     return [f"{host}/stream?streams={'/'.join((depth, *rest))}"]
 
 
-@dataclass
-class MarketStream:
-    """One upstream socket, and the queue of every watcher of it."""
-
-    url: str
-    on_idle: Callable[[MarketStream], None] = lambda stream: None
-    queues: set[asyncio.Queue[Item]] = field(default_factory=set)
-    task: asyncio.Task[None] | None = None
-
-    @asynccontextmanager
-    async def watched(self, queue: asyncio.Queue[Item]) -> AsyncIterator[None]:
-        """What the stream says goes into the queue until the watcher leaves."""
-        self.queues.add(queue)
-        if self.task is None:
-            self.task = asyncio.create_task(self._run())
-        try:
-            yield
-        finally:
-            self.queues.discard(queue)
-            if not self.queues:
-                await self.close()
-                self.on_idle(self)
-
-    def _publish(self, item: Item) -> None:
-        for queue in self.queues:
-            if queue.full():
-                queue.get_nowait()
-            queue.put_nowait(item)
-
-    async def _run(self) -> None:
-        """Read the upstream until nobody watches, coming back after a drop."""
-        attempt = 0
-        while True:
-            try:
-                async with connect(
-                    self.url,
-                    proxy=None,
-                    open_timeout=OPEN_TIMEOUT_SECONDS,
-                    # A watcher that leaves is not kept waiting for Binance to
-                    # agree the socket is closed.
-                    close_timeout=1.0,
-                    max_size=2**20,
-                ) as socket:
-                    attempt = 0
-                    async for message in socket:
-                        self._publish(json.loads(message))
-            except InvalidStatus as refusal:
-                if refusal.response.status_code == 451:
-                    self._publish(
-                        AdapterError(
-                            "config",
-                            say(
-                                "Binance does not serve this address; "
-                                "choose another endpoint"
-                            ),
-                        )
-                    )
-                    return
-                logger.warning(
-                    "Binance stream refused: %s", refusal.response.status_code
-                )
-            except (OSError, TimeoutError, WebSocketException, ValueError) as failure:
-                logger.info("Binance stream dropped: %r", failure)
-            delay = RETRY_SECONDS[min(attempt, len(RETRY_SECONDS) - 1)]
-            attempt += 1
-            await asyncio.sleep(delay)
-
-    async def close(self) -> None:
-        task, self.task = self.task, None
-        if task is not None:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
-
-
-def _now_ms() -> int:
-    return int(time.time() * 1000)
+def _refusals() -> dict[int, AdapterError]:
+    return {
+        451: AdapterError(
+            "config",
+            say("Binance does not serve this address; choose another endpoint"),
+        )
+    }
 
 
 def _ticker(data: dict[str, Any], contract_size: int | None) -> list[str | None]:
@@ -210,28 +126,49 @@ def _candle(data: dict[str, Any]) -> Candle | None:
     return Candle(int(k["t"]), raw)
 
 
-def _names(columns: list[Any]) -> list[str]:
-    return [column.name for column in columns]
+def _now_ms() -> int:
+    return int(time.time() * 1000)
 
 
-class BinanceLive:
-    """The watch of a symbol's Market node."""
+class BinanceWatch:
+    """One watch of a symbol's Market node at one interval."""
 
-    def __init__(self, session: BinanceSession) -> None:
+    def __init__(
+        self,
+        session: BinanceSession,
+        market: Market,
+        symbol: str,
+        interval: str,
+        node_id: str,
+        size: int | None,
+    ) -> None:
         self._session = session
+        self._market = market
+        self._symbol = symbol
+        self._interval = interval
+        self._node_id = node_id
+        self._size = size
+        # The newest trade said, so a trade the snapshot held is not said twice.
+        self._newest = -1
 
-    async def snapshot(
-        self, market: Market, symbol: str, interval: str, node_id: str
-    ) -> tuple[list[LiveRows], int]:
+    def streams(self) -> Sequence[StreamSpec]:
+        return [
+            StreamSpec(url)
+            for url in stream_urls(
+                self._session.hosts, self._market, self._symbol, self._interval
+            )
+        ]
+
+    async def snapshot(self) -> list[LiveRows]:
         """The symbol as it stands, and the newest trade id it holds."""
-        session = self._session
-        size = await contract_size_of(session, market, symbol, node_id)
+        session, market, symbol = self._session, self._market, self._symbol
+        node_id, size = self._node_id, self._size
         now = _now_ms()
         day = await session.get(market, "ticker/24hr", {"symbol": symbol}, node_id)
         # COIN-M answers a list even for one symbol.
         day = day[0] if isinstance(day, list) and day else day
         candles = await read_candles(
-            session, market, symbol, interval, [], True, SNAPSHOT_CANDLES, node_id
+            session, market, symbol, self._interval, [], True, SNAPSHOT_CANDLES, node_id
         )
         book = await session.get(
             market, "depth", {"symbol": symbol, "limit": str(BOOK_LEVELS)}, node_id
@@ -243,52 +180,56 @@ class BinanceLive:
             node_id,
         )
         trades = [one for one in trades if isinstance(one, dict) and "a" in one]
-        newest = max((int(one["a"]) for one in trades), default=-1)
+        self._newest = max((int(one["a"]) for one in trades), default=-1)
         return [
             LiveRows(
                 part="ticker",
                 mode="replace",
-                columns=_names(TICKER_COLUMNS),
+                columns=names(TICKER_COLUMNS),
                 rows=[ticker_row(day, size)] if isinstance(day, dict) else [],
             ),
             LiveRows(
                 part="candles",
                 mode="replace",
-                columns=_names(CANDLE_COLUMNS),
+                columns=names(CANDLE_COLUMNS),
                 rows=[one.row(now, size) for one in reversed(candles)],
                 key=["open_time"],
             ),
             LiveRows(
                 part="order_book",
                 mode="replace",
-                columns=_names(BOOK_COLUMNS),
+                columns=names(BOOK_COLUMNS),
                 rows=book_rows(book, BOOK_LEVELS) if isinstance(book, dict) else [],
             ),
             LiveRows(
                 part="trades",
                 mode="replace",
-                columns=_names(TRADE_COLUMNS),
+                columns=names(TRADE_COLUMNS),
                 rows=[trade_row(one) for one in trades],
             ),
-        ], newest
+        ]
 
-    def batch(
-        self, item: dict[str, Any], size: int | None, newest: int
-    ) -> tuple[LiveRows | None, int]:
-        """One message of the stream as rows, and the newest trade id after it."""
+    def batch(self, item: dict[str, Any]) -> list[LiveRows]:
+        rows = self._batch(item)
+        return [] if rows is None else [rows]
+
+    def _batch(self, item: dict[str, Any]) -> LiveRows | None:
         stream = item.get("stream")
         data = item.get("data")
         if not isinstance(stream, str) or not isinstance(data, dict):
-            return None, newest
+            return None
         if stream.endswith("@aggTrade"):
             trade_id = whole_of(data.get("a"))
             # Trades the snapshot already held are not said twice.
-            if trade_id is None or trade_id <= newest:
-                return None, newest
-            rows = [trade_row(data)]
+            if trade_id is None or trade_id <= self._newest:
+                return None
+            self._newest = trade_id
             return LiveRows(
-                part="trades", mode="append", columns=_names(TRADE_COLUMNS), rows=rows
-            ), trade_id
+                part="trades",
+                mode="append",
+                columns=names(TRADE_COLUMNS),
+                rows=[trade_row(data)],
+            )
         if "@depth" in stream:
             # Spot names the sides `bids` and `asks`, futures `b` and `a`.
             book = {
@@ -298,52 +239,40 @@ class BinanceLive:
             return LiveRows(
                 part="order_book",
                 mode="replace",
-                columns=_names(BOOK_COLUMNS),
+                columns=names(BOOK_COLUMNS),
                 rows=book_rows(book, BOOK_LEVELS),
-            ), newest
+            )
         if "@kline_" in stream:
             candle = _candle(data)
             if candle is None:
-                return None, newest
+                return None
             return LiveRows(
                 part="candles",
                 mode="upsert",
-                columns=_names(CANDLE_COLUMNS),
-                rows=[candle.row(_now_ms(), size)],
+                columns=names(CANDLE_COLUMNS),
+                rows=[candle.row(_now_ms(), self._size)],
                 key=["open_time"],
-            ), newest
+            )
         if stream.endswith("@ticker"):
             return LiveRows(
                 part="ticker",
                 mode="replace",
-                columns=_names(TICKER_COLUMNS),
-                rows=[_ticker(data, size)],
-            ), newest
-        return None, newest
+                columns=names(TICKER_COLUMNS),
+                rows=[_ticker(data, self._size)],
+            )
+        return None
+
+
+class BinanceLive:
+    """The watch of a symbol's Market node."""
+
+    def __init__(self, session: BinanceSession) -> None:
+        self._session = session
 
     async def watch(
         self, market: Market, symbol: str, interval: str, node_id: str
     ) -> AsyncGenerator[LiveRows]:
-        session = self._session
-        size = await contract_size_of(session, market, symbol, node_id)
-        queue: asyncio.Queue[Item] = asyncio.Queue(maxsize=QUEUE_SIZE)
-        async with session.kept() as kept, contextlib.AsyncExitStack() as held:
-            for url in stream_urls(session.hosts, market, symbol, interval):
-                found = kept.streams.get(url)
-                stream = found if isinstance(found, MarketStream) else None
-                if stream is None:
-                    stream = MarketStream(url, on_idle=kept.forget_stream)
-                    kept.streams[url] = stream
-                # Watched before the snapshot is read, so nothing between the
-                # two is missed; what both hold is left out by its id.
-                await held.enter_async_context(stream.watched(queue))
-            frames, newest = await self.snapshot(market, symbol, interval, node_id)
-            for frame in frames:
-                yield frame
-            while True:
-                item = await queue.get()
-                if isinstance(item, AdapterError):
-                    raise item
-                rows, newest = self.batch(item, size, newest)
-                if rows is not None:
-                    yield rows
+        size = await contract_size_of(self._session, market, symbol, node_id)
+        one = BinanceWatch(self._session, market, symbol, interval, node_id, size)
+        async for rows in watch(self._session, one, _refusals(), "Binance"):
+            yield rows

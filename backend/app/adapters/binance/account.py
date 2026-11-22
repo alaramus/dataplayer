@@ -11,20 +11,20 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from app.adapters.binance.catalog import Place
-from app.adapters.binance.feeds import (
-    boolean_of,
-    contract_size_of,
-    in_quote,
-    moment,
-    paged,
-    whole_of,
-)
+from app.adapters.binance.feeds import BinancePlace, contract_size_of
 from app.adapters.binance.markets import SPOT, Market
-from app.adapters.binance.session import BinanceSession, decimal_text
+from app.adapters.binance.session import BinanceSession
 from app.adapters.catalog import FeedName
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult, Sort
 from app.adapters.listed import listed_column, listed_page
+from app.adapters.market.columns import paged
+from app.adapters.market.values import (
+    boolean_of,
+    decimal_text,
+    in_quote,
+    moment,
+    whole_of,
+)
 from app.core.translation import N_, say
 
 # How many orders or own trades of a symbol a page holds: one request's worth.
@@ -343,7 +343,7 @@ _FIRST: dict[FeedName, Sort] = {
 
 
 async def account_rows(
-    session: BinanceSession, place: Place, node_id: str
+    session: BinanceSession, place: BinancePlace, node_id: str
 ) -> list[list[str | None]]:
     """Every row of an account feed, as Binance answers it."""
     market, feed, symbol = place.market, place.feed, place.symbol
@@ -382,7 +382,7 @@ async def account_rows(
 
 
 async def account_page(
-    session: BinanceSession, place: Place, request: FetchRequest
+    session: BinanceSession, place: BinancePlace, request: FetchRequest
 ) -> FetchResult:
     assert place.feed is not None
     columns = columns_of(place.market, place.feed)

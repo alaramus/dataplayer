@@ -13,11 +13,10 @@ import time
 from typing import Any
 
 from app.adapters.binance.account import LISTED, MY_TRADE_COLUMNS, my_trade_row
-from app.adapters.binance.catalog import Place, place_of
+from app.adapters.binance.catalog import place_of
 from app.adapters.binance.feeds import (
-    CANDLE_COLUMNS,
     HOUR_MS,
-    TRADE_COLUMNS,
+    BinancePlace,
     Candle,
     contract_size_of,
     newest_trade_id,
@@ -25,8 +24,11 @@ from app.adapters.binance.feeds import (
     read_trades,
     trade_row,
 )
-from app.adapters.binance.markets import INTERVAL_MS, Market
+from app.adapters.binance.markets import Market
 from app.adapters.binance.session import BinanceSession
+from app.adapters.market.adapter import MarketReading
+from app.adapters.market.columns import CANDLE_COLUMNS, TRADE_COLUMNS
+from app.adapters.market.shape import INTERVAL_MS
 from app.adapters.reading_on import (
     Bookmark,
     BookmarkAccess,
@@ -54,7 +56,7 @@ def _at(positions: dict[str, int]) -> Bookmark:
     return Bookmark(positions=positions)
 
 
-class BinanceReading:
+class BinanceReading(MarketReading[Market]):
     def __init__(
         self, session: BinanceSession, bookmarks: BookmarkAccess | None
     ) -> None:
@@ -73,7 +75,7 @@ class BinanceReading:
             raise ValueError(say("This connection keeps no reader's place here"))
         return self._bookmarks
 
-    async def _place(self, node_id: str) -> Place:
+    async def _place(self, node_id: str) -> BinancePlace:
         place = place_of(node_id)
         if place.feed not in _READ_ON or place.symbol is None:
             raise ValueError(say("Only trades and candles are read on"))
@@ -94,7 +96,7 @@ class BinanceReading:
         return await self._unread_candles(place, node_id, kept, start)
 
     async def _mine(
-        self, place: Place, node_id: str, params: dict[str, str]
+        self, place: BinancePlace, node_id: str, params: dict[str, str]
     ) -> list[dict[str, Any]]:
         assert place.symbol is not None
         market = place.market
@@ -112,7 +114,7 @@ class BinanceReading:
         ]
 
     async def _unread_mine(
-        self, place: Place, node_id: str, kept: Bookmark | None, start: ReadStart
+        self, place: BinancePlace, node_id: str, kept: Bookmark | None, start: ReadStart
     ) -> UnreadSpan:
         """The key's own trades of a symbol, by id.
 
@@ -138,7 +140,7 @@ class BinanceReading:
         )
 
     async def _unread_trades(
-        self, place: Place, node_id: str, kept: Bookmark | None, start: ReadStart
+        self, place: BinancePlace, node_id: str, kept: Bookmark | None, start: ReadStart
     ) -> UnreadSpan:
         assert place.symbol is not None
         market, symbol = place.market, place.symbol
@@ -195,7 +197,7 @@ class BinanceReading:
         return int(found[0]["a"]) if found else line
 
     async def _unread_candles(
-        self, place: Place, node_id: str, kept: Bookmark | None, start: ReadStart
+        self, place: BinancePlace, node_id: str, kept: Bookmark | None, start: ReadStart
     ) -> UnreadSpan:
         assert place.symbol is not None and place.interval is not None
         market, symbol, interval = place.market, place.symbol, place.interval
@@ -266,7 +268,7 @@ class BinanceReading:
 
     async def _trades_block(
         self,
-        place: Place,
+        place: BinancePlace,
         node_id: str,
         picked: list[int],
         at: Bookmark,
@@ -288,7 +290,7 @@ class BinanceReading:
 
     async def _candles_block(
         self,
-        place: Place,
+        place: BinancePlace,
         node_id: str,
         picked: list[int],
         at: Bookmark,
@@ -320,7 +322,7 @@ class BinanceReading:
 
     async def _mine_block(
         self,
-        place: Place,
+        place: BinancePlace,
         node_id: str,
         picked: list[int],
         at: Bookmark,
