@@ -9,7 +9,7 @@ Kafka's own tools in a terminal (D307, run as D286
 says in [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `kafka` adapter.
 
-Decisions here: D304, D305, D306, D307, D308, D309, D310, D311.
+Decisions here: D304, D305, D306, D307, D308, D309, D310, D311, D444, D445.
 
 ## D304. A Kafka source speaks to a cluster through confluent-kafka, a client per operation
 
@@ -44,7 +44,7 @@ Known deviations:
 
 Spec: [A Kafka source](../../decisions/2026-11-01-kafka-source-design.md)
 
-## D305. Topics, consumer groups and internal topics are three levels; each opens as rows
+## D305. Topics, consumer groups and internal topics are three levels; a topic opens as a card
 
 The top is three directories: Topics, Consumer groups, and Internal topics —
 a name that starts with an underscore, as `__consumer_offsets` and `_schemas`
@@ -53,9 +53,13 @@ name in Kafka's own characters, and `group:<id>`.
 
 - **A topic** is a `topic` node with its partitions and the offsets they span,
   end less start: an upper bound rather than a count, since compaction and
-  transaction markers leave gaps. Its summary is each partition's leader,
-  replicas, in-sync replicas and offsets, and the settings made on the topic
-  itself; a value the broker keeps secret is said to be hidden.
+  transaction markers leave gaps. It opens on a `view` card showing each
+  partition's leader, replicas, in-sync replicas and offsets, and the settings
+  made on the topic itself; a value the broker keeps secret is said to be
+  hidden. Its existing messages table remains an alternate representation
+  (D444), with the server-log icon named by the representation (D445). Kafka
+  supplies these as typed protocol facts rather than a JSON document, so the
+  card does not offer a JSON tree.
 - **A group** is a `consumer_group` node with its state — stable, no
   consumers, rebalancing, gone or unknown — and its members. It opens as a
   row per partition it has a position in or a member holds: topic, partition,
@@ -69,6 +73,8 @@ name in Kafka's own characters, and `group:<id>`.
   there.
 
 Spec: [A Kafka source](../../decisions/2026-11-01-kafka-source-design.md)
+
+Spec: [Kafka and RabbitMQ document views](../../decisions/2026-11-22-source-document-views-design.md)
 
 ## D306. A topic's messages are rows, newest first, read by assigned partitions
 

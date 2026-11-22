@@ -7,10 +7,10 @@ from confluent_kafka import TopicCollection
 from confluent_kafka.admin import ConfigResource, ConfigSource, ResourceType
 
 from app.adapters.kafka.catalog import (
-    MESSAGES,
     TOPIC_PREFIX,
     partitions_of,
     topic_of,
+    topic_representations,
     watermarks,
 )
 from app.adapters.kafka.session import TIMEOUT_SECONDS, KafkaClients, KafkaSession
@@ -20,7 +20,6 @@ from app.adapters.summary import (
     KafkaTopicContents,
     NodeSummary,
 )
-from app.adapters.words import worded_titles
 
 
 @dataclass(frozen=True)
@@ -84,7 +83,7 @@ class KafkaTopics:
             node_id=TOPIC_PREFIX + topic,
             name=topic,
             kind="topic",
-            representations=worded_titles([MESSAGES]),
+            representations=topic_representations(),
             contents=KafkaTopicContents(
                 messages=messages,
                 partitions=described.partitions,

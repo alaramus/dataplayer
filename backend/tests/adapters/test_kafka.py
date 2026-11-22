@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 import pytest
 
 from app.adapters.catalog import ConsumerGroupNode, DirectoryNode, TopicNode
+from app.adapters.content import ContentRequest
 from app.adapters.fetch import FetchRequest, InFilter, NullFilter, ScalarFilter, Sort
 from app.adapters.kafka.adapter import KafkaAdapter
 from app.adapters.kafka.messages import DEPTH_CEILING
@@ -12,6 +13,7 @@ from app.adapters.kafka.options import KafkaNoAuth, KafkaPlain, checked_servers
 from app.adapters.kafka.session import BROWSING_GROUP
 from app.adapters.protocol import NodeNotFound
 from app.adapters.summary import KafkaGroupContents, KafkaTopicContents
+from app.adapters.views import DocumentView, SectionBlock
 from tests.adapters.kafka_fixture import (
     GROUP_READ,
     ORDERS,
@@ -114,6 +116,8 @@ async def test_a_topic_is_listed_with_its_partitions_and_messages(topic: str) ->
     assert node.messages == ORDERS + 1
     assert node.summarizable
     assert not any(name.startswith("_") for name in listed)
+    assert [one.kind for one in node.representations] == ["view", "table"]
+    assert node.representations[1].icon == "receipt_long"
 
 
 async def test_kafka_s_own_topics_are_kept_apart(topic: str) -> None:
@@ -303,6 +307,10 @@ async def test_a_topic_that_is_not_there_is_not_made_by_asking(
         await adapter().fetch(FetchRequest(node_id=f"topic:{missing}"))
     with pytest.raises(NodeNotFound):
         await adapter().node_summary(f"topic:{missing}")
+    with pytest.raises(NodeNotFound):
+        await adapter().read_content(
+            ContentRequest(node_id=f"topic:{missing}", representation="view")
+        )
     assert missing not in await on_server(topics)
 
 
@@ -319,6 +327,35 @@ async def test_a_topic_summary_shows_its_partitions_and_own_settings(
     assert (first.first_offset, first.end_offset) == (0, ORDERS // PARTITIONS + 1)
     assert [(one.name, one.value) for one in contents.settings] == [
         ("retention.ms", "-1")
+    ]
+    assert [one.kind for one in summary.representations] == ["view", "table"]
+
+
+async def test_a_topic_opens_on_its_card_without_changing_its_messages_table(
+    topic: str,
+) -> None:
+    card = await adapter().read_content(
+        ContentRequest(node_id=f"topic:{topic}", representation="view")
+    )
+    assert isinstance(card, DocumentView)
+    assert card.header.title == topic
+    assert [block.title for block in card.blocks if isinstance(block, SectionBlock)] == [
+        "Overview",
+        "Partitions",
+        "Topic settings",
+    ]
+    with pytest.raises(ValueError):
+        await adapter().read_content(
+            ContentRequest(node_id=f"topic:{topic}", representation="tree")
+        )
+    messages = await adapter().fetch(FetchRequest(node_id=f"topic:{topic}", limit=3))
+    assert [column.name for column in messages.columns][:6] == [
+        "partition",
+        "offset",
+        "timestamp",
+        "key",
+        "value",
+        "headers",
     ]
 
 

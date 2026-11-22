@@ -125,4 +125,16 @@ MESSAGES: dict[str, str] = {
     # A topic read on by a pipeline's link (D312).
     "Kafka sent nothing in {seconds} seconds": "Kafka 在 {seconds} 秒内没有发送任何内容",
     "Kafka's own topics are not read on from here": "Kafka 自身的主题不能从这里续读",
+    "Overview": "概览",
+    "Configured settings": "已配置的设置",
+    "Partition ID": "分区 ID",
+    "Leader broker": "Leader broker",
+    "Replica brokers": "副本 broker",
+    "In-sync replica brokers": "同步副本 broker",
+    "First offset": "起始偏移量",
+    "End offset": "结束偏移量",
+    "Topic settings": "主题设置",
+    "Hidden by Kafka": "Kafka 已隐藏",
+    "This node does not offer that representation": "此节点不提供此表示形式",
+    "Only a topic has an overview": "只有主题有概览",
 }

@@ -101,8 +101,9 @@ guard.
   other transport with 415.
 - `ActionResult.reload_node_ids` names every branch that changed, rather than the
   client inferring one from the action name.
-- `ActionResult.open_node_id` names a node the catalog opens as soon as one
-  action is done — a record of what the action read, such as a look inside a
+- `ActionResult.open_node_id` names a node the catalog or a view action opens
+  as soon as one action is done, through the source's path and in its preferred
+  representation — a record of what the action read, such as a look inside a
   RabbitMQ queue (D330) — apart from `created_node_id`, which names something
   made and is only offered. A set of nodes opens nothing.
 - An action that declares `opens_address` changes nothing and has no form: the

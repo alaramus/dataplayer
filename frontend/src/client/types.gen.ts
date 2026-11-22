@@ -9979,6 +9979,10 @@ export type NodeRepresentation = {
    * Title
    */
   title: string
+  /**
+   * Icon
+   */
+  icon?: string | null
 }
 
 /**

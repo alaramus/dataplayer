@@ -34,8 +34,16 @@ GROUP_PREFIX = "group:"
 # Past this many, a level lists the first ones by name.
 LIST_CEILING = 1000
 
-MESSAGES = NodeRepresentation(kind="table", title=N_("View the messages"))
+MESSAGES = NodeRepresentation(
+    kind="table", title=N_("View the messages"), icon="receipt_long"
+)
+OVERVIEW = NodeRepresentation(kind="view", title=N_("Overview"))
 POSITIONS = NodeRepresentation(kind="table", title=N_("View the positions"))
+
+
+def topic_representations() -> list[NodeRepresentation]:
+    """The card first, then Kafka's existing messages table (D419, D444)."""
+    return worded_titles([OVERVIEW, MESSAGES])
 
 # Kafka's rule for a topic's name.
 _TOPIC_NAME = re.compile(r"[A-Za-z0-9._-]{1,249}")
@@ -154,7 +162,7 @@ def topic_node(
     return TopicNode(
         id=TOPIC_PREFIX + name,
         name=name,
-        representations=worded_titles([MESSAGES]),
+        representations=topic_representations(),
         summarizable=True,
         partitions=len(partitions),
         messages=messages,

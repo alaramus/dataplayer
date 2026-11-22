@@ -15,13 +15,18 @@ import ViewPanel from "./ViewPanel.vue"
 import { SAMPLE_VIEW } from "./sample"
 
 let openRepresentation = vi.fn()
+let openIntent = vi.fn()
 let closeTab = vi.fn()
 
 const Host = defineComponent({
   components: { ViewPanel },
   provide() {
     return {
-      [workspaceActionsKey as symbol]: { openRepresentation, closeTab } as unknown as WorkspaceActions,
+      [workspaceActionsKey as symbol]: {
+        openRepresentation,
+        openIntent,
+        closeTab,
+      } as unknown as WorkspaceActions,
     }
   },
   setup() {
@@ -62,6 +67,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   vi.restoreAllMocks()
   openRepresentation = vi.fn()
+  openIntent = vi.fn()
   closeTab = vi.fn()
   vi.spyOn(ConnectorsService, "readActions").mockResolvedValue({ data: [] } as never)
 })
@@ -98,6 +104,22 @@ describe("a node opened on its view (D419)", () => {
       representations: [{ kind: "tree", title: "As JSON" }],
       describable: false,
     })
+  })
+
+  it("uses the representation's icon when the source names one", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue({ data: SAMPLE_VIEW } as never)
+    const wrapper = mountPanel()
+    await wrapper.setData({
+      representations: [
+        { kind: "view", title: "Overview" },
+        { kind: "table", title: "View bindings", icon: "hub" },
+      ],
+    })
+    await flushPromises()
+
+    const button = wrapper.get('[data-testid="view-show-table"]')
+    expect(button.html()).toContain("hub")
+    expect(button.attributes("aria-label")).toBe("View bindings")
   })
 
   it("opens a source-declared page as a separate node tab", async () => {
@@ -142,6 +164,51 @@ describe("a node opened on its view (D419)", () => {
     expect(wrapper.find('[data-testid="view-action-elsewhere"]').exists()).toBe(false)
     await stop.trigger("click")
     expect(wrapper.findComponent({ name: "ActionDialog" }).exists()).toBe(true)
+  })
+
+  it("opens the node returned by a view action in its preferred representation", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue({ data: SAMPLE_VIEW } as never)
+    vi.spyOn(ConnectorsService, "readActions").mockResolvedValue({
+      data: [action("rabbitmq_peek", { title: "Peek", in_view: true, icon: "visibility" })],
+    } as never)
+    vi.spyOn(ConnectorsService, "readNodePath").mockResolvedValue({
+      data: [{
+        id: "peek:%2F/orders/1",
+        name: "Peek result",
+        kind: "report",
+        has_children: false,
+        representations: [{ kind: "table", title: "View messages" }],
+        describable: false,
+        summarizable: false,
+        description: null,
+      }],
+    } as never)
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="view-action-rabbitmq_peek"]').trigger("click")
+
+    wrapper.findComponent({ name: "ActionDialog" }).vm.$emit("done", {
+      done: [{
+        message: "Looked in the queue",
+        reload_node_ids: [],
+        open_node_id: "peek:%2F/orders/1",
+      }],
+      failures: [],
+      total: 1,
+    })
+    await flushPromises()
+
+    expect(openIntent).toHaveBeenCalledWith({
+      connectorId: "c1",
+      nodeId: "peek:%2F/orders/1",
+      view: "preferred",
+      title: "Peek result",
+      describable: false,
+      representations: [{ kind: "table", title: "View messages" }],
+      ancestors: [],
+    }, {
+      float: false,
+    })
   })
 
   it("closes its tab once the node an action removed is gone (D424)", async () => {

@@ -1,23 +1,26 @@
 # A view of a document
 
-For a source that describes a node in a JSON document of its own — Docker's
-inspect, a topic's configuration, an object's metadata — and wants to say what
-that document means. How a node opens at all is [content.md](content.md)
-(D47); the JSON tree beside a view is D295 there. Docker's views and pages
-are D422–D423 in [docker.md](docker.md).
+For a source that describes a node through a bounded JSON document or typed
+protocol facts — Docker's inspect, an API resource, or a topic's metadata —
+and wants to say what those facts mean. How a node opens at all is
+[content.md](content.md) (D47); the JSON tree beside a view is D295 there.
+Docker's views and pages are D422–D423 in [docker.md](docker.md).
 
-Decisions here: D419, D420, D421, D424.
+Decisions here: D419, D420, D421, D424, D444, D445.
 
 ## D419. A node may open as a view of its document
 
 **`view` is a representation kind** beside `tree`, declared in a node's ordered
-`representations` (D47) like any other. A node that offers one declares it
-first and its document second: `[view, tree]`. A node without a view opens as
-before.
+`representations` (D47) like any other. When the source has a suitable bounded
+JSON document, it declares the view first and that document second:
+`[view, tree]`. A view over protocol facts with no source JSON document may be
+the only content representation (D444); the source does not invent a JSON tree.
+A node without a view opens as before.
 
 - **The source builds it.** `read_content` with `representation="view"`
   answers a `DocumentView`, a member of the content union, from the same
-  document it answers as `tree`. No second request to the server it reads.
+  document it answers as `tree`, or from the bounded typed facts it already
+  reads when there is no JSON document. No second request to the server it reads.
 - **The client draws it knowing no source.** `ViewPanel`
   (`features/content/view/`) renders any `DocumentView` by its blocks, with no
   code per source type, node kind or field. A new source's view is a function
@@ -42,11 +45,14 @@ before.
 - **Bounded.** At most 200 blocks, counting a section's children; a table of
   at most 500 rows; pairs and a list at most 500; a text value at most 16 KB,
   cut with `truncated` rather than refused. Past a ceiling the block carries
-  `omitted`, and the client says that many are in the JSON.
+  `omitted`; when `tree` is also offered, the full source document remains one
+  click away.
 
 Known deviations:
 
-- **Only Docker has views** (D422): its container, image, volume and network.
+- **Docker, Kafka and RabbitMQ have views**: Docker's container, image, volume
+  and network (D422), Kafka's topic, and RabbitMQ's queue, stream and exchange
+  (D444).
 - **Docker pages are no longer catalog levels** (D423). Its nodes open
   directly on their view; the view advertises the separate table pages. A
   linked or searched Docker node resolves to the same view and buttons.
@@ -115,17 +121,20 @@ reveal and window.
 
 - **The source names the pictures.** `ViewPage.icon` is a Material Symbols
   name; a page without one is drawn by its first representation's icon. A
-  representation's icon is the client's (`REPRESENTATION_ICONS`), as in the
-  catalog. Docker's Logs is `receipt_long` and Processes `dns`, the pictures
-  of the workspace's own logs and services.
+  `NodeRepresentation` may also name its icon; otherwise the client uses the
+  representation kind's icon (`REPRESENTATION_ICONS`). The title remains the
+  tooltip and accessible name. These are Material Symbols names, not source
+  specific frontend rules. Docker's Logs is `receipt_long` and Processes
+  `dns`, the pictures of the workspace's own logs and services.
 - **Actions over the view.** An action declaring `in_view` (and an `icon`) is
   also drawn over the view of a node it is applicable to, asked by
   `readActions` for that one node. It opens the same window the catalog opens
   (`ActionDialog`), or the connection form for one that prepares a
   connection. The catalog keeps it: a ticked set is still acted on there.
-  After it is done the catalog hears of the change and the view reads the
-  node again; a node now answering 404 closes the tab rather than leaving one
-  that cannot be read.
+  After it is done, a single result's `open_node_id` is opened through the
+  source's node path in its preferred representation, as in the catalog. The
+  catalog hears of the change and the view reads the node again; a node now
+  answering 404 closes the tab rather than leaving one that cannot be read.
 - **Every other representation opens a tab of its own,** named
   `<node> — <title>`, as a page does: the view and its JSON are no longer
   switched in one tab, and `switchRepresentation` is gone. One binding still
@@ -136,3 +145,38 @@ Terminal and Open as connection over its view. The lifecycle verbs also act on
 a Compose project, which has no view.
 
 Spec: [A view's head](../../decisions/2026-11-22-view-head-design.md)
+
+## D444. A view may stand alone when the source has no JSON document
+
+A source may return structured protocol facts without owning a JSON document.
+It offers `view` without `tree` in that case; an adapter does not serialize its
+summary model merely to create an artificial raw JSON alternative. When an API
+already returns a bounded JSON resource document, the source offers
+`[view, tree, ...existing representations]` and both representations read that
+same endpoint once per request.
+
+- **Kafka topic** — librdkafka's metadata, offsets and topic configuration are
+  typed protocol results, not a source JSON document. Its card is built from
+  the same `KafkaTopicContents` facts as the existing node summary; the
+  messages table remains an alternate representation.
+- **RabbitMQ queue, stream and exchange** — their Management API answers are
+  JSON resource documents. The card maps the already-read response into the
+  existing summary facts and message counters, while `tree` keeps the API's
+  JSON bounded at 4 MB. Their bindings or messages table remains an alternate
+  representation.
+
+The view's normal block ceilings still apply. A `tree` representation is the
+place to inspect details omitted from a card when the source has one.
+
+Spec: [Kafka and RabbitMQ document views](../../decisions/2026-11-22-source-document-views-design.md)
+
+## D445. A representation may name its icon
+
+`NodeRepresentation.icon` is an optional Material Symbols name used by the
+generic view head for that representation. With no icon, `ViewPanel` falls
+back to the established icon for its kind. The title remains the button's
+tooltip and accessible name, and opening the representation is unchanged.
+RabbitMQ uses `receipt_long` for messages and `hub` for bindings; Kafka uses
+`receipt_long` for messages.
+
+Spec: [Icons for view representations](../../decisions/2026-11-22-view-representation-icons-design.md)

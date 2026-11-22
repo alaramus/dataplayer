@@ -125,4 +125,16 @@ MESSAGES: dict[str, str] = {
     # A topic read on by a pipeline's link (D312).
     "Kafka sent nothing in {seconds} seconds": "Kafka n'a rien envoyé en {seconds} secondes",
     "Kafka's own topics are not read on from here": "Les topics internes de Kafka ne sont pas lus en continu d'ici",
+    "Overview": "Vue d'ensemble",
+    "Configured settings": "Paramètres définis",
+    "Partition ID": "ID de partition",
+    "Leader broker": "Broker leader",
+    "Replica brokers": "Brokers réplicas",
+    "In-sync replica brokers": "Brokers réplicas synchrones",
+    "First offset": "Premier offset",
+    "End offset": "Offset final",
+    "Topic settings": "Paramètres du topic",
+    "Hidden by Kafka": "Masqué par Kafka",
+    "This node does not offer that representation": "Ce nœud ne propose pas cette représentation",
+    "Only a topic has an overview": "Seul un topic a une vue d'ensemble",
 }

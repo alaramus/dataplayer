@@ -125,4 +125,16 @@ MESSAGES: dict[str, str] = {
     # A topic read on by a pipeline's link (D312).
     "Kafka sent nothing in {seconds} seconds": "لم ترسل Kafka شيئًا خلال {seconds} ثانية",
     "Kafka's own topics are not read on from here": "لا تُتابَع قراءة موضوعات Kafka الخاصة من هنا",
+    "Overview": "نظرة عامة",
+    "Configured settings": "الإعدادات المضبوطة",
+    "Partition ID": "معرّف القسم",
+    "Leader broker": "وسيط القائد",
+    "Replica brokers": "وسطاء النسخ",
+    "In-sync replica brokers": "وسطاء النسخ المتزامنة",
+    "First offset": "الإزاحة الأولى",
+    "End offset": "إزاحة النهاية",
+    "Topic settings": "إعدادات الموضوع",
+    "Hidden by Kafka": "مخفي بواسطة Kafka",
+    "This node does not offer that representation": "لا يوفّر هذا العنصر هذا التمثيل",
+    "Only a topic has an overview": "الموضوع فقط له نظرة عامة",
 }

@@ -17,6 +17,7 @@ from app.adapters.actions import (
     ActionUnavailability,
 )
 from app.adapters.catalog import CatalogNode
+from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.metrics import MetricPreset, MetricSample
@@ -28,6 +29,7 @@ from app.adapters.rabbitmq.actions import (
     offered,
 )
 from app.adapters.rabbitmq.bindings import RabbitmqBindings
+from app.adapters.rabbitmq.card import rabbitmq_view
 from app.adapters.rabbitmq.catalog import (
     FOLDERS,
     exchange_node,
@@ -36,8 +38,10 @@ from app.adapters.rabbitmq.catalog import (
     parse,
     queue_node,
     read_exchange,
+    read_exchange_document,
     read_exchanges,
     read_queue,
+    read_queue_document,
     read_queues,
     read_vhosts,
     vhost_node,
@@ -61,7 +65,7 @@ from app.adapters.rabbitmq.samples import RabbitmqSamples
 from app.adapters.rabbitmq.search import RabbitmqSearch
 from app.adapters.rabbitmq.session import RabbitmqSession
 from app.adapters.rabbitmq.streams import RabbitmqStreams
-from app.adapters.rabbitmq.summaries import node_summary
+from app.adapters.rabbitmq.summaries import node_summary, summary_from
 from app.adapters.rabbitmq.writes import RabbitmqWrites
 from app.adapters.reading_on import (
     Bookmark,
@@ -94,6 +98,12 @@ from app.adapters.update import (
 from app.core.translation import N_, say
 
 _SCHEMES = {"amqp": False, "amqps": True}
+
+
+def _api_count(value: Any) -> int | None:
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return value
+    return None
 
 
 class RabbitmqAdapter:
@@ -286,6 +296,46 @@ class RabbitmqAdapter:
         if named.prefix in {"queue", "exchange"}:
             return await self._bindings.fetch(request)
         raise ValueError(say("A level is opened by its contents, not as rows"))
+
+    async def read_content(self, request: ContentRequest) -> ContentResult:
+        if request.representation not in {"view", "tree"}:
+            raise ValueError(say("This node does not offer that representation"))
+        named = parse(request.node_id)
+        self._own(named.vhost, request.node_id)
+        if named.name is None or named.prefix not in {"queue", "stream", "exchange"}:
+            raise ValueError(say("Only a queue, a stream or an exchange has details"))
+
+        if named.prefix == "exchange":
+            if request.representation == "tree":
+                _, document = await read_exchange_document(
+                    self._session, named.vhost, named.name
+                )
+                return document
+            described = await read_exchange(self._session, named.vhost, named.name)
+            stats = described.get("message_stats")
+            stats = stats if isinstance(stats, dict) else {}
+            return rabbitmq_view(
+                summary_from(request.node_id, described),
+                exchange_messages_in=_api_count(stats.get("publish_in")),
+                exchange_messages_out=_api_count(stats.get("publish_out")),
+            )
+
+        stream = named.prefix == "stream"
+        if request.representation == "tree":
+            _, document = await read_queue_document(
+                self._session, named.vhost, named.name, stream=stream
+            )
+            return document
+        described = await read_queue(
+            self._session, named.vhost, named.name, stream=stream
+        )
+        summary = summary_from(request.node_id, described)
+        state = described.get("state") if stream else None
+        return rabbitmq_view(
+            summary,
+            stream_state=state if isinstance(state, str) else None,
+            queue_messages=_api_count(described.get("messages")) if not stream else None,
+        )
 
     def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
         if in_section(request.node_id):

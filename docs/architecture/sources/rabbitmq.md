@@ -15,7 +15,7 @@ exchange read on through a queue of the link's own (D337). The contract every so
 type follows is in [contract.md](contract.md); the other queue is in
 [kafka.md](kafka.md). Read this before changing the `rabbitmq` adapter.
 
-Decisions here: D325, D326, D327, D328, D329, D330, D331, D332, D334, D335, D337, D338, D339.
+Decisions here: D325, D326, D327, D328, D329, D330, D331, D332, D334, D335, D337, D338, D339, D444, D445.
 
 ## D325. A RabbitMQ source looks through the management API and moves messages over AMQP
 
@@ -56,7 +56,7 @@ Known deviations:
 
 Spec: [A RabbitMQ source](../../decisions/2026-11-09-rabbitmq-source-design.md)
 
-## D326. Virtual hosts, then queues, streams and exchanges; a queue and an exchange open as bindings
+## D326. Virtual hosts, queues, streams and exchanges; their cards keep the existing tables
 
 With several virtual hosts the top lists them; with one, or one named in the
 connection, the top is its three levels: Queues, Streams and Exchanges. A node
@@ -69,25 +69,39 @@ first five hundred by name, the largest page the API serves.
 
 - **A queue** is an `amqp_queue` node with its type in RabbitMQ's word
   (classic, quorum, a plugin's), its state, messages ready and unacknowledged,
-  and its consumers. It is not opened for its messages: a queue hands one out
-  and forgets it. It opens as rows of its bindings — exchange, routing key,
-  arguments — the default exchange's implicit one by its name included.
-- **A stream** is an `amqp_stream` node with its messages and consumers,
-  opened for its messages (D327).
+  and its consumers. Its card shows counts, rates, consumers, policy and
+  arguments; its existing bindings table remains an alternate representation
+  with exchange, routing key and arguments, named with the `hub` icon (D445).
+  It is not opened for its messages: a queue hands one out and forgets it.
+- **A stream** is an `amqp_stream` node with its messages and consumers. Its
+  card shows its state, counts, incoming rate, leader, members, policy,
+  arguments and consumers; its existing messages table remains an alternate
+  representation (D327), named with the server-log icon (D445).
 - **An exchange** is an `exchange` node with its type and whether it is
   durable or internal. The user's come first, then the default exchange, shown
-  as `(default)`, and the `amq.*` ones, marked as the system's. It opens as
-  rows of where it routes: destination, its type, routing key, arguments. The
-  API lists the default exchange's bindings under `amq.default`.
+  as `(default)`, and the `amq.*` ones, marked as the system's. Its card shows
+  its type, published and routed message counts, durability, auto-delete and
+  internal flags, rates and arguments; its existing bindings table remains an
+  alternate representation with destination, type, routing key and arguments,
+  named with the `hub` icon (D445). The API lists the default exchange's
+  bindings under `amq.default`.
 
 A summary is what the management API last measured: counts, rates in and out,
 the node or leader and members, the policy, each consumer with its channel,
 prefetch and whether it acknowledges, and the arguments the node was declared
 with. RabbitMQ samples every five seconds by default, so a count may lag.
+A queue, stream or exchange offers its card first, then the bounded JSON
+document from the same Management API resource, then its existing bindings or
+messages table. The card is built from the summary facts and message counters
+already read; opening the JSON reads that API resource once for that request
+(D444). Actions with an icon remain available over the card as well as in the
+catalog (D424).
 A missing queue's bindings are answered by the API with none rather than a
 404, so the node is asked for first.
 
 Spec: [A RabbitMQ source](../../decisions/2026-11-09-rabbitmq-source-design.md)
+
+Spec: [Kafka and RabbitMQ document views](../../decisions/2026-11-22-source-document-views-design.md)
 
 ## D327. A stream's messages are rows, newest first, read from an offset
 
@@ -188,7 +202,7 @@ messages, offered only as an action with a warning in its confirmation:
 looking is a delivery, marking messages redelivered and counting towards a
 quorum queue's delivery limit. What it read is kept as a snapshot in the
 resource store, twenty a connection, and the result's `open_node_id` names it;
-the catalog opens it at once. A snapshot is a `report` node,
+the catalog or a view action opens it at once. A snapshot is a `report` node,
 `peek:<v>/<queue>/<n>`, under its queue in `path_to` and listed nowhere; its
 rows are position, redelivered, exchange, routing key, timestamp, content type,
 headers, properties, body and the body's fields, and paging it never reads the

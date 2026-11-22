@@ -2,7 +2,7 @@
 import { computed } from "vue"
 
 import type { ContentRequest, NodeRepresentation, ViewPage } from "@/client"
-import { reloadedBy } from "@/features/catalog/actions"
+import { openedBy, reloadedBy } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { REPRESENTATION_ICONS } from "@/features/catalog/nodes"
 import { useContent } from "@/features/content/api"
@@ -96,6 +96,8 @@ const changes = useSourceChangesStore()
  */
 async function actionDone(outcome: ActionOutcome) {
   if (outcome.done.length === 0) return
+  const opened = openedBy(outcome)
+  if (opened !== undefined) void openLinked(opened, opened)
   if (reloadedBy(outcome).length > 0) changes.announce(props.connectorId)
   const read = await content.refetch()
   if (read.isError && statusOf(read.error) === 404) workspace.closeTab(props.panelId)
@@ -120,7 +122,7 @@ useReloadable(() => props.panelId, async () => {
         <AppIconButton
           v-for="other in others"
           :key="other.kind"
-          :icon="REPRESENTATION_ICONS[other.kind]"
+          :icon="other.icon ?? REPRESENTATION_ICONS[other.kind]"
           :tooltip="other.title"
           :data-testid="`view-show-${other.kind}`"
           @click="show(other)"

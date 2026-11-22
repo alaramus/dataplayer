@@ -25,12 +25,14 @@ import httpx
 from aio_pika.abc import AbstractChannel
 from aiormq import exceptions as amqp
 
+from app.adapters.content import JsonContent
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
     ErrorKind,
     NodeNotFound,
 )
+from app.adapters.rabbitmq.content import json_document
 from app.adapters.rabbitmq.options import RabbitmqOptions
 from app.adapters.tunnels import TunnelAccess, reach, tunnel_of
 from app.core.logs import record_failure, with_ref
@@ -139,6 +141,39 @@ class RabbitmqSession:
         node_id: str = "",
     ) -> Any:
         """The management API's answer to a GET, or a reduced failure."""
+        response = await self._get(path, params, node_id)
+        try:
+            return response.json()
+        except ValueError:
+            raise AdapterError(
+                "network", say("The management API did not answer as RabbitMQ does")
+            ) from None
+
+    async def api_document(
+        self,
+        path: str,
+        params: dict[str, str] | None = None,
+        node_id: str = "",
+    ) -> tuple[Any, JsonContent]:
+        """One API answer as both its ordinary facts and bounded source JSON."""
+        response = await self._get(path, params, node_id)
+        try:
+            value = response.json()
+        except ValueError:
+            raise AdapterError(
+                "network", say("The management API did not answer as RabbitMQ does")
+            ) from None
+        try:
+            document = json_document(response.content)
+        except (UnicodeDecodeError, ValueError):
+            raise AdapterError(
+                "network", say("The management API did not answer as RabbitMQ does")
+            ) from None
+        return value, document
+
+    async def _get(
+        self, path: str, params: dict[str, str] | None, node_id: str
+    ) -> httpx.Response:
         client = await self._client()
         try:
             async with client:
@@ -149,12 +184,7 @@ class RabbitmqSession:
             raise NodeNotFound(node_id)
         if response.status_code >= 400:
             raise _refused_http(response.status_code)
-        try:
-            return response.json()
-        except ValueError:
-            raise AdapterError(
-                "network", say("The management API did not answer as RabbitMQ does")
-            ) from None
+        return response
 
     async def change(
         self,

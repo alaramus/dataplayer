@@ -18,7 +18,7 @@ from app.adapters.catalog import (
     DirectoryNode,
     ExchangeNode,
 )
-from app.adapters.content import NodeRepresentation
+from app.adapters.content import JsonContent, NodeRepresentation
 from app.adapters.protocol import NodeNotFound
 from app.adapters.rabbitmq.session import RabbitmqSession, segment
 from app.adapters.words import worded_titles
@@ -28,8 +28,12 @@ from app.core.translation import N_, say
 # management API serves.
 LIST_CEILING = 500
 
-MESSAGES = NodeRepresentation(kind="table", title=N_("View the messages"))
-BINDINGS = NodeRepresentation(kind="table", title=N_("View the bindings"))
+MESSAGES = NodeRepresentation(
+    kind="table", title=N_("View the messages"), icon="receipt_long"
+)
+BINDINGS = NodeRepresentation(kind="table", title=N_("View the bindings"), icon="hub")
+OVERVIEW = NodeRepresentation(kind="view", title=N_("Overview"))
+AS_JSON = NodeRepresentation(kind="tree", title=N_("As JSON"))
 
 # The default exchange has an empty name; the API calls it this.
 DEFAULT_EXCHANGE_PATH = "amq.default"
@@ -135,6 +139,12 @@ def exchange_title(name: str) -> str:
     return name if name else say("(default)")
 
 
+def node_representations(leaf: Leaf) -> list[NodeRepresentation]:
+    """The meaning of its API document first, then the existing page (D419)."""
+    page = MESSAGES if leaf == "stream" else BINDINGS
+    return worded_titles([OVERVIEW, AS_JSON, page])
+
+
 def exchange_path(name: str) -> str:
     """An exchange as a segment of the API's path."""
     return segment(name or DEFAULT_EXCHANGE_PATH)
@@ -155,7 +165,7 @@ def queue_node(vhost: str, row: dict[str, Any]) -> CatalogNode:
         return AmqpStreamNode(
             id=leaf_id("stream", vhost, name),
             name=name,
-            representations=worded_titles([MESSAGES]),
+            representations=node_representations("stream"),
             summarizable=True,
             messages=_count(row.get("messages")),
             consumers=_count(row.get("consumers")),
@@ -163,7 +173,7 @@ def queue_node(vhost: str, row: dict[str, Any]) -> CatalogNode:
     return AmqpQueueNode(
         id=leaf_id("queue", vhost, name),
         name=name,
-        representations=worded_titles([BINDINGS]),
+        representations=node_representations("queue"),
         summarizable=True,
         queue_type=queue_type,
         state=str(row["state"]) if row.get("state") else None,
@@ -178,7 +188,7 @@ def exchange_node(vhost: str, row: dict[str, Any]) -> ExchangeNode:
     return ExchangeNode(
         id=leaf_id("exchange", vhost, name),
         name=exchange_title(name),
-        representations=worded_titles([BINDINGS]),
+        representations=node_representations("exchange"),
         summarizable=True,
         exchange_type=str(row.get("type") or "direct"),
         durable=bool(row.get("durable", True)),
@@ -248,6 +258,19 @@ async def read_queue(
     return answer
 
 
+async def read_queue_document(
+    session: RabbitmqSession, vhost: str, name: str, *, stream: bool
+) -> tuple[dict[str, Any], JsonContent]:
+    """Read one queue API answer and its bounded JSON tree together."""
+    node_id = leaf_id("stream" if stream else "queue", vhost, name)
+    answer, document = await session.api_document(
+        f"/queues/{segment(vhost)}/{segment(name)}", node_id=node_id
+    )
+    if not isinstance(answer, dict) or (answer.get("type") == "stream") != stream:
+        raise NodeNotFound(node_id)
+    return answer, document
+
+
 async def read_exchange(
     session: RabbitmqSession, vhost: str, name: str
 ) -> dict[str, Any]:
@@ -258,3 +281,16 @@ async def read_exchange(
     if not isinstance(answer, dict):
         raise NodeNotFound(node_id)
     return answer
+
+
+async def read_exchange_document(
+    session: RabbitmqSession, vhost: str, name: str
+) -> tuple[dict[str, Any], JsonContent]:
+    """Read one exchange API answer and its bounded JSON tree together."""
+    node_id = leaf_id("exchange", vhost, name)
+    answer, document = await session.api_document(
+        f"/exchanges/{segment(vhost)}/{exchange_path(name)}", node_id=node_id
+    )
+    if not isinstance(answer, dict):
+        raise NodeNotFound(node_id)
+    return answer, document

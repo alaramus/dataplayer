@@ -6,10 +6,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.adapters.rabbitmq.catalog import (
-    BINDINGS,
-    MESSAGES,
     exchange_title,
     leaf_id,
+    node_representations,
     parse,
     read_exchange,
     read_queue,
@@ -23,7 +22,6 @@ from app.adapters.summary import (
     AmqpStreamContents,
     NodeSummary,
 )
-from app.adapters.words import worded_titles
 from app.core.translation import say
 
 
@@ -98,12 +96,27 @@ async def node_summary(session: RabbitmqSession, node_id: str) -> NodeSummary:
         raise ValueError(say("Not a node of this connection"))
     if named.prefix == "exchange":
         described = await read_exchange(session, named.vhost, named.name)
+    elif named.prefix in {"queue", "stream"}:
+        described = await read_queue(
+            session, named.vhost, named.name, stream=named.prefix == "stream"
+        )
+    else:
+        raise ValueError(say("Only a queue, a stream or an exchange has details"))
+    return summary_from(node_id, described)
+
+
+def summary_from(node_id: str, described: dict[str, Any]) -> NodeSummary:
+    """Build the existing summary from an answer already read from the API."""
+    named = parse(node_id)
+    if named.name is None:
+        raise ValueError(say("Not a node of this connection"))
+    if named.prefix == "exchange":
         stats = described.get("message_stats")
         return NodeSummary(
             node_id=leaf_id("exchange", named.vhost, named.name),
             name=exchange_title(named.name),
             kind="exchange",
-            representations=worded_titles([BINDINGS]),
+            representations=node_representations("exchange"),
             contents=AmqpExchangeContents(
                 exchange_type=str(described.get("type") or "direct"),
                 durable=bool(described.get("durable", True)),
@@ -115,7 +128,6 @@ async def node_summary(session: RabbitmqSession, node_id: str) -> NodeSummary:
             ),
         )
     stream = named.prefix == "stream"
-    described = await read_queue(session, named.vhost, named.name, stream=stream)
     stats = described.get("message_stats")
     if stream:
         members = described.get("members")
@@ -123,7 +135,7 @@ async def node_summary(session: RabbitmqSession, node_id: str) -> NodeSummary:
             node_id=leaf_id("stream", named.vhost, named.name),
             name=named.name,
             kind="amqp_stream",
-            representations=worded_titles([MESSAGES]),
+            representations=node_representations("stream"),
             contents=AmqpStreamContents(
                 messages=_int(described.get("messages")),
                 segments=_int(described.get("segments")),
@@ -142,7 +154,7 @@ async def node_summary(session: RabbitmqSession, node_id: str) -> NodeSummary:
         node_id=leaf_id("queue", named.vhost, named.name),
         name=named.name,
         kind="amqp_queue",
-        representations=worded_titles([BINDINGS]),
+        representations=node_representations("queue"),
         contents=AmqpQueueContents(
             queue_type=str(described.get("type") or "classic"),
             state=_text(described.get("state")),

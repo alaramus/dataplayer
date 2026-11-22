@@ -54,3 +54,6 @@ class NodeRepresentation(BaseModel):
 
     kind: RepresentationKind
     title: str = Field(min_length=1)
+    # What the head of a view draws for this representation, with the title
+    # remaining its tooltip and accessible name (D445).
+    icon: str | None = Field(default=None, max_length=64)

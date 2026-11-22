@@ -10,6 +10,7 @@ import aio_pika
 import pytest
 
 from app.adapters.catalog import AmqpQueueNode, AmqpStreamNode, ExchangeNode
+from app.adapters.content import ContentRequest, JsonContent, JsonObject
 from app.adapters.export import ExportRequest
 from app.adapters.fetch import FetchRequest, ScalarFilter, Sort
 from app.adapters.protocol import NodeNotFound
@@ -21,6 +22,7 @@ from app.adapters.summary import (
     AmqpQueueContents,
     AmqpStreamContents,
 )
+from app.adapters.views import DocumentView, FieldsBlock, NumberValue, SectionBlock
 from tests.adapters.rabbitmq_fixture import (
     BINARY_BODY,
     EXCHANGE,
@@ -198,6 +200,8 @@ async def test_queues_and_streams_are_listed_apart(vhost: str) -> None:
     billing = by_name[QUEUE]
     assert isinstance(billing, AmqpQueueNode)
     assert billing.queue_type == "classic"
+    assert [one.kind for one in billing.representations] == ["view", "tree", "table"]
+    assert billing.representations[2].icon == "hub"
     quorum = by_name[QUORUM]
     assert isinstance(quorum, AmqpQueueNode)
     assert quorum.queue_type == "quorum"
@@ -205,6 +209,8 @@ async def test_queues_and_streams_are_listed_apart(vhost: str) -> None:
     assert [node.name for node in streams] == [STREAM]
     assert isinstance(streams[0], AmqpStreamNode)
     assert streams[0].id == stream_id(vhost)
+    assert [one.kind for one in streams[0].representations] == ["view", "tree", "table"]
+    assert streams[0].representations[2].icon == "receipt_long"
 
 
 async def test_the_user_s_exchanges_come_before_the_built_in_ones(vhost: str) -> None:
@@ -214,6 +220,8 @@ async def test_the_user_s_exchanges_come_before_the_built_in_ones(vhost: str) ->
     assert isinstance(first, ExchangeNode)
     assert first.exchange_type == "topic"
     assert not first.is_system
+    assert [one.kind for one in first.representations] == ["view", "tree", "table"]
+    assert first.representations[2].icon == "hub"
     rest = [node for node in exchanges[1:] if isinstance(node, ExchangeNode)]
     assert all(node.is_system for node in rest)
     assert "(default)" in {node.name for node in rest}
@@ -236,6 +244,10 @@ async def test_a_queue_asked_for_as_a_stream_is_missing(vhost: str) -> None:
         await adapter().path_to(wrong)
     with pytest.raises(NodeNotFound):
         await adapter().fetch(FetchRequest(node_id=wrong))
+    with pytest.raises(NodeNotFound):
+        await adapter().read_content(
+            ContentRequest(node_id=wrong, representation="view")
+        )
 
 
 async def test_reading_a_queue_as_a_stream_takes_nothing_from_it(vhost: str) -> None:
@@ -468,7 +480,64 @@ async def test_a_queue_summary_counts_what_waits(vhost: str) -> None:
     assert isinstance(contents, AmqpQueueContents)
     assert contents.queue_type == "classic"
     assert contents.consumers == []
-    assert [one.title for one in summary.representations] == ["View the bindings"]
+    assert [one.kind for one in summary.representations] == ["view", "tree", "table"]
+
+
+async def test_a_queue_card_and_json_tree_use_the_management_answer(vhost: str) -> None:
+    async def ready() -> int | None:
+        summary = await adapter().node_summary(queue_id(vhost))
+        assert isinstance(summary.contents, AmqpQueueContents)
+        return summary.contents.ready
+
+    assert await _eventually(ready, WAITING) == WAITING
+    node_id = queue_id(vhost)
+    view = await adapter().read_content(ContentRequest(node_id=node_id, representation="view"))
+    assert isinstance(view, DocumentView)
+    assert view.header.title == QUEUE
+    assert view.header.subtitle is not None
+    overview = next(
+        block
+        for block in view.blocks
+        if isinstance(block, SectionBlock) and block.title == "Overview"
+    )
+    fields = next(block for block in overview.blocks if isinstance(block, FieldsBlock))
+    values = {field.label: field.value for field in fields.fields}
+    assert values["Total messages"] == NumberValue(value=WAITING)
+    assert values["Messages ready"] == NumberValue(value=WAITING)
+
+    tree = await adapter().read_content(ContentRequest(node_id=node_id, representation="tree"))
+    assert isinstance(tree, JsonContent)
+    assert isinstance(tree.value, JsonObject)
+    assert "name" in [entry.name for entry in tree.value.entries]
+
+
+async def test_stream_and_exchange_nodes_open_as_cards(vhost: str) -> None:
+    stream = await adapter().read_content(
+        ContentRequest(node_id=stream_id(vhost), representation="view")
+    )
+    exchange = await adapter().read_content(
+        ContentRequest(node_id=exchange_id(vhost), representation="view")
+    )
+    assert isinstance(stream, DocumentView)
+    assert stream.header.title == STREAM
+    assert isinstance(exchange, DocumentView)
+    assert exchange.header.title == EXCHANGE
+
+
+async def test_rabbitmq_cards_keep_node_actions_and_refuse_other_representations(
+    vhost: str,
+) -> None:
+    node_id = queue_id(vhost)
+    offered = await adapter().action_offers(node_id)
+    in_view = {action.name for action in offered.actions if action.in_view}
+    assert {"delete", "purge", "bind", "unbind", "publish", "peek", "open_management"} <= in_view
+
+    with pytest.raises(ValueError):
+        await adapter().read_content(ContentRequest(node_id=node_id, representation="text"))
+    with pytest.raises(NodeNotFound):
+        await adapter().read_content(
+            ContentRequest(node_id=f"stream:{_v(vhost)}/{QUEUE}", representation="tree")
+        )
 
 
 async def test_a_stream_summary_shows_its_members(vhost: str) -> None:
@@ -499,3 +568,7 @@ async def test_a_queue_that_is_not_there_is_a_missing_node(vhost: str) -> None:
         await adapter().node_summary(queue_id(vhost, "nope"))
     with pytest.raises(NodeNotFound):
         await adapter().fetch(FetchRequest(node_id=queue_id(vhost, "nope")))
+    with pytest.raises(NodeNotFound):
+        await adapter().read_content(
+            ContentRequest(node_id=queue_id(vhost, "nope"), representation="view")
+        )

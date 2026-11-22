@@ -9,6 +9,7 @@ from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
@@ -27,6 +28,7 @@ from app.adapters.kafka.catalog import (
     read_topics,
     topic_of,
 )
+from app.adapters.kafka.card import topic_view
 from app.adapters.kafka.console import console_program
 from app.adapters.kafka.groups import KafkaGroups
 from app.adapters.kafka.messages import KafkaMessages
@@ -61,7 +63,7 @@ from app.adapters.search import (
     SearchedField,
     SourceCost,
 )
-from app.adapters.summary import NodeSummary
+from app.adapters.summary import KafkaTopicContents, NodeSummary
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.update import (
     InsertRowRequest,
@@ -182,6 +184,14 @@ class KafkaAdapter:
         if request.node_id.startswith(GROUP_PREFIX):
             return await self._groups.fetch(request)
         return await self._messages.fetch(request)
+
+    async def read_content(self, request: ContentRequest) -> ContentResult:
+        if request.representation != "view":
+            raise ValueError(say("This node does not offer that representation"))
+        summary = await self._topics.node_summary(request.node_id)
+        if not isinstance(summary.contents, KafkaTopicContents):
+            raise ValueError(say("Only a topic has an overview"))
+        return topic_view(summary.name, summary.contents)
 
     def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
         if in_section(request.node_id):

@@ -472,6 +472,8 @@ class DeleteNode(_RabbitmqAction, JsonAction[NoParams]):
     acts_on: ClassVar[ActsOn] = "node"
     destructive: ClassVar[bool] = True
     bulk: ClassVar[bool] = True
+    icon: ClassVar[str | None] = "delete"
+    in_view: ClassVar[bool] = True
     params_model = NoParams
 
     def _target(self, node_id: str | None) -> Named:
@@ -549,6 +551,8 @@ class Purge(_RabbitmqAction, JsonAction[NoParams]):
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"amqp_queue"})
     acts_on: ClassVar[ActsOn] = "node"
     destructive: ClassVar[bool] = True
+    icon: ClassVar[str | None] = "cleaning_services"
+    in_view: ClassVar[bool] = True
     question: ClassVar[str | None] = N_(
         "Delete every message waiting in the queue? This cannot be undone."
     )
@@ -600,6 +604,8 @@ class Bind(_RabbitmqAction, JsonAction[BindParams]):
         {"amqp_queue", "amqp_stream", "exchange"}
     )
     acts_on: ClassVar[ActsOn] = "node"
+    icon: ClassVar[str | None] = "link"
+    in_view: ClassVar[bool] = True
     params_model = BindParams
 
     def _target(self, node_id: str | None) -> Named:
@@ -717,6 +723,8 @@ class Unbind(_RabbitmqAction, JsonAction[UnbindParams]):
     )
     acts_on: ClassVar[ActsOn] = "node"
     destructive: ClassVar[bool] = True
+    icon: ClassVar[str | None] = "link_off"
+    in_view: ClassVar[bool] = True
     question: ClassVar[str | None] = N_("Remove this binding?")
     params_model = UnbindParams
 
@@ -778,6 +786,8 @@ class Publish(_RabbitmqAction, JsonAction[PublishParams]):
     title: ClassVar[str] = N_("Publish")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"amqp_queue", "exchange"})
     acts_on: ClassVar[ActsOn] = "node"
+    icon: ClassVar[str | None] = "send"
+    in_view: ClassVar[bool] = True
     params_model = PublishParams
 
     async def run(self, node_id: str | None, params: PublishParams) -> ActionResult:
@@ -823,6 +833,8 @@ class Peek(_RabbitmqAction, JsonAction[PeekParams]):
     acts_on: ClassVar[ActsOn] = "node"
     # Not a deletion, but a delivery nobody can take back (D330).
     destructive: ClassVar[bool] = True
+    icon: ClassVar[str | None] = "visibility"
+    in_view: ClassVar[bool] = True
     question: ClassVar[str | None] = N_(
         "Take these messages and put them back? Each comes back marked "
         "redelivered; a quorum queue counts it towards its delivery limit, and "
@@ -884,6 +896,8 @@ class OpenManagement(_RabbitmqAction, JsonAction[NoParams]):
     )
     acts_on: ClassVar[ActsOn] = "level"
     opens_address: ClassVar[bool] = True
+    icon: ClassVar[str | None] = "open_in_new"
+    in_view: ClassVar[bool] = True
     # It changes nothing.
     requires: ClassVar[Access] = "read"
     params_model = NoParams
