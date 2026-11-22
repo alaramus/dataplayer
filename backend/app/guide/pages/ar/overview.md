@@ -23,7 +23,7 @@
 
 ## أين تقرأ عن ماذا
 
-- نوع مصدر — وله صفحته: [PostgreSQL](source-postgres.md)، و[MySQL وMariaDB](source-mysql.md)، و[SQLite](source-sqlite.md)، و[DuckDB](source-duckdb.md)، و[ClickHouse](source-clickhouse.md)، و[Cassandra وScyllaDB](source-cassandra.md)، و[MongoDB](source-mongodb.md)، و[Redis](source-redis.md)، و[ZooKeeper](source-zookeeper.md)، و[Kafka](source-kafka.md)، و[RabbitMQ](source-rabbitmq.md)، و[Binance](source-binance.md)، و[Bybit](source-bybit.md)، و[الملفات](source-file.md)، و[SSH](source-ssh.md)، و[FTP](source-ftp.md)، و[Docker](source-docker.md)، و[S3](source-s3.md). قراءة الصفوف وتحريرها، وتغيير البنية، ووحدة SQL والتقارير، مشروحة هناك لذلك المصدر؛
+- نوع مصدر — وله صفحته: [PostgreSQL](source-postgres.md)، و[MySQL وMariaDB](source-mysql.md)، و[SQLite](source-sqlite.md)، و[DuckDB](source-duckdb.md)، و[ClickHouse](source-clickhouse.md)، و[Cassandra وScyllaDB](source-cassandra.md)، و[MongoDB](source-mongodb.md)، و[Redis](source-redis.md)، و[ZooKeeper](source-zookeeper.md)، و[Kafka](source-kafka.md)، و[RabbitMQ](source-rabbitmq.md)، و[Binance](source-binance.md)، و[Bybit](source-bybit.md)، و[OKX](source-okx.md)، و[Coinbase Exchange](source-coinbase.md)، و[الملفات](source-file.md)، و[SSH](source-ssh.md)، و[FTP](source-ftp.md)، و[Docker](source-docker.md)، و[S3](source-s3.md). قراءة الصفوف وتحريرها، وتغيير البنية، ووحدة SQL والتقارير، مشروحة هناك لذلك المصدر؛
 - إضافة الاتصال ومشاركته وإعداده — [الاتصالات](connections.md)؛
 - الأعمدة والتبويبات والنوافذ ومجموعات التبويبات — [مساحة العمل](workspace.md)؛
 - نقل البيانات وفق جدول زمني — [خطوط الأنابيب](pipelines.md)؛

@@ -47,7 +47,8 @@ DataPlayer соединяет источники, с которыми вы ра�
   [ClickHouse](source-clickhouse.md), [Cassandra и ScyllaDB](source-cassandra.md),
   [MongoDB](source-mongodb.md), [Redis](source-redis.md),
   [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md),
-  [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md), [Bybit](source-bybit.md),
+  [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md), [Bybit](source-bybit.md), [OKX](source-okx.md),
+  [Coinbase Exchange](source-coinbase.md),
   [Файлы](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) и [S3](source-s3.md). Чтение строк, их правка,
   изменение структуры, консоль SQL и отчёты описаны там, для этого источника;
 - добавление, передача и настройка подключения — [Подключения](connections.md);

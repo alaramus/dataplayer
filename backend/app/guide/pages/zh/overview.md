@@ -23,7 +23,7 @@ DataPlayer 把你使用的数据源连接起来——数据库、文件存储、
 
 ## 相关内容的去处
 
-- 某一类数据源——其专属页面：[PostgreSQL](source-postgres.md)、[MySQL 与 MariaDB](source-mysql.md)、[SQLite](source-sqlite.md)、[DuckDB](source-duckdb.md)、[ClickHouse](source-clickhouse.md)、[Cassandra 与 ScyllaDB](source-cassandra.md)、[MongoDB](source-mongodb.md)、[Redis](source-redis.md)、[ZooKeeper](source-zookeeper.md)、[Kafka](source-kafka.md)、[RabbitMQ](source-rabbitmq.md)、[Binance](source-binance.md)、[Bybit](source-bybit.md)、[文件](source-file.md)、[SSH](source-ssh.md)、[FTP](source-ftp.md)、[Docker](source-docker.md) 和 [S3](source-s3.md)。读取、编辑行、修改结构、SQL 控制台和报表均在对应数据源的页面中说明；
+- 某一类数据源——其专属页面：[PostgreSQL](source-postgres.md)、[MySQL 与 MariaDB](source-mysql.md)、[SQLite](source-sqlite.md)、[DuckDB](source-duckdb.md)、[ClickHouse](source-clickhouse.md)、[Cassandra 与 ScyllaDB](source-cassandra.md)、[MongoDB](source-mongodb.md)、[Redis](source-redis.md)、[ZooKeeper](source-zookeeper.md)、[Kafka](source-kafka.md)、[RabbitMQ](source-rabbitmq.md)、[Binance](source-binance.md)、[Bybit](source-bybit.md)、[OKX](source-okx.md)、[Coinbase Exchange](source-coinbase.md)、[文件](source-file.md)、[SSH](source-ssh.md)、[FTP](source-ftp.md)、[Docker](source-docker.md) 和 [S3](source-s3.md)。读取、编辑行、修改结构、SQL 控制台和报表均在对应数据源的页面中说明；
 - 添加、共享和设置连接——[连接](connections.md)；
 - 列、标签页、窗口和标签组——[工作区](workspace.md)；
 - 按计划移动数据——[流水线](pipelines.md)；
