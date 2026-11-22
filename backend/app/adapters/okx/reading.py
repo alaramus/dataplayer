@@ -5,7 +5,8 @@ through the store the adapter is handed, as Binance's and Bybit's are (D319,
 D428). Its `""` is the next candle's open time, or for trades the id of the
 next trade to read: OKX numbers a symbol's trades one after another and
 keeps three months of them, so a block is a span of ids and what was lost is
-counted exactly.
+counted exactly. With a key the symbol's own trades are read on by time
+(D437), as Bybit's are (D431).
 """
 
 import time
@@ -14,6 +15,13 @@ from typing import Any
 from app.adapters.market.adapter import MarketReading
 from app.adapters.market.catalog import place_in
 from app.adapters.market.values import milliseconds
+from app.adapters.okx.account import (
+    FILLS_MS,
+    MY_TRADE_COLUMNS,
+    fill_time,
+    my_trade_row,
+    own_trades,
+)
 from app.adapters.okx.feeds import (
     OKX_CANDLE_COLUMNS,
     OkxPlace,
@@ -44,7 +52,7 @@ from app.core.translation import say
 DAY_MS = 86_400_000
 HOUR_MS = 3_600_000
 NEXT = ""
-_READ_ON = {"trades", "candles"}
+_READ_ON = {"trades", "candles", "my_trades"}
 
 
 def _now_ms() -> int:
@@ -83,6 +91,8 @@ class OkxReading(MarketReading[Market]):
         place = place_in(BY_KEY, node_id)
         if place.feed not in _READ_ON or place.symbol is None:
             raise ValueError(say("Only trades and candles are read on"))
+        if place.feed == "my_trades" and not self._session.keyed:
+            raise ValueError(say("This connection has no API key"))
         await self._session.symbol(place.market, place.symbol, node_id)
         return place
 
@@ -93,6 +103,8 @@ class OkxReading(MarketReading[Market]):
         kept = await self._store().read(node_id, reader)
         if place.feed == "trades":
             return await self._unread_trades(place, node_id, kept, start)
+        if place.feed == "my_trades":
+            return await self._unread_mine(place, node_id, kept, start)
         return await self._unread_candles(place, node_id, kept, start)
 
     async def _unread_trades(
@@ -135,6 +147,37 @@ class OkxReading(MarketReading[Market]):
             line=_at({NEXT: line}),
             count=line - begin,
             lost=lost,
+            fresh=kept is None,
+        )
+
+    async def _unread_mine(
+        self,
+        place: OkxPlace,
+        node_id: str,
+        kept: Bookmark | None,
+        start: ReadStart,
+    ) -> UnreadSpan:
+        """The key's own trades of a symbol, by time.
+
+        The newest page of the last three days says where the line is; how
+        many lie between is counted on that page only, so it is a floor.
+        """
+        assert place.symbol is not None
+        symbol = await self._session.instrument(place.market, place.symbol, node_id)
+        newest = await own_trades(self._session, place.market, symbol, node_id, most=1)
+        times = [fill_time(one) for one in newest]
+        now = _now_ms()
+        if kept is None or NEXT not in kept.positions:
+            begin = now - FILLS_MS if start == "earliest" else None
+        else:
+            begin = kept.positions[NEXT]
+        line = times[-1] + 1 if times else (begin if begin is not None else now)
+        begin = line if begin is None else min(begin, line)
+        between = sum(1 for one in times if begin <= one < line)
+        return UnreadSpan(
+            start=_at({NEXT: begin}),
+            line=_at({NEXT: line}),
+            count=max(between, 1 if line > begin else 0),
             fresh=kept is None,
         )
 
@@ -192,11 +235,10 @@ class OkxReading(MarketReading[Market]):
         self, node_id: str, columns: list[str], at: Bookmark, line: Bookmark, limit: int
     ) -> ReadBlock:
         place = await self._place(node_id)
-        shape = (
-            trade_columns(place.market)
-            if place.feed == "trades"
-            else OKX_CANDLE_COLUMNS
-        )
+        shape = {
+            "trades": trade_columns(place.market),
+            "my_trades": MY_TRADE_COLUMNS,
+        }.get(place.feed or "", OKX_CANDLE_COLUMNS)
         picked = _picked(columns, [column.name for column in shape])
         begin = at.positions.get(NEXT, 0)
         end = line.positions.get(NEXT, 0)
@@ -206,6 +248,8 @@ class OkxReading(MarketReading[Market]):
             return await self._trades_block(
                 place, node_id, picked, at, begin, end, limit
             )
+        if place.feed == "my_trades":
+            return await self._mine_block(place, node_id, picked, at, begin, end, limit)
         return await self._candles_block(place, node_id, picked, at, begin, end, limit)
 
     async def _trades_block(
@@ -230,6 +274,43 @@ class OkxReading(MarketReading[Market]):
         ]
         after = dict(at.positions)
         after[NEXT] = last + 1
+        return ReadBlock(rows=rows, after=_at(after), done=after[NEXT] >= end)
+
+    async def _mine_block(
+        self,
+        place: OkxPlace,
+        node_id: str,
+        picked: list[int],
+        at: Bookmark,
+        begin: int,
+        end: int,
+        limit: int,
+    ) -> ReadBlock:
+        """Own trades of one window of at most three days, what OKX's `fills`
+        answers; an empty window moves the bookmark past it."""
+        assert place.symbol is not None
+        symbol = await self._session.instrument(place.market, place.symbol, node_id)
+        last_ms = min(end - 1, begin + FILLS_MS - 1)
+        found = await own_trades(
+            self._session,
+            place.market,
+            symbol,
+            node_id,
+            {"begin": str(begin - 1), "end": str(last_ms + 1)},
+        )
+        within = [one for one in found if begin <= fill_time(one) <= last_ms]
+        block, rest = within[:limit], within[limit:]
+        rows = [
+            [full[index] for index in picked]
+            for full in (my_trade_row(place.market, one, symbol) for one in block)
+        ]
+        after = dict(at.positions)
+        if not block:
+            after[NEXT] = last_ms + 1
+        else:
+            last = fill_time(block[-1])
+            split = bool(rest) and fill_time(rest[0]) == last and last > begin
+            after[NEXT] = last if split else last + 1
         return ReadBlock(rows=rows, after=_at(after), done=after[NEXT] >= end)
 
     async def _candles_block(
@@ -274,7 +355,7 @@ class OkxReading(MarketReading[Market]):
     def row_key(self, node_id: str) -> list[str]:
         """A trade is named by its id, a candle of a series by its open time."""
         feed = place_in(BY_KEY, node_id).feed
-        return ["id"] if feed == "trades" else ["open_time"]
+        return ["id"] if feed in {"trades", "my_trades"} else ["open_time"]
 
     async def mark_read(self, node_id: str, reader: str, at: Bookmark) -> None:
         place_in(BY_KEY, node_id)

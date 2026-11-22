@@ -36,6 +36,8 @@ TRADES = 5000
 # The first trade id the fake answers; older ones are gone, as OKX's
 # older than three months are.
 FIRST_TRADE = 1001
+# Ages of the key's own trades of a symbol, in hours back from now.
+MY_TRADE_HOURS = (1, 2, 3, 30, 80)
 
 # Spot: name, base, quote, state.
 SPOT = [
@@ -174,9 +176,144 @@ class FakeOkx:
         return self.account(path, params)
 
     def account(self, path: str, params: dict[str, str]) -> Any:
-        """Overridden by the account's tests; nothing here before them."""
-        del path, params
-        return 400, "50014", "?"
+        """The account of the one fake key, as OKX's v5 answers it."""
+        name = path.removeprefix("/api/v5/")
+        if name == "account/config":
+            return [{"perm": self.perm, "ip": "203.0.113.7", "label": "reader"}]
+        if name == "account/balance":
+            details = [
+                self._coin("BTC", "0.5", "0.1", "30000"),
+                self._coin("USDT", "100", "0", "100"),
+                self._coin("ETH", "0", "0", "0"),
+            ]
+            return [{"totalEq": "30100", "details": details}]
+        if name == "account/positions":
+            kind = params.get("instType")
+            return {
+                "SWAP": [
+                    self._position("BTC-USDT-SWAP", "net", "-3"),
+                    self._position("BTC-USD-SWAP", "long", "2"),
+                    self._position("BTC-USDC-SWAP", "net", "0"),
+                ],
+                "FUTURES": [],
+            }.get(kind or "", [])
+        if name == "trade/orders-pending":
+            if params.get("instType") == "SPOT":
+                return [self._order("11", "BTC-USDT", "live", "")]
+            if params.get("instType") == "SWAP":
+                return [
+                    self._order("12", "BTC-USDT-SWAP", "live", ""),
+                    self._order("13", "BTC-USD-SWAP", "live", ""),
+                ]
+            return []
+        if name == "trade/orders-history":
+            if "instType" not in params:
+                return 400, "50014", "Parameter instType can not be empty."
+            return [
+                self._order("21", params["instId"], "filled", "quote_ccy"),
+                self._order("22", params["instId"], "canceled", ""),
+            ]
+        if name == "trade/fills":
+            return self._fills(params)
+        if name == "asset/deposit-history":
+            return [
+                {
+                    "depId": "d1",
+                    "ccy": "BTC",
+                    "chain": "BTC-Bitcoin",
+                    "amt": "0.5",
+                    "state": "2",
+                    "txId": "tx1",
+                    "to": "bc1q",
+                    "ts": str(self.now_ms - HOUR_MS),
+                }
+            ]
+        if name == "asset/withdrawal-history":
+            return [
+                {
+                    "wdId": "w1",
+                    "ccy": "USDT",
+                    "chain": "USDT-ERC20",
+                    "amt": "100",
+                    "fee": "1",
+                    "state": "2",
+                    "txId": "tx2",
+                    "to": "0xabc",
+                    "ts": str(self.now_ms - 2 * HOUR_MS),
+                }
+            ]
+        return 404, "404", "?"
+
+    def _coin(self, coin: str, cash: str, frozen: str, usd: str) -> dict[str, Any]:
+        return {
+            "ccy": coin,
+            "cashBal": cash,
+            "eq": cash,
+            "frozenBal": frozen,
+            "upl": "0",
+            "eqUsd": usd,
+        }
+
+    def _position(self, name: str, side: str, pos: str) -> dict[str, Any]:
+        return {
+            "instId": name,
+            "posSide": side,
+            "pos": pos,
+            "avgPx": "70000",
+            "markPx": "74000",
+            "upl": "12",
+            "liqPx": "",
+            "notionalUsd": "2220",
+            "uTime": str(self.now_ms),
+        }
+
+    def _order(
+        self, order_id: str, name: str, state: str, target: str
+    ) -> dict[str, Any]:
+        filled = state == "filled"
+        return {
+            "ordId": order_id,
+            "instId": name,
+            "side": "buy",
+            "ordType": "post_only",
+            "state": state,
+            "px": "100.5",
+            "sz": "2",
+            "tgtCcy": target,
+            "accFillSz": "2" if filled else "0",
+            "avgPx": "100.4" if filled else "",
+            "cTime": str(self.now_ms - int(order_id) * HOUR_MS),
+            "uTime": str(self.now_ms),
+        }
+
+    def my_trade_ms(self, hours: int) -> int:
+        return self.now_ms - hours * HOUR_MS
+
+    def _fills(self, params: dict[str, str]) -> Any:
+        """The key's trades of three days, newest first, kept to `begin` and
+        `end`, both left out."""
+        low = int(params.get("begin") or self.now_ms - 3 * DAY_MS)
+        high = int(params.get("end") or self.now_ms + 1)
+        found = [
+            {
+                "tradeId": f"t-{hours}",
+                "ordId": f"o-{hours}",
+                "billId": str(1000 - hours),
+                "instId": params.get("instId"),
+                "side": "sell",
+                "fillPx": "100.5",
+                "fillSz": "3",
+                "fee": "-0.001",
+                "feeCcy": "USDT",
+                "execType": "M",
+                "fillTime": str(self.my_trade_ms(hours)),
+                "ts": str(self.my_trade_ms(hours) + 5),
+            }
+            for hours in MY_TRADE_HOURS
+            if low < self.my_trade_ms(hours) < high
+            and self.my_trade_ms(hours) > self.now_ms - 3 * DAY_MS
+        ]
+        return found
 
     # --- public data -------------------------------------------------------------
 

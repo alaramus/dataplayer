@@ -9,11 +9,18 @@ trades and book are read.
 from collections.abc import AsyncGenerator
 from typing import Any, ClassVar
 
+from app.adapters.catalog import FeedName
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.live import LiveRows
-from app.adapters.market.adapter import MarketAdapter
+from app.adapters.market.adapter import MarketAdapter, key_checked
 from app.adapters.market.catalog import place_in
 from app.adapters.metrics import MetricSample
+from app.adapters.okx.account import (
+    account_feeds,
+    account_page,
+    key_info,
+    more_than_reading,
+)
 from app.adapters.okx.feeds import (
     OkxPlace,
     book_answer,
@@ -28,6 +35,7 @@ from app.adapters.okx.options import OkxOptions
 from app.adapters.okx.reading import OkxReading
 from app.adapters.okx.reports import PRESETS, metric_samples, okx_reports
 from app.adapters.okx.session import OkxSession
+from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.reading_on import BookmarkAccess
 from app.adapters.registry import AdapterContext, register
 from app.core.translation import N_
@@ -51,6 +59,29 @@ class OkxAdapter(MarketAdapter[Market]):
 
     def place_of(self, node_id: str) -> OkxPlace:
         return place_in(BY_KEY, node_id)
+
+    async def check_connection(self) -> ConnectionCheckResult:
+        """The markets reached, and with a key what OKX says it may do (D437).
+
+        Any key may read the account; one that may trade or withdraw passes
+        and is said to do more.
+        """
+        checked = await self._session.check()
+        if not checked.ok or not self._session.keyed:
+            return checked
+        try:
+            info = await key_info(self._session)
+        except AdapterError as failure:
+            return ConnectionCheckResult(
+                ok=False, message=failure.message, error_kind=failure.error_kind
+            )
+        return key_checked(checked, more_than_reading(info))
+
+    def account_feeds(self, market: Market) -> list[FeedName]:
+        return account_feeds(market)
+
+    async def account_page(self, place: OkxPlace, request: FetchRequest) -> FetchResult:
+        return await account_page(self._session, place, request)
 
     async def metric_samples(self) -> list[MetricSample]:
         return await metric_samples(self._session)
@@ -87,7 +118,8 @@ class OkxAdapter(MarketAdapter[Market]):
         "futures, perpetual and dated. See every symbol's last day and "
         "trading rules, read a symbol's candles of any interval, its trades "
         "of the last three months and its order book as rows, and watch its "
-        "market live. Nothing is changed on OKX."
+        "market live. With a read-only key, its account too. Nothing is "
+        "changed on OKX."
     ),
     options_schema=OkxOptions,
     adapter_class=OkxAdapter,

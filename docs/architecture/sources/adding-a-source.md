@@ -16,7 +16,7 @@ newest adapter of the same shape before writing a line.
 | A broker or a stream | `kafka/`, `rabbitmq/` |
 | A storage of files | [explorer.md](explorer.md), `s3/`, `ftp/` |
 | A server reached only through an SSH connection, an HTTP API with no paging | `docker/` |
-| An exchange's market data | [market.md](market.md) first, then `bybit/` (newest), `binance/` |
+| An exchange's market data | [market.md](market.md) first, then `okx/` (newest), `bybit/`, `binance/` |
 
 Shared pieces to use instead of writing again: `database_ids.py` (schema and
 relation in one node id, D229), `home_file.py` (a file below the home, D247),
@@ -152,5 +152,18 @@ template files to read.
   `app.adapters.market.stream.connect`.
 - A `dict` keyed by a `Literal` is not a `Mapping[str, …]` to mypy: key a
   market map by `str` where the shared catalog reads it.
+- A limit may be each path's, neither a market's nor the address's (OKX):
+  choose the budget in `MarketSession.budget` and keep it in
+  `Kept.budgets`; say it per path in the report and metrics.
+- A window of a few seconds is better waited for than refused (`paces`): a
+  deep page or an export is dozens of requests.
+- A keep-alive answer may not be JSON (OKX's `pong`): name it in
+  `StreamSpec.pong`, or the stream reads it as a broken message and
+  reconnects.
+- A day's candle may open at the exchange's own midnight (OKX's `1D` is
+  Hong Kong's): ask for the UTC series where there is one.
+- A fake that keeps only recent trades cannot lose any to age; model the
+  exchange's retention (`FakeOkx.kept_from`) to test lost counts.
+- `dict(request.headers)` in a fake has lowercase names; ask it that way.
 - Look at what the screen shows before calling a slice done: a unit test does
   not prove a label, a button or a translation reaches the person.

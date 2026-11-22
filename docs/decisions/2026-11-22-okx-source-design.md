@@ -102,6 +102,13 @@ except in the shared book.
 The shared section; the rate limit and the `weight` metric said per path,
 since that is what OKX limits.
 
+## D437. A key and the account
+
+A key is an endpoint of its own with a passphrase beside the key and its
+secret. Signing goes through the shared session, its hook now given the path
+OKX signs. The account's lists are read by instrument type and kept to the
+market's symbols, since OKX puts linear and inverse swaps under one type.
+
 ## Plan of slices
 
 1. Connection, catalog, feeds, reports, metrics, search (D432, D433, D436).

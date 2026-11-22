@@ -3,11 +3,11 @@
 For changing how OKX is reached and kept under its limits, what its catalog
 shows of spot, linear and inverse contracts, how its feeds are read as rows,
 how a link reads them on and a symbol is watched live, or what the connection reports, measures and
-finds. What OKX shares with
+finds, and what a key reads of its account. What OKX shares with
 every exchange is in [market.md](market.md); the contract every source keeps
 is in [contract.md](contract.md).
 
-Decisions here: D432, D433, D434, D435, D436.
+Decisions here: D432, D433, D434, D435, D436, D437.
 
 ## D432. OKX's public market data over v5 REST, each path under its own limit
 
@@ -164,5 +164,48 @@ Spec: [An OKX source](../../decisions/2026-11-22-okx-source-design.md)
 - **Search** reads the kept symbol lists; `enumerate_names` gives every live
   symbol of the three markets, scoped by market. **The Markets folder**
   (D365) lists each market's symbols as their market views.
+
+Spec: [An OKX source](../../decisions/2026-11-22-okx-source-design.md)
+
+## D437. A key with its passphrase reads the account, signed the OKX way
+
+- **A key is an endpoint of its own**: `okx_key`, `eea_key`, `demo_key`,
+  the shared `Keyed` with a third `SecretStr`, the passphrase
+  (`OkxKeyed`); `HOSTS_OF` maps them to the plain hosts.
+- **Signed** through the shared `MarketSession.signed`, its hook given the
+  path: `OK-ACCESS-SIGN` is Base64 of HMAC-SHA256 over the time (ISO 8601 in
+  UTC to the millisecond, this server's clock plus OKX's offset from
+  `public/time`), `GET`, and the path with its query; the key, the time and
+  the passphrase in their headers, and demo's flag on every request. 50102
+  measures the clock again and sends once more. 50100–50120 and HTTP 401 are
+  `auth`, in words that name no key.
+- **The check** asks `account/config`. Any key passes; one whose `perm` holds
+  more than `read_only` is said to trade or move money (`key_checked`). A
+  report **API key** says read only, trade, withdraw, whether it is limited
+  to addresses, and its label.
+- **Catalog** (`okx/account.py`): an **Account** folder in each market —
+  **Balances** of the trading account, the same in every market;
+  **Positions** on linear and inverse; **Open orders**; on spot
+  **Deposits** and **Withdrawals** — and a symbol's **My orders** (seven
+  days) and **My trades** (three days, `trade/fills`).
+- **Rows**: each list read whole by OKX's `after`, at most twenty pages of
+  100, sorted and filtered here; positions and open orders asked by the
+  market's instrument types and kept to its symbols, as a linear and an
+  inverse swap share a type; a contract's size said as what it is worth, as
+  the public feeds say it; a spot order sized in the quote asset leaves its
+  quantity empty; states in OKX's words.
+- **My trades are read on by time** (D428, D431): `""` the next own trade's
+  time, a block one window of at most three days.
+
+Known deviations:
+
+- **OKX's per-account limits are counted per path** like the public ones,
+  not per account across connections.
+- **Balances repeat in every market**: OKX has one trading account for all.
+- **The funding account's balances are not read**, only its deposits and
+  withdrawals.
+- **An own trade's unread count is a floor**, as Bybit's.
+- **Untested against a real key**: the signature is checked by the fake as
+  OKX documents it.
 
 Spec: [An OKX source](../../decisions/2026-11-22-okx-source-design.md)

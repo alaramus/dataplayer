@@ -18,6 +18,7 @@ from app.adapters.market.reports import (
     status_rows,
 )
 from app.adapters.metrics import MetricPreset, MetricRecipe, MetricSample
+from app.adapters.okx.account import PERMISSIONS, key_info, permissions_of
 from app.adapters.okx.session import OkxSession
 from app.core.translation import N_, say
 
@@ -82,6 +83,21 @@ async def _limit(session: OkxSession) -> Rows:
     return rows
 
 
+async def _key(session: OkxSession) -> Rows:
+    """What OKX says the connection's key may do (D437)."""
+    info = await key_info(session)
+    granted = permissions_of(info)
+    yes, no = say("yes"), say("no")
+    rows: Rows = [(say("read only"), yes if granted <= {"read_only"} else no)]
+    rows += [(say(word), yes if name in granted else no) for name, word in PERMISSIONS]
+    limited = bool(str(info.get("ip") or "").strip())
+    rows.append((say("limited to listed addresses"), yes if limited else no))
+    label = info.get("label")
+    if isinstance(label, str) and label:
+        rows.append((say("label"), label))
+    return rows
+
+
 async def _status(session: OkxSession) -> Rows:
     return await status_rows(session, ENDPOINT_TITLES, session.endpoint)
 
@@ -136,6 +152,13 @@ REPORTS: tuple[ExchangeReport[OkxSession], ...] = (
         N_("Markets"),
         N_("How many symbols trade and in how many quote assets"),
         market_rows,
+    ),
+    ExchangeReport(
+        "key",
+        N_("API key"),
+        N_("What OKX lets this connection's key do"),
+        _key,
+        keyed=True,
     ),
 )
 
