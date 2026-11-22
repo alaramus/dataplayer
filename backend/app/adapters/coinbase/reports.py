@@ -5,6 +5,7 @@ Coinbase has no system status on its public paths, and one budget for the
 address.
 """
 
+from app.adapters.coinbase.account import PERMISSIONS, key_info
 from app.adapters.coinbase.session import CoinbaseSession
 from app.adapters.market.reports import (
     ExchangeReport,
@@ -16,14 +17,29 @@ from app.adapters.market.reports import (
     status_rows,
 )
 from app.adapters.metrics import MetricPreset, MetricRecipe
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 SECTION_DESCRIPTION = N_("What Coinbase and this connection say about themselves")
 
 ENDPOINT_TITLES = {
     "coinbase": N_("Coinbase Exchange"),
     "sandbox": N_("Sandbox"),
+    "coinbase_key": N_("Coinbase Exchange, with an API key"),
 }
+
+
+async def _key(session: CoinbaseSession) -> Rows:
+    """What Coinbase says the connection's key may do (D443)."""
+    info = await key_info(session)
+    yes, no = say("yes"), say("no")
+    rows: Rows = [
+        (say(word), yes if info.get(field) is True else no)
+        for field, word in PERMISSIONS
+    ]
+    kind = info.get("portfolio_type")
+    if isinstance(kind, str) and kind:
+        rows.append((say("portfolio"), kind.casefold()))
+    return rows
 
 
 async def _status(session: CoinbaseSession) -> Rows:
@@ -59,6 +75,13 @@ REPORTS: tuple[ExchangeReport[CoinbaseSession], ...] = (
         N_("Markets"),
         N_("How many symbols trade and in how many quote assets"),
         market_rows,
+    ),
+    ExchangeReport(
+        "key",
+        N_("API key"),
+        N_("What Coinbase lets this connection's key do"),
+        _key,
+        keyed=True,
     ),
 )
 

@@ -15,13 +15,16 @@ import time
 from collections.abc import Sequence
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 
 from app.adapters.coinbase.markets import BY_KEY, HOSTS, MARKETS, Market
-from app.adapters.coinbase.options import CoinbaseOptions
+from app.adapters.coinbase.options import HOSTS_OF, CoinbaseOptions
+from app.adapters.coinbase.signing import token
 from app.adapters.market import session as shared
 from app.adapters.market.budget import Budget
+from app.adapters.market.keys import key_of
 from app.adapters.market.session import Kept, MarketSession, MarketState, Words
 from app.adapters.market.shape import Symbol
 from app.adapters.market.values import decimal_text
@@ -32,6 +35,10 @@ from app.core.translation import N_, say
 logger = logging.getLogger(__name__)
 
 TIME = "/time"
+# Where a key reads its account: Advanced Trade, on Coinbase's own host
+# rather than the exchange's (D443).
+BROKERAGE_HOST = "api.coinbase.com"
+BROKERAGE = "/api/v3/brokerage"
 PRODUCTS = "/products"
 STATS = "/products/stats"
 
@@ -73,7 +80,12 @@ class CoinbaseSession(MarketSession[Market]):
 
     @property
     def hosts(self) -> str:
-        return self._options.endpoint
+        """The set of hosts the endpoint speaks to, a key or not."""
+        return HOSTS_OF[self._options.endpoint]
+
+    @property
+    def keyed(self) -> bool:
+        return key_of(self._options) is not None
 
     @property
     def markets(self) -> Sequence[Market]:
@@ -95,10 +107,45 @@ class CoinbaseSession(MarketSession[Market]):
 
     def url(self, market: Market, path: str) -> str:
         del market
+        if path.startswith(BROKERAGE):
+            return f"https://{BROKERAGE_HOST}{path}"
         return HOSTS[self.hosts] + path
+
+    def signed_request(
+        self, state: MarketState, path: str, params: dict[str, str]
+    ) -> tuple[str, dict[str, str]]:
+        """The query as sent, and the bearer token for this one request (D443).
+
+        The token's time is this server's clock plus Coinbase's offset, as
+        every signed request's is (D431).
+        """
+        key = key_of(self._options)
+        if key is None:
+            raise ValueError(say("This connection has no API key"))
+        now = int(time.time() + state.offset_ms / 1000)
+        try:
+            bearer = token(
+                key.api_key.get_secret_value(),
+                key.api_secret.get_secret_value(),
+                BROKERAGE_HOST,
+                path,
+                now,
+            )
+        except ValueError as failure:
+            raise AdapterError("auth", str(failure)) from None
+        return urlencode(params, doseq=True), {"Authorization": f"Bearer {bearer}"}
 
     def answer(self, response: httpx.Response, budget: Budget, node_id: str) -> Any:
         status = response.status_code
+        private = response.request.url.host == BROKERAGE_HOST
+        if private and status in {401, 403}:
+            raise AdapterError(
+                "auth",
+                say(
+                    "Coinbase does not accept this API key here: check its name, "
+                    "its private key and its permissions"
+                ),
+            )
         if status == 429:
             budget.hold(time.time() + WINDOW_SECONDS)
             raise AdapterError("unknown", say(WORDS.held, seconds=WINDOW_SECONDS))

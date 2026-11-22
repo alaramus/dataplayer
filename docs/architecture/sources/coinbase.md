@@ -3,18 +3,20 @@
 For changing how Coinbase Exchange is reached and kept under its rate limit,
 what its catalog shows of its spot products, how its feeds are read as rows,
 how a link reads them on and a product is watched live, or what the
-connection reports, measures and finds. What Coinbase shares with every
+connection reports, measures and finds, and what a key reads of the
+account. What Coinbase shares with every
 exchange is in [market.md](market.md); the contract every source keeps is in
 [contract.md](contract.md).
 
-Decisions here: D438, D439, D440, D441, D442.
+Decisions here: D438, D439, D440, D441, D442, D443.
 
 ## D438. Coinbase Exchange's public market data over REST, one budget for the address
 
 - **Nothing changed on Coinbase.** The connection names an endpoint from a
   closed set: Coinbase Exchange (`api.exchange.coinbase.com`, its feed on
   `ws-feed.exchange.coinbase.com`) and the public sandbox
-  (`api-public.sandbox.exchange.coinbase.com`). No key in this round.
+  (`api-public.sandbox.exchange.coinbase.com`); the exchange with a Coinbase
+  Developer Platform key reads the owner's account too (D443).
 - **One client a connection** on the shared session (D425): the product
   list kept an hour, the tickers ten seconds.
 - **One budget for the address**: Coinbase allows ten public requests a
@@ -112,3 +114,47 @@ Spec: [A Coinbase Exchange source](../../decisions/2026-11-22-coinbase-source-de
   the shared ones.
 
 Spec: [A Coinbase Exchange source](../../decisions/2026-11-22-coinbase-source-design.md)
+
+## D443. A Coinbase Developer Platform key reads the account through Advanced Trade
+
+- **A key is an endpoint of its own**, `coinbase_key`, on the main hosts:
+  the key's name and its EC private key, `SecretStr` in the shared `Keyed`
+  under their own titles; the sandbox has no key. Coinbase Exchange's own
+  keys (key, secret, passphrase) are not taken: an ordinary Coinbase account
+  has a Developer Platform key.
+- **Signed** by the shared `MarketSession.signed`, its hook given the path:
+  a JWT for each request (`coinbase/signing.py`, the one importer of `jwt`
+  here), ES256, `kid` the name and a fresh `nonce`, `iss` `cdp`, two
+  minutes from this server's clock plus Coinbase's offset, `uri` the method,
+  `api.coinbase.com` and the path without its query, as Coinbase's own SDK
+  builds it, in `Authorization: Bearer`. A pasted key is read with its line
+  breaks, with them written as `\n`, or with none; an Ed25519 key is
+  refused in words, as Coinbase signs with ECDSA only.
+- **Requests go to Coinbase's host**, `api.coinbase.com/api/v3/brokerage`,
+  and spend the address's budget (D438); a 401 or 403 there is `auth`, in
+  words that name no key.
+- **The check** asks `key_permissions`: a key that may view passes; one that
+  may trade or move money is said to (`key_checked`). A report **API key**
+  says view, trade, move money and the portfolio's kind.
+- **Catalog** (`coinbase/account.py`): **Account** in Spot — **Balances**
+  (available plus hold, each currency's account; empty ones left out) and
+  **Open orders** — and a product's **My orders** and **My trades**.
+- **Rows**: each list read whole by Coinbase's cursor, at most twenty pages,
+  sorted and filtered here; an order's price and size from whichever
+  `order_configuration` it has, its quantity empty when sized in the quote
+  asset; a fill sized in the quote asset says `quote_quantity` and leaves
+  `quantity` empty, nothing divided; times RFC 3339 to the millisecond.
+- **My trades are read on by time** (D428): `""` the next own fill's time;
+  the unread are counted exactly, as Coinbase answers fills of any span;
+  `earliest` is the last seven days.
+
+Known deviations:
+
+- **Coinbase's limit for these paths is not known**: they spend the
+  exchange address's budget of ten a second.
+- **No deposits, withdrawals or positions**: Advanced Trade's brokerage
+  paths have none for a spot account.
+- **Untested against a real key**: the token is checked by the fake with a
+  key it makes, as Coinbase documents it.
+
+Spec: [A Coinbase key and the account it reads](../../decisions/2026-11-22-coinbase-account-design.md)

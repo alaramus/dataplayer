@@ -4,11 +4,18 @@ Coinbase keeps no reader's place, so the bookmark is kept by this
 application, as every exchange's is (D319). Its `""` is the next candle's
 open time, or for trades the id of the next trade to read: Coinbase numbers
 a product's trades one after another and keeps them all, so nothing is lost
-however long a link waits.
+however long a link waits. With a key the product's own fills are read on
+by their time (D443).
 """
 
 import time
 
+from app.adapters.coinbase.account import (
+    MY_TRADE_COLUMNS,
+    fill_time,
+    my_trade_row,
+    own_trades,
+)
 from app.adapters.coinbase.feeds import (
     COINBASE_CANDLE_COLUMNS,
     COINBASE_TRADE_COLUMNS,
@@ -37,7 +44,9 @@ DAY_MS = 86_400_000
 NEXT = ""
 # A fresh reader's `earliest` trades: the newest this many.
 EARLIEST_TRADES = 1000
-_READ_ON = {"trades", "candles"}
+_READ_ON = {"trades", "candles", "my_trades"}
+# A fresh reader of own trades starts this far back for `earliest`.
+WEEK_MS = 7 * DAY_MS
 
 
 def _now_ms() -> int:
@@ -78,6 +87,8 @@ class CoinbaseReading(MarketReading[Market]):
         place = place_in(BY_KEY, node_id)
         if place.feed not in _READ_ON or place.symbol is None:
             raise ValueError(say("Only trades and candles are read on"))
+        if place.feed == "my_trades" and not self._session.keyed:
+            raise ValueError(say("This connection has no API key"))
         await self._session.symbol(place.market, place.symbol, node_id)
         return place
 
@@ -86,6 +97,8 @@ class CoinbaseReading(MarketReading[Market]):
         kept = await self._store().read(node_id, reader)
         if place.feed == "trades":
             return await self._unread_trades(place, node_id, kept, start)
+        if place.feed == "my_trades":
+            return await self._unread_mine(place, node_id, kept, start)
         return await self._unread_candles(place, node_id, kept, start)
 
     async def _unread_trades(
@@ -107,6 +120,33 @@ class CoinbaseReading(MarketReading[Market]):
             start=_at({NEXT: begin}),
             line=_at({NEXT: line}),
             count=line - begin,
+            fresh=kept is None,
+        )
+
+    async def _unread_mine(
+        self,
+        place: CoinbasePlace,
+        node_id: str,
+        kept: Bookmark | None,
+        start: ReadStart,
+    ) -> UnreadSpan:
+        """The key's own fills of a product, by time, counted exactly: the
+        fills between the bookmark and now are read to say where the line is."""
+        assert place.symbol is not None
+        now = _now_ms()
+        if kept is None or NEXT not in kept.positions:
+            begin = now - WEEK_MS if start == "earliest" else now
+        else:
+            begin = kept.positions[NEXT]
+        fills = await own_trades(
+            self._session, place.market, place.symbol, node_id, since_ms=begin
+        )
+        times = [fill_time(one) for one in fills if fill_time(one) >= begin]
+        line = max(times[-1] + 1, begin) if times else begin
+        return UnreadSpan(
+            start=_at({NEXT: begin}),
+            line=_at({NEXT: line}),
+            count=len(times),
             fresh=kept is None,
         )
 
@@ -140,17 +180,39 @@ class CoinbaseReading(MarketReading[Market]):
     ) -> ReadBlock:
         place = await self._place(node_id)
         assert place.symbol is not None
-        shape = (
-            COINBASE_TRADE_COLUMNS
-            if place.feed == "trades"
-            else COINBASE_CANDLE_COLUMNS
-        )
+        shape = {
+            "trades": COINBASE_TRADE_COLUMNS,
+            "my_trades": MY_TRADE_COLUMNS,
+        }.get(place.feed or "", COINBASE_CANDLE_COLUMNS)
         picked = _picked(columns, [column.name for column in shape])
         begin = at.positions.get(NEXT, 0)
         end = line.positions.get(NEXT, 0)
         if begin >= end:
             return ReadBlock(rows=[], after=at, done=True)
         after = dict(at.positions)
+        if place.feed == "my_trades":
+            fills = [
+                one
+                for one in await own_trades(
+                    self._session,
+                    place.market,
+                    place.symbol,
+                    node_id,
+                    since_ms=begin,
+                    before_ms=end,
+                )
+                if begin <= fill_time(one) < end
+            ]
+            block, rest = fills[:limit], fills[limit:]
+            rows = [[my_trade_row(one)[index] for index in picked] for one in block]
+            if not block:
+                after[NEXT] = end
+            else:
+                last = fill_time(block[-1])
+                # A millisecond split by the limit is read again from its start.
+                split = bool(rest) and fill_time(rest[0]) == last and last > begin
+                after[NEXT] = last if split else last + 1
+            return ReadBlock(rows=rows, after=_at(after), done=after[NEXT] >= end)
         if place.feed == "trades":
             last = min(end - 1, begin + max(limit, 1) - 1)
             found = await read_trades(
@@ -183,7 +245,7 @@ class CoinbaseReading(MarketReading[Market]):
 
     def row_key(self, node_id: str) -> list[str]:
         feed = place_in(BY_KEY, node_id).feed
-        return ["id"] if feed == "trades" else ["open_time"]
+        return ["id"] if feed in {"trades", "my_trades"} else ["open_time"]
 
     async def mark_read(self, node_id: str, reader: str, at: Bookmark) -> None:
         place_in(BY_KEY, node_id)

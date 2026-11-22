@@ -20,14 +20,11 @@ on the [Connections](connections.md) page.
 - The rate limit and Coinbase's answers on a dashboard
 - Products found by name or by asset
 - A product's trades or candles carried by a pipeline, only what is new
+- With a key: balances, open orders, your orders and own trades
 
 ## What you can change
 
 - Nothing: market data is only read
-
-## What Coinbase Exchange does not have here yet
-
-- Your account: a key is not asked for yet
 
 ## Connecting
 
@@ -36,6 +33,9 @@ The **Connection** page of the window asks for the **Endpoint**:
 - **Coinbase Exchange** — `api.exchange.coinbase.com`, and its feed on
   `ws-feed.exchange.coinbase.com`;
 - **Sandbox** — Coinbase's public sandbox, with prices of its own.
+- **Coinbase Exchange, with an API key** — the same, and your Coinbase
+  account as well. It asks for the key's **name** and its **private key**,
+  as the Coinbase Developer Platform gives them.
 
 ## The catalog
 
@@ -99,6 +99,19 @@ the last one, and a pipeline switched on carries it within seconds.
 - A table the link makes is keyed by the trade **id** or the candle
   **open_time**, so nothing arrives twice.
 
+## Your account
+
+With a key, **Spot** holds **Account**: **Balances** of your Coinbase
+account, and **Open orders**. A product adds **My orders** and **My trades**.
+**My trades** can start a pipeline's link, as **Trades** can.
+
+- Make the key on the Coinbase Developer Platform with the **View**
+  permission only, and the **ECDSA** signature algorithm. A key that may also
+  trade or move money is accepted and the check says so: DataPlayer only
+  reads, but a view-only key is safer.
+- Paste the private key whole, from `-----BEGIN` to the end.
+- **API key** in **Exchange** says what Coinbase lets the key do.
+
 ## Exchange
 
 - **Status**: the endpoint, and whether Coinbase answers.
@@ -108,6 +121,8 @@ the last one, and a pipeline switched on carries it within seconds.
   used, where DataPlayer stops, and whether requests are held.
 - **Markets**: how many products trade, in how many quote assets, and when
   the list was read; it is read again after an hour.
+- **API key**: whether the key may view, trade or move money, and its
+  portfolio.
 
 ## Dashboards and search
 

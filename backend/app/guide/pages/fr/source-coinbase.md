@@ -21,14 +21,11 @@ connexions est décrit sur la page [Connexions](connections.md).
 - La limite de requêtes et les réponses de Coinbase sur un tableau de bord
 - Des produits trouvés par nom ou par actif
 - Les transactions ou bougies d'un produit dans un pipeline, rien que le neuf
+- Avec une clé : soldes, ordres ouverts, vos ordres et transactions
 
 ## Ce que vous pouvez modifier
 
 - Rien : les données de marché sont seulement lues
-
-## Ce que Coinbase Exchange n'a pas encore ici
-
-- Votre compte : aucune clé n'est encore demandée
 
 ## Connexion
 
@@ -37,6 +34,9 @@ La page **Connexion** de la fenêtre demande le **Point d'accès** :
 - **Coinbase Exchange** — `api.exchange.coinbase.com`, et son flux sur
   `ws-feed.exchange.coinbase.com` ;
 - **Bac à sable** — le bac à sable public de Coinbase, avec ses propres prix.
+- **Coinbase Exchange, avec une clé API** — la même chose, et votre compte
+  Coinbase en plus. Elle demande le **nom** de la clé et sa **clé privée**,
+  tels que la Coinbase Developer Platform les donne.
 
 ## Le catalogue
 
@@ -103,6 +103,20 @@ et un pipeline activé le porte en quelques secondes.
 - Une table que le lien crée a pour clé l'**id** de la transaction ou
   l'**open_time** de la bougie : rien n'arrive deux fois.
 
+## Votre compte
+
+Avec une clé, **Spot** contient **Compte** : les **Soldes** de votre compte
+Coinbase et les **Ordres ouverts**. Un produit ajoute **Mes ordres** et **Mes
+transactions**. **Mes transactions** peuvent commencer un lien de pipeline,
+comme **Transactions**.
+
+- Créez la clé sur la Coinbase Developer Platform avec la seule permission
+  **View** et l'algorithme de signature **ECDSA**. Une clé qui peut aussi
+  négocier ou déplacer de l'argent est acceptée et la vérification le dit :
+  DataPlayer ne fait que lire, mais une clé en lecture seule est plus sûre.
+- Collez la clé privée entière, de `-----BEGIN` jusqu'à la fin.
+- **Clé API** dans **Bourse** dit ce que Coinbase permet à la clé.
+
 ## Bourse
 
 - **Statut** : le point d'accès, et si Coinbase répond.
@@ -112,6 +126,8 @@ et un pipeline activé le porte en quelques secondes.
   sont retenues.
 - **Marchés** : combien de produits se négocient, dans combien de devises de
   cotation, et quand la liste a été lue ; elle est relue après une heure.
+- **Clé API** : si la clé peut consulter, négocier ou déplacer de
+  l'argent, et son portefeuille.
 
 ## Tableaux de bord et recherche
 

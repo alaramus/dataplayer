@@ -9,6 +9,13 @@ tickers, candles, trades and book are read.
 from collections.abc import AsyncGenerator
 from typing import Any
 
+from app.adapters.catalog import FeedName
+from app.adapters.coinbase.account import (
+    account_feeds,
+    account_page,
+    key_info,
+    more_than_reading,
+)
 from app.adapters.coinbase.feeds import (
     COINBASE_TICKER_COLUMNS,
     CoinbasePlace,
@@ -25,8 +32,9 @@ from app.adapters.coinbase.reports import PRESETS, coinbase_reports
 from app.adapters.coinbase.session import CoinbaseSession
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.live import LiveRows
-from app.adapters.market.adapter import MarketAdapter
+from app.adapters.market.adapter import MarketAdapter, key_checked
 from app.adapters.market.catalog import place_in
+from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.reading_on import BookmarkAccess
 from app.adapters.registry import AdapterContext, register
 from app.core.translation import N_
@@ -50,6 +58,29 @@ class CoinbaseAdapter(MarketAdapter[Market]):
 
     def place_of(self, node_id: str) -> CoinbasePlace:
         return place_in(BY_KEY, node_id)
+
+    async def check_connection(self) -> ConnectionCheckResult:
+        """The exchange reached, and with a key what Coinbase says it may do
+        (D443): any key that may view passes; one that may also trade or move
+        money is said to."""
+        checked = await self._session.check()
+        if not checked.ok or not self._session.keyed:
+            return checked
+        try:
+            info = await key_info(self._session)
+        except AdapterError as failure:
+            return ConnectionCheckResult(
+                ok=False, message=failure.message, error_kind=failure.error_kind
+            )
+        return key_checked(checked, more_than_reading(info))
+
+    def account_feeds(self, market: Market) -> list[FeedName]:
+        return account_feeds(market)
+
+    async def account_page(
+        self, place: CoinbasePlace, request: FetchRequest
+    ) -> FetchResult:
+        return await account_page(self._session, place, request)
 
     async def ticker_rows(
         self, market: Market
@@ -86,7 +117,8 @@ class CoinbaseAdapter(MarketAdapter[Market]):
         "Coinbase Exchange's public market data. See every product's last "
         "day and trading rules, read a product's candles, every trade it "
         "ever had and its order book as rows, and watch its market live. "
-        "Nothing is changed on Coinbase."
+        "With a view-only key, your Coinbase account too. Nothing is changed "
+        "on Coinbase."
     ),
     options_schema=CoinbaseOptions,
     adapter_class=CoinbaseAdapter,

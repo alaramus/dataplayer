@@ -21,14 +21,11 @@ Verbindungen allgemein funktionieren, steht auf der Seite
 - Das Anfragelimit und die Antworten von Coinbase auf einem Dashboard
 - Produkte, nach Name oder Asset gefunden
 - Trades oder Kerzen eines Produkts in einer Pipeline, je Lauf nur das Neue
+- Mit Schlüssel: Guthaben, offene Orders, Ihre Orders und eigene Trades
 
 ## Was Sie ändern können
 
 - Nichts: Marktdaten werden nur gelesen
-
-## Was Coinbase Exchange hier noch nicht hat
-
-- Ihr Konto: ein Schlüssel wird noch nicht abgefragt
 
 ## Verbinden
 
@@ -37,6 +34,9 @@ Die Seite **Verbindung** des Fensters fragt nach dem **Endpunkt**:
 - **Coinbase Exchange** — `api.exchange.coinbase.com` und sein Feed auf
   `ws-feed.exchange.coinbase.com`;
 - **Sandbox** — die öffentliche Sandbox von Coinbase mit eigenen Preisen.
+- **Coinbase Exchange, mit einem API-Schlüssel** — dasselbe und dazu Ihr
+  Coinbase-Konto. Es fragt nach dem **Namen** des Schlüssels und seinem
+  **privaten Schlüssel**, wie die Coinbase Developer Platform sie ausgibt.
 
 ## Der Katalog
 
@@ -103,6 +103,21 @@ eine eingeschaltete Pipeline trägt es in Sekunden weiter.
 - Eine Tabelle, die die Verbindung anlegt, hat den Schlüssel **id** des
   Trades oder **open_time** der Kerze, also kommt nichts doppelt.
 
+## Ihr Konto
+
+Mit einem Schlüssel enthält **Spot** das **Konto**: **Guthaben** Ihres
+Coinbase-Kontos und **Offene Orders**. Ein Produkt ergänzt **Meine Orders**
+und **Meine Trades**. **Meine Trades** können eine Verbindung einer Pipeline
+beginnen, wie **Trades**.
+
+- Legen Sie den Schlüssel auf der Coinbase Developer Platform nur mit der
+  Berechtigung **View** und dem Signaturverfahren **ECDSA** an. Ein
+  Schlüssel, der auch handeln oder Geld bewegen darf, wird angenommen, und
+  die Prüfung sagt es: DataPlayer liest nur, aber ein Schlüssel nur zum
+  Ansehen ist sicherer.
+- Fügen Sie den privaten Schlüssel ganz ein, von `-----BEGIN` bis zum Ende.
+- **API-Schlüssel** unter **Börse** sagt, was Coinbase dem Schlüssel erlaubt.
+
 ## Börse
 
 - **Status**: der Endpunkt und ob Coinbase antwortet.
@@ -114,6 +129,8 @@ eine eingeschaltete Pipeline trägt es in Sekunden weiter.
 - **Märkte**: wie viele Produkte gehandelt werden, in wie vielen
   Kurswährungen und wann die Liste gelesen wurde; nach einer Stunde wird sie
   neu gelesen.
+- **API-Schlüssel**: ob der Schlüssel ansehen, handeln oder Geld bewegen
+  darf, und sein Portfolio.
 
 ## Dashboards und Suche
 

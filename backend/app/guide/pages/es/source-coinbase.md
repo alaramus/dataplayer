@@ -21,14 +21,11 @@ clave. Cómo funcionan las conexiones en general se explica en la página
 - El límite de solicitudes y las respuestas de Coinbase en un panel
 - Productos encontrados por nombre o por activo
 - Operaciones o velas de un producto en un pipeline, solo lo nuevo cada vez
+- Con clave: saldos, órdenes abiertas, tus órdenes y operaciones
 
 ## Qué puedes cambiar
 
 - Nada: los datos de mercado solo se leen
-
-## Lo que Coinbase Exchange aún no tiene aquí
-
-- Tu cuenta: todavía no se pide una clave
 
 ## Conexión
 
@@ -38,6 +35,9 @@ La página **Conexión** de la ventana pide el **Punto de acceso**:
   `ws-feed.exchange.coinbase.com`;
 - **Sandbox** — el entorno de pruebas público de Coinbase, con precios
   propios.
+- **Coinbase Exchange, con una clave de API** — lo mismo y además tu
+  cuenta de Coinbase. Pide el **nombre** de la clave y su **clave privada**,
+  tal como los da la Coinbase Developer Platform.
 
 ## El catálogo
 
@@ -103,6 +103,20 @@ lleva en segundos.
 - Una tabla que crea el enlace tiene por clave el **id** de la operación o el
   **open_time** de la vela, así que nada llega dos veces.
 
+## Tu cuenta
+
+Con una clave, **Spot** contiene **Cuenta**: los **Saldos** de tu cuenta de
+Coinbase y las **Órdenes abiertas**. Un producto añade **Mis órdenes** y
+**Mis operaciones**. **Mis operaciones** pueden iniciar un enlace de
+pipeline, como **Operaciones**.
+
+- Crea la clave en la Coinbase Developer Platform solo con el permiso
+  **View** y el algoritmo de firma **ECDSA**. Una clave que también puede
+  operar o mover dinero se acepta y la comprobación lo dice: DataPlayer solo
+  lee, pero una clave de solo lectura es más segura.
+- Pega la clave privada entera, desde `-----BEGIN` hasta el final.
+- **Clave de API** en **Bolsa** dice lo que Coinbase permite a la clave.
+
 ## Bolsa
 
 - **Estado**: el punto de acceso y si Coinbase responde.
@@ -112,6 +126,8 @@ lleva en segundos.
   retenidas.
 - **Mercados**: cuántos productos cotizan, en cuántas monedas de cotización y
   cuándo se leyó la lista; se vuelve a leer tras una hora.
+- **Clave de API**: si la clave puede ver, operar o mover dinero, y su
+  cartera.
 
 ## Paneles y búsqueda
 
