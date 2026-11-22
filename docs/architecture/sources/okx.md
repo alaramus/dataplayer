@@ -2,12 +2,12 @@
 
 For changing how OKX is reached and kept under its limits, what its catalog
 shows of spot, linear and inverse contracts, how its feeds are read as rows,
-how a link reads them on, or what the connection reports, measures and
+how a link reads them on and a symbol is watched live, or what the connection reports, measures and
 finds. What OKX shares with
 every exchange is in [market.md](market.md); the contract every source keeps
 is in [contract.md](contract.md).
 
-Decisions here: D432, D433, D434, D436.
+Decisions here: D432, D433, D434, D435, D436.
 
 ## D432. OKX's public market data over v5 REST, each path under its own limit
 
@@ -122,6 +122,33 @@ Known deviations:
 
 - **The oldest trade is found a day inside the three months**, so a reader
   that far behind loses up to a day more than OKX deleted.
+
+Spec: [An OKX source](../../decisions/2026-11-22-okx-source-design.md)
+
+## D435. A symbol's market watched live from OKX's public streams
+
+- **The shared watch** (D323, D425): the symbol's Market node, rows in the
+  grid's columns part by part.
+- **Two sockets a symbol and interval**: `/ws/v5/public` subscribed to
+  `books` and `tickers`, `/ws/v5/business` to `candle<bar>` and
+  `trades-all` — OKX serves candles on the business socket only, and
+  `trades` there may merge several trades into one. Each is sent a plain
+  `ping` every twenty seconds and answers a plain `pong`, which the shared
+  stream skips. Port 443: OKX retires 8443.
+- **The snapshot over REST**: the day, 300 candles, the book of 400 and the
+  newest hundred trades by id.
+- **The book is kept** by each watch from the REST snapshot, OKX's updates
+  laid over it (a size of 0 removes a level), reset by a snapshot from the
+  stream; twenty levels a side sent whole, at most four times a second, a
+  contract's size said as what it is worth.
+- **Trades the snapshot held are left out** by their id.
+- A 403 or 451 when a socket opens ends the watch in words.
+
+Known deviations:
+
+- **OKX's checksum of the book is not checked**; a book drifted by a lost
+  update is right again at the next snapshot.
+- **A watcher joining an open socket starts its book from REST**, as Bybit's.
 
 Spec: [An OKX source](../../decisions/2026-11-22-okx-source-design.md)
 
