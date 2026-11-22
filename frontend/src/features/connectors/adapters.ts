@@ -26,6 +26,7 @@ const ICONS: Record<string, string> = {
   binance: "img:/icons/services/binance.svg",
   bybit: "img:/icons/services/bybit.svg",
   okx: "img:/icons/services/okx.svg",
+  coinbase: "img:/icons/services/coinbase.svg",
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",

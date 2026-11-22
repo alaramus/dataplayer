@@ -139,6 +139,7 @@ async function main() {
     { name: "binance", adapter_type: "binance", options: { endpoint: "binance" } },
     { name: "bybit", adapter_type: "bybit", options: { endpoint: "bybit" } },
     { name: "okx", adapter_type: "okx", options: { endpoint: "okx" } },
+    { name: "coinbase", adapter_type: "coinbase", options: { endpoint: "coinbase" } },
   ];
 
   let created = 0;

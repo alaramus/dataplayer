@@ -12,7 +12,6 @@ USD, so there the trades say `quote_quantity` instead of `quantity`.
 import calendar
 import time
 from datetime import UTC, datetime
-from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import Any
 
 from app.adapters.fetch import (
@@ -44,8 +43,10 @@ from app.adapters.market.columns import (
 from app.adapters.market.shape import INTERVAL_MS
 from app.adapters.market.values import (
     decimal_text,
+    difference,
     milliseconds,
     moment,
+    percent_change,
     whole_number,
 )
 from app.adapters.okx.markets import (
@@ -130,30 +131,6 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def _difference(last: str | None, before: str | None) -> str | None:
-    if last is None or before is None:
-        return None
-    return str(Decimal(last) - Decimal(before))
-
-
-def percent_of(last: str | None, before: str | None) -> str | None:
-    """The change since the day's open as a percent, to three places.
-
-    OKX sends no percent; this is the one division in the feeds, rounded
-    half to even and never through a float.
-    """
-    if last is None or before is None:
-        return None
-    try:
-        opened = Decimal(before)
-        if opened == 0:
-            return None
-        change = (Decimal(last) - opened) * 100 / opened
-    except InvalidOperation:
-        return None
-    return str(change.quantize(Decimal("0.001"), rounding=ROUND_HALF_EVEN))
-
-
 def ticker_row(
     market: Market, item: dict[str, Any], symbol: OkxSymbol | None
 ) -> list[str | None]:
@@ -162,8 +139,8 @@ def ticker_row(
     row: list[str | None] = [
         str(item.get("instId")),
         last,
-        _difference(last, opened),
-        percent_of(last, opened),
+        difference(last, opened),
+        percent_change(last, opened),
         opened,
         decimal_text(item.get("high24h")),
         decimal_text(item.get("low24h")),

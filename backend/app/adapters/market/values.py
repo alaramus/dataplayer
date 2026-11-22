@@ -6,7 +6,7 @@ and leaves as a moment in UTC.
 """
 
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import Any
 
 from app.core.translation import say
@@ -63,3 +63,29 @@ def in_quote(contracts: Any, contract_size: int | None) -> str | None:
     if text is None or contract_size is None:
         return None
     return str(Decimal(text) * contract_size)
+
+
+def difference(last: str | None, before: str | None) -> str | None:
+    """How far a price moved, exact."""
+    if last is None or before is None:
+        return None
+    # Written out, never as `1E-8`.
+    return format(Decimal(last) - Decimal(before), "f")
+
+
+def percent_change(last: str | None, before: str | None) -> str | None:
+    """The change since an earlier price as a percent, to three places (D433).
+
+    For an exchange that sends no percent: the one division in the feeds,
+    rounded half to even and never through a float.
+    """
+    if last is None or before is None:
+        return None
+    try:
+        opened = Decimal(before)
+        if opened == 0:
+            return None
+        change = (Decimal(last) - opened) * 100 / opened
+    except InvalidOperation:
+        return None
+    return str(change.quantize(Decimal("0.001"), rounding=ROUND_HALF_EVEN))

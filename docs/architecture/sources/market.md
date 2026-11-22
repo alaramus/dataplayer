@@ -4,7 +4,7 @@ For changing what every exchange source has in common — the catalog of
 markets and symbols, the columns of a feed, the rate limit's ceiling, the
 Exchange reports, metrics, search, the live view's socket — or for adding an
 exchange. Each exchange's own file says what is its own:
-[binance.md](binance.md), [bybit.md](bybit.md), [okx.md](okx.md). The contract every source
+[binance.md](binance.md), [bybit.md](bybit.md), [okx.md](okx.md), [coinbase.md](coinbase.md). The contract every source
 keeps is in [contract.md](contract.md).
 
 Decisions here: D425.
@@ -15,7 +15,7 @@ Decisions here: D425.
 
 | Module | What it holds |
 | --- | --- |
-| `values.py` | decimals as the exchange's text, times as moments in UTC, contracts' worth (D321) |
+| `values.py` | decimals as the exchange's text, times as moments in UTC, contracts' worth (D321), a price's difference and its percent where an exchange sends none |
 | `shape.py` | `Market` as the shared code reads one, `Symbol`, the interval names |
 | `budget.py` | the rate limit as a mechanism: a limit over a window, a weight, the exchange's own count where it reports one, the 80% ceiling, a hold |
 | `session.py` | `MarketSession`: one client a connection in the resource store, each market's budget, the symbol list kept an hour, the tickers ten seconds, a ping of every market, the check, a signed request with the clock measured and a stale time sent once more (D431); `Kept` with the live streams |

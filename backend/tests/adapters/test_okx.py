@@ -8,8 +8,8 @@ import pytest
 from app.adapters.export import ExportRequest
 from app.adapters.fetch import FetchRequest, ScalarFilter, Sort
 from app.adapters.market import session as shared_session
+from app.adapters.market.values import percent_change as percent_of
 from app.adapters.okx.adapter import OkxAdapter
-from app.adapters.okx.feeds import percent_of
 from app.adapters.okx.options import OkxDemo, OkxEea, OkxMain
 from app.adapters.okx.session import OkxSession
 from app.adapters.protocol import AdapterError, NodeNotFound

@@ -4,6 +4,7 @@ from app.adapters import (  # noqa: F401
     bybit,
     cassandra,
     clickhouse,
+    coinbase,
     docker,
     duckdb,
     file,
