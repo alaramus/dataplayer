@@ -16,6 +16,7 @@ newest adapter of the same shape before writing a line.
 | A broker or a stream | `kafka/`, `rabbitmq/` |
 | A storage of files | [explorer.md](explorer.md), `s3/`, `ftp/` |
 | A server reached only through an SSH connection, an HTTP API with no paging | `docker/` |
+| An exchange's market data | [market.md](market.md) first, then `bybit/` (newest), `binance/` |
 
 Shared pieces to use instead of writing again: `database_ids.py` (schema and
 relation in one node id, D229), `home_file.py` (a file below the home, D247),
@@ -130,5 +131,26 @@ template files to read.
 - An SSH server refuses a forwarded Unix socket the same way whatever the
   reason (OpenSSH 10.3: code 2, "open failed"); do not promise a person which
   of the reasons it was.
+- An exchange is the shared layer of [market.md](market.md) plus what is
+  its own: a session overriding `MarketSession`, an adapter overriding
+  `MarketAdapter`, its reading and its watch. Its six slices are fewer:
+  connection, catalog and feeds; reading on; the live view; reports,
+  metrics, search and the Markets folder come with the shared layer and
+  need only tests and words.
+- A refusal is not always a status: Bybit answers HTTP 200 with a
+  `retCode`. Read the body before deciding a request went through.
+- A rate limit may be the address's rather than each market's: give `Kept`
+  one budget (`address`) instead of dividing the limit.
+- A socket kept by its address alone is wrong for an exchange that
+  subscribes by a message: two symbols on one address are two sockets, kept
+  by address and greeting (`StreamSpec.key`).
+- A stream's snapshot sent once on subscription reaches only the watcher
+  that opened the socket; a later one needs its start from REST.
+- A fake whose new items shift the old ones' times hides a bookmark by time:
+  move the clock with the items (`FakeBybit.add_trades`).
+- A test patches a name where it is imported: the stream's `connect` is
+  `app.adapters.market.stream.connect`.
+- A `dict` keyed by a `Literal` is not a `Mapping[str, …]` to mypy: key a
+  market map by `str` where the shared catalog reads it.
 - Look at what the screen shows before calling a slice done: a unit test does
   not prove a label, a button or a translation reaches the person.

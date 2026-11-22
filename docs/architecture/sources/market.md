@@ -48,8 +48,13 @@ Decisions here: D425.
   counts by and its share 80%; an exchange whose window rolls counts in
   windows from their start at a share that keeps any two side by side under
   80% (D426).
+- **A budget is a market's or the address's.** An exchange that limits the
+  address as a whole puts one budget on `Kept.address` (`per_address`); the
+  rate-limit report and the `weight` metric then say it once, as the last
+  ping left it, labelled `address`.
 - **A stream is kept by what it is told**: the address and the greeting
-  together, so two symbols on one address are two sockets.
+  together, so two symbols on one address are two sockets. A greeting is sent
+  again after every reconnect, and a ping every `ping_seconds` while open.
 - **Words are the exchange's.** The shared session says its refusals with
   the exchange's sentences (`Words`), so a person reads "Bybit", not "the
   exchange".
