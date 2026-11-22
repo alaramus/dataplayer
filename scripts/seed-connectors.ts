@@ -137,6 +137,7 @@ async function main() {
     { name: "duckdb-lab", adapter_type: "duckdb", options: { path: "lab.duckdb" } },
     // Public market data: nothing to start and nothing secret (D316).
     { name: "binance", adapter_type: "binance", options: { endpoint: "binance" } },
+    { name: "bybit", adapter_type: "bybit", options: { endpoint: "bybit" } },
   ];
 
   let created = 0;

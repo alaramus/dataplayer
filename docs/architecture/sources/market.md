@@ -4,7 +4,7 @@ For changing what every exchange source has in common — the catalog of
 markets and symbols, the columns of a feed, the rate limit's ceiling, the
 Exchange reports, metrics, search, the live view's socket — or for adding an
 exchange. Each exchange's own file says what is its own:
-[binance.md](binance.md). The contract every source
+[binance.md](binance.md), [bybit.md](bybit.md). The contract every source
 keeps is in [contract.md](contract.md).
 
 Decisions here: D425.

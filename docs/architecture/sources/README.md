@@ -27,6 +27,7 @@ file holds which decision.
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
 | [market.md](market.md) | change what every exchange shares — catalog, feed columns, the rate limit's ceiling, reports, metrics, search, the live socket — or add an exchange |
 | [binance.md](binance.md) | change how Binance is reached and kept under its rate limit, what its catalog shows of markets, quote assets, symbols and feeds, or how tickers, symbols, candles, trades and the order book are read as rows, read on by a link, reported, measured and searched |
+| [bybit.md](bybit.md) | change how Bybit is reached and its requests counted, what its catalog shows of spot, linear and inverse, how its feeds are read as rows, read on by a link and watched live, or its reports, metrics and search |
 | [kafka.md](kafka.md) | change how a Kafka cluster is reached, what its catalog shows of topics and consumer groups, or how a topic's messages and a group's positions are read, messages sent, topics and groups changed, its reports, metrics, search and export, its service and lab, or its console |
 | [mongodb.md](mongodb.md) | change how a MongoDB server is reached, what its catalog shows, how a collection becomes columns, or how its documents are read and changed, its fields and indexes, its reports, search or catalog actions, or how its collections are copied, backed up and measured |
 | [mail.md](mail.md) | change how a mailbox is reached over IMAP and SMTP, what its Mail tab shows, how a letter is read, written, answered, forwarded and deleted, who may open it, or where an attachment is kept |
@@ -217,6 +218,13 @@ trades and closed candles read on by a pipeline's link, the bookmark kept by
 DataPlayer (D319). An Exchange section of four reports, the connection's own
 weight, latency and reach as metrics, and symbols found by name or asset from
 the kept list (D320).
+
+**Bybit** — public market data over v5 REST for spot, linear and inverse, on
+the layer every exchange shares (D425): its requests counted here against one
+budget for the address, refusals by `retCode` reduced to kinds (D426); the
+shared catalog, volumes of one meaning with inverse's swapped, tickers,
+symbols, candles, the newest trades and the book as rows (D427); the Exchange
+section, metrics and search from the kept lists (D430).
 
 **MongoDB** — one server through pymongo's asynchronous client, spoken to
 directly (D283): databases as schemas, their collections as tables named as

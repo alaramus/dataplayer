@@ -95,8 +95,8 @@ async def limit_rows(session: AnySession) -> Rows:
     pinged = await session.pinged()
     budgets = [(say(titles[key]), one.state) for key, one in pinged.items()]
     if session.per_address:
-        # One budget for every market: said once.
-        budgets = [(say("All markets"), one.state) for one in pinged.values()][:1]
+        # One budget for every market: said once, as the last ping left it.
+        budgets = [(say("All markets"), one.state) for one in pinged.values()][-1:]
     for title, state in budgets:
         if state.window_seconds == 60:
             limit_word = say("{market}: limit a minute", market=title)

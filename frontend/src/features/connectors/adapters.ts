@@ -24,6 +24,7 @@ const ICONS: Record<string, string> = {
   kafka: "img:/icons/services/kafka.svg",
   rabbitmq: "img:/icons/services/rabbitmq.svg",
   binance: "img:/icons/services/binance.svg",
+  bybit: "img:/icons/services/bybit.svg",
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",
