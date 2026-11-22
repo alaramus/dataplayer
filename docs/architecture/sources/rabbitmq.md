@@ -15,7 +15,7 @@ exchange read on through a queue of the link's own (D337). The contract every so
 type follows is in [contract.md](contract.md); the other queue is in
 [kafka.md](kafka.md). Read this before changing the `rabbitmq` adapter.
 
-Decisions here: D325, D326, D327, D328, D329, D330, D331, D332, D334, D335, D337, D338, D339, D444, D445.
+Decisions here: D325, D326, D327, D328, D329, D330, D331, D332, D334, D335, D337, D338, D339.
 
 ## D325. A RabbitMQ source looks through the management API and moves messages over AMQP
 
@@ -100,8 +100,6 @@ A missing queue's bindings are answered by the API with none rather than a
 404, so the node is asked for first.
 
 Spec: [A RabbitMQ source](../../decisions/2026-11-09-rabbitmq-source-design.md)
-
-Spec: [Kafka and RabbitMQ document views](../../decisions/2026-11-22-source-document-views-design.md)
 
 ## D327. A stream's messages are rows, newest first, read from an offset
 

@@ -2,10 +2,10 @@
 
 from app.adapters.summary import KafkaTopicContents
 from app.adapters.views import (
+    MAX_TEXT,
     DocumentView,
     EmptyValue,
     FieldsBlock,
-    MAX_TEXT,
     NumberValue,
     SectionBlock,
     ViewField,

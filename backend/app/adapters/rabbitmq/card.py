@@ -9,11 +9,11 @@ from app.adapters.summary import (
     NodeSummary,
 )
 from app.adapters.views import (
+    MAX_TEXT,
     BooleanValue,
     DocumentView,
     EmptyValue,
     FieldsBlock,
-    MAX_TEXT,
     NumberValue,
     SectionBlock,
     StateValue,

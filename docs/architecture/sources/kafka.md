@@ -9,7 +9,7 @@ Kafka's own tools in a terminal (D307, run as D286
 says in [terminals.md](../terminals.md)). The contract every source type follows is in
 [contract.md](contract.md). Read this before changing the `kafka` adapter.
 
-Decisions here: D304, D305, D306, D307, D308, D309, D310, D311, D444, D445.
+Decisions here: D304, D305, D306, D307, D308, D309, D310, D311.
 
 ## D304. A Kafka source speaks to a cluster through confluent-kafka, a client per operation
 
@@ -73,8 +73,6 @@ name in Kafka's own characters, and `group:<id>`.
   there.
 
 Spec: [A Kafka source](../../decisions/2026-11-01-kafka-source-design.md)
-
-Spec: [Kafka and RabbitMQ document views](../../decisions/2026-11-22-source-document-views-design.md)
 
 ## D306. A topic's messages are rows, newest first, read by assigned partitions
 

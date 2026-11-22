@@ -14,6 +14,7 @@ from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.kafka.actions import KAFKA_ACTION_TYPES, build_actions, offered
+from app.adapters.kafka.card import topic_view
 from app.adapters.kafka.catalog import (
     GROUP_PREFIX,
     GROUPS,
@@ -28,7 +29,6 @@ from app.adapters.kafka.catalog import (
     read_topics,
     topic_of,
 )
-from app.adapters.kafka.card import topic_view
 from app.adapters.kafka.console import console_program
 from app.adapters.kafka.groups import KafkaGroups
 from app.adapters.kafka.messages import KafkaMessages
