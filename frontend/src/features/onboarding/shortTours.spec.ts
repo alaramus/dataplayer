@@ -24,6 +24,7 @@ function kit(): TourKit & { calls: string[] } {
     removePipeline: vi.fn(async (id: string) => {
       calls.push(`pipeline ${id}`)
     }),
+    canStartService: vi.fn(async () => true),
   }
 }
 
@@ -54,7 +55,7 @@ describe("the short tours", () => {
     startTour(VIEWS_TOUR)
     expect(tourState.preparing).toBe(true)
     expect(currentChapter.value).toBeNull()
-    prepared(await (VIEWS_TOUR.setup?.(tools) ?? Promise.resolve({})))
+    prepared(await (VIEWS_TOUR.setup?.(tools) ?? Promise.resolve({})), VIEWS_TOUR.chapters)
     expect(tourState.memory.database).toEqual({ id: "p1", name: "practice", folder: "databases", file: "practice.db" })
     expect(currentChapter.value?.id).toBe("views-open")
     await VIEWS_TOUR.cleanup?.(tools, tourState.memory)
@@ -64,7 +65,7 @@ describe("the short tours", () => {
   it("make the pipeline's folder too, and take the pipeline with the database", async () => {
     const tools = kit()
     startTour(PIPELINE_TOUR)
-    prepared(await (PIPELINE_TOUR.setup?.(tools) ?? Promise.resolve({})))
+    prepared(await (PIPELINE_TOUR.setup?.(tools) ?? Promise.resolve({})), PIPELINE_TOUR.chapters)
     expect(tourState.memory.folder).toEqual({ id: "f1", name: "My files" })
     offerMutation({ key: createPipelineKey, variables: "Pipeline", data: { id: "pl1" } })
     expect(currentChapter.value?.id).toBe("pipeline-source")

@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/vue-query"
 
-import { ConnectorsService, PipelinesService } from "@/client"
+import { ConnectorsService, PipelinesService, ServicesService } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
 import { pipelinesKey } from "@/features/pipelines/api"
 import { t } from "@/shared/i18n"
@@ -70,6 +70,12 @@ export function tourKit(queryClient: QueryClient): TourKit {
     async removePipeline(pipelineId: string) {
       await PipelinesService.deletePipeline({ path: { pipeline_id: pipelineId } })
       await queryClient.invalidateQueries({ queryKey: pipelinesKey })
+    },
+
+    // The server's own answer, switched off or daemon down alike (D82).
+    async canStartService(key: string) {
+      const templates = (await ServicesService.readServiceTemplates()).data
+      return templates.some((template) => template.key === key && template.available)
     },
   }
 }

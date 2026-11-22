@@ -65,6 +65,11 @@ export interface TourChapter {
   /** In the order a person reaches them. */
   targets: readonly TourTarget[]
   done: Completion
+  /**
+   * Asked once, when the tour starts. A chapter whose answer is no — or whose
+   * question fails — is left out, so the tour ends before it (D355).
+   */
+  when?: (kit: TourKit) => Promise<boolean>
 }
 
 /** The few requests a tour makes itself, before and after the person's part. */
@@ -76,6 +81,8 @@ export interface TourKit {
   /** A connection deleted with the file it holds (D356). */
   removeWithFile: (connectorId: string) => Promise<void>
   removePipeline: (pipelineId: string) => Promise<void>
+  /** Whether this server could start the managed service of that template now. */
+  canStartService: (key: string) => Promise<boolean>
 }
 
 export interface TourDefinition {
@@ -93,6 +100,24 @@ export interface TourDefinition {
   closing?: { title: () => string; text: () => string }
   /** Its last chapter offers the list of tours in Preferences beside Finish. */
   moreTours?: boolean
+}
+
+/** The chapters whose condition holds; one that cannot be answered is left out. */
+export async function chaptersToShow(
+  chapters: readonly TourChapter[],
+  kit: TourKit
+): Promise<readonly TourChapter[]> {
+  const kept = await Promise.all(
+    chapters.map(async (chapter) => {
+      if (chapter.when === undefined) return true
+      try {
+        return await chapter.when(kit)
+      } catch {
+        return false
+      }
+    })
+  )
+  return chapters.filter((_, index) => kept[index])
 }
 
 /**

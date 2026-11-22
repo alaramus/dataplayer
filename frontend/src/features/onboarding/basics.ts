@@ -229,6 +229,8 @@ const served: TourChapter = {
     },
   ],
   done: { kind: "next" },
+  // A server without containers would refuse the start the chapter shows.
+  when: (kit) => kit.canStartService(SERVICE_SHOWN),
 }
 
 export const BASICS_TOUR: TourDefinition = {

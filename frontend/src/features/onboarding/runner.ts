@@ -12,6 +12,8 @@ import type { Counter, Finder, MutationSuccess, TourChapter, TourDefinition, Tou
  */
 interface TourState {
   tour: TourDefinition | null
+  /** The tour's chapters that apply on this server, known once it is prepared. */
+  chapters: readonly TourChapter[]
   /** The host is making what the tour needs before its first chapter. */
   preparing: boolean
   chapter: number
@@ -20,6 +22,7 @@ interface TourState {
 
 const state = reactive<TourState>({
   tour: null,
+  chapters: [],
   preparing: false,
   chapter: 0,
   memory: {},
@@ -30,24 +33,31 @@ export const tourState = readonly(state)
 export const runningTour = computed<TourDefinition | null>(() => state.tour)
 
 export const currentChapter = computed<TourChapter | null>(() =>
-  state.tour !== null && !state.preparing ? (state.tour.chapters[state.chapter] ?? null) : null
+  state.tour !== null && !state.preparing ? (state.chapters[state.chapter] ?? null) : null
 )
 
 /** Every chapter done. */
 export const tourFinished = computed(
-  () => state.tour !== null && !state.preparing && state.chapter >= state.tour.chapters.length
+  () => state.tour !== null && !state.preparing && state.chapter >= state.chapters.length
 )
 
 export function startTour(tour: TourDefinition) {
   state.tour = tour
   state.chapter = 0
   state.memory = {}
-  state.preparing = tour.setup !== undefined
+  state.chapters = tour.chapters
+  state.preparing = needsPreparing(tour)
+}
+
+/** A tour makes something first, or has a chapter that may not apply. */
+export function needsPreparing(tour: TourDefinition): boolean {
+  return tour.setup !== undefined || tour.chapters.some((chapter) => chapter.when !== undefined)
 }
 
 /** What the tour made for itself is in place; the first chapter begins. */
-export function prepared(memory: TourMemory) {
+export function prepared(memory: TourMemory, chapters: readonly TourChapter[]) {
   state.memory = memory
+  state.chapters = chapters
   state.preparing = false
 }
 

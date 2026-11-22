@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { furthestTarget, inCatalog, offersNext, sameKey, settleMutation, settledByShown, splitPath, testId } from "./tour"
-import type { TourChapter } from "./tour"
+import { chaptersToShow, furthestTarget, inCatalog, offersNext, sameKey, settleMutation, settledByShown, splitPath, testId } from "./tour"
+import type { TourChapter, TourKit } from "./tour"
+import { BASICS_TOUR } from "./basics"
 
 const chapter: TourChapter = {
   id: "make",
@@ -101,5 +102,32 @@ describe("helpers", () => {
     expect(splitPath("/databases/dataplayer.db")).toEqual({ folder: "databases", file: "dataplayer.db" })
     expect(splitPath("a/b/c.db")).toEqual({ folder: "a/b", file: "c.db" })
     expect(splitPath("c.db")).toEqual({ folder: "", file: "c.db" })
+  })
+})
+
+describe("chaptersToShow", () => {
+  const kit = {} as TourKit
+  const when = (answer: () => Promise<boolean>): TourChapter => ({ ...chapter, id: "later", when: answer })
+
+  it("keeps a chapter without a condition and one whose condition holds", async () => {
+    const shown = await chaptersToShow([chapter, when(async () => true)], kit)
+    expect(shown.map((c) => c.id)).toEqual(["make", "later"])
+  })
+
+  it("leaves out a chapter whose condition fails or cannot be answered", async () => {
+    expect(await chaptersToShow([chapter, when(async () => false)], kit)).toEqual([chapter])
+    const broken = when(async () => {
+      throw new Error("daemon")
+    })
+    expect(await chaptersToShow([chapter, broken], kit)).toEqual([chapter])
+  })
+
+  it("asks the first tour about its services chapter only", async () => {
+    const asked: string[] = []
+    const off = { canStartService: async (key: string) => (asked.push(key), false) } as unknown as TourKit
+    const shown = await chaptersToShow(BASICS_TOUR.chapters, off)
+    expect(shown.map((c) => c.id)).not.toContain("service")
+    expect(shown).toHaveLength(BASICS_TOUR.chapters.length - 1)
+    expect(asked).toEqual(["redis"])
   })
 })

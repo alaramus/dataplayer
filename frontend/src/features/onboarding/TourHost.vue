@@ -23,7 +23,7 @@ import {
   tourFinished,
   tourState,
 } from "./runner"
-import { furthestTarget, offersNext } from "./tour"
+import { chaptersToShow, furthestTarget, offersNext } from "./tour"
 import type { TourChapter } from "./tour"
 
 /**
@@ -151,9 +151,10 @@ watch(
   () => tourState.preparing,
   async (preparing) => {
     const tour = runningTour.value
-    if (!preparing || tour?.setup === undefined) return
+    if (!preparing || tour === null) return
     try {
-      prepared(await tour.setup(kit))
+      const memory = tour.setup === undefined ? {} : await tour.setup(kit)
+      prepared(memory, await chaptersToShow(tour.chapters, kit))
     } catch (cause) {
       toast.error(messageOf(cause, t("onboarding.tours.setup_failed")))
       endTour()
@@ -193,7 +194,7 @@ onBeforeUnmount(() => {
 const position = computed(() =>
   t("onboarding.position", {
     n: tourState.chapter + 1,
-    total: runningTour.value?.chapters.length ?? 0,
+    total: tourState.chapters.length,
   })
 )
 const closing = computed(() => runningTour.value?.closing ?? null)
@@ -203,7 +204,7 @@ const title = computed(() => {
   return currentChapter.value?.title() ?? ""
 })
 const isLast = computed(
-  () => tourState.chapter === (runningTour.value?.chapters.length ?? 0) - 1
+  () => tourState.chapter === tourState.chapters.length - 1
 )
 const canNext = computed(() => {
   const chapter = currentChapter.value

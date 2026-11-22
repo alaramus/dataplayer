@@ -57,6 +57,11 @@ complete when what it asks has happened.
   Tours section of Preferences (`moreTours`). A chapter that only shows is completed by the hint's
   Next, offered on its last target, on one marked `enough`, or when none of its
   targets is on screen.
+- **A chapter may apply only on some servers (`when`).** The tour asks once,
+  while it prepares, and leaves out a chapter whose answer is no or fails. The
+  services chapter asks the template list whether Redis could be started now
+  (D82), so a server without containers, or with a daemon that is down, ends
+  the tour on the chapter before it.
 
 Known deviations:
 

@@ -12,6 +12,7 @@ import {
   endTour,
   nextChapter,
   offerMutation,
+  prepared,
   startTour,
   tourFinished,
   tourState,
@@ -31,6 +32,8 @@ describe("the first tour", () => {
   beforeEach(() => {
     endTour()
     startTour(BASICS_TOUR)
+    // The server answered that services can be started.
+    prepared({}, BASICS_TOUR.chapters)
   })
 
   it("is ten chapters, each with a hint for every target, and ends without a card", () => {
