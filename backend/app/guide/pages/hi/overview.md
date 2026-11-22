@@ -23,7 +23,7 @@ DataPlayer उन स्रोतों को जोड़ता है जि�
 
 ## कहाँ पढ़ें
 
-- किसी स्रोत का प्रकार — उसका अपना पेज: [PostgreSQL](source-postgres.md), [MySQL और MariaDB](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md), [Cassandra और ScyllaDB](source-cassandra.md), [MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md), [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md), [फ़ाइलें](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md) और [S3](source-s3.md)। पंक्तियाँ पढ़ना और बदलना, ढाँचा बदलना, SQL कंसोल और रिपोर्ट उसी स्रोत के लिए वहीं बताए गए हैं;
+- किसी स्रोत का प्रकार — उसका अपना पेज: [PostgreSQL](source-postgres.md), [MySQL और MariaDB](source-mysql.md), [SQLite](source-sqlite.md), [DuckDB](source-duckdb.md), [ClickHouse](source-clickhouse.md), [Cassandra और ScyllaDB](source-cassandra.md), [MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md), [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md), [फ़ाइलें](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) और [S3](source-s3.md)। पंक्तियाँ पढ़ना और बदलना, ढाँचा बदलना, SQL कंसोल और रिपोर्ट उसी स्रोत के लिए वहीं बताए गए हैं;
 - कनेक्शन जोड़ना, साझा करना और सेट करना — [कनेक्शन](connections.md);
 - कॉलम, टैब, विंडो और टैब समूह — [कार्यक्षेत्र](workspace.md);
 - शेड्यूल पर डेटा ले जाना — [पाइपलाइन](pipelines.md);

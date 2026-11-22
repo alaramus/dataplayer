@@ -43,12 +43,12 @@ DataPlayer соединяет источники, с которыми вы ра�
 ## Где читать о чём
 
 - о виде источника — на его собственной странице: [PostgreSQL](source-postgres.md),
-  [MySQL и MariaDB](source-mysql.md), [SQLite](source-sqlite.md),
+  [MySQL и MariaDB](source-mysql.md), [SQLite](source-sqlite.md), [DuckDB](source-duckdb.md),
   [ClickHouse](source-clickhouse.md), [Cassandra и ScyllaDB](source-cassandra.md),
   [MongoDB](source-mongodb.md), [Redis](source-redis.md),
   [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md),
   [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md),
-  [Файлы](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md) и [S3](source-s3.md). Чтение строк, их правка,
+  [Файлы](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) и [S3](source-s3.md). Чтение строк, их правка,
   изменение структуры, консоль SQL и отчёты описаны там, для этого источника;
 - добавление, передача и настройка подключения — [Подключения](connections.md);
 - столбцы, вкладки, окна и группы вкладок — [Рабочая область](workspace.md);

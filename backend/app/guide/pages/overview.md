@@ -41,12 +41,12 @@ Switching spaces keeps what was open: coming back to Data finds the same tabs.
 ## Where to read about
 
 - a kind of source — its own page: [PostgreSQL](source-postgres.md),
-  [MySQL and MariaDB](source-mysql.md), [SQLite](source-sqlite.md),
+  [MySQL and MariaDB](source-mysql.md), [SQLite](source-sqlite.md), [DuckDB](source-duckdb.md),
   [ClickHouse](source-clickhouse.md), [Cassandra and ScyllaDB](source-cassandra.md),
   [MongoDB](source-mongodb.md), [Redis](source-redis.md),
   [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md),
   [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md),
-  [Files](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md) and [S3](source-s3.md). Reading rows, editing
+  [Files](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) and [S3](source-s3.md). Reading rows, editing
   them, changing structure, the SQL console and reports are described there,
   for that source;
 - adding, sharing and setting up a connection — [Connections](connections.md);

@@ -39,12 +39,12 @@ Changer d'espace conserve ce qui était ouvert : revenir à **Données** retrouv
 ## Où lire sur un sujet
 
 - un type de source — sa page : [PostgreSQL](source-postgres.md),
-  [MySQL et MariaDB](source-mysql.md), [SQLite](source-sqlite.md),
+  [MySQL et MariaDB](source-mysql.md), [SQLite](source-sqlite.md), [DuckDB](source-duckdb.md),
   [ClickHouse](source-clickhouse.md), [Cassandra et ScyllaDB](source-cassandra.md),
   [MongoDB](source-mongodb.md), [Redis](source-redis.md),
   [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md),
   [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md),
-  [Fichiers](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md) et [S3](source-s3.md). La lecture et la modification des lignes, la
+  [Fichiers](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) et [S3](source-s3.md). La lecture et la modification des lignes, la
   modification de la structure, la console SQL et les rapports y sont décrites, pour cette source ;
 - l'ajout, le partage et la configuration d'une connexion — [Connexions](connections.md) ;
 - les colonnes, onglets, fenêtres et groupes d'onglets — [L'espace de travail](workspace.md) ;

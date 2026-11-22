@@ -6,8 +6,8 @@ por SSH. Los catálogos, las tablas, las consolas de consultas, los flujos y los
 cuadros de mando funcionan todos a través de conexiones.
 
 Cada tipo de fuente tiene su propia página: [Archivos](source-file.md),
-[PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [ClickHouse](source-clickhouse.md),
-[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [SSH](source-ssh.md), [FTP](source-ftp.md) y [S3](source-s3.md).
+[PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [DuckDB](source-duckdb.md), [ClickHouse](source-clickhouse.md),
+[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) y [S3](source-s3.md).
 
 ## La lista de conexiones
 
