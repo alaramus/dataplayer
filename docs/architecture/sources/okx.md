@@ -2,11 +2,12 @@
 
 For changing how OKX is reached and kept under its limits, what its catalog
 shows of spot, linear and inverse contracts, how its feeds are read as rows,
-or what the connection reports, measures and finds. What OKX shares with
+how a link reads them on, or what the connection reports, measures and
+finds. What OKX shares with
 every exchange is in [market.md](market.md); the contract every source keeps
 is in [contract.md](contract.md).
 
-Decisions here: D432, D433, D436.
+Decisions here: D432, D433, D434, D436.
 
 ## D432. OKX's public market data over v5 REST, each path under its own limit
 
@@ -97,6 +98,30 @@ Known deviations:
   a candle no trade count or taker volumes.**
 - **Candles older than a symbol's listing** are reached only by an open
   time filter.
+
+Spec: [An OKX source](../../decisions/2026-11-22-okx-source-design.md)
+
+## D434. Candles and trades read on, trades by their ids
+
+- **`SupportsReadingOn`** (D312) for a symbol's trades and its candle series
+  (`okx/reading.py`); the bookmark is kept by DataPlayer, as Binance's and
+  Bybit's are (D319, D428).
+- **Candles** as Bybit's: `""` is the next candle's open time, the line the
+  open time of the candle still open (OKX's `confirm`), a block one request
+  of up to 300 over a span cut to hold no more; a fresh reader's `earliest`
+  is the last day.
+- **Trades by id**: `""` is the id of the next trade to read, the line the
+  newest id plus one, a block a span of ids. A fresh reader's `earliest` is
+  the last hour of trades.
+- **Lost trades are counted exactly.** When the bookmark's trade is gone —
+  older than OKX's three months — the reader moves to the oldest OKX still
+  has and the ids between are counted lost.
+- The made table's key is `id` or `open_time` (`row_key`).
+
+Known deviations:
+
+- **The oldest trade is found a day inside the three months**, so a reader
+  that far behind loses up to a day more than OKX deleted.
 
 Spec: [An OKX source](../../decisions/2026-11-22-okx-source-design.md)
 

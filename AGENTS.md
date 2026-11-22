@@ -43,7 +43,7 @@ documentation.
 | What every exchange source shares: the catalog of markets and symbols, the columns of a feed, the rate limit's ceiling, the Exchange reports, metrics, search, the live view's socket; adding an exchange | [sources/market.md](docs/architecture/sources/market.md) |
 | Binance, the endpoint it reaches, its rate limit, its markets and COIN-M's contracts, an API key and the account it reads, quote assets and symbols, tickers, trading rules, candles, trades and the order book as rows, trades and candles read on by a link and their bookmarks, a symbol's market watched live, its reports, metrics and search | [sources/binance.md](docs/architecture/sources/binance.md) |
 | Bybit, the endpoint it reaches, the requests it counts against one budget for the address, spot, linear and inverse, volumes of one meaning, its newest trades, candles and the order book as rows, trades and candles read on by a link, a symbol's market watched live from its streams, its reports, metrics and search, a key and the unified account it reads | [sources/bybit.md](docs/architecture/sources/bybit.md) |
-| OKX, the endpoint it reaches, the limit of each path counted here and waited for, spot, linear and inverse contracts, volumes of one meaning, candles, trades by id and the order book as rows, its reports, metrics and search | [sources/okx.md](docs/architecture/sources/okx.md) |
+| OKX, the endpoint it reaches, the limit of each path counted here and waited for, spot, linear and inverse contracts, volumes of one meaning, candles, trades by id and the order book as rows, trades and candles read on by a link with lost trades counted, its reports, metrics and search | [sources/okx.md](docs/architecture/sources/okx.md) |
 | Email, a mailbox over IMAP and SMTP, its Mail tab instead of a catalog, folders and their roles, a page of letters, search, reading a letter and its HTML, writing, answering, forwarding, deleting to Trash, an attachment downloaded or kept in the owner's folder, who may open it, new letters announced, a Gmail card, a file attached from one's folder, drafts, moving letters | [sources/mail.md](docs/architecture/sources/mail.md) |
 | MongoDB, the server it reaches, its catalog, its query console, how a collection becomes columns, how documents are read and changed, fields and indexes, reports, search, export, catalog actions, copying collections, backups, metrics, its service and lab | [sources/mongodb.md](docs/architecture/sources/mongodb.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
@@ -158,7 +158,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/views](docs/architecture/sources/views.md) | D419–D421, D424 |
 | [sources/market](docs/architecture/sources/market.md) | D425 |
 | [sources/bybit](docs/architecture/sources/bybit.md) | D426–D431 |
-| [sources/okx](docs/architecture/sources/okx.md) | D432, D433, D436 |
+| [sources/okx](docs/architecture/sources/okx.md) | D432–D434, D436 |
 
 ## Working rules
 
