@@ -130,8 +130,8 @@ async def test_table_is_a_leaf_because_relation_model_returns_its_columns(
     assert connector["kind"] == "table"
     assert connector["has_children"] is False
     assert connector["representations"] == [
-        {"kind": "table", "title": "View as table"},
-        {"kind": "sql", "title": "View DDL"},
+        {"kind": "table", "title": "View as table", "icon": None},
+        {"kind": "sql", "title": "View DDL", "icon": None},
     ]
 
 

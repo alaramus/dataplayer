@@ -111,7 +111,9 @@ async def test_the_catalog_declares_the_default_and_alternative_file_views(
     ]
     image = next(node for node in response.json() if node["name"] == "pixel.png")
     opaque = next(node for node in response.json() if node["name"] == "opaque.zip")
-    assert image["representations"] == [{"kind": "image", "title": "View image"}]
+    assert image["representations"] == [
+        {"kind": "image", "title": "View image", "icon": None}
+    ]
     assert opaque["representations"] == []
 
 

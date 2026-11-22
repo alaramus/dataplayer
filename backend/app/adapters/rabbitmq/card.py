@@ -195,7 +195,11 @@ def _consumers(consumers: list[AmqpConsumer]) -> SectionBlock:
 def _state(state: str | None) -> StateValue | None:
     if state is None:
         return None
-    word = say(_STATE_WORDS.get(state.lower(), state[:200]))
+    word = _STATE_WORDS.get(state.lower())
+    if word is None:
+        word = state[:200]
+    else:
+        word = say(word)
     return StateValue(word=word, tone=_STATE_TONES.get(state.lower(), "neutral"))
 
 
