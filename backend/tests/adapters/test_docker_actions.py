@@ -10,6 +10,7 @@ import pytest
 
 from app.adapters.actions import ActionRefused, JsonAction
 from app.adapters.docker.adapter import DockerAdapter
+from app.adapters.docker.connect import OpenAsConnection
 from app.adapters.docker.session import DockerSession
 from app.adapters.docker_api.client import EngineClient
 from app.adapters.operations import ProducesJob
@@ -220,3 +221,26 @@ async def test_what_a_node_offers(adapter: DockerAdapter, stand: dict[str, str])
     assert names(await adapter.available("images")) == {"docker_pull", "docker_prune_images"}
     assert names(await adapter.available(f"container:{stand['web']}/logs")) == set()
     assert names(await adapter.available("system/engine")) == set()
+
+
+async def test_a_container_puts_its_actions_over_its_view_by_icon(
+    adapter: DockerAdapter, stand: dict[str, str]
+) -> None:
+    # D424: everything done to one container, each with a picture to draw.
+    offered = await adapter.available(f"container:{stand['web']}")
+    over_view = {action.name: action.icon for action in offered if action.in_view}
+    assert set(over_view) == {
+        "docker_start",
+        "docker_stop",
+        "docker_restart",
+        "docker_pause",
+        "docker_unpause",
+        "docker_kill",
+        "docker_remove_container",
+        "docker_commit",
+        "docker_terminal",
+    }
+    assert all(over_view.values())
+    # Offered only on a database's container, which the stand's is not.
+    assert OpenAsConnection.in_view and OpenAsConnection.icon
+

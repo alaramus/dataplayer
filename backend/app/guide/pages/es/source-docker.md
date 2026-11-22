@@ -87,7 +87,9 @@ un certificado de cliente que el demonio no acepta.
   columna. No se listan más de diez mil objetos de un mismo tipo.
 - Al hacer clic en un contenedor, imagen, volumen o red se abre directamente su
   resumen en una pestaña con el nombre del nodo. No se abre otro nivel del
-  catálogo; las acciones siguen en el menú del catálogo.
+  catálogo. Las acciones de un contenedor también son iconos en la cabecera de
+  su resumen; el menú del catálogo las conserva para varios contenedores
+  marcados.
 
 ## Cómo se abre un nodo
 
@@ -97,8 +99,10 @@ un certificado de cliente que el demonio no acepta.
   puertos, redes y direcciones, montajes, entorno, etiquetas y límites de
   recursos. Un aviso indica más de tres reinicios o una salida por falta de
   memoria.
-- **Como JSON** cambia esa misma pestaña al árbol de solo lectura del demonio;
-  **Resumen** vuelve. La imagen, el volumen, la red y el proyecto de Compose
+- Los comandos de la cabecera de un resumen son iconos; su nombre aparece al
+  pasar el puntero. **Como JSON** abre el árbol de solo lectura del demonio en
+  una pestaña aparte, por ejemplo `dp-test-web — Como JSON`. Al eliminar el
+  contenedor se cierra su resumen. La imagen, el volumen, la red y el proyecto de Compose
   son enlaces a sus propios resúmenes.
 - **Registros** y **Procesos** en la tarjeta abren pestañas separadas con una
   tabla. El nombre de cada pestaña incluye el contenedor y la página, por

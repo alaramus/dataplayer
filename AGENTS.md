@@ -57,7 +57,7 @@ documentation.
 | A reference somebody drew by hand between two columns or two sources, a table declared over Redis keys | [sources/declared.md](docs/architecture/sources/declared.md) |
 | Columns, indexes, constraints, renaming a node | [sources/ddl.md](docs/architecture/sources/ddl.md) |
 | Opening a node as anything but rows: documents, media, archives, a source's JSON as a tree, rows read and changed as whole documents | [sources/content.md](docs/architecture/sources/content.md) |
-| A node opened as a view of its document: the blocks and values a source builds it from, the panel that draws any of them, the way to its JSON and back, a value hidden until asked for | [sources/views.md](docs/architecture/sources/views.md) |
+| A node opened as a view of its document: the blocks and values a source builds it from, the panel that draws any of them, its commands as icons, the node's actions over it, its JSON in a tab of its own, a value hidden until asked for | [sources/views.md](docs/architecture/sources/views.md) |
 | Actions and action previews | [sources/actions.md](docs/architecture/sources/actions.md) |
 | Downloads, what a download asks first, reports a source publishes | [sources/downloads.md](docs/architecture/sources/downloads.md) |
 | A share link, what it opens, an access request | [sharing.md](docs/architecture/sharing.md) |
@@ -152,7 +152,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/ftp](docs/architecture/sources/ftp.md) | D384–D386 |
 | [sources/duckdb](docs/architecture/sources/duckdb.md) | D387–D404 |
 | [sources/docker](docs/architecture/sources/docker.md) | D405–D418, D422, D423 |
-| [sources/views](docs/architecture/sources/views.md) | D419–D421 |
+| [sources/views](docs/architecture/sources/views.md) | D419–D421, D424 |
 
 ## Working rules
 

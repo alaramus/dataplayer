@@ -86,8 +86,9 @@ or a client certificate the daemon does not accept.
 - Each group opens as a table too, which can be filtered and sorted by any
   column. More than ten thousand of a kind are not listed.
 - Clicking a container, image, volume or network opens its overview directly in
-  a tab named for that node. It does not open another catalog level. Node
-  actions remain in the catalog menu.
+  a tab named for that node. It does not open another catalog level. A
+  container's actions are icons in the head of its overview as well; the
+  catalog menu keeps them for several ticked containers.
 
 ## What a node opens as
 
@@ -96,8 +97,10 @@ or a client certificate the daemon does not accept.
   command, health check and recent results, ports, networks and addresses,
   mounts, environment, labels and resource limits. A notice says when it
   restarted more than three times or was killed for running out of memory.
-- **As JSON** switches that same tab to the daemon's read-only tree, and the
-  overview switches it back. The image, volume, network and Compose project in
+- The commands in the head of an overview are icons; hold the pointer over
+  one to read its name. **As JSON** opens the daemon's read-only tree in a
+  separate tab, such as `dp-test-web — As JSON`. Removing the container
+  closes its overview. The image, volume, network and Compose project in
   the card are links; opening one shows its own overview.
 - The card's **Logs** and **Processes** buttons open separate table tabs named
   for the container and page, such as `dp-test-web — Logs`. Logs show time,

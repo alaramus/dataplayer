@@ -88,7 +88,9 @@ pas, ou un certificat client que le démon refuse.
   Au-delà de dix mille objets du même type, les suivants ne sont pas listés.
 - Un clic sur un conteneur, une image, un volume ou un réseau ouvre directement
   sa vue d'ensemble dans un onglet nommé d'après ce nœud. Il n'ouvre pas un autre
-  niveau du catalogue ; les actions restent dans le menu du catalogue.
+  niveau du catalogue. Les actions d'un conteneur sont aussi des icônes dans
+  l'en-tête de sa vue d'ensemble ; le menu du catalogue les garde pour plusieurs
+  conteneurs cochés.
 
 ## Comment s'ouvre un nœud
 
@@ -97,8 +99,10 @@ pas, ou un certificat client que le démon refuse.
   redémarrages, commande, contrôle de santé et derniers résultats, ports,
   réseaux et adresses, montages, environnement, étiquettes et limites. Un avis
   signale plus de trois redémarrages ou un arrêt par manque de mémoire.
-- **En JSON** bascule ce même onglet vers l'arbre en lecture seule du démon ;
-  **Vue d'ensemble** revient. L'image, le volume, le réseau et le projet
+- Les commandes de l'en-tête d'une vue d'ensemble sont des icônes ; leur nom
+  s'affiche au survol. **En JSON** ouvre l'arbre en lecture seule du démon dans
+  un onglet séparé, par exemple `dp-test-web — En JSON`. Supprimer le conteneur
+  ferme sa vue d'ensemble. L'image, le volume, le réseau et le projet
   Compose sont des liens vers leur propre vue.
 - **Journaux** et **Processus** dans la carte ouvrent chacun un onglet séparé
   avec un tableau. Son nom indique le conteneur et la page, par exemple

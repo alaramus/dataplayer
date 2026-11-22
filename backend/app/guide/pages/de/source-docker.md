@@ -90,7 +90,9 @@ das Zertifikat nicht gilt, oder ein Client-Zertifikat, das der Daemon ablehnt.
   und sortieren. Mehr als zehntausend Objekte derselben Art werden nicht gelistet.
 - Ein Klick auf Container, Image, Volume oder Netzwerk öffnet direkt dessen
   Übersicht in einem Tab mit dem Namen des Knotens. Es wird keine weitere
-  Katalogebene geöffnet; Aktionen bleiben im Katalogmenü.
+  Katalogebene geöffnet. Die Aktionen eines Containers stehen auch als Symbole
+  im Kopf seiner Übersicht; das Katalogmenü behält sie für mehrere markierte
+  Container.
 
 ## Wie sich ein Knoten öffnet
 
@@ -99,8 +101,10 @@ das Zertifikat nicht gilt, oder ein Client-Zertifikat, das der Daemon ablehnt.
   Befehl, Healthcheck und letzte Ergebnisse, Ports, Netzwerke und Adressen,
   Mounts, Umgebung, Labels und Ressourcengrenzen. Ein Hinweis erscheint bei
   mehr als drei Neustarts oder wenn Speichermangel ihn beendet hat.
-- **Als JSON** schaltet denselben Tab auf den schreibgeschützten JSON-Baum des
-  Daemons um; **Überblick** schaltet zurück. Image, Volume, Netzwerk und
+- Die Befehle im Kopf einer Übersicht sind Symbole; ihr Name erscheint, wenn
+  der Zeiger darauf ruht. **Als JSON** öffnet den schreibgeschützten JSON-Baum
+  des Daemons in einem eigenen Tab, etwa `dp-test-web — Als JSON`. Wird der
+  Container entfernt, schließt sich seine Übersicht. Image, Volume, Netzwerk und
   Compose-Projekt sind Links zur jeweiligen eigenen Übersicht.
 - **Logs** und **Prozesse** in der Karte öffnen jeweils einen eigenen Tab mit
   einer Tabelle. Der Tabname enthält Container und Seite, etwa

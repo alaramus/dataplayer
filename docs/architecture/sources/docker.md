@@ -124,7 +124,7 @@ Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-sou
 A container, image, volume or network opens directly as its own node on
 the **Overview** view and declares `[view, tree]` (D422). This direct opening
 replaces the former catalog expansion in this decision (D423). **As JSON**
-switches that same tab to the daemon's read-only tree (D295). Its `DocumentView`
+opens the daemon's read-only tree (D295) in a tab of its own (D424). Its `DocumentView`
 lists the related table pages: a container's **Logs** and **Processes**, an
 image's **History**, and a volume's or network's **Containers** (D423). Each
 page opens in a separate tab. The node is not a catalog level and its pages are

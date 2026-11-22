@@ -17,9 +17,9 @@ returned. Actions remain on the catalog row and keep their existing targets.
 `DocumentView.pages` is a bounded list of source-issued pages. Each descriptor
 has the child node id, a localized title and its ordered representations. The
 client draws one button per descriptor and opens its first representation in
-a separate tab named `<node> — <page>`. This is distinct from the view and JSON
-representations, which continue to switch in the same tab through
-`switchRepresentation`.
+a separate tab named `<node> — <page>`. The view and its JSON were left to
+switch in the same tab through `switchRepresentation`; D424 opens the JSON in a
+tab of its own as well and removes the switch.
 
 Docker declares Logs and Processes on a container, History on an image, and
 Containers on a volume or network. Their child IDs remain valid for fetching

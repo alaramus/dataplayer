@@ -81,12 +81,6 @@ export interface WorkspaceActions {
   /** Open the source's chosen representation with the matching viewer. */
   openRepresentation: (request: OpenRepresentationRequest) => void
   /**
-   * Show another of the node's representations in place of the one a content
-   * tab shows: a view and its JSON replace each other (D419). One that opens
-   * in a different kind of tab — a table — opens one.
-   */
-  switchRepresentation: (panelId: string, kind: NodeRepresentation["kind"]) => void
-  /**
    * A console just put into the library, in the tab it is already in. A panel
    * is named by what it holds, so this is a different panel keeping the same
    * place in the strip — the move switching a sheet makes (D51).
@@ -143,6 +137,8 @@ export interface WorkspaceActions {
   renameQueryDocument: (documentId: string, title: string | null, connectorId?: string | null) => void
   /** Close the tab of a document that was deleted from the library. */
   closeQueryDocument: (documentId: string) => void
+  /** Close one tab: what it showed is gone, as a removed container is (D424). */
+  closeTab: (panelId: string) => void
   openChart: (request: OpenChartRequest) => void
   /**
    * A dashboard widget as a workspace tab, lifted out of its floating window

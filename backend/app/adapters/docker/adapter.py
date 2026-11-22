@@ -36,6 +36,7 @@ from app.adapters.docker.catalog import (
     parse,
     project_node,
     project_of,
+    view_pages,
     views_of,
     volume_node,
 )
@@ -84,7 +85,7 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.tunnels import TunnelAccess
-from app.adapters.views import DocumentView, ViewPage
+from app.adapters.views import DocumentView
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_, say
 
@@ -301,11 +302,7 @@ class DockerAdapter:
                 document = image_view(inspect, containers)
             else:
                 document = volume_view(inspect, containers)
-        pages = [
-            ViewPage(node_id=page.id, title=page.name, representations=page.representations)
-            for page in views_of(named.leaf, named.key)[1:]
-        ]
-        return document.model_copy(update={"pages": pages})
+        return document.model_copy(update={"pages": view_pages(named.leaf, named.key)})
 
     # --- metrics and search (D415, D416) ------------------------------------------
 

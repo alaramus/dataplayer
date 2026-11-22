@@ -189,6 +189,8 @@ class _Lifecycle[P: BaseModel](JsonAction[P]):
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "write"
     bulk: ClassVar[bool] = True
+    # Over a container's view as well; a project has none (D424).
+    in_view: ClassVar[bool] = True
     # The daemon's path after the container's.
     verb: ClassVar[str]
     # States it acts on; states it leaves as they are because they already are.
@@ -276,6 +278,7 @@ _STOPPED = frozenset({"exited", "created", "dead"})
 class StartContainers(_Lifecycle[NoParams]):
     name: ClassVar[str] = "docker_start"
     title: ClassVar[str] = N_("Start")
+    icon: ClassVar[str | None] = "play_arrow"
     params_model = NoParams
     verb = "start"
     acts_in = _STOPPED
@@ -288,6 +291,7 @@ class StartContainers(_Lifecycle[NoParams]):
 class StopContainers(_Lifecycle[TimeoutParams]):
     name: ClassVar[str] = "docker_stop"
     title: ClassVar[str] = N_("Stop")
+    icon: ClassVar[str | None] = "stop"
     params_model = TimeoutParams
     verb = "stop"
     acts_in = _RUNNING | {"paused"}
@@ -303,6 +307,7 @@ class StopContainers(_Lifecycle[TimeoutParams]):
 class RestartContainers(_Lifecycle[TimeoutParams]):
     name: ClassVar[str] = "docker_restart"
     title: ClassVar[str] = N_("Restart")
+    icon: ClassVar[str | None] = "restart_alt"
     params_model = TimeoutParams
     verb = "restart"
     acts_in = _RUNNING | _STOPPED | {"paused"}
@@ -317,6 +322,7 @@ class RestartContainers(_Lifecycle[TimeoutParams]):
 class PauseContainers(_Lifecycle[NoParams]):
     name: ClassVar[str] = "docker_pause"
     title: ClassVar[str] = N_("Pause")
+    icon: ClassVar[str | None] = "pause"
     params_model = NoParams
     verb = "pause"
     acts_in = frozenset({"running"})
@@ -329,6 +335,7 @@ class PauseContainers(_Lifecycle[NoParams]):
 class UnpauseContainers(_Lifecycle[NoParams]):
     name: ClassVar[str] = "docker_unpause"
     title: ClassVar[str] = N_("Unpause")
+    icon: ClassVar[str | None] = "resume"
     params_model = NoParams
     verb = "unpause"
     acts_in = frozenset({"paused"})
@@ -341,6 +348,7 @@ class UnpauseContainers(_Lifecycle[NoParams]):
 class KillContainers(_Lifecycle[KillParams]):
     name: ClassVar[str] = "docker_kill"
     title: ClassVar[str] = N_("Kill")
+    icon: ClassVar[str | None] = "dangerous"
     params_model = KillParams
     destructive: ClassVar[bool] = True
     question: ClassVar[str | None] = N_(
@@ -410,6 +418,8 @@ class _Removal[P: BaseModel](JsonAction[P]):
 class RemoveContainer(_Removal[RemoveContainerParams]):
     name: ClassVar[str] = "docker_remove_container"
     title: ClassVar[str] = N_("Remove container")
+    icon: ClassVar[str | None] = "delete"
+    in_view: ClassVar[bool] = True
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"container"})
     params_model = RemoveContainerParams
     leaf = "container"

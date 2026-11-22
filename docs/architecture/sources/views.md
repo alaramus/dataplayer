@@ -6,7 +6,7 @@ that document means. How a node opens at all is [content.md](content.md)
 (D47); the JSON tree beside a view is D295 there. Docker's views and pages
 are D422–D423 in [docker.md](docker.md).
 
-Decisions here: D419, D420, D421.
+Decisions here: D419, D420, D421, D424.
 
 ## D419. A node may open as a view of its document
 
@@ -24,25 +24,21 @@ before.
   in its adapter and no client change.
 - **The document is one click away.** The view's head has a button for each
   other representation the node declared, in the source's words: **As JSON**
-  for `tree`. `TreePanel` has the button back. The two replace each other in
-  the same tab: one binding draws both and picks the component as it draws
-  (`panels.ts`), and `switchRepresentation` rewrites the panel in place. A
-  content panel carries the node's `representations` only where one is a
-  view, so a stored panel of any other kind is unchanged. The choice is not
-  remembered: the node opens on its first representation again.
+  for `tree`. It opens a tab of its own named `<node> — <title>` (D424); the
+  view's tab stays. A content panel carries the node's `representations` only
+  where one is a view, so a stored panel of any other kind is unchanged.
 - **Other pages open separately.** A `DocumentView` may carry source-owned
   `pages`, each with a node id, title and ordered representations. `ViewPanel`
   draws one button per page and opens its preferred representation in a new
-  tab named for the node and page. These buttons do not use
-  `switchRepresentation`; that still switches the view and its JSON in place.
-  Because pages arrive with the view, a node opened from search or a link gets
+  tab named for the node and page. Because pages arrive with the view, a node opened from search or a link gets
   the same buttons without a client rule for its source.
 - **A link opens what the catalog would.** A `link` value carries a node id
   of the same connection, never taken apart (D21); the client reads the
   source's path to it. A node without readable content shows its level in the
   catalog; an openable node opens by its first representation.
-- **Read only.** A view shows; a node's actions stay in the catalog's menu
-  (D9).
+- **Read only.** A view shows; a node's actions are run as anywhere else,
+  through the action's own window (D9). The ones the source puts over the
+  view are D424.
 - **Bounded.** At most 200 blocks, counting a section's children; a table of
   at most 500 rows; pairs and a list at most 500; a text value at most 16 KB,
   cut with `truncated` rather than refused. Past a ceiling the block carries
@@ -109,3 +105,34 @@ value from a grantee would be a decision about the document itself, not about
 views.
 
 Spec: [A view of a document](../../decisions/2026-11-21-document-views-design.md)
+
+## D424. A view's head: icons, the node's actions, separate tabs
+
+Every command in a view's head is an icon whose title is its tooltip and its
+accessible name, as the workspace's toolbars are. In order: the node's
+actions, the other representations, the pages, then the panel's own reload,
+reveal and window.
+
+- **The source names the pictures.** `ViewPage.icon` is a Material Symbols
+  name; a page without one is drawn by its first representation's icon. A
+  representation's icon is the client's (`REPRESENTATION_ICONS`), as in the
+  catalog. Docker's Logs is `receipt_long` and Processes `dns`, the pictures
+  of the workspace's own logs and services.
+- **Actions over the view.** An action declaring `in_view` (and an `icon`) is
+  also drawn over the view of a node it is applicable to, asked by
+  `readActions` for that one node. It opens the same window the catalog opens
+  (`ActionDialog`), or the connection form for one that prepares a
+  connection. The catalog keeps it: a ticked set is still acted on there.
+  After it is done the catalog hears of the change and the view reads the
+  node again; a node now answering 404 closes the tab rather than leaving one
+  that cannot be read.
+- **Every other representation opens a tab of its own,** named
+  `<node> — <title>`, as a page does: the view and its JSON are no longer
+  switched in one tab, and `switchRepresentation` is gone. One binding still
+  draws both kinds, so a tab stored before this opens as it was saved.
+
+Docker puts each container's lifecycle verbs, Remove, Commit to an image,
+Terminal and Open as connection over its view. The lifecycle verbs also act on
+a Compose project, which has no view.
+
+Spec: [A view's head](../../decisions/2026-11-22-view-head-design.md)

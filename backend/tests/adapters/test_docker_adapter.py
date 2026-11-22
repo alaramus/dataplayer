@@ -165,6 +165,8 @@ async def test_a_container_opens_on_its_view_and_announces_separate_pages(
         ("processes", "Processes"),
     ]
     assert all([one.kind for one in page.representations] == ["table"] for page in card.pages)
+    # Drawn as icons, the title their tooltip (D424).
+    assert [page.icon for page in card.pages] == ["receipt_long", "dns"]
 
 
 async def test_images_volumes_and_networks_open_on_their_views_and_announce_pages(

@@ -192,8 +192,8 @@ export const panelSchema = z.discriminatedUnion("kind", [
     // button says the source's words rather than this screen's.
     sourceTitle: z.string().min(1).optional(),
     // Every way the node opens, as the source declared them, where one is a
-    // view: the view and its document switch between each other in this tab
-    // (D419). Optional, as every field added to a stored panel is.
+    // view: the view offers the others, each in a tab of its own (D424).
+    // Optional, as every field added to a stored panel is.
     representations: z
       .array(
         z.object({
@@ -825,8 +825,8 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
         )
       }
       if (representation === "view" || representation === "tree") {
-        // Chosen as it draws, not as it binds: a view and its JSON replace
-        // each other in this tab (D419), and the binding outlives the switch.
+        // One binding for both: a tab stored before the JSON opened in a tab
+        // of its own (D424) may still name either.
         return bind(key, () =>
           panel.representation === "view"
             ? h(ViewPanelView, {
@@ -847,7 +847,6 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
               adapterType: panel.adapterType,
               sourceTitle: panel.sourceTitle,
               tableTitle: panel.tableTitle,
-              representations: panel.representations,
             })
         )
       }

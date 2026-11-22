@@ -139,6 +139,8 @@ class ContainerTerminal(Action[ShellParams]):
 
     name: ClassVar[str] = "docker_terminal"
     title: ClassVar[str] = N_("Terminal")
+    icon: ClassVar[str | None] = "terminal"
+    in_view: ClassVar[bool] = True
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"container"})
     acts_on: ClassVar[ActsOn] = "node"
     # Typing into a container is typing into what it can reach: its owner's

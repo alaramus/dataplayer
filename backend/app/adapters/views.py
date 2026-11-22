@@ -35,6 +35,8 @@ class ViewPage(_Closed):
     node_id: str = Field(min_length=1, max_length=2048)
     title: str = Field(min_length=1, max_length=200)
     representations: list[NodeRepresentation] = Field(min_length=1, max_length=16)
+    # What its button draws; the title is its tooltip (D424).
+    icon: str | None = Field(default=None, max_length=64)
 
 
 # --- values ------------------------------------------------------------------

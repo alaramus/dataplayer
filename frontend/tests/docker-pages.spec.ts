@@ -58,11 +58,14 @@ async function createDockerConnector(
   await expect(page.getByTestId(`connector-${name}`)).toBeVisible()
 }
 
-async function openViewAndReturnFromJson(page: import("@playwright/test").Page) {
+async function openJsonAndReturn(page: import("@playwright/test").Page, title: string) {
   await expect(page.getByTestId("view-body")).toBeVisible()
+  await expect(page.getByTestId("view-show-tree")).toHaveAccessibleName("As JSON")
   await page.getByTestId("view-show-tree").click()
+  const jsonTab = page.getByRole("tab", { name: `${title} — As JSON`, exact: true })
+  await expect(jsonTab).toHaveAttribute("aria-selected", "true")
   await expect(page.getByTestId("tree-body")).toBeVisible()
-  await page.getByTestId("tree-show-view").click()
+  await page.getByRole("tab", { name: title, exact: true }).click()
   await expect(page.getByTestId("view-body")).toBeVisible()
 }
 
@@ -93,9 +96,19 @@ test("Docker nodes open as cards with separate pages", async ({ page }) => {
     await expect(page.getByTestId("view-title")).toContainText(containerName)
     await page.getByTestId("view-link").filter({ hasText: "alpine:3.20" }).click()
     await expect(page.getByTestId("view-title")).toContainText("alpine:3.20")
-    await expect(page.getByTestId("view-page-0")).toContainText("History")
+    await expect(page.getByTestId("view-page-0")).toHaveAccessibleName("History")
     await page.getByRole("tab", { name: containerName, exact: true }).click()
     await expect(page.getByTestId("view-body")).toBeVisible()
+
+    // The container's actions sit over its view, by icon (D424).
+    for (const [name, title] of [
+      ["docker_stop", "Stop"],
+      ["docker_terminal", "Terminal"],
+      ["docker_remove_container", "Remove container"],
+    ]) {
+      await expect(page.getByTestId(`view-action-${name}`)).toHaveAccessibleName(title)
+    }
+    await expect(page.getByTestId("view-page-0")).toHaveAccessibleName("Logs")
 
     const logsTitle = `${containerName} — Logs`
     await page.getByTestId("view-page-0").click()
@@ -105,7 +118,7 @@ test("Docker nodes open as cards with separate pages", async ({ page }) => {
     await expect(page.getByTestId("row-grid")).toBeVisible()
     await page.getByRole("tab", { name: containerName, exact: true }).click()
     await expect(page.getByTestId("view-body")).toBeVisible()
-    await openViewAndReturnFromJson(page)
+    await openJsonAndReturn(page, containerName)
     await page.getByTestId("catalog-up").click()
     await page.getByTestId("catalog-up").click()
 
@@ -121,7 +134,7 @@ test("Docker nodes open as cards with separate pages", async ({ page }) => {
     await expect(page.getByTestId("row-grid")).toBeVisible()
     await page.getByRole("tab", { name: "alpine:3.20", exact: true }).click()
     await expect(page.getByTestId("view-body")).toBeVisible()
-    await openViewAndReturnFromJson(page)
+    await openJsonAndReturn(page, "alpine:3.20")
   } finally {
     if (dockerCreated) await deleteConnector(page, dockerName)
     if (sshCreated) await deleteConnector(page, sshName)

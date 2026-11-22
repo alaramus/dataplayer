@@ -193,6 +193,10 @@ export type ActionInfo = {
    */
   icon?: string | null
   /**
+   * In View
+   */
+  in_view?: boolean
+  /**
    * Menu Group
    */
   menu_group?: string | null
@@ -17571,6 +17575,10 @@ export type ViewPage = {
    * Representations
    */
   representations: Array<NodeRepresentation>
+  /**
+   * Icon
+   */
+  icon?: string | null
 }
 
 /**

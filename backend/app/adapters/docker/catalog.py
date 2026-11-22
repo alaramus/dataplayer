@@ -36,6 +36,7 @@ from app.adapters.docker.inventory import (
     users_of_network,
     users_of_volume,
 )
+from app.adapters.views import ViewPage
 from app.adapters.words import worded_titles
 from app.core.translation import N_, say
 
@@ -64,6 +65,16 @@ _VIEW_TITLES: dict[View, tuple[str, str]] = {
     "processes": (N_("Processes"), N_("What runs inside it now")),
     "history": (N_("History"), N_("Its layers and the instructions that made them")),
     "containers": (N_("Containers"), N_("The containers that use it")),
+}
+
+# What a page's button in the view draws (D424): the same pictures the
+# workspace's own logs and services carry.
+_VIEW_ICONS: dict[View, str] = {
+    "inspect": "info",
+    "logs": "receipt_long",
+    "processes": "dns",
+    "history": "history",
+    "containers": "deployed_code",
 }
 
 _HEX = re.compile(r"^[0-9a-f]{64}$")
@@ -164,6 +175,19 @@ def view_node(leaf: Leaf, key: str, view: View) -> ReportNode:
 
 def views_of(leaf: Leaf, key: str) -> list[CatalogNode]:
     return [view_node(leaf, key, view) for view in _VIEWS[leaf]]
+
+
+def view_pages(leaf: Leaf, key: str) -> list[ViewPage]:
+    """The node's pages beside its view, each opening in a tab of its own (D423)."""
+    return [
+        ViewPage(
+            node_id=page.id,
+            title=page.name,
+            representations=page.representations,
+            icon=_VIEW_ICONS[view],
+        )
+        for view, page in zip(_VIEWS[leaf][1:], views_of(leaf, key)[1:], strict=True)
+    ]
 
 
 def project_of(container: dict[str, Any]) -> str:

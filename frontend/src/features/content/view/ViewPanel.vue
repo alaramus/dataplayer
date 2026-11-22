@@ -2,15 +2,20 @@
 import { computed } from "vue"
 
 import type { ContentRequest, NodeRepresentation, ViewPage } from "@/client"
+import { reloadedBy } from "@/features/catalog/actions"
+import type { ActionOutcome } from "@/features/catalog/actions"
 import { REPRESENTATION_ICONS } from "@/features/catalog/nodes"
 import { useContent } from "@/features/content/api"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
-import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf, statusOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
-import { AppButton, AppSpinner, AppStateTag } from "@/shared/ui"
+import { AppIconButton, AppSpinner, AppStateTag, AppToolbarRule } from "@/shared/ui"
+import { useSourceChangesStore } from "@/stores/sourceChanges"
+
+import ViewActions from "./ViewActions.vue"
 
 import ViewBlock from "./ViewBlock.vue"
 import ViewValue from "./ViewValue.vue"
@@ -21,9 +26,10 @@ import { otherRepresentations } from "./view"
  * A node's document as its source says what it means (D419).
  *
  * Knows no source: every block is drawn by its kind, and a new source's view
- * is a function in its adapter and nothing here. Other representations
- * switch this tab; source-owned pages open their own node tabs. The JSON
- * is one of the representations.
+ * is a function in its adapter and nothing here. Other representations and
+ * source-owned pages open tabs of their own; the JSON is one of the
+ * representations. Every command here is an icon with its title as a tooltip
+ * (D424).
  */
 const props = defineProps<{
   panelId: string
@@ -50,8 +56,17 @@ const heading = computed(
 const others = computed(() => otherRepresentations(props.representations, "view"))
 const openLinked = useOpenLinkedNode(() => props.connectorId)
 
-function show(kind: NodeRepresentation["kind"]) {
-  workspace.switchRepresentation(props.panelId, kind)
+function show(other: NodeRepresentation) {
+  workspace.openRepresentation({
+    connectorId: props.connectorId,
+    nodeId: props.nodeId,
+    // Named as a page is: the view's tab keeps the node's bare name.
+    title: `${props.title} — ${other.title}`,
+    connectorName: props.connectorName,
+    adapterType: props.adapterType,
+    representations: [other],
+    describable: false,
+  })
 }
 
 function openPage(page: ViewPage) {
@@ -69,7 +84,21 @@ function openPage(page: ViewPage) {
 }
 
 function iconFor(page: ViewPage) {
-  return REPRESENTATION_ICONS[page.representations[0]?.kind ?? "table"]
+  return page.icon ?? REPRESENTATION_ICONS[page.representations[0]?.kind ?? "table"]
+}
+
+const changes = useSourceChangesStore()
+
+/**
+ * After an action from the head: the catalog hears of it, and the view reads
+ * the node again. A node that is gone — a removed container — takes its tab
+ * with it rather than leaving a tab that says it cannot be read (D424).
+ */
+async function actionDone(outcome: ActionOutcome) {
+  if (outcome.done.length === 0) return
+  if (reloadedBy(outcome).length > 0) changes.announce(props.connectorId)
+  const read = await content.refetch()
+  if (read.isError && statusOf(read.error) === 404) workspace.closeTab(props.panelId)
 }
 
 useReloadable(() => props.panelId, async () => {
@@ -82,28 +111,29 @@ useReloadable(() => props.panelId, async () => {
     <div class="view-panel__head">
       <span class="view-panel__kind">{{ heading }}</span>
       <div class="view-panel__commands">
-        <AppButton
+        <ViewActions
+          :connector-id="connectorId"
+          :node-id="nodeId"
+          :node-label="title"
+          @done="actionDone"
+        />
+        <AppIconButton
           v-for="other in others"
           :key="other.kind"
-          variant="quiet"
-          size="sm"
           :icon="REPRESENTATION_ICONS[other.kind]"
-          :label="other.title"
-          layout="toolbar"
+          :tooltip="other.title"
           :data-testid="`view-show-${other.kind}`"
-          @click="show(other.kind)"
+          @click="show(other)"
         />
-        <AppButton
+        <AppIconButton
           v-for="(page, index) in view?.pages ?? []"
           :key="page.node_id"
-          variant="quiet"
-          size="sm"
           :icon="iconFor(page)"
-          :label="page.title"
-          layout="toolbar"
+          :tooltip="page.title"
           :data-testid="`view-page-${index}`"
           @click="openPage(page)"
         />
+        <AppToolbarRule v-if="others.length > 0 || (view?.pages ?? []).length > 0" />
         <PanelCommands
           :panel-id="panelId"
           :reveal="{ connectorId, nodeId, label: title }"
@@ -121,7 +151,7 @@ useReloadable(() => props.panelId, async () => {
     <AppSpinner v-else-if="content.isPending.value" />
     <div
       v-else-if="view !== null"
-      class="view-panel__body"
+      class="view-panel__body dp-panel-scroll"
       data-testid="view-body"
     >
       <header class="view-panel__header">

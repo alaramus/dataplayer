@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import type { ContentRequest, NodeRepresentation } from "@/client"
+import type { ContentRequest } from "@/client"
 import JsonTreeNode from "@/features/content/JsonTreeNode.vue"
 import { useContent } from "@/features/content/api"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
@@ -29,18 +29,9 @@ const props = defineProps<{
   adapterType?: string
   sourceTitle?: string
   tableTitle?: string
-  /** Every way the node opens, carried where one is a view (D419). */
-  representations?: NodeRepresentation[]
 }>()
 
 const workspace = useWorkspaceActions()
-
-// The way back to what the document means, in this tab (D419).
-const view = computed(() => props.representations?.find((one) => one.kind === "view"))
-
-function showView() {
-  workspace.switchRepresentation(props.panelId, "view")
-}
 
 function showSource() {
   if (props.sourceTitle === undefined) return
@@ -102,16 +93,6 @@ useReloadable(() => props.panelId, async () => {
            the commands are several elements, each a flex item of their own. -->
       <div class="tree-panel__commands">
         <AppButton
-          v-if="view"
-          variant="quiet"
-          size="sm"
-          :icon="appIcons.info"
-          :label="view.title"
-          layout="toolbar"
-          data-testid="tree-show-view"
-          @click="showView"
-        />
-        <AppButton
           v-if="sourceTitle"
           variant="quiet"
           size="sm"
@@ -148,7 +129,7 @@ useReloadable(() => props.panelId, async () => {
     <AppSpinner v-else-if="content.isPending.value" />
     <div
       v-else-if="tree !== null"
-      class="tree-panel__body"
+      class="tree-panel__body dp-panel-scroll"
       data-testid="tree-body"
     >
       <JsonTreeNode

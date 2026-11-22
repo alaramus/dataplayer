@@ -2964,6 +2964,8 @@ class ActionInfo(ActionAvailability):
     # What to draw for it where it is drawn as a picture. Null everywhere it
     # is a line of a menu, which is where the title is what is read.
     icon: str | None = None
+    # Drawn in the head of the node's document view as well (D424).
+    in_view: bool = False
     # The submenu it is drawn in, named by the source rather than by the client.
     menu_group: str | None = None
     # Whether what the form's fields are on one node can be asked of the source.
@@ -3023,6 +3025,7 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         bulk=action.bulk,
         offered_in=action.offered_in,
         icon=action.icon,
+        in_view=action.in_view,
         menu_group=action.menu_group,
         offers_hints=isinstance(action, OffersFieldHints),
         applicable=availability.applicable,
