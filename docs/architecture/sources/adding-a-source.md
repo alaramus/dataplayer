@@ -165,5 +165,11 @@ template files to read.
 - A fake that keeps only recent trades cannot lose any to age; model the
   exchange's retention (`FakeOkx.kept_from`) to test lost counts.
 - `dict(request.headers)` in a fake has lowercase names; ask it that way.
+- An exchange may stream no candles (Coinbase): keep the open one from its
+  trades, laid over the newest candle the snapshot read.
+- JSON numbers in an answer (Coinbase's candles and clock) become floats
+  unless parsed with `parse_float=str`; read them as their text.
+- A quiet interval may have no candle at all: a read by spans ends after
+  several empty ones rather than looping back to the beginning of time.
 - Look at what the screen shows before calling a slice done: a unit test does
   not prove a label, a button or a translation reaches the person.
