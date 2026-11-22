@@ -9,18 +9,28 @@ side never pass 80% of any rolling five seconds. Nothing is retried by
 itself.
 """
 
+import hashlib
+import hmac
 import logging
 import time
 from collections.abc import Sequence
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 
 from app.adapters.bybit.markets import BY_KEY, HOSTS, MARKETS, Market
-from app.adapters.bybit.options import BybitOptions
+from app.adapters.bybit.options import HOSTS_OF, BybitOptions
 from app.adapters.market import session as shared
 from app.adapters.market.budget import Budget
-from app.adapters.market.session import Kept, MarketSession, MarketState, Words
+from app.adapters.market.keys import key_of
+from app.adapters.market.session import (
+    Kept,
+    MarketSession,
+    MarketState,
+    StaleTimestamp,
+    Words,
+)
 from app.adapters.market.shape import Symbol
 from app.adapters.market.values import decimal_text, milliseconds
 from app.adapters.protocol import AdapterError, NodeNotFound
@@ -43,12 +53,20 @@ INVALID_SYMBOL = 10029
 TOO_MANY = {10006, 10018}
 NOT_SERVED = 10009
 SERVER_ERROR = 10016
+# A signed request's time was outside the window Bybit accepts.
+STALE_TIMESTAMP = 10002
+# The key is unknown, the signature wrong, the permission or the address
+# not the key's, the user unknown, or the key expired.
+REFUSED_KEY = {10003, 10004, 10005, 10007, 10010, 33004}
+# How long a signed request stays good after the time it carries.
+RECV_WINDOW = "10000"
 
 WORDS = Words(
     held=N_("Bybit refuses requests from this address for {seconds} s more"),
     spent=N_("Bybit's rate limit is nearly spent; try again in {seconds} s"),
     timeout=N_("Bybit did not answer in time"),
     unreachable=N_("Could not reach Bybit"),
+    clock=N_("Bybit's clock and this server's differ too much"),
 )
 
 
@@ -74,6 +92,15 @@ class BybitSession(MarketSession[Market]):
         return self._options.endpoint
 
     @property
+    def hosts(self) -> str:
+        """The set of hosts the endpoint speaks to, a key or not."""
+        return HOSTS_OF[self._options.endpoint]
+
+    @property
+    def keyed(self) -> bool:
+        return key_of(self._options) is not None
+
+    @property
     def markets(self) -> Sequence[Market]:
         return [BY_KEY[key] for key in MARKETS]
 
@@ -93,7 +120,35 @@ class BybitSession(MarketSession[Market]):
 
     def url(self, market: Market, path: str) -> str:
         del market
-        return f"{HOSTS[self._options.endpoint]}/v5/market/{path}"
+        host = HOSTS[self.hosts]
+        # A path of the account is whole; one of the market is under it.
+        return host + path if path.startswith("/") else f"{host}/v5/market/{path}"
+
+    def signed_request(
+        self, state: MarketState, params: dict[str, str]
+    ) -> tuple[str, dict[str, str]]:
+        """The query as sent, and the headers that sign it (D431).
+
+        Bybit signs the time, the key, the window and the query string as
+        sent, one after another, with HMAC-SHA256 of the secret, in hex.
+        """
+        key = key_of(self._options)
+        if key is None:
+            raise ValueError(say("This connection has no API key"))
+        query = urlencode(params)
+        stamp = str(int(time.time() * 1000) + state.offset_ms)
+        api_key = key.api_key.get_secret_value()
+        signature = hmac.new(
+            key.api_secret.get_secret_value().encode(),
+            f"{stamp}{api_key}{RECV_WINDOW}{query}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        return query, {
+            "X-BAPI-API-KEY": api_key,
+            "X-BAPI-TIMESTAMP": stamp,
+            "X-BAPI-RECV-WINDOW": RECV_WINDOW,
+            "X-BAPI-SIGN": signature,
+        }
 
     async def ask(
         self, market: Market, path: str, params: dict[str, str], node_id: str = ""
@@ -114,6 +169,14 @@ class BybitSession(MarketSession[Market]):
                     "region it does not serve"
                 ),
             )
+        if status == 401:
+            raise AdapterError(
+                "auth",
+                say(
+                    "Bybit does not accept this API key here: check the key, "
+                    "its permissions and the addresses it is limited to"
+                ),
+            )
         if status >= 500 or status == 429:
             if status == 429:
                 budget.hold(time.time() + WINDOW_SECONDS)
@@ -127,6 +190,16 @@ class BybitSession(MarketSession[Market]):
         code = body.get("retCode")
         if code == 0:
             return body.get("result") or {}
+        if code == STALE_TIMESTAMP:
+            raise StaleTimestamp()
+        if code in REFUSED_KEY or status == 401:
+            raise AdapterError(
+                "auth",
+                say(
+                    "Bybit does not accept this API key here: check the key, "
+                    "its permissions and the addresses it is limited to"
+                ),
+            )
         if code in TOO_MANY:
             budget.hold(time.time() + WINDOW_SECONDS)
             raise AdapterError("unknown", say(WORDS.held, seconds=WINDOW_SECONDS))
@@ -166,9 +239,10 @@ class BybitSession(MarketSession[Market]):
         answer = await self._get(kept, market, "tickers", {"category": market.key}, "")
         return [one for one in answer.get("list") or [] if isinstance(one, dict)]
 
-    async def server_time_ms(self, market: Market) -> int | None:
-        answer = await self.get(market, "time", {})
-        nano = milliseconds(answer.get("timeNano"))
+    def server_ms_of(self, answer: Any) -> int | None:
+        nano = (
+            milliseconds(answer.get("timeNano")) if isinstance(answer, dict) else None
+        )
         return None if nano is None else nano // 1_000_000
 
 

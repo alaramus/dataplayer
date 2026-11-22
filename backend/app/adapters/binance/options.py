@@ -9,9 +9,10 @@ as a secret by the schema split (D4).
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.layout import layout
+from app.adapters.market.keys import Keyed
 from app.core.translation import N_
 
 
@@ -41,20 +42,11 @@ class BinanceTestnet(BaseModel):
     endpoint: Literal["testnet"] = _endpoint_field("testnet")
 
 
-class _Keyed(BaseModel):
-    # Declared first so the form keeps the endpoint at the top whichever is
-    # chosen: a field a subclass narrows keeps the place its parent gave it,
-    # and the key's fields would otherwise push the choice down.
-    endpoint: str
-    api_key: SecretStr = Field(
-        title=N_("API key"), min_length=1, json_schema_extra=layout()
-    )
-    api_secret: SecretStr = Field(
-        title=N_("Secret key"), min_length=1, json_schema_extra=layout()
-    )
+# The shared key's fields (D431); the name stays for what reads it.
+_Keyed = Keyed
 
 
-class BinanceMainKey(_Keyed):
+class BinanceMainKey(Keyed):
     """The main hosts, and the account a key reads (D322)."""
 
     model_config = ConfigDict(extra="forbid", title=N_("Binance, with an API key"))
@@ -62,7 +54,7 @@ class BinanceMainKey(_Keyed):
     endpoint: Literal["binance_key"] = _endpoint_field("binance_key")
 
 
-class BinanceTestnetKey(_Keyed):
+class BinanceTestnetKey(Keyed):
     model_config = ConfigDict(extra="forbid", title=N_("Testnet, with an API key"))
 
     endpoint: Literal["testnet_key"] = _endpoint_field("testnet_key")
@@ -87,8 +79,3 @@ HOSTS_OF: dict[Endpoint, Hosts] = {
     "testnet": "testnet",
     "testnet_key": "testnet",
 }
-
-
-def key_of(options: BinanceOptions) -> _Keyed | None:
-    """The key a connection reads its account with, if it has one."""
-    return options if isinstance(options, _Keyed) else None

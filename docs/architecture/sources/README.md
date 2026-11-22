@@ -223,8 +223,10 @@ the kept list (D320).
 the layer every exchange shares (D425): its requests counted here against one
 budget for the address, refusals by `retCode` reduced to kinds (D426); the
 shared catalog, volumes of one meaning with inverse's swapped, tickers,
-symbols, candles, the newest trades and the book as rows (D427); the Exchange
-section, metrics and search from the kept lists (D430).
+symbols, candles, the newest trades and the book as rows (D427); trades and
+candles read on (D428); the market watched live (D429); the Exchange section,
+metrics and search from the kept lists (D430); a key reading the unified
+account, signed the shared way (D431).
 
 **MongoDB** — one server through pymongo's asynchronous client, spoken to
 directly (D283): databases as schemas, their collections as tables named as

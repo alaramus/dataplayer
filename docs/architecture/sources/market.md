@@ -18,7 +18,8 @@ Decisions here: D425.
 | `values.py` | decimals as the exchange's text, times as moments in UTC, contracts' worth (D321) |
 | `shape.py` | `Market` as the shared code reads one, `Symbol`, the interval names |
 | `budget.py` | the rate limit as a mechanism: a limit over a window, a weight, the exchange's own count where it reports one, the 80% ceiling, a hold |
-| `session.py` | `MarketSession`: one client a connection in the resource store, each market's budget, the symbol list kept an hour, the tickers ten seconds, a ping of every market, the check; `Kept` with the live streams |
+| `session.py` | `MarketSession`: one client a connection in the resource store, each market's budget, the symbol list kept an hour, the tickers ten seconds, a ping of every market, the check, a signed request with the clock measured and a stale time sent once more (D431); `Kept` with the live streams |
+| `keys.py` | `Keyed`: an API key and secret as `SecretStr`, the fields of every exchange's keyed endpoint (D322, D431) |
 | `catalog.py` | ids, nodes and `Place` (D317), the Markets folder (D365), the account's nodes (D322) |
 | `columns.py` | each feed's columns: one name and type for one meaning |
 | `feeds.py` | tickers and symbols read whole, the book by depth and side |
@@ -26,7 +27,7 @@ Decisions here: D425.
 | `metrics.py`, `search.py` | weight, latency and reachable per market; symbols found from the kept list |
 | `stream.py` | `MarketStream`, one upstream socket and its watchers; `websockets` is imported here alone |
 | `live.py` | a watch's frame: streams first, then the snapshot, then batches (D323) |
-| `adapter.py` | `MarketAdapter`: listing, the path to a node, which feed a node reads, export, the watch's checks; `MarketReading` |
+| `adapter.py` | `MarketAdapter`: listing, the path to a node, which feed a node reads, export, the watch's checks; `MarketReading`; `key_checked`, a key that may do more than read accepted and said |
 
 - **An exchange overrides, the frame stays.** Its session says its hosts,
   weights, the count it reports, how an answer is refused, how its symbols

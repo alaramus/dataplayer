@@ -21,6 +21,7 @@ des connexions est décrit sur la page [Connexions](connections.md).
 - La limite de requêtes et les réponses de Bybit sur un tableau de bord
 - Des symboles trouvés par nom ou par actif
 - Les transactions ou bougies d'un symbole dans un pipeline, rien que le neuf
+- Avec une clé : soldes, positions, ordres, transactions, dépôts, retraits
 
 ## Ce que vous pouvez modifier
 
@@ -34,6 +35,8 @@ La page **Connexion** de la fenêtre demande le **Point d'accès** :
 - **Bybit, via bytick.com** — le même service sous son second nom, pour un
   réseau qui n'atteint pas le premier ;
 - **Testnet** — le réseau de test de Bybit, avec ses propres prix.
+- **Bybit, avec une clé API** et **Testnet, avec une clé API** — les mêmes
+  hôtes, et en plus le compte unifié auquel la clé appartient.
 
 Bybit ne sert pas certains pays, dont les États-Unis. Si la vérification dit
 que Bybit ne dessert pas cette région ou refuse cette adresse, le serveur
@@ -109,6 +112,22 @@ et un pipeline activé le porte en quelques secondes.
 - Une table que le lien crée a pour clé l'**id** de la transaction ou
   l'**open_time** de la bougie : rien n'arrive deux fois.
 
+## Votre compte
+
+Avec une clé, chaque marché contient **Compte** : **Soldes** du portefeuille
+unifié, les mêmes dans chaque marché ; **Positions** pour les contrats ;
+**Ordres ouverts** ; et en spot **Dépôts** et **Retraits** des trente derniers
+jours. Un symbole ajoute **Mes ordres** et **Mes transactions** des sept
+derniers jours. **Mes transactions** peuvent commencer un lien de pipeline,
+comme **Transactions**.
+
+- Créez la clé sur Bybit en lecture seule. Une clé qui peut aussi négocier ou
+  déplacer de l'argent est acceptée et la vérification le dit : DataPlayer ne
+  fait que lire, mais une clé en lecture seule est plus sûre.
+- Si la clé est limitée à des adresses, ajoutez celle du serveur DataPlayer.
+- **Clé API** dans **Bourse** dit ce que Bybit permet à la clé.
+- Les retraits ne sont donnés qu'à la clé du compte principal.
+
 ## Bourse
 
 - **Statut** : le point d'accès, et si chaque marché répond.
@@ -119,6 +138,8 @@ et un pipeline activé le porte en quelques secondes.
   sont retenues.
 - **Marchés** : combien de symboles se négocient, dans combien de devises de
   cotation, et quand la liste a été lue ; elle est relue après une heure.
+- **Clé API** : si la clé est en lecture seule, ce que Bybit lui permet, et
+  si elle est limitée à des adresses.
 
 ## Tableaux de bord et recherche
 

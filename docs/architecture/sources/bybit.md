@@ -7,15 +7,14 @@ connection reports, measures and finds. What Bybit shares with every exchange
 is in [market.md](market.md); the contract every source keeps is in
 [contract.md](contract.md).
 
-Decisions here: D426, D427, D428, D429, D430.
+Decisions here: D426, D427, D428, D429, D430, D431.
 
 ## D426. Bybit's public market data over v5 REST, its requests counted here
 
-- **Nothing changed on Bybit, and no key yet.** The connection names an
-  endpoint from a closed set: Bybit (`api.bybit.com`, streams on
-  `stream.bybit.com`), the same through `api.bytick.com`, and the testnet
-  (`api-testnet.bybit.com`). The options are a discriminated union already,
-  so a key comes as an endpoint of its own, as Binance's did (D322).
+- **Nothing changed on Bybit.** The connection names an endpoint from a
+  closed set: Bybit (`api.bybit.com`, streams on `stream.bybit.com`), the
+  same through `api.bytick.com`, the testnet (`api-testnet.bybit.com`), and
+  Bybit or the testnet with a key (D431).
 - **One client a connection** on the shared session (D425): the symbol list
   kept an hour, the tickers ten seconds. Every path is `/v5/market/<name>`,
   the market's category a parameter (`BybitSession.ask`).
@@ -170,3 +169,49 @@ Spec: [A Bybit source, and what exchanges share](../../decisions/2026-11-22-bybi
   views.
 
 Spec: [A Bybit source, and what exchanges share](../../decisions/2026-11-22-bybit-source-design.md)
+
+## D431. A key reads the unified account, signed the shared way
+
+- **A key is an endpoint of its own**: `bybit_key` and `testnet_key`, the
+  key and secret `SecretStr` in the shared `Keyed` model
+  ([market.md](market.md)); `HOSTS_OF` maps them to the plain hosts.
+- **Signed** by the shared `MarketSession.signed`: the time from this
+  server's clock plus Bybit's offset (measured from `market/time`, kept an
+  hour), a window of 10 s, and `X-BAPI-SIGN` the hex HMAC-SHA256 of time,
+  key, window and query string; the key in `X-BAPI-API-KEY`. A 10002
+  measures the clock again and sends once more. 10003, 10004, 10005, 10007,
+  10010, 33004 and HTTP 401 are `auth`, in words that name no key.
+- **The check** asks `/v5/user/query-api`. Any key passes; one that is not
+  read-only is said to trade or move money (`key_checked`, as D322). A report
+  **API key** says read-only, each group of permissions, whether it is
+  limited to addresses, when it was made and when it expires.
+- **Catalog** (`bybit/account.py`): an **Account** folder in each market —
+  **Balances** of the unified wallet (`accountType=UNIFIED`), the same in
+  every market; **Positions** on linear and inverse; **Open orders**; on spot
+  **Deposits** and **Withdrawals** of the last thirty days — and a symbol's
+  **My orders** and **My trades** of the last seven days. A keyless
+  connection has none of them.
+- **Rows**: each list read whole by Bybit's cursor, at most twenty pages,
+  sorted and filtered here; linear positions and open orders asked once per
+  settle coin (USDT, USDC); empty balances and positions left out; ids as
+  text; statuses in Bybit's words, lowercased; on inverse an own trade's
+  quantity is the coin and its quote quantity USD, as D427 has volumes.
+- **My trades are read on by time** (D428): `""` the next own trade's time,
+  a block one window of at most seven days; an empty window moves the
+  bookmark past it; the made table keyed on `id`.
+
+Known deviations:
+
+- **Bybit's per-account limits are not counted**, only the address's (D426).
+- **Balances repeat in every market**: Bybit has one wallet for all of them.
+- **Classic accounts and the funding wallet are not read**: Bybit answers
+  `UNIFIED` only.
+- **Withdrawals answer the main account's key only**; a sub-account's key
+  is refused on that node.
+- **An own trade's unread count is a floor**: only the newest page is
+  counted. A reader more than seven days behind with no own trade in the
+  last seven days sees none older.
+- **Untested against a real key**: the signature is checked by the fake as
+  Bybit documents it.
+
+Spec: [A Bybit key and the unified account it reads](../../decisions/2026-11-22-bybit-account-design.md)

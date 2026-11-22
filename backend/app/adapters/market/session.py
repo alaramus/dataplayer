@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 10.0
 SYMBOLS_SECONDS = 3600.0
+# How long a measured difference between the clocks is trusted.
+CLOCK_SECONDS = 3600.0
 TICKERS_SECONDS = 10.0
 
 
@@ -106,6 +108,13 @@ class Words:
     spent: str
     timeout: str
     unreachable: str
+    # A signed request still refused for its time after the clock was
+    # measured again (D322).
+    clock: str = ""
+
+
+class StaleTimestamp(Exception):
+    """A signed request carried a time the exchange would not take."""
 
 
 class MarketSession[M: Market]:
@@ -116,6 +125,8 @@ class MarketSession[M: Market]:
     words: Words
     # What every market's ping asks, as `get` names a path.
     ping_path = "ping"
+    # What answers the exchange's clock.
+    clock_path = "time"
 
     def __init__(self, pooling: Pooling | None) -> None:
         self._pooling = pooling
@@ -175,8 +186,8 @@ class MarketSession[M: Market]:
     async def read_tickers(self, kept: Kept, market: M) -> list[dict[str, Any]]:
         raise NotImplementedError
 
-    async def server_time_ms(self, market: M) -> int | None:
-        """The exchange's clock as one market answers it, or nothing."""
+    def server_ms_of(self, answer: Any) -> int | None:
+        """The exchange's clock in what `clock_path` answered."""
         raise NotImplementedError
 
     async def system_status(self) -> str | None:
@@ -236,7 +247,8 @@ class MarketSession[M: Market]:
         try:
             if signed:
                 query, headers = self.signed_request(state, params)
-                response = await kept.client.get(f"{url}?{query}", headers=headers)
+                target = f"{url}?{query}" if query else url
+                response = await kept.client.get(target, headers=headers)
             else:
                 response = await kept.client.get(url, params=params)
         except httpx.TimeoutException:
@@ -245,6 +257,48 @@ class MarketSession[M: Market]:
             raise AdapterError("network", say(self.words.unreachable)) from None
         budget.count(before, weight, now, self.reported_used(response))
         return self.answer(response, budget, node_id)
+
+    async def server_time_ms(self, market: M) -> int | None:
+        """The exchange's clock as one market answers it, or nothing."""
+        return self.server_ms_of(await self.get(market, self.clock_path, {}))
+
+    async def signed(
+        self, market: M, name: str, params: dict[str, str], node_id: str = ""
+    ) -> Any:
+        """A request of the account, signed with the connection's key (D322).
+
+        A time the exchange finds outside its window is measured again and
+        the request sent once more: the clocks moved apart, nothing about the
+        request was wrong. The only request ever sent twice.
+        """
+        async with self.kept() as kept:
+            for fresh in (False, True):
+                await self._clock(kept, market, fresh=fresh)
+                try:
+                    return await self._get(
+                        kept, market, name, params, node_id, signed=True
+                    )
+                except StaleTimestamp:
+                    continue
+        raise AdapterError("config", say(self.words.clock))
+
+    async def _clock(self, kept: Kept, market: M, fresh: bool) -> None:
+        """How far the exchange's clock is ahead, measured at most once an hour."""
+        state = kept.markets[market.key]
+        now = time.monotonic()
+        if (
+            not fresh
+            and state.offset_at is not None
+            and now - state.offset_at < CLOCK_SECONDS
+        ):
+            return
+        before = time.time() * 1000
+        answer = await self._get(kept, market, self.clock_path, {}, "")
+        after = time.time() * 1000
+        server = self.server_ms_of(answer)
+        if server is not None:
+            state.offset_ms = int(server - (before + after) / 2)
+            state.offset_at = now
 
     async def symbols(self, market: M) -> list[Symbol]:
         """The market's trading symbols, read at most once an hour.

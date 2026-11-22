@@ -21,6 +21,7 @@ der Seite [Verbindungen](connections.md).
 - Das Anfragelimit und die Antworten von Bybit auf einem Dashboard
 - Symbole nach Name oder Asset gefunden
 - Trades oder Kerzen eines Symbols in einer Pipeline, je Lauf nur das Neue
+- Mit Schlüssel: Guthaben, Positionen, Orders, eigene Trades, Ein-/Auszahlungen
 
 ## Was Sie ändern können
 
@@ -34,6 +35,9 @@ Die Seite **Verbindung** des Fensters fragt nach dem **Endpunkt**:
 - **Bybit, über bytick.com** — derselbe Dienst unter seinem zweiten Namen,
   für ein Netz, das den ersten nicht erreicht;
 - **Testnetz** — das Testnetz von Bybit mit eigenen Preisen.
+- **Bybit, mit einem API-Schlüssel** und **Testnetz, mit einem
+  API-Schlüssel** — dieselben Hosts und dazu das einheitliche Konto, dem der
+  Schlüssel gehört.
 
 Bybit bedient einige Länder nicht, darunter die USA. Sagt die Prüfung, Bybit
 bediene diese Region nicht oder lehne diese Adresse ab, steht der
@@ -104,6 +108,23 @@ eine eingeschaltete Pipeline trägt es in Sekunden weiter.
 - Eine Tabelle, die die Verbindung anlegt, hat den Schlüssel **id** des
   Trades oder **open_time** der Kerze, also kommt nichts doppelt.
 
+## Ihr Konto
+
+Mit einem Schlüssel enthält jeder Markt **Konto**: **Guthaben** der
+einheitlichen Wallet, in jedem Markt dieselben; **Positionen** bei Futures;
+**Offene Orders**; und bei Spot **Einzahlungen** und **Auszahlungen** der
+letzten dreißig Tage. Ein Symbol ergänzt **Meine Orders** und **Meine Trades**
+der letzten sieben Tage. **Meine Trades** können eine Verbindung einer
+Pipeline beginnen, wie **Trades**.
+
+- Legen Sie den Schlüssel bei Bybit nur zum Lesen an. Ein Schlüssel, der auch
+  handeln oder Geld bewegen darf, wird angenommen, und die Prüfung sagt es:
+  DataPlayer liest nur, aber ein Schlüssel nur zum Lesen ist sicherer.
+- Ist der Schlüssel auf Adressen beschränkt, fügen Sie die des
+  DataPlayer-Servers hinzu.
+- **API-Schlüssel** unter **Börse** sagt, was Bybit dem Schlüssel erlaubt.
+- Auszahlungen werden nur dem Schlüssel des Hauptkontos beantwortet.
+
 ## Börse
 
 - **Status**: der Endpunkt und ob jeder Markt antwortet.
@@ -114,6 +135,8 @@ eine eingeschaltete Pipeline trägt es in Sekunden weiter.
   werden.
 - **Märkte**: wie viele Symbole gehandelt werden, in wie vielen
   Kurswährungen, und wann die Liste gelesen wurde; nach einer Stunde erneut.
+- **API-Schlüssel**: ob der Schlüssel nur liest, was Bybit ihm erlaubt und
+  ob er auf Adressen beschränkt ist.
 
 ## Dashboards und Suche
 

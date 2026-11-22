@@ -9,6 +9,12 @@ how Bybit's tickers, candles, trades and book are read.
 from collections.abc import AsyncGenerator
 from typing import Any
 
+from app.adapters.bybit.account import (
+    account_feeds,
+    account_page,
+    key_info,
+    more_than_reading,
+)
 from app.adapters.bybit.feeds import (
     BYBIT_TICKER_COLUMNS,
     BybitPlace,
@@ -23,10 +29,12 @@ from app.adapters.bybit.options import BybitOptions
 from app.adapters.bybit.reading import BybitReading
 from app.adapters.bybit.reports import PRESETS, bybit_reports
 from app.adapters.bybit.session import BybitSession
+from app.adapters.catalog import FeedName
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.live import LiveRows
-from app.adapters.market.adapter import MarketAdapter
+from app.adapters.market.adapter import MarketAdapter, key_checked
 from app.adapters.market.catalog import place_in
+from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.reading_on import BookmarkAccess
 from app.adapters.registry import AdapterContext, register
 from app.core.translation import N_
@@ -46,10 +54,37 @@ class BybitAdapter(MarketAdapter[Market]):
 
     def connection_string(self) -> str:
         """The REST host this connection speaks to."""
-        return HOSTS[self._session.endpoint]
+        return HOSTS[self._session.hosts]
 
     def place_of(self, node_id: str) -> BybitPlace:
         return place_in(BY_KEY, node_id)
+
+    async def check_connection(self) -> ConnectionCheckResult:
+        """The markets reached, and with a key what Bybit says it may do (D431).
+
+        Any key may read the account; one that is not read-only passes and is
+        said to do more.
+        """
+        checked = await self._session.check()
+        if not checked.ok or not self._session.keyed:
+            return checked
+        try:
+            info = await key_info(self._session)
+        except AdapterError as failure:
+            return ConnectionCheckResult(
+                ok=False, message=failure.message, error_kind=failure.error_kind
+            )
+        return key_checked(checked, more_than_reading(info))
+
+    # --- the account a key reads (D431) --------------------------------------
+
+    def account_feeds(self, market: Market) -> list[FeedName]:
+        return account_feeds(market)
+
+    async def account_page(
+        self, place: BybitPlace, request: FetchRequest
+    ) -> FetchResult:
+        return await account_page(self._session, place, request)
 
     async def ticker_rows(
         self, market: Market
@@ -86,8 +121,8 @@ class BybitAdapter(MarketAdapter[Market]):
         "Bybit's public market data: spot, USDT and USDC futures and inverse "
         "futures. See every symbol's last day and trading rules, read a "
         "symbol's candles of any interval, its newest trades and its order "
-        "book as rows, and watch its market live. Nothing is changed on "
-        "Bybit, and no key is asked for."
+        "book as rows, and watch its market live. With a read-only key, its "
+        "unified account too. Nothing is changed on Bybit."
     ),
     options_schema=BybitOptions,
     adapter_class=BybitAdapter,

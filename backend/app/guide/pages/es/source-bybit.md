@@ -21,6 +21,7 @@ Cómo funcionan las conexiones en general se explica en la página
 - El límite de solicitudes y las respuestas de Bybit en un panel
 - Símbolos encontrados por nombre o por activo
 - Operaciones o velas de un símbolo en un pipeline, solo lo nuevo cada vez
+- Con clave: saldos, posiciones, órdenes, operaciones, depósitos y retiros
 
 ## Qué puedes cambiar
 
@@ -34,6 +35,8 @@ La página **Conexión** de la ventana pide el **Punto de acceso**:
 - **Bybit, a través de bytick.com** — el mismo servicio con su segundo
   nombre, para una red que no alcanza el primero;
 - **Testnet** — la red de pruebas de Bybit, con precios propios.
+- **Bybit, con una clave de API** y **Testnet, con una clave de API** —
+  los mismos hosts y además la cuenta unificada a la que pertenece la clave.
 
 Bybit no da servicio a algunos países, entre ellos Estados Unidos. Si la
 comprobación dice que Bybit no da servicio a esta región o rechaza esta
@@ -108,6 +111,23 @@ segundos.
 - Una tabla que crea el enlace tiene por clave el **id** de la operación o el
   **open_time** de la vela, así que nada llega dos veces.
 
+## Tu cuenta
+
+Con una clave, cada mercado contiene **Cuenta**: **Saldos** de la billetera
+unificada, los mismos en cada mercado; **Posiciones** en futuros; **Órdenes
+abiertas**; y en spot **Depósitos** y **Retiros** de los últimos treinta
+días. Un símbolo añade **Mis órdenes** y **Mis operaciones** de los últimos
+siete días. **Mis operaciones** pueden iniciar un enlace de pipeline, como
+**Operaciones**.
+
+- Crea la clave en Bybit de solo lectura. Una clave que también puede operar
+  o mover dinero se acepta y la comprobación lo dice: DataPlayer solo lee,
+  pero una clave de solo lectura es más segura.
+- Si la clave está limitada a direcciones, añade la del servidor de
+  DataPlayer.
+- **Clave de API** en **Bolsa** dice lo que Bybit permite a la clave.
+- Los retiros solo se dan a la clave de la cuenta principal.
+
 ## Bolsa
 
 - **Estado**: el punto de acceso y si cada mercado responde.
@@ -118,6 +138,8 @@ segundos.
   retenidas.
 - **Mercados**: cuántos símbolos cotizan, en cuántas monedas de cotización y
   cuándo se leyó la lista; se vuelve a leer tras una hora.
+- **Clave de API**: si la clave es de solo lectura, lo que Bybit le permite y
+  si está limitada a direcciones.
 
 ## Paneles y búsqueda
 

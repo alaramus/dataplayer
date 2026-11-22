@@ -7,6 +7,8 @@ written (D426). One trade a second and one candle an hour, counted back
 from now; every answer HTTP 200 with a `retCode`, as Bybit's are.
 """
 
+import hashlib
+import hmac
 import json
 import time
 from collections.abc import Callable
@@ -19,6 +21,11 @@ import pytest
 
 from app.adapters.bybit import session as bybit_session
 
+API_KEY = "fake-bybit-key"
+API_SECRET = "fake-bybit-secret"
+DAY_MS = 86_400_000
+# Ages of the key's own trades of a symbol, in hours back from now.
+MY_TRADE_HOURS = (1, 2, 3, 30, 200)
 HOUR_MS = 3_600_000
 SECOND_MS = 1000
 CANDLES = 3000
@@ -62,6 +69,14 @@ class FakeBybit:
     refuse: tuple[int, dict[str, Any]] | None = None
     # How many symbols a page of linear instruments holds, to page by cursor.
     page: int = 2
+    # How many records a page of a signed list holds, whatever was asked.
+    private_page: int = 2
+    # What Bybit says of the key: 1 read only, 0 read and write.
+    read_only: int = 1
+    # How many signed requests to refuse as carrying a stale time.
+    stale: int = 0
+    # The signed paths answered.
+    signed: list[str] = field(default_factory=list)
 
     @property
     def last_trade_ms(self) -> int:
@@ -89,8 +104,10 @@ class FakeBybit:
         if self.refuse is not None:
             status, body = self.refuse
             return httpx.Response(status, json=body)
-        name = url.path.removeprefix("/v5/market/")
-        result = self._result(name, params)
+        if "X-BAPI-SIGN" in request.headers:
+            result = self._signed(request, url.path, url.query, params)
+        else:
+            result = self._result(url.path.removeprefix("/v5/market/"), params)
         if isinstance(result, tuple):
             code, message = result
             body: dict[str, Any] = {"retCode": code, "retMsg": message, "result": {}}
@@ -98,6 +115,182 @@ class FakeBybit:
             body = {"retCode": 0, "retMsg": "OK", "result": result}
         body["time"] = self.now_ms
         return httpx.Response(200, content=json.dumps(body).encode())
+
+    # --- the account of one fake key ------------------------------------------
+
+    def _signed(
+        self, request: httpx.Request, path: str, query: str, params: dict[str, str]
+    ) -> Any:
+        headers = request.headers
+        if headers.get("X-BAPI-API-KEY") != API_KEY:
+            return 10003, "API key is invalid."
+        expected = hmac.new(
+            API_SECRET.encode(),
+            (
+                headers.get("X-BAPI-TIMESTAMP", "")
+                + API_KEY
+                + headers.get("X-BAPI-RECV-WINDOW", "")
+                + query
+            ).encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(headers.get("X-BAPI-SIGN", ""), expected):
+            return 10004, "Error sign, please check your signature generation."
+        if self.stale > 0:
+            self.stale -= 1
+            return 10002, "The request time exceeds the time window range."
+        self.signed.append(path)
+        category = params.get("category", "")
+        if path == "/v5/user/query-api":
+            trading = [] if self.read_only else ["Order", "Position"]
+            return {
+                "readOnly": self.read_only,
+                "permissions": {
+                    "ContractTrade": trading,
+                    "Spot": [] if self.read_only else ["SpotTrade"],
+                    "Wallet": [],
+                },
+                "ips": ["203.0.113.7"],
+                "createdAt": "2026-01-02T03:04:05Z",
+                "expiredAt": "1970-01-01T00:00:00Z",
+                "secret": "",
+            }
+        if path == "/v5/account/wallet-balance":
+            if params.get("accountType") != "UNIFIED":
+                return 10001, "accountType only support UNIFIED."
+            coins = [
+                self._coin("BTC", "0.5", "0.1", "30000"),
+                self._coin("USDT", "100", "0", "100"),
+                self._coin("ETH", "0", "0", "0"),
+            ]
+            return {"list": [{"accountType": "UNIFIED", "coin": coins}]}
+        if path == "/v5/position/list":
+            if category == "linear" and "settleCoin" not in params:
+                return 10001, "symbol or settleCoin is required"
+            items = {
+                ("linear", "USDT"): [
+                    self._position("BTCUSDT", "Buy", "2"),
+                    self._position("ETHUSDT", "", "0"),
+                ],
+                ("linear", "USDC"): [],
+                ("inverse", ""): [self._position("BTCUSD", "Sell", "100")],
+            }[(category, params.get("settleCoin", ""))]
+            return self._page(items, params)
+        if path == "/v5/order/realtime":
+            if category == "linear" and "settleCoin" not in params:
+                return 10001, "symbol or settleCoin is required"
+            return self._page([self._order("o-1", "New")], params)
+        if path == "/v5/order/history":
+            orders = [self._order(f"o-{one}", "Filled") for one in (3, 2, 4)]
+            return self._page(orders, params)
+        if path == "/v5/execution/list":
+            return self._executions(category, params)
+        if path == "/v5/asset/deposit/query-record":
+            deposit = {
+                "id": "d1",
+                "coin": "BTC",
+                "chain": "BTC",
+                "amount": "0.5",
+                "txID": "tx1",
+                "status": 3,
+                "toAddress": "bc1q",
+                "successAt": str(self.now_ms - HOUR_MS),
+            }
+            return self._page([deposit], params, rows="rows")
+        if path == "/v5/asset/withdraw/query-record":
+            withdrawal = {
+                "withdrawId": "w1",
+                "coin": "USDT",
+                "chain": "ETH",
+                "amount": "100",
+                "withdrawFee": "1",
+                "status": "success",
+                "txID": "tx2",
+                "toAddress": "0xabc",
+                "createTime": str(self.now_ms - 2 * HOUR_MS),
+                "updateTime": str(self.now_ms - HOUR_MS),
+            }
+            return self._page([withdrawal], params, rows="rows")
+        return 10001, "?"
+
+    def _page(
+        self, items: list[dict[str, Any]], params: dict[str, str], rows: str = "list"
+    ) -> dict[str, Any]:
+        """A page of a signed list, `private_page` long, by an offset cursor."""
+        start = int(params.get("cursor") or "0")
+        end = start + self.private_page
+        cursor = str(end) if end < len(items) else ""
+        return {rows: items[start:end], "nextPageCursor": cursor}
+
+    def _coin(self, coin: str, wallet: str, locked: str, usd: str) -> dict[str, Any]:
+        return {
+            "coin": coin,
+            "walletBalance": wallet,
+            "equity": wallet,
+            "locked": locked,
+            "unrealisedPnl": "0",
+            "usdValue": usd,
+        }
+
+    def _position(self, symbol: str, side: str, size: str) -> dict[str, Any]:
+        return {
+            "symbol": symbol,
+            "side": side,
+            "size": size,
+            "avgPrice": "70000",
+            "markPrice": "74000",
+            "unrealisedPnl": "8000",
+            "liqPrice": "",
+            "positionValue": "148000",
+            "updatedTime": str(self.now_ms),
+        }
+
+    def _order(self, order_id: str, status: str) -> dict[str, Any]:
+        filled = status == "Filled"
+        return {
+            "orderId": order_id,
+            "symbol": "BTCUSDT",
+            "side": "Buy",
+            "orderType": "Limit",
+            "orderStatus": status,
+            "price": "100.5",
+            "qty": "2",
+            "cumExecQty": "2" if filled else "0",
+            "avgPrice": "100.4" if filled else "",
+            "triggerPrice": "0",
+            "timeInForce": "GTC",
+            "createdTime": str(self.now_ms - int(order_id[2:]) * HOUR_MS),
+            "updatedTime": str(self.now_ms),
+        }
+
+    def my_trade_ms(self, hours: int) -> int:
+        return self.now_ms - hours * HOUR_MS
+
+    def _executions(self, category: str, params: dict[str, str]) -> Any:
+        """The key's trades, newest first, seven days at most a request."""
+        end = int(params.get("endTime") or self.now_ms)
+        start = int(params.get("startTime") or end - 7 * DAY_MS)
+        if end - start > 7 * DAY_MS:
+            return 181010, "The time range cannot exceed 7 days"
+        inverse = category == "inverse"
+        found = [
+            {
+                "execId": f"e-{hours}",
+                "orderId": f"o-{hours}",
+                "symbol": params.get("symbol"),
+                "side": "Buy",
+                "execPrice": "100.5",
+                "execQty": "300" if inverse else "3",
+                "execValue": "0.003" if inverse else "301.5",
+                "execFee": "0.001",
+                "feeCurrency": "USDT",
+                "isMaker": True,
+                "execTime": str(self.my_trade_ms(hours)),
+            }
+            for hours in MY_TRADE_HOURS
+            if start <= self.my_trade_ms(hours) <= end
+        ]
+        return self._page(found, params)
 
     def _rows(self, category: str) -> list[tuple[Any, ...]]:
         return {

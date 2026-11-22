@@ -22,10 +22,17 @@ from urllib.parse import urlencode
 import httpx
 
 from app.adapters.binance.markets import BY_KEY, HOSTS, MARKETS, Market
-from app.adapters.binance.options import HOSTS_OF, BinanceOptions, Hosts, key_of
+from app.adapters.binance.options import HOSTS_OF, BinanceOptions, Hosts
 from app.adapters.market import session as shared
 from app.adapters.market.budget import CEILING_SHARE, Budget
-from app.adapters.market.session import Kept, MarketSession, Pinged, Words
+from app.adapters.market.keys import key_of
+from app.adapters.market.session import (
+    Kept,
+    MarketSession,
+    Pinged,
+    StaleTimestamp,
+    Words,
+)
 from app.adapters.market.shape import Symbol
 from app.adapters.market.values import decimal_text
 from app.adapters.protocol import AdapterError, NodeNotFound
@@ -38,6 +45,7 @@ __all__ = [
     "BinanceSession",
     "MarketState",
     "Pinged",
+    "StaleTimestamp",
     "Symbol",
     "decimal_text",
     "make_client",
@@ -55,13 +63,13 @@ STALE_TIMESTAMP = -1021
 REFUSED_KEY = {-2014, -2015, -1022, -2008}
 # How long a signed request stays good after the time it carries.
 RECV_WINDOW = "10000"
-CLOCK_SECONDS = 3600.0
 
 WORDS = Words(
     held=N_("Binance refuses requests from this address for {seconds} s more"),
     spent=N_("Binance's rate limit is nearly spent; try again in {seconds} s"),
     timeout=N_("Binance did not answer in time"),
     unreachable=N_("Could not reach Binance"),
+    clock=N_("Binance's clock and this server's differ too much"),
 )
 
 
@@ -136,45 +144,6 @@ class BinanceSession(MarketSession[Market]):
     def reported_used(self, response: httpx.Response) -> int | None:
         reported = response.headers.get("x-mbx-used-weight-1m")
         return int(reported) if reported is not None and reported.isdigit() else None
-
-    async def signed(
-        self, market: Market, name: str, params: dict[str, str], node_id: str = ""
-    ) -> Any:
-        """A request of the account, signed with the connection's key (D322).
-
-        A time Binance finds outside its window is measured again and the
-        request sent once more: the clocks moved apart, nothing about the
-        request was wrong.
-        """
-        async with self.kept() as kept:
-            for fresh in (False, True):
-                await self._clock(kept, market, fresh=fresh)
-                try:
-                    return await self._get(
-                        kept, market, name, params, node_id, signed=True
-                    )
-                except StaleTimestamp:
-                    continue
-        raise AdapterError(
-            "config", say("Binance's clock and this server's differ too much")
-        )
-
-    async def _clock(self, kept: Kept, market: Market, fresh: bool) -> None:
-        state = kept.markets[market.key]
-        now = time.monotonic()
-        if (
-            not fresh
-            and state.offset_at is not None
-            and now - state.offset_at < CLOCK_SECONDS
-        ):
-            return
-        before = time.time() * 1000
-        answer = await self._get(kept, market, "time", {}, "")
-        after = time.time() * 1000
-        server = answer.get("serverTime") if isinstance(answer, dict) else None
-        if isinstance(server, int):
-            state.offset_ms = int(server - (before + after) / 2)
-            state.offset_at = now
 
     def signed_request(
         self, state: shared.MarketState, params: dict[str, str]
@@ -265,8 +234,7 @@ class BinanceSession(MarketSession[Market]):
         answer = await self._get(kept, market, "ticker/24hr", {}, "")
         return [one for one in answer if isinstance(one, dict)]
 
-    async def server_time_ms(self, market: Market) -> int | None:
-        answer = await self.get(market, "time", {})
+    def server_ms_of(self, answer: Any) -> int | None:
         server = answer.get("serverTime") if isinstance(answer, dict) else None
         return server if isinstance(server, int) else None
 
@@ -285,10 +253,6 @@ class BinanceSession(MarketSession[Market]):
             if isinstance(status, int)
             else None
         )
-
-
-class StaleTimestamp(Exception):
-    """A signed request carried a time Binance would not take; measured again."""
 
 
 def _code_of(response: httpx.Response) -> int | None:

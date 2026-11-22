@@ -59,6 +59,27 @@ from app.core.schemas import get_datetime_utc
 from app.core.translation import say
 
 
+def key_checked(
+    checked: ConnectionCheckResult, more_than_reading: bool
+) -> ConnectionCheckResult:
+    """A key that passed, said when it may do more than read (D322, D431).
+
+    Accepted either way: nothing changing is ever sent from here, and the
+    owner of the key decides what it is for.
+    """
+    if not more_than_reading:
+        return checked
+    return checked.model_copy(
+        update={
+            "message": say(
+                "Connection successful. This key may also trade or move "
+                "money; DataPlayer only reads, but a key that can only "
+                "read is safer"
+            )
+        }
+    )
+
+
 class MarketReading[M: Market]:
     """A symbol's feeds read on by a pipeline's link (D319); each exchange's own."""
 

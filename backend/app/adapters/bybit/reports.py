@@ -4,6 +4,7 @@ The Exchange section and its shared readers (D425) in Bybit's words. Bybit
 has no system status on its public paths, and one budget for the address.
 """
 
+from app.adapters.bybit.account import PERMISSION_GROUPS, granted, key_info
 from app.adapters.bybit.session import BybitSession
 from app.adapters.market.reports import (
     ExchangeReport,
@@ -15,15 +16,37 @@ from app.adapters.market.reports import (
     status_rows,
 )
 from app.adapters.metrics import MetricPreset, MetricRecipe
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 SECTION_DESCRIPTION = N_("What Bybit and this connection say about themselves")
 
 ENDPOINT_TITLES = {
     "bybit": N_("Bybit"),
     "bytick": N_("Bybit, through bytick.com"),
+    "bybit_key": N_("Bybit, with an API key"),
     "testnet": N_("Testnet"),
+    "testnet_key": N_("Testnet, with an API key"),
 }
+
+
+async def _key(session: BybitSession) -> Rows:
+    """What Bybit says the connection's key may do (D431)."""
+    info = await key_info(session)
+    yes, no = say("yes"), say("no")
+    rows: Rows = [(say("read only"), yes if info.get("readOnly") == 1 else no)]
+    rows += [
+        (say(word), yes if granted(info, group) else no)
+        for group, word in PERMISSION_GROUPS
+    ]
+    ips = info.get("ips")
+    limited = isinstance(ips, list) and bool(ips) and ips != ["*"]
+    rows.append((say("limited to listed addresses"), yes if limited else no))
+    for field, word in (("createdAt", N_("created")), ("expiredAt", N_("expires"))):
+        value = info.get(field)
+        # Bybit dates a key that never expires at the epoch.
+        if isinstance(value, str) and value and not value.startswith("1970"):
+            rows.append((say(word), value))
+    return rows
 
 
 async def _status(session: BybitSession) -> Rows:
@@ -59,6 +82,13 @@ REPORTS: tuple[ExchangeReport[BybitSession], ...] = (
         N_("Markets"),
         N_("How many symbols trade and in how many quote assets"),
         market_rows,
+    ),
+    ExchangeReport(
+        "key",
+        N_("API key"),
+        N_("What Bybit lets this connection's key do"),
+        _key,
+        keyed=True,
     ),
 )
 

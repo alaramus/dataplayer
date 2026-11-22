@@ -20,6 +20,7 @@ the [Connections](connections.md) page.
 - The rate limit and Bybit's answers on a dashboard
 - Symbols found by name or by asset
 - A symbol's trades or candles carried by a pipeline, only what is new each run
+- With a key: balances, positions, orders, own trades, deposits, withdrawals
 
 ## What you can change
 
@@ -33,6 +34,8 @@ The **Connection** page of the window asks for the **Endpoint**:
 - **Bybit, through bytick.com** — the same service under its second name,
   for a network that cannot reach the first;
 - **Testnet** — Bybit's test network, with prices of its own.
+- **Bybit, with an API key** and **Testnet, with an API key** — the same
+  hosts, and the unified account the key belongs to as well.
 
 Bybit refuses some countries, the United States among them. If the check says
 Bybit does not serve this region, or refuses this address, the DataPlayer
@@ -101,6 +104,21 @@ the last one, and a pipeline switched on carries it within seconds.
 - A table the link makes is keyed by the trade **id** or the candle
   **open_time**, so nothing arrives twice.
 
+## Your account
+
+With a key, each market holds **Account**: **Balances** of the unified
+wallet, the same in every market; **Positions** on futures; **Open orders**;
+and on spot **Deposits** and **Withdrawals** of the last thirty days. A
+symbol adds **My orders** and **My trades** of the last seven days. **My
+trades** can start a pipeline's link, as **Trades** can.
+
+- Make the key on Bybit as read-only. A key that may also trade or move money
+  is accepted and the check says so: DataPlayer only reads, but a read-only
+  key is safer.
+- If the key is limited to addresses, add the DataPlayer server's.
+- **API key** in **Exchange** says what Bybit lets the key do.
+- Withdrawals are answered for the main account's key only.
+
 ## Exchange
 
 - **Status**: the endpoint, and whether each market answers.
@@ -110,6 +128,8 @@ the last one, and a pipeline switched on carries it within seconds.
   used, where DataPlayer stops, and whether requests are held.
 - **Markets**: how many symbols trade, in how many quote assets, and when the
   list was read; it is read again after an hour.
+- **API key**: whether the key is read-only, what Bybit lets it do, and
+  whether it is limited to addresses.
 
 ## Dashboards and search
 

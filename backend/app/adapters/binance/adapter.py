@@ -38,7 +38,7 @@ from app.adapters.catalog import FeedName
 from app.adapters.export import ExportRequest
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.live import LiveRows
-from app.adapters.market.adapter import MarketAdapter
+from app.adapters.market.adapter import MarketAdapter, key_checked
 from app.adapters.market.columns import CANDLE_COLUMNS, DEPTH_CEILING, TICKER_COLUMNS
 from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.reading_on import BookmarkAccess
@@ -78,9 +78,8 @@ class BinanceAdapter(MarketAdapter[Market]):
     async def _check_key(self, checked: ConnectionCheckResult) -> ConnectionCheckResult:
         """The key read with, and said when it may do more than read (D322).
 
-        Accepted either way: nothing changing is ever sent from here, and the
-        owner of the key decides what it is for. The testnet cannot be asked
-        what a key may do, so its key is only tried.
+        The testnet cannot be asked what a key may do, so its key is only
+        tried.
         """
         session = self._session
         try:
@@ -99,17 +98,7 @@ class BinanceAdapter(MarketAdapter[Market]):
                 message=say("Binance says this key may not read the account"),
                 error_kind="auth",
             )
-        if answer is not None and more_than_reading(answer):
-            return checked.model_copy(
-                update={
-                    "message": say(
-                        "Connection successful. This key may also trade or move "
-                        "money; DataPlayer only reads, but a key that can only "
-                        "read is safer"
-                    )
-                }
-            )
-        return checked
+        return key_checked(checked, answer is not None and more_than_reading(answer))
 
     # --- what Binance reads its own way ---------------------------------------------
 

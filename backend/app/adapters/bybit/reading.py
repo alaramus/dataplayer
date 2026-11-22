@@ -1,4 +1,5 @@
-"""A symbol's candles and trades read on by a pipeline's link (D428).
+"""A symbol's candles and trades read on by a pipeline's link (D428), and
+with a key its own trades (D431).
 
 Bybit keeps no reader's place, so the bookmark is kept by this application,
 through the store the adapter is handed, as Binance's is (D319). Its `""` is
@@ -12,6 +13,7 @@ trade's id, so a trade read twice arrives once.
 import time
 from typing import Any
 
+from app.adapters.bybit.account import MY_TRADE_COLUMNS, my_trade_row, own_trades
 from app.adapters.bybit.feeds import (
     BYBIT_CANDLE_COLUMNS,
     BYBIT_TRADE_COLUMNS,
@@ -41,7 +43,9 @@ DAY_MS = 86_400_000
 NEXT = ""
 # A month's candle is at least this long; a count of months is an upper bound.
 _SHORTEST_MS = {"1M": 28 * DAY_MS}
-_READ_ON = {"trades", "candles"}
+_READ_ON = {"trades", "candles", "my_trades"}
+# Bybit answers own trades seven days at a time, and those days by default.
+WEEK_MS = 7 * DAY_MS
 
 
 def _now_ms() -> int:
@@ -80,6 +84,8 @@ class BybitReading(MarketReading[Market]):
         place = place_in(BY_KEY, node_id)
         if place.feed not in _READ_ON or place.symbol is None:
             raise ValueError(say("Only trades and candles are read on"))
+        if place.feed == "my_trades" and not self._session.keyed:
+            raise ValueError(say("This connection has no API key"))
         await self._session.symbol(place.market, place.symbol, node_id)
         return place
 
@@ -90,7 +96,41 @@ class BybitReading(MarketReading[Market]):
         kept = await self._store().read(node_id, reader)
         if place.feed == "trades":
             return await self._unread_trades(place, node_id, kept, start)
+        if place.feed == "my_trades":
+            return await self._unread_mine(place, node_id, kept, start)
         return await self._unread_candles(place, node_id, kept, start)
+
+    async def _unread_mine(
+        self,
+        place: BybitPlace,
+        node_id: str,
+        kept: Bookmark | None,
+        start: ReadStart,
+    ) -> UnreadSpan:
+        """The key's own trades of a symbol, by time (D431).
+
+        The newest page of the last seven days says where the line is; how
+        many lie between is counted on that page only, so it is a floor.
+        """
+        assert place.symbol is not None
+        newest = await own_trades(
+            self._session, place.market, place.symbol, node_id, most=1
+        )
+        times = [milliseconds(one.get("execTime")) or 0 for one in newest]
+        now = _now_ms()
+        if kept is None or NEXT not in kept.positions:
+            begin = now - WEEK_MS if start == "earliest" else None
+        else:
+            begin = kept.positions[NEXT]
+        line = times[-1] + 1 if times else (begin if begin is not None else now)
+        begin = line if begin is None else min(begin, line)
+        between = sum(1 for one in times if begin <= one < line)
+        return UnreadSpan(
+            start=_at({NEXT: begin}),
+            line=_at({NEXT: line}),
+            count=max(between, 1 if line > begin else 0),
+            fresh=kept is None,
+        )
 
     async def _trades(self, place: BybitPlace, node_id: str) -> list[dict[str, Any]]:
         assert place.symbol is not None
@@ -182,7 +222,10 @@ class BybitReading(MarketReading[Market]):
         self, node_id: str, columns: list[str], at: Bookmark, line: Bookmark, limit: int
     ) -> ReadBlock:
         place = await self._place(node_id)
-        shape = BYBIT_TRADE_COLUMNS if place.feed == "trades" else BYBIT_CANDLE_COLUMNS
+        shape = {
+            "trades": BYBIT_TRADE_COLUMNS,
+            "my_trades": MY_TRADE_COLUMNS,
+        }.get(place.feed or "", BYBIT_CANDLE_COLUMNS)
         picked = _picked(columns, [column.name for column in shape])
         begin = at.positions.get(NEXT, 0)
         end = line.positions.get(NEXT, 0)
@@ -192,6 +235,8 @@ class BybitReading(MarketReading[Market]):
             return await self._trades_block(
                 place, node_id, picked, at, begin, end, limit
             )
+        if place.feed == "my_trades":
+            return await self._mine_block(place, node_id, picked, at, begin, end, limit)
         return await self._candles_block(place, node_id, picked, at, begin, end, limit)
 
     async def _trades_block(
@@ -219,6 +264,50 @@ class BybitReading(MarketReading[Market]):
             last = trade_time(block[-1]) or begin
             # A millisecond split by the limit is read again from its start.
             split = bool(rest) and trade_time(rest[0]) == last and last > begin
+            after[NEXT] = last if split else last + 1
+        return ReadBlock(rows=rows, after=_at(after), done=after[NEXT] >= end)
+
+    async def _mine_block(
+        self,
+        place: BybitPlace,
+        node_id: str,
+        picked: list[int],
+        at: Bookmark,
+        begin: int,
+        end: int,
+        limit: int,
+    ) -> ReadBlock:
+        """Own trades of one window of at most seven days, the most Bybit
+        answers; an empty window moves the bookmark past it."""
+        assert place.symbol is not None
+        last_ms = min(end - 1, begin + WEEK_MS - 1)
+        found = await own_trades(
+            self._session,
+            place.market,
+            place.symbol,
+            node_id,
+            {"startTime": str(begin), "endTime": str(last_ms)},
+        )
+        within = [
+            one
+            for one in found
+            if begin <= (milliseconds(one.get("execTime")) or 0) <= last_ms
+        ]
+        block, rest = within[:limit], within[limit:]
+        rows = [
+            [full[index] for index in picked]
+            for full in (my_trade_row(place.market, one) for one in block)
+        ]
+        after = dict(at.positions)
+        if not block:
+            after[NEXT] = last_ms + 1
+        else:
+            last = milliseconds(block[-1].get("execTime")) or begin
+            split = (
+                bool(rest)
+                and milliseconds(rest[0].get("execTime")) == last
+                and last > begin
+            )
             after[NEXT] = last if split else last + 1
         return ReadBlock(rows=rows, after=_at(after), done=after[NEXT] >= end)
 
@@ -259,7 +348,7 @@ class BybitReading(MarketReading[Market]):
     def row_key(self, node_id: str) -> list[str]:
         """A trade is named by its id, a candle of a series by its open time."""
         feed = place_in(BY_KEY, node_id).feed
-        return ["id"] if feed == "trades" else ["open_time"]
+        return ["id"] if feed in {"trades", "my_trades"} else ["open_time"]
 
     async def mark_read(self, node_id: str, reader: str, at: Bookmark) -> None:
         place_in(BY_KEY, node_id)

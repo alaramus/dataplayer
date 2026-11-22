@@ -48,9 +48,7 @@ PING = json.dumps({"op": "ping"})
 BOOK_EVERY_SECONDS = 0.25
 
 
-def stream_spec(
-    endpoint: str, market: Market, symbol: str, interval: str
-) -> StreamSpec:
+def stream_spec(hosts: str, market: Market, symbol: str, interval: str) -> StreamSpec:
     """The category's public socket, subscribed to one symbol's four topics.
 
     A topic Bybit does not know makes it drop the whole subscription on spot,
@@ -64,7 +62,7 @@ def stream_spec(
     ]
     subscribe = json.dumps({"op": "subscribe", "args": topics})
     return StreamSpec(
-        url=f"{STREAM_HOSTS[endpoint]}/v5/public/{market.key}",
+        url=f"{STREAM_HOSTS[hosts]}/v5/public/{market.key}",
         greeting=(subscribe,),
         ping=PING,
         ping_seconds=20.0,
@@ -151,9 +149,7 @@ class BybitWatch:
 
     def streams(self) -> Sequence[StreamSpec]:
         return [
-            stream_spec(
-                self._session.endpoint, self._market, self._symbol, self._interval
-            )
+            stream_spec(self._session.hosts, self._market, self._symbol, self._interval)
         ]
 
     async def snapshot(self) -> list[LiveRows]:

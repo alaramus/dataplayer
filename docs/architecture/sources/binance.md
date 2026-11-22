@@ -212,8 +212,8 @@ Spec: [Binance's COIN-M futures](../../decisions/2026-11-09-binance-coin-m-desig
 - **A key is an endpoint of its own**: `binance_key` and `testnet_key`, with
   `api_key` and `api_secret` as `SecretStr` (D4, for Redis's reason, D16).
   `HOSTS_OF` maps them to the plain endpoints' hosts.
-- **Signed** by `BinanceSession.signed`: `timestamp` from this server's clock
-  plus Binance's offset (measured from `time`, kept an hour), `recvWindow`
+- **Signed** by the shared `MarketSession.signed` (D431), Binance saying
+  how: `timestamp` from this server's clock plus Binance's offset (measured from `time`, kept an hour), `recvWindow`
   10 s, HMAC-SHA256 of the query, the key in `X-MBX-APIKEY`. A `-1021`
   measures the clock again and sends once more — the only request sent
   twice. A refused key is `auth`, in words that name no key.

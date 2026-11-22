@@ -72,7 +72,7 @@ INVERSE = Market(
 
 BY_KEY: dict[str, Market] = {"spot": SPOT, "linear": LINEAR, "inverse": INVERSE}
 
-# Where each endpoint's REST and public streams are.
+# Where each set of hosts has its REST and public streams.
 HOSTS: dict[str, str] = {
     "bybit": "https://api.bybit.com",
     "bytick": "https://api.bytick.com",
