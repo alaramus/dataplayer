@@ -7,7 +7,7 @@ connection reports, measures and finds. What Bybit shares with every exchange
 is in [market.md](market.md); the contract every source keeps is in
 [contract.md](contract.md).
 
-Decisions here: D426, D427, D428, D430.
+Decisions here: D426, D427, D428, D429, D430.
 
 ## D426. Bybit's public market data over v5 REST, its requests counted here
 
@@ -121,6 +121,36 @@ Known deviations:
   when a block was cut inside a millisecond.
 - **A link run less often than a busy symbol makes a thousand trades loses
   trades**; switched on (D315) it reads them within seconds.
+
+Spec: [A Bybit source, and what exchanges share](../../decisions/2026-11-22-bybit-source-design.md)
+
+## D429. A symbol's market watched live from Bybit's public streams
+
+- **The shared watch** (D323, D425): the symbol's Market node, the socket of
+  `/api/v1/watch`, rows in the grid's columns part by part.
+- **One socket a symbol and interval** on the category's
+  `/v5/public/<category>`, told on opening to subscribe to
+  `publicTrade.S`, `orderbook.50.S`, `kline.<interval>.S` and `tickers.S`,
+  and sent `{"op":"ping"}` every twenty seconds. The subscription is sent
+  again after every reconnect. A topic Bybit does not know drops the whole
+  subscription on spot, so only these four are ever asked.
+- **The snapshot over REST**: the day, 300 candles, the book of fifty and
+  the newest hundred trades.
+- **The book is kept** by each watch from the REST snapshot, Bybit's deltas
+  laid over it (a size of 0 removes a level) and reset by a snapshot from
+  the stream; twenty levels a side are sent whole, at most four times a
+  second — Bybit pushes fifty levels every 20 ms.
+- **The ticker is kept** and a futures delta's fields laid over it.
+- **Trades the snapshot held are left out** by their time and id.
+- A 403 or 451 when the socket opens ends the watch in words; other drops
+  reconnect, as Binance's do.
+
+Known deviations:
+
+- **A watcher that joins a socket already open starts its book from REST**:
+  the stream's snapshot went to the first; the book is exact again at the
+  next snapshot Bybit sends, and close to it before.
+- **The book is sent at most four times a second**, not at Bybit's pace.
 
 Spec: [A Bybit source, and what exchanges share](../../decisions/2026-11-22-bybit-source-design.md)
 

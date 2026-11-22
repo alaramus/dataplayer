@@ -156,7 +156,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/docker](docs/architecture/sources/docker.md) | D405–D418, D422, D423 |
 | [sources/views](docs/architecture/sources/views.md) | D419–D421, D424 |
 | [sources/market](docs/architecture/sources/market.md) | D425 |
-| [sources/bybit](docs/architecture/sources/bybit.md) | D426–D428, D430 |
+| [sources/bybit](docs/architecture/sources/bybit.md) | D426–D430 |
 
 ## Working rules
 
