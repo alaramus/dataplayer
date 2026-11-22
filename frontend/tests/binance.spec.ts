@@ -44,6 +44,29 @@ async function binanceConnection(page: Page, api: Api, name: string): Promise<st
   return id
 }
 
+async function latestSpotTradeId(page: Page, api: Api, connectorId: string): Promise<number> {
+  const response = await page.request.post(
+    `${api.base}/connectors/${connectorId}/fetch?refresh=true`,
+    {
+      headers: api.headers,
+      data: { node_id: "spot:symbol:BTCUSDT:trades", limit: 1 },
+    },
+  )
+  if (!response.ok()) {
+    throw new Error(
+      `Could not read the latest BTCUSDT trade: ${await response.text()}`,
+    )
+  }
+  const result = (await response.json()) as {
+    columns: { name: string }[]
+    rows: (string | null)[][]
+  }
+  const idColumn = result.columns.findIndex((column) => column.name === "id")
+  const id = idColumn < 0 ? null : result.rows[0]?.[idColumn]
+  if (id === null || id === undefined) throw new Error("Binance returned no BTCUSDT trade id")
+  return Number(id)
+}
+
 /**
  * Binance's public market data in the catalog and the grid (D316–D318): a
  * market holds its lists and quote assets, a symbol its feeds, and a feed
@@ -131,13 +154,14 @@ test("watches a symbol's market live", async ({ page }) => {
  * by the trade id, the bookmark kept by DataPlayer (D319).
  */
 test("reads a symbol's trades into a table its link makes, each trade once", async ({ page }) => {
+  test.setTimeout(120_000)
   const stamp = Date.now()
   const name = `e2e-binance-pipe-${stamp}`
   const database = `e2e-binance-db-${stamp}`
   const table = `e2e_trades_${stamp}`
   await login(page)
   const api = await signedApi(page)
-  await binanceConnection(page, api, name)
+  const connectorId = await binanceConnection(page, api, name)
   await createPostgresConnector(page, database)
 
   await page.getByTestId("space-pipelines").click()
@@ -180,7 +204,15 @@ test("reads a symbol's trades into a table its link makes, each trade once", asy
   await expect(panel.getByTestId("link-panel-reader")).toContainText("dataplayer-link-")
   await page.screenshot({ path: "test-results/binance-pipeline.png" })
 
-  // BTCUSDT trades every second; the next run adds only what came since.
+  // The first run bookmarks the current line. Wait until Binance advances it
+  // so the next run has a real trade to add, rather than correctly reporting
+  // that nothing changed between two fast requests.
+  const firstLine = await latestSpotTradeId(page, api, connectorId)
+  await expect.poll(
+    () => latestSpotTradeId(page, api, connectorId),
+    { timeout: 60_000, intervals: [1_000, 2_000, 5_000] },
+  ).toBeGreaterThan(firstLine)
+
   await runOnce(page)
   await expect(result).toContainText("new messages added", { timeout: 60_000 })
   await expect(result).not.toContainText("the table was made")
