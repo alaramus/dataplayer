@@ -25,9 +25,10 @@ worded by the route that hands the schema out (D226).
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.adapters.tls import TlsOptionsWithFallback
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_
 
@@ -44,12 +45,12 @@ def _auth_method_field(method: str) -> Any:
     return Field(default=method, title=N_("Authentication"), json_schema_extra=layout())
 
 
-class _PostgresBase(BaseModel):
+class _PostgresBase(TlsOptionsWithFallback):
     """Where the server is, whichever way one authenticates to it.
 
     Inherited rather than repeated so that the form can tell the address is
     the same field in both variants and draw it once — see `readSchema` on the
-    client.
+    client. TLS is on a page of its own, libpq's `prefer` by default (D446).
     """
 
     # A default rather than an empty box: a database on the same machine is

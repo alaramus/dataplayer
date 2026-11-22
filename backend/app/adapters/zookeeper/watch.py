@@ -20,7 +20,7 @@ from kazoo.recipe.watchers import ChildrenWatch, DataWatch
 from starlette.concurrency import run_in_threadpool
 
 from app.adapters.changes import Changed, ChangeSink
-from app.adapters.zookeeper.session import ZookeeperSession
+from app.adapters.zookeeper.session import ZookeeperSession, release_files
 from app.adapters.zookeeper.znodes import checked_path
 
 logger = logging.getLogger(__name__)
@@ -144,6 +144,8 @@ def _stop(client: KazooClient) -> None:
         client.close()
     except Exception:  # noqa: BLE001 - a session that already dropped
         logger.debug("ZooKeeper watch session did not close cleanly", exc_info=True)
+    finally:
+        release_files(client)
 
 
 async def open_watch(session: ZookeeperSession, sink: ChangeSink) -> ZookeeperWatch:

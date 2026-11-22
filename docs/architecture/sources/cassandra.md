@@ -33,8 +33,8 @@ is not used. Behind published ports, a NAT or an SSH tunnel (D282) those
 addresses do not answer. The driver's own copy of the schema and the token map
 is switched off; the catalog reads `system_schema`.
 
-Options are host, port (9042), TLS with the certificate verified against the
-host in the form — through a tunnel too, — a user and password or none, an
+Options are host, port (9042), the shared TLS block ([D446](cloud-auth.md)), the name checked
+being the host in the form — through a tunnel too, — a user and password or none, an
 optional keyspace where the catalog opens, and a consistency level from a
 closed list (`LOCAL_ONE` unless chosen). `cassandra://`, `scylla://` and
 `cql://` addresses are parsed. Cassandra 4.0 and ScyllaDB 5.4 are the floor.
@@ -43,7 +43,6 @@ Known deviations:
 
 - A read goes to the node named, not to a replica of its partition.
 - ScyllaDB is not reached through its shard-aware port.
-- A self-signed certificate cannot be trusted; TLS is verified or off.
 
 Spec: [A Cassandra and ScyllaDB source](../../decisions/2026-11-10-cassandra-source-design.md)
 

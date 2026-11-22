@@ -14,6 +14,7 @@ environment anywhere else is refused by `tests/test_services.py`.
 
 import os
 import socket
+import ssl
 import struct
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -52,6 +53,9 @@ class _Protocol:
     hello: bytes
     # How the first byte of a live server's reply may start.
     replies: tuple[bytes, ...]
+    # Said inside TLS, its certificate not checked: a server that speaks only
+    # TLS closes a plain socket without a word.
+    tls: bool = False
 
 
 # A port that accepts is not a server that answers: Docker Desktop accepts on a
@@ -63,6 +67,7 @@ _PROTOCOLS = {
     "postgresql": _Protocol(5432, struct.pack("!ii", 8, 80877103), (b"S", b"N")),
     # PING is answered without the password too, if only with -NOAUTH.
     "redis": _Protocol(6379, b"PING\r\n", (b"+", b"-")),
+    "rediss": _Protocol(6379, b"PING\r\n", (b"+", b"-"), tls=True),
     # An SSH server speaks first, with its version line; saying ours is polite
     # and changes nothing.
     "ssh": _Protocol(22, b"SSH-2.0-dataplayer-probe\r\n", (b"S",)),
@@ -231,6 +236,35 @@ def docker_tls_certificates() -> Path:
         os.environ.get(
             "TEST_DOCKER_TLS_CERTS",
             str(Path(__file__).resolve().parents[3] / "deploy/docker-tls/certs/client"),
+        )
+    )
+
+
+# A PostgreSQL that accepts only TLS, and Redis that speaks only TLS with an
+# ACL user, both with certificates pg-tls makes on first start (`pg-tls` and
+# `redis-tls` in compose.override.yml, D446).
+PG_TLS = Server(
+    name="the PostgreSQL that accepts only TLS",
+    variable="TEST_PG_TLS_URL",
+    start="docker compose up -d pg-tls",
+    read=lambda: os.environ.get(
+        "TEST_PG_TLS_URL", "postgresql://postgres:dataplayer@127.0.0.1:5442/postgres"
+    ),
+)
+REDIS_TLS = Server(
+    name="the Redis that speaks only TLS",
+    variable="TEST_REDIS_TLS_URL",
+    start="docker compose up -d redis-tls",
+    read=lambda: os.environ.get("TEST_REDIS_TLS_URL", "rediss://reader:dataplayer@127.0.0.1:6390/0"),
+)
+
+
+def tls_test_certificates() -> Path:
+    """Where pg-tls left its ca.crt, client.crt, client.key and client-encrypted.key."""
+    return Path(
+        os.environ.get(
+            "TEST_TLS_CERTS",
+            str(Path(__file__).resolve().parents[3] / "deploy/tls-test/certs"),
         )
     )
 
@@ -427,6 +461,8 @@ SERVERS = (
     SSH,
     DOCKER_REMOTE,
     DOCKER_TLS,
+    PG_TLS,
+    REDIS_TLS,
     MYSQL,
     MARIADB,
     CLICKHOUSE,
@@ -481,6 +517,13 @@ def _protocol(scheme: str) -> _Protocol:
 
 
 @cache
+def _unverified() -> ssl.SSLContext:
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    return context
+
+
 def _answers(url: str) -> bool:
     parts = urlsplit(url)
     protocol = _protocol(parts.scheme)
@@ -489,7 +532,8 @@ def _answers(url: str) -> bool:
     try:
         with socket.create_connection(
             (parts.hostname, parts.port or protocol.port), timeout=PROBE_SECONDS
-        ) as connection:
+        ) as plain:
+            connection = _unverified().wrap_socket(plain) if protocol.tls else plain
             connection.sendall(protocol.hello)
             reply = connection.recv(1)
     except OSError:

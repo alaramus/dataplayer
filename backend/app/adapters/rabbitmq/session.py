@@ -17,6 +17,7 @@ import ssl
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from typing import Any, Literal
 from urllib.parse import quote, urlsplit
 
@@ -34,6 +35,7 @@ from app.adapters.protocol import (
 )
 from app.adapters.rabbitmq.content import json_document
 from app.adapters.rabbitmq.options import RabbitmqOptions
+from app.adapters.tls import ssl_context
 from app.adapters.tunnels import TunnelAccess, reach, tunnel_of
 from app.core.logs import record_failure, with_ref
 from app.core.translation import say
@@ -88,16 +90,12 @@ class RabbitmqSession:
     def tunneled(self) -> bool:
         return tunnel_of(self._options.ssh_tunnel) is not None
 
-    async def _reach(self, host: str, port: int, secure: bool, door: Literal["http", "amqp"]) -> tuple[str, int]:
-        """Where to dial `host:port` now: through the tunnel when there is one."""
-        if secure and self.tunneled:
-            # A certificate names the server, not a port on this loopback.
-            raise AdapterError(
-                "config",
-                say("Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already")
-                if door == "http"
-                else say("Through an SSH tunnel, connect without TLS: the tunnel encrypts it already"),
-            )
+    async def _reach(self, host: str, port: int) -> tuple[str, int]:
+        """Where to dial `host:port` now: through the tunnel when there is one.
+
+        TLS goes through a tunnel too: the context checks the certificate
+        against the name in the form, not the loopback dialled (D448).
+        """
         return await reach(self._tunnels, self._options.ssh_tunnel, host, port)
 
     async def _base_url(self) -> str:
@@ -108,26 +106,32 @@ class RabbitmqSession:
         parts = urlsplit(management)
         secure = parts.scheme == "https"
         port = parts.port or (443 if secure else 80)
-        address, local = await self._reach(
-            str(parts.hostname), port, secure, door="http"
-        )
+        address, local = await self._reach(str(parts.hostname), port)
         host = f"[{address}]" if ":" in address else address
         return f"{parts.scheme}://{host}:{local}{parts.path}"
 
-    def _ssl_context(self) -> ssl.SSLContext:
-        context = ssl.create_default_context()
-        if self._options.ca_certificate.strip():
-            context.load_verify_locations(cadata=self._options.ca_certificate)
+    def _ssl_context(self, server_name: str) -> ssl.SSLContext:
+        """The TLS block's context (D446), the name checked being `server_name`.
+
+        The management API is HTTPS whenever its address says so, checked as
+        the block says, or fully when the block leaves TLS off for AMQP.
+        """
+        settings = self._options.tls()
+        if not settings.enabled:
+            settings = replace(settings, mode="verify_full")
+        context = ssl_context(settings, server_name=server_name)
+        assert context is not None  # noqa: S101 - TLS is on in `settings`
         return context
 
     async def _client(self) -> httpx.AsyncClient:
         options = self._options
-        secure = options.management().startswith("https://")
+        management = urlsplit(options.management())
+        secure = management.scheme == "https"
         base = await self._base_url()
         return httpx.AsyncClient(
             base_url=base + "/api",
             auth=(options.user, options.password.get_secret_value()),
-            verify=self._ssl_context() if secure else False,
+            verify=self._ssl_context(str(management.hostname)) if secure else False,
             timeout=TIMEOUT_SECONDS,
             # A proxy named in the backend's environment is not the user's to
             # send their password through.
@@ -221,9 +225,8 @@ class RabbitmqSession:
         """An AMQP channel on a connection of its own to a virtual host — the
         node's, or the connection's — closed after."""
         options = self._options
-        host, port = await self._reach(
-            options.host, options.port, options.tls, door="amqp"
-        )
+        host, port = await self._reach(options.host, options.port)
+        tls = options.tls().enabled
         try:
             connection = await aio_pika.connect(
                 host=host,
@@ -231,8 +234,8 @@ class RabbitmqSession:
                 login=options.user,
                 password=options.password.get_secret_value(),
                 virtualhost=vhost or options.vhost or "/",
-                ssl=options.tls,
-                ssl_context=self._ssl_context() if options.tls else None,
+                ssl=tls,
+                ssl_context=self._ssl_context(options.host) if tls else None,
                 timeout=TIMEOUT_SECONDS,
                 client_properties={"connection_name": "DataPlayer"},
                 connection_class=_ClosingConnection,

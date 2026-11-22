@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from app.adapters.clickhouse.options import ClickhouseOptions, ClickhouseUserPassword
 from app.adapters.clickhouse.session import ClickhouseSession, read_profile
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
+from app.adapters.tls import with_program_files
 from app.adapters.tunnels import backup_through
 from app.core.translation import say
 
@@ -45,7 +46,18 @@ KINDS = ("table", "view", "materialized")
 
 what, base, user, database, path = sys.argv[1:6]
 headers = {"X-ClickHouse-User": user, "X-ClickHouse-Key": os.environ.get("CLICKHOUSE_PASSWORD", "")}
-context = ssl.create_default_context() if base.startswith("https") else None
+context = None
+if base.startswith("https"):
+    # The connection's TLS block (D446): its mode, and PEMs written by the shell.
+    mode = os.environ.get("DP_TLS_MODE", "verify_full")
+    ca = "/tmp/dp-tls/ca.pem"
+    context = ssl.create_default_context(cafile=ca if os.path.exists(ca) else None)
+    if mode != "verify_full":
+        context.check_hostname = False
+    if mode == "required":
+        context.verify_mode = ssl.CERT_NONE
+    if os.path.exists("/tmp/dp-tls/cert.pem"):
+        context.load_cert_chain("/tmp/dp-tls/cert.pem", "/tmp/dp-tls/key.pem")
 
 
 class Refused(Exception):
@@ -334,11 +346,11 @@ class ClickhouseBackup:
             raise ValueError(offer.reason)
         self._release = (await self._session.profile()).version
         options = self._options
-        scheme = "https" if options.secure else "http"
+        settings = options.tls()
+        scheme = "https" if settings.enabled else "http"
         host = f"[{options.host}]" if ":" in options.host else options.host
-        return BackupProgram(
-            image=IMAGE,
-            argv=(
+        argv, files = with_program_files(
+            (
                 "python",
                 "-I",
                 "-c",
@@ -349,7 +361,16 @@ class ClickhouseBackup:
                 options.database,
                 path,
             ),
-            environment=self._environment(),
+            settings,
+        )
+        return BackupProgram(
+            image=IMAGE,
+            argv=argv,
+            environment={
+                **self._environment(),
+                **files,
+                **({"DP_TLS_MODE": settings.mode} if settings.enabled else {}),
+            },
         )
 
     def _environment(self) -> dict[str, str]:

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { OPTIONS_PAGE, PERMISSIONS_PAGE, windowPages } from "./windowPages"
+import { OPTIONS_PAGE, PERMISSIONS_PAGE, TLS_PAGE, windowPages } from "./windowPages"
 
 describe("the pages of a connection window", () => {
   it("puts what this application asks after how to reach the connection", () => {
@@ -27,6 +27,14 @@ describe("the pages of a connection window", () => {
     // the order it declared them.
     expect(windowPages([{ id: "general" }, { id: "tunnel" }]).map((page) => page.label))
       .toEqual(["Connection", "Tunnel", "Options", "Permissions"])
+  })
+
+  it("names the TLS block's page as the acronym it is (D446)", () => {
+    expect(windowPages([{ id: "general" }, { id: TLS_PAGE }]).map((page) => page.label))
+      .toEqual(["Connection", "TLS", "Options", "Permissions"])
+    // Its fields are inherited, so they arrive first; the connection page stays first.
+    expect(windowPages([{ id: TLS_PAGE }, { id: "general" }]).map((page) => page.id))
+      .toEqual(["general", TLS_PAGE, "options", "permissions"])
   })
 
   it("keeps its own pages distinct from a source's groups of the same names", () => {

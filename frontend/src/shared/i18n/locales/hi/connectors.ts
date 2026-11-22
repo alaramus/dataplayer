@@ -40,6 +40,7 @@ export const connectors: Messages["connectors"] = {
     connection: "कनेक्शन",
     options: "विकल्प",
     permissions: "अनुमतियाँ",
+    tls: "TLS",
   },
   new_connection: "नया कनेक्शन",
   catalog_dialog: {

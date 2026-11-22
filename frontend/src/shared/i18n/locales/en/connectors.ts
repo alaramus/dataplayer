@@ -38,6 +38,7 @@ export const connectors = {
     connection: "Connection",
     options: "Options",
     permissions: "Permissions",
+    tls: "TLS",
   },
   new_connection: "New connection",
   catalog_dialog: {

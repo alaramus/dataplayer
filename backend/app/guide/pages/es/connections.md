@@ -100,6 +100,19 @@ La ventana tiene al menos tres páginas.
 Cómo llegar a la fuente. Los campos dependen del tipo de fuente y se describen
 en su página. Una opción de **Autenticación** cambia qué campos se muestran.
 
+### TLS
+
+Cómo se cifra la conexión con una fuente que es un servidor. **TLS** puede ser
+**Desactivado**, **Obligatorio, sin verificar**, **Verificar CA** — quién firmó
+el certificado del servidor — o **Verificar todo**, que comprueba también el
+nombre. PostgreSQL y MySQL ofrecen además **Cuando el servidor lo ofrece**, su
+valor predeterminado. Las **Autoridades de confianza** son las del sistema, un
+**Certificado de la CA** que pegue o las de Amazon RDS. Un **Certificado de
+cliente** y su **Clave de cliente** le identifican donde el servidor lo pide;
+una clave cifrada necesita su **Frase de contraseña de la clave**. La clave se
+guarda cifrada y no vuelve a mostrarse; vaciar el certificado quita también la
+clave.
+
 ### Opciones
 
 **Conservar respuestas** indica cuánto tiempo se puede reutilizar un nivel del

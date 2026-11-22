@@ -253,7 +253,7 @@ class ClickhouseAdapter:
             port=_as_port(options.get("port")),
             user=_as_text(options.get("user")),
             database=_as_text(options.get("database")),
-            secure=options.get("secure") is True,
+            secure=options.get("tls_mode", "disabled") != "disabled",
         )
 
     @classmethod
@@ -267,7 +267,7 @@ class ClickhouseAdapter:
             port=_as_port(options.get("port")),
             user=_as_text(options.get("user")),
             database=_as_text(options.get("database")),
-            secure=options.get("secure") is True,
+            secure=options.get("tls_mode", "disabled") != "disabled",
             password=password if isinstance(password, str) else "",
         )
 

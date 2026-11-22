@@ -14,9 +14,7 @@ host paths and digests, and httpx's the address.
 import asyncio
 import json
 import logging
-import os
 import ssl
-import tempfile
 import time
 from collections.abc import Mapping
 from typing import Any
@@ -38,6 +36,7 @@ from app.adapters.docker_api.client import (
 from app.adapters.docker_api.hijack import UpgradeRefused, upgrade_request
 from app.adapters.docker_api.hijack import upgraded as read_upgrade
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
+from app.adapters.tls import TlsSettings, ssl_context
 from app.adapters.tunnels import TunnelAccess, tunnel_of
 from app.core.translation import say
 
@@ -82,31 +81,18 @@ def spoken(daemon: tuple[int, int]) -> tuple[int, int]:
 def tls_context(options: DockerTlsOptions) -> ssl.SSLContext:
     """The daemon's CA trusted, and the client's certificate and key offered.
 
-    The standard library loads a certificate chain only from files, so the
-    two are written to a directory only this process may read and removed
-    before this returns. Blocking: called in a thread.
+    The shared TLS helper's context, fully verified (D446, D447). Blocking:
+    called in a thread.
     """
-    try:
-        made = ssl.create_default_context(cadata=options.ca_certificate)
-    except ssl.SSLError:
-        raise AdapterError("config", say("The CA certificate could not be read")) from None
-    with tempfile.TemporaryDirectory(prefix="dp-docker-") as folder:
-        certificate = os.path.join(folder, "cert.pem")
-        key = os.path.join(folder, "key.pem")
-        for path, text in (
-            (certificate, options.client_certificate),
-            (key, options.client_key.get_secret_value()),
-        ):
-            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(descriptor, "w", encoding="utf-8") as file:
-                file.write(text)
-        try:
-            made.load_cert_chain(certificate, key)
-        except ssl.SSLError:
-            raise AdapterError(
-                "config",
-                say("The client certificate and key could not be read, or are not a pair"),
-            ) from None
+    made = ssl_context(
+        TlsSettings(
+            mode="verify_full",
+            ca=options.ca_certificate,
+            client_certificate=options.client_certificate,
+            client_key=options.client_key.get_secret_value(),
+        )
+    )
+    assert made is not None  # noqa: S101 - TLS is on
     return made
 
 

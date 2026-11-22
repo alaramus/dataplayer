@@ -30,3 +30,4 @@ backend/htmlcov/
 
 # Per-person Claude Code settings
 .claude/settings.local.json
+/deploy/tls-test/certs/

@@ -42,7 +42,7 @@ async def _connector(
             "name": f"mysql {uuid.uuid4()}",
             "adapter_type": "mysql",
             "options": {
-                **options.model_dump(exclude={"password"}),
+                **options.model_dump(exclude={"password", "tls_client_key", "tls_client_key_passphrase"}),
                 "password": options.password.get_secret_value(),
             },
         },

@@ -36,7 +36,7 @@ from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key
 from app.adapters.redis.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.redis.metrics import RedisMetrics
 from app.adapters.redis.model import RedisModel
-from app.adapters.redis.options import RedisOptions, container_options
+from app.adapters.redis.options import RedisOptions, RedisPassword, container_options
 from app.adapters.redis.reports import (
     REPORTS as SYSTEM_REPORTS,
 )
@@ -125,10 +125,13 @@ class RedisAdapter:
 
     def connection_string(self) -> str:
         """Where this connects, for a person to copy. Never the password."""
+        options = self._options
         return compose_url(
-            host=self._options.host,
-            port=self._options.port,
-            database=self._options.database,
+            host=options.host,
+            port=options.port,
+            database=options.database,
+            user=options.user if isinstance(options, RedisPassword) else "",
+            tls=options.tls().enabled,
         )
 
     @classmethod
@@ -147,10 +150,13 @@ class RedisAdapter:
         host = options.get("host")
         if not isinstance(host, str) or host == "":
             return None
+        user = options.get("user") if options.get("auth_method") == "password" else ""
         return compose_url(
             host=host,
             port=_as_number(options.get("port")),
             database=_as_number(options.get("database")),
+            user=user if isinstance(user, str) else "",
+            tls=options.get("tls_mode", "disabled") != "disabled",
         )
 
     @classmethod
@@ -165,6 +171,7 @@ class RedisAdapter:
             port=_as_number(options.get("port")),
             database=_as_number(options.get("database")),
             password=password if isinstance(password, str) else "",
+            tls=options.get("tls_mode", "disabled") != "disabled",
         )
 
     async def check_connection(self) -> ConnectionCheckResult:

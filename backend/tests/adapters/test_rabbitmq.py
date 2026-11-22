@@ -142,7 +142,7 @@ def test_a_connection_string_fills_the_form_and_is_written_back() -> None:
     assert parsed == {
         "host": "mq.example",
         "port": 5671,
-        "tls": True,
+        "tls_mode": "verify_full",
         "user": "ann",
         "password": "s@cret",
         "vhost": "/",

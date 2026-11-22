@@ -42,8 +42,10 @@ Known deviations:
 - **Field order is declaration order.** Enough to put the choice of method under
   the address, but a field that had to sit between two of its own model's would
   need an ordinal, and there is none.
-- **The mechanism has been exercised on the narrowest union.** Two variants, one
-  source type.
+- **The base of a union carries a block shared by every server source.** The
+  TLS block ([D446](cloud-auth.md)) is inherited by each base model and drawn
+  on a page of its own, so "the base holds the address alone" now means "the
+  address and the TLS page".
 
 Spec: [Ways of connecting](../../decisions/2026-08-23-connection-variants-design.md)
 

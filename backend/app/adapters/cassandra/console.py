@@ -15,6 +15,7 @@ a `%` in it is doubled; it reads the password raw.
 from app.adapters.cassandra.options import CassandraOptions, CassandraUserPassword
 from app.adapters.protocol import AdapterError
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.tls import TlsSettings, program_paths, with_program_files
 from app.adapters.tunnels import tunnel_of
 from app.core.translation import say
 
@@ -23,8 +24,11 @@ IMAGE = "cassandra:5.0"
 
 CREDENTIALS_VARIABLE = "DP_CREDENTIALS"
 CREDENTIALS_PATH = "/tmp/cqlsh-credentials"
-# Where cqlsh finds the CA bundle when TLS is checked.
+# Where cqlsh finds the CA bundle when TLS is checked against the system's.
 CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+# Its settings file, for the TLS block's `[ssl]` section (D446).
+RC_VARIABLE = "DP_CQLSHRC"
+RC_PATH = "/tmp/cqlshrc"
 
 
 def credentials(options: CassandraUserPassword) -> str:
@@ -39,6 +43,20 @@ def credentials(options: CassandraUserPassword) -> str:
     return f"[plain_text_auth]\nusername = {user.replace('%', '%%')}\npassword = {password}\n"
 
 
+def cqlshrc(settings: TlsSettings) -> str:
+    """cqlsh's `[ssl]` section: what it checks and the files it is given."""
+    paths = program_paths(settings)
+    lines = [
+        "[ssl]",
+        f"certfile = {paths.ca or CA_BUNDLE}",
+        f"validate = {'true' if settings.verifies else 'false'}",
+        f"check_hostname = {'true' if settings.mode == 'verify_full' else 'false'}",
+    ]
+    if paths.certificate and paths.key:
+        lines += [f"usercert = {paths.certificate}", f"userkey = {paths.key}"]
+    return "\n".join(lines) + "\n"
+
+
 def _script(signed_in: bool, keyspace: str, secure: bool) -> str:
     """The credentials written, the variable gone, then cqlsh in the shell's place."""
     arguments = []
@@ -47,13 +65,16 @@ def _script(signed_in: bool, keyspace: str, secure: bool) -> str:
     if keyspace:
         arguments.append('-k "$DP_KEYSPACE"')
     if secure:
-        arguments.append("--ssl")
+        arguments += ["--ssl", f"--cqlshrc={RC_PATH}"]
     head = (
         f'umask 077; printf "%s" "${CREDENTIALS_VARIABLE}" > {CREDENTIALS_PATH}; '
         f"unset {CREDENTIALS_VARIABLE}; "
         if signed_in
         else ""
     )
+    if secure:
+        head += f'printf "%s" "${RC_VARIABLE}" > {RC_PATH}; unset {RC_VARIABLE}; '
+
     return head + "exec cqlsh " + " ".join(arguments)
 
 
@@ -72,11 +93,10 @@ def console_program(options: CassandraOptions) -> ConsoleProgram:
         environment[CREDENTIALS_VARIABLE] = credentials(options)
     if options.keyspace:
         environment["DP_KEYSPACE"] = options.keyspace
-    if options.secure:
-        environment["SSL_VALIDATE"] = "true"
-        environment["SSL_CERTFILE"] = CA_BUNDLE
-    return ConsoleProgram(
-        image=IMAGE,
-        argv=("bash", "-c", _script(signed_in, options.keyspace, options.secure)),
-        environment=environment,
+    settings = options.tls()
+    if settings.enabled:
+        environment[RC_VARIABLE] = cqlshrc(settings)
+    argv, files = with_program_files(
+        ("bash", "-c", _script(signed_in, options.keyspace, settings.enabled)), settings
     )
+    return ConsoleProgram(image=IMAGE, argv=argv, environment={**environment, **files})

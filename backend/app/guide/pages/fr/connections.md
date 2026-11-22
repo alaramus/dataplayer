@@ -104,6 +104,19 @@ Comment atteindre la source. Les champs dépendent du type de source et sont
 décrits sur sa page. Un choix sous **Authentification** change les champs
 affichés.
 
+### TLS
+
+Comment la connexion à une source qui est un serveur est chiffrée. **TLS** est
+**Désactivé**, **Obligatoire, non vérifié**, **Vérifier l’AC** — qui a signé le
+certificat du serveur — ou **Tout vérifier**, qui vérifie aussi le nom qu’il
+porte. PostgreSQL et MySQL proposent en plus **Quand le serveur le propose**,
+leur valeur par défaut. Les **Autorités de confiance** sont celles du système,
+un **Certificat de l'AC** que vous collez, ou celles d’Amazon RDS. Un
+**Certificat client** et sa **Clé client** vous identifient là où le serveur
+en demande un ; une clé chiffrée demande sa **Phrase secrète de la clé**. La
+clé est conservée chiffrée et n’est plus jamais affichée ; vider le certificat
+retire la clé avec lui.
+
 ### Options
 
 **Conserver les réponses** détermine combien de temps un niveau de catalogue et

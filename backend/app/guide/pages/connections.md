@@ -92,6 +92,18 @@ How to reach the source. The fields depend on the kind of source and are
 described on its page. A choice of **Authentication** changes which fields are
 shown.
 
+### TLS
+
+How the connection is encrypted, for a source that is a server. **TLS** is
+**Off**, **Required, not verified**, **Verify CA** — who signed the server's
+certificate — or **Verify full**, which also checks the name in it.
+PostgreSQL and MySQL also offer **When the server offers it**, their default.
+**Trusted authorities** are the system's, a **CA certificate** you paste, or
+Amazon RDS's for a database there. A **Client certificate** and its **Client
+key** sign you in where the server asks for one; an encrypted key needs its
+**Key passphrase**. The key is kept encrypted and never shown again; emptying
+the certificate takes the key away with it.
+
 ### Options
 
 **Keep answers** says how long a catalog level and a page of rows may be

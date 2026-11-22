@@ -7,9 +7,10 @@ mechanism is a choice of its own rather than a field beside the password.
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import ConfigDict, Field, SecretStr, field_validator
 
 from app.adapters.layout import layout
+from app.adapters.tls import TlsOptions
 from app.core.translation import N_, say
 
 
@@ -37,7 +38,7 @@ def checked_servers(text: str) -> str:
     return ",".join(servers)
 
 
-class _KafkaBase(BaseModel):
+class _KafkaBase(TlsOptions):
     model_config = ConfigDict(extra="forbid")
 
     # The first broker that answers tells the client where every other one is,
@@ -48,19 +49,6 @@ class _KafkaBase(BaseModel):
         description=N_("host:port of one or more brokers, separated by commas"),
         min_length=1,
         json_schema_extra=layout(),
-    )
-    tls: bool = Field(
-        default=False,
-        title=N_("TLS"),
-        description=N_("Encrypted, with the brokers' certificates verified"),
-        json_schema_extra=layout(),
-    )
-    # Not secret: a CA certificate is what everybody is meant to have.
-    ca_certificate: str = Field(
-        default="",
-        title=N_("CA certificate"),
-        description=N_("PEM, for TLS; empty to trust the system's authorities"),
-        json_schema_extra=layout(multiline=True),
     )
 
     @field_validator("bootstrap_servers")

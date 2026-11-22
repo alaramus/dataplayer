@@ -142,13 +142,14 @@ class KafkaSession:
 
     def config(self) -> dict[str, Any]:
         options = self._options
+        settings = options.tls()
         sasl = not isinstance(options, KafkaNoAuth)
         protocol = {
             (False, False): "PLAINTEXT",
             (True, False): "SSL",
             (False, True): "SASL_PLAINTEXT",
             (True, True): "SASL_SSL",
-        }[(options.tls, sasl)]
+        }[(settings.enabled, sasl)]
         config: dict[str, Any] = {
             "bootstrap.servers": options.bootstrap_servers,
             "security.protocol": protocol,
@@ -156,13 +157,21 @@ class KafkaSession:
             "socket.connection.setup.timeout.ms": int(TIMEOUT_SECONDS * 1000),
             "logger": _driver_log,
         }
-        if options.tls:
-            if options.ca_certificate.strip() != "":
-                config["ssl.ca.pem"] = options.ca_certificate
+        if settings.enabled:
+            # librdkafka takes every PEM inline, so nothing is written (D446).
+            config["enable.ssl.certificate.verification"] = settings.verifies
+            config["ssl.endpoint.identification.algorithm"] = (
+                "https" if settings.mode == "verify_full" else "none"
+            )
+            if settings.ca is not None:
+                config["ssl.ca.pem"] = settings.ca
             elif os.name != "nt":
                 # Windows builds read the system store by default; elsewhere
                 # librdkafka is told to find the system's bundle itself.
                 config["ssl.ca.location"] = "probe"
+            if settings.client_certificate is not None and settings.client_key is not None:
+                config["ssl.certificate.pem"] = settings.client_certificate
+                config["ssl.key.pem"] = settings.client_key
         if not isinstance(options, KafkaNoAuth):
             config["sasl.mechanism"] = MECHANISMS[options.auth_method]
             config["sasl.username"] = options.user

@@ -32,8 +32,9 @@ La page **Connexion** de la fenêtre demande :
 - **Authentification** : un mot de passe, ou aucun.
 
 Une chaîne de connexion telle que `redis://:secret@cache.example.com:6379/0`
-collée dans **URL** remplit ces champs. Une adresse `rediss://`, qui nécessite
-TLS, n'est pas encore prise en charge.
+collée dans **URL** remplit ces champs. Une adresse `rediss://` active
+TLS entièrement vérifié, et un utilisateur avant le `@` est un utilisateur ACL ;
+le reste est sur la page **TLS**.
 
 ## Le catalogue
 

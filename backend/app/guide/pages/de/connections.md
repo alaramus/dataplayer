@@ -102,6 +102,19 @@ Wie die Quelle zu erreichen ist. Die Felder hängen von der Art der Quelle ab un
 sind auf ihrer Seite beschrieben. Eine Auswahl unter **Authentifizierung**
 ändert, welche Felder gezeigt werden.
 
+### TLS
+
+Wie die Verbindung zu einer Quelle, die ein Server ist, verschlüsselt wird.
+**TLS** ist **Aus**, **Erforderlich, nicht geprüft**, **CA prüfen** — wer das
+Zertifikat des Servers signiert hat — oder **Vollständig prüfen**, das auch
+den Namen darin prüft. PostgreSQL und MySQL bieten zusätzlich **Wenn der Server
+es anbietet**, ihre Voreinstellung. **Vertrauenswürdige Stellen** sind die des
+Systems, ein eingefügtes **CA-Zertifikat** oder die von Amazon RDS. Ein
+**Client-Zertifikat** mit seinem **Client-Schlüssel** meldet Sie an, wo der
+Server eines verlangt; ein verschlüsselter Schlüssel braucht seine
+**Passphrase des Schlüssels**. Der Schlüssel wird verschlüsselt gespeichert und
+nie wieder angezeigt; wer das Zertifikat leert, entfernt den Schlüssel mit.
+
 ### Optionen
 
 **Antworten behalten** legt fest, wie lange eine Katalogebene und eine Seite mit

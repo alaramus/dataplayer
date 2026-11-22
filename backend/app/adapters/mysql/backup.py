@@ -18,11 +18,26 @@ from collections.abc import Sequence
 from app.adapters.mysql.options import MysqlOptions, MysqlUserPassword
 from app.adapters.mysql.session import MysqlSession, ServerProfile
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
+from app.adapters.tls import program_paths, with_program_files
 from app.adapters.tunnels import backup_through
 from app.core.translation import say
 
 # The first lines a dump begins with: MariaDB's newer programs put a line that
 # turns on their sandbox mode before the heading.
+_MYSQL_TLS = {
+    "disabled": "DISABLED",
+    "preferred": "PREFERRED",
+    "required": "REQUIRED",
+    "verify_ca": "VERIFY_CA",
+    "verify_full": "VERIFY_IDENTITY",
+}
+_MARIADB_TLS = {
+    "disabled": ["--skip-ssl"],
+    "preferred": ["--skip-ssl-verify-server-cert"],
+    "required": ["--ssl", "--skip-ssl-verify-server-cert"],
+    "verify_ca": ["--ssl", "--ssl-verify-server-cert"],
+    "verify_full": ["--ssl", "--ssl-verify-server-cert"],
+}
 _HEADING = re.compile(r"-- (MySQL|MariaDB) dump [0-9]")
 _INSPECTED_LINES = 5
 
@@ -89,7 +104,7 @@ class MysqlBackup:
         if not profile.mariadb:
             argv.append("--set-gtid-purged=OFF")
         argv += [f"--result-file={into}", self._database()]
-        return BackupProgram(image=_image(profile), argv=tuple(argv), environment=self._environment())
+        return self._program(_image(profile), tuple(argv))
 
     async def restore_program(self, *, from_file: str) -> BackupProgram:
         """The client, reading the dump into the connection's database.
@@ -101,15 +116,14 @@ class MysqlBackup:
         """
         profile = await self._profile()
         program = "mariadb" if profile.mariadb else "mysql"
-        return BackupProgram(
-            image=_image(profile),
-            argv=(
+        return self._program(
+            _image(profile),
+            (
                 program,
                 *self._reach(profile),
                 f"--database={self._database()}",
                 f"--execute=source {from_file}",
             ),
-            environment=self._environment(),
         )
 
     async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
@@ -157,21 +171,35 @@ class MysqlBackup:
         self._flavour = profile.flavour
         return profile
 
+    def _program(self, image: str, argv: tuple[str, ...]) -> BackupProgram:
+        """The client, with the TLS files written before it starts (D447)."""
+        wrapped, files = with_program_files(argv, self._options.tls())
+        return BackupProgram(image=image, argv=wrapped, environment={**self._environment(), **files})
+
     def _reach(self, profile: ServerProfile) -> list[str]:
         """Where to connect, with no password: that goes in the environment.
 
-        TLS as the connection itself has it: used when the server offers it,
-        its certificate not checked (D228). MariaDB's client checks it unless
-        told not to.
+        TLS as the connection has it (D446). MySQL's client names the modes as
+        this does; MariaDB's has a switch and a check of the certificate that
+        includes its name, so Verify CA is held to the name there too.
         """
+        options = self._options
         reach = [
-            f"--host={self._options.host}",
-            f"--port={self._options.port}",
-            f"--user={self._options.user}",
+            f"--host={options.host}",
+            f"--port={options.port}",
+            f"--user={options.user}",
             "--default-character-set=utf8mb4",
         ]
+        settings = options.tls()
         if profile.mariadb:
-            reach.append("--skip-ssl-verify-server-cert")
+            reach += _MARIADB_TLS[settings.mode]
+        else:
+            reach.append(f"--ssl-mode={_MYSQL_TLS[settings.mode]}")
+        paths = program_paths(settings)
+        if settings.verifies:
+            reach.append(f"--ssl-ca={paths.ca}" if paths.ca else "--ssl-capath=/etc/ssl/certs")
+        if paths.certificate and paths.key:
+            reach += [f"--ssl-cert={paths.certificate}", f"--ssl-key={paths.key}"]
         return reach
 
     def _database(self) -> str:

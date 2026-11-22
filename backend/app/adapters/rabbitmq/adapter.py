@@ -134,7 +134,7 @@ class RabbitmqAdapter:
         """The AMQP address, as every client takes it; never a password."""
         options = self._session.options
         return _compose(
-            options.host, options.port, options.user, options.vhost, options.tls
+            options.host, options.port, options.user, options.vhost, options.tls().enabled
         )
 
     @classmethod
@@ -160,7 +160,7 @@ class RabbitmqAdapter:
         options: dict[str, Any] = {
             "host": unquote(parts.hostname),
             "port": port or (5671 if tls else 5672),
-            "tls": tls,
+            "tls_mode": "verify_full" if tls else "disabled",
         }
         if parts.username:
             options["user"] = unquote(parts.username)
@@ -179,7 +179,7 @@ class RabbitmqAdapter:
         port = options.get("port")
         user = options.get("user")
         vhost = options.get("vhost")
-        tls = options.get("tls") is True
+        tls = options.get("tls_mode", "disabled") != "disabled"
         return _compose(
             host,
             port if isinstance(port, int) else (5671 if tls else 5672),

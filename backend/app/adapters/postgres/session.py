@@ -19,6 +19,7 @@ from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.pool import pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
+from app.adapters.tls import TlsFiles, TlsSettings, program_paths
 from app.adapters.tunnels import TunnelAccess, reach, tunnel_of
 from app.core.logs import record_failure, with_ref
 from app.core.translation import N_, say
@@ -42,8 +43,21 @@ APPLICATION_NAME = "dataplayer"
 
 # Order matters: `role "x" does not exist` matches both sets, and it is a
 # credentials problem rather than a configuration one.
-_AUTH_MARKERS = ("password", "authentication", "role", "permission denied")
+_AUTH_MARKERS = (
+    "password",
+    "authentication",
+    "role",
+    "permission denied",
+    "client certificate",
+)
 _CONFIG_MARKERS = ("does not exist",)
+# libpq's words for TLS that did not hold, each answered by what to check (D446).
+_TLS_REFUSALS = (
+    ("does not support ssl", N_("The server does not offer TLS, which this connection requires")),
+    ("certificate verify failed", N_("The server's certificate could not be verified")),
+    ("does not match host name", N_("The server's certificate is for another name")),
+    ("ssl error", N_("The TLS handshake with the server failed")),
+)
 
 
 def classify(
@@ -70,6 +84,9 @@ def classify(
             return "auth", say("Authentication failed")
         if any(marker in text for marker in _CONFIG_MARKERS):
             return "config", say("Database does not exist")
+        for marker, sentence in _TLS_REFUSALS:
+            if marker in text:
+                return "config", say(sentence)
         return "network", say("Could not reach the database server")
     ref = record_failure(logger, f"PostgreSQL: {fallback_message}", exc)
     return "unknown", with_ref(say(fallback_message), ref)
@@ -355,18 +372,35 @@ class PostgresSession:
         self._pooling = pooling
         self._tunnels = tunnels
 
-    async def _conninfo(self) -> str:
-        """The conninfo to dial now: through the tunnel when there is one (D282)."""
+    async def _address(self) -> tuple[str, int]:
+        """Where to dial now: through the tunnel when there is one (D282)."""
         options = self._options
-        return self.conninfo(
-            await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
-        )
+        return await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
 
-    def conninfo(self, address: tuple[str, int] | None = None) -> str:
+    async def _connect_directly(self) -> psycopg.AsyncConnection[Any]:
+        """One connection of its own; its key files go once it is open (D447)."""
+        address = await self._address()
+        files = await asyncio.to_thread(TlsFiles, self._options.tls())
+        try:
+            return await asyncio.wait_for(
+                psycopg.AsyncConnection.connect(self.conninfo(address, files)),
+                CHECK_TIMEOUT_SECONDS,
+            )
+        finally:
+            files.close()
+
+    def conninfo(
+        self, address: tuple[str, int] | None = None, files: TlsFiles | None = None
+    ) -> str:
+        """What psycopg dials.
+
+        Without `files` the TLS block's PEMs are named by their digest rather
+        than by where they are, which is what a pool is keyed by.
+        """
         options = self._options
         host, port = address or (options.host, options.port)
         parts: dict[str, Any] = {
-            "host": host,
+            "host": options.host,
             "port": port,
             "dbname": options.database,
             "user": options.user,
@@ -379,6 +413,16 @@ class PostgresSession:
             # pg_stat_activity should be able to tell whose they are.
             "application_name": APPLICATION_NAME,
         }
+        # Through a tunnel libpq dials the loopback while `host` stays the name
+        # the server's certificate is checked against (D448).
+        if address is not None and tunnel_of(options.ssh_tunnel) is not None:
+            parts["hostaddr"] = host
+        settings = options.tls()
+        if files is None:
+            digest = settings.fingerprint()
+            parts.update(_tls_parts(settings, digest, digest, digest))
+        else:
+            parts.update(_tls_parts(settings, files.ca, files.certificate, files.key))
         # The one place in the driver that knows there are variants at all. A
         # server configured with `trust` is not sent an empty password; it is
         # sent no password, which is a different conninfo.
@@ -395,12 +439,16 @@ class PostgresSession:
         site, where somebody would eventually put them back together.
         """
         options = self._options
+        settings = options.tls()
+        # Where `tls.with_program_files` writes the PEMs in the program's container.
+        paths = program_paths(settings)
         return psycopg.conninfo.make_conninfo(
             host=options.host,
             port=options.port,
             dbname=options.database,
             user=options.user,
             application_name=APPLICATION_NAME,
+            **_tls_parts(settings, paths.ca, paths.certificate, paths.key),
         )
 
     def database(self) -> str:
@@ -428,10 +476,7 @@ class PostgresSession:
     async def check(self) -> ConnectionCheckResult:
         started = time.perf_counter()
         try:
-            connection = await asyncio.wait_for(
-                psycopg.AsyncConnection.connect(await self._conninfo()),
-                CHECK_TIMEOUT_SECONDS,
-            )
+            connection = await self._connect_directly()
             async with connection:
                 await connection.execute("SELECT 1")
         except AdapterError as failure:
@@ -451,13 +496,17 @@ class PostgresSession:
     @asynccontextmanager
     async def _connection(self) -> AsyncIterator[psycopg.AsyncConnection[Any]]:
         """A connection to work on: from the pool when there is one."""
-        conninfo = await self._conninfo()
-        pool = None if self._pooling is None else await pool_for(self._pooling, conninfo)
-        if pool is None:
-            connection = await asyncio.wait_for(
-                psycopg.AsyncConnection.connect(conninfo),
-                CHECK_TIMEOUT_SECONDS,
+        pool = None
+        if self._pooling is not None:
+            address = await self._address()
+            pool = await pool_for(
+                self._pooling,
+                self.conninfo(address),
+                self._options.tls(),
+                lambda files: self.conninfo(address, files),
             )
+        if pool is None:
+            connection = await self._connect_directly()
             async with connection:
                 yield connection
             return
@@ -838,10 +887,7 @@ class PostgresSession:
         successful path pays for this.
         """
         try:
-            connection = await asyncio.wait_for(
-                psycopg.AsyncConnection.connect(await self._conninfo()),
-                CHECK_TIMEOUT_SECONDS,
-            )
+            connection = await self._connect_directly()
             async with connection:
                 pass
         except AdapterError as failure:
@@ -851,6 +897,29 @@ class PostgresSession:
         # The server is reachable and the credentials work, so the wait was for
         # a free connection rather than for the server.
         return "unknown", say("All connections to this source are busy")
+
+
+_SSLMODES = {
+    "disabled": "disable",
+    "preferred": "prefer",
+    "required": "require",
+    "verify_ca": "verify-ca",
+    "verify_full": "verify-full",
+}
+
+
+def _tls_parts(
+    settings: TlsSettings, ca: object | None, certificate: object | None, key: object | None
+) -> dict[str, str]:
+    """libpq's words for the TLS block, given where its files are (D446)."""
+    parts = {"sslmode": _SSLMODES[settings.mode]}
+    if settings.verifies:
+        # `system` is libpq's own word (16+) for the store OpenSSL trusts.
+        parts["sslrootcert"] = "system" if settings.ca is None or ca is None else str(ca)
+    if settings.client_certificate is not None and certificate is not None and key is not None:
+        parts["sslcert"] = str(certificate)
+        parts["sslkey"] = str(key)
+    return parts
 
 
 async def _without_a_transaction(connection: psycopg.AsyncConnection[Any], sql: str) -> None:

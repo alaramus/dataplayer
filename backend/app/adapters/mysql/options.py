@@ -12,9 +12,10 @@ says where the catalog opens rather than what it is confined to.
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.adapters.tls import TlsOptionsWithFallback
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_
 
@@ -36,7 +37,9 @@ def _auth_method_field(method: str) -> Any:
     return Field(default=method, title=N_("Authentication"), json_schema_extra=layout())
 
 
-class _MysqlBase(BaseModel):
+class _MysqlBase(TlsOptionsWithFallback):
+    # TLS on a page of its own, encrypted when the server offers it by default
+    # as before there was a choice (D446).
     host: str = Field(
         default="localhost",
         title=N_("Host"),

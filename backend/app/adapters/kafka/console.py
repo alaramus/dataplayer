@@ -11,7 +11,9 @@ read as shell syntax.
 
 from app.adapters.kafka.options import MECHANISMS, KafkaNoAuth, KafkaOptions
 from app.adapters.kafka.session import KafkaSession
+from app.adapters.protocol import AdapterError
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.tls import PROGRAM_PAIR, program_paths, with_program_files
 from app.core.translation import say
 
 IMAGE = "apache/kafka:4.3.2"
@@ -19,12 +21,10 @@ IMAGE = "apache/kafka:4.3.2"
 BOOTSTRAP_VARIABLE = "KAFKA_BOOTSTRAP"
 CONFIG_VARIABLE = "KAFKA_CONFIG"
 PROPERTIES_VARIABLE = "DP_PROPERTIES"
-CA_VARIABLE = "DP_CA"
 RC_VARIABLE = "DP_RC"
 NOTE_VARIABLE = "DP_NOTE"
 
 CONFIG_PATH = "/tmp/client.properties"
-CA_PATH = "/tmp/ca.pem"
 RC_PATH = "/tmp/kafkarc"
 
 # The tools whose help in the 4.3 image lists both flags. The ones that start
@@ -94,9 +94,24 @@ def client_properties(options: KafkaOptions) -> str:
             f"password={_jaas_quoted(options.password.get_secret_value())};"
         )
         lines.append(_property("sasl.jaas.config", jaas))
-    if options.tls and options.ca_certificate.strip() != "":
-        lines.append(_property("ssl.truststore.type", "PEM"))
-        lines.append(_property("ssl.truststore.location", CA_PATH))
+    settings = options.tls()
+    if settings.enabled:
+        # Java's client checks every certificate it is given; only the name
+        # can be left out (D446).
+        if not settings.verifies:
+            raise AdapterError(
+                "config",
+                say("Kafka's tools check the brokers' certificates; choose Verify CA or Verify full"),
+            )
+        if settings.mode == "verify_ca":
+            lines.append(_property("ssl.endpoint.identification.algorithm", ""))
+        paths = program_paths(settings)
+        if paths.ca:
+            lines.append(_property("ssl.truststore.type", "PEM"))
+            lines.append(_property("ssl.truststore.location", paths.ca))
+        if paths.certificate:
+            lines.append(_property("ssl.keystore.type", "PEM"))
+            lines.append(_property("ssl.keystore.location", PROGRAM_PAIR))
     return "\n".join(lines) + "\n"
 
 
@@ -104,7 +119,7 @@ def _rc() -> str:
     """bash's start file: the wrappers, the variables gone, the greeting."""
     lines = [
         'export PATH="/opt/kafka/bin:$PATH"',
-        f"unset {PROPERTIES_VARIABLE} {CA_VARIABLE} {RC_VARIABLE}",
+        f"unset {PROPERTIES_VARIABLE} {RC_VARIABLE}",
         "_dp_run() {",
         '  local tool="$1"; shift',
         '  for arg in "$@"; do',
@@ -127,7 +142,6 @@ def _rc() -> str:
 # The settings and the start file written, then bash in the shell's place.
 _SCRIPT = (
     f'umask 077; printf "%s" "${PROPERTIES_VARIABLE}" > {CONFIG_PATH}; '
-    f'[ -n "${CA_VARIABLE}" ] && printf "%s" "${CA_VARIABLE}" > {CA_PATH}; '
     f'printf "%s" "${RC_VARIABLE}" > {RC_PATH}; '
     f"exec bash --rcfile {RC_PATH} -i"
 )
@@ -146,8 +160,5 @@ def console_program(options: KafkaOptions) -> ConsoleProgram:
             "kafka-consumer-groups.sh --describe --all-groups"
         ),
     }
-    if options.tls and options.ca_certificate.strip() != "":
-        environment[CA_VARIABLE] = options.ca_certificate
-    return ConsoleProgram(
-        image=IMAGE, argv=("sh", "-c", _SCRIPT), environment=environment
-    )
+    argv, files = with_program_files(("sh", "-c", _SCRIPT), options.tls())
+    return ConsoleProgram(image=IMAGE, argv=argv, environment={**environment, **files})

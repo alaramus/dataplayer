@@ -15,6 +15,7 @@ from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.restore_inventory import validate_inventory
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
+from app.adapters.tls import with_program_files
 from app.adapters.tunnels import backup_through
 from app.core.translation import say
 
@@ -60,9 +61,9 @@ class PostgresBackup:
         here is a role of *that* server, and a restore elsewhere would fail on
         a role that does not exist.
         """
-        return BackupProgram(
-            image=await self._image(),
-            argv=(
+        return self._program(
+            await self._image(),
+            (
                 "pg_dump",
                 "--format=custom",
                 "--no-owner",
@@ -70,7 +71,6 @@ class PostgresBackup:
                 f"--file={into}",
                 self._connection_argument(),
             ),
-            environment=self._environment(),
         )
 
     async def restore_program(self, *, from_file: str) -> BackupProgram:
@@ -81,9 +81,9 @@ class PostgresBackup:
         is the destructive part, and it is why the route that asks for this
         insists on being told so in as many words.
         """
-        return BackupProgram(
-            image=await self._image(),
-            argv=(
+        return self._program(
+            await self._image(),
+            (
                 "pg_restore",
                 "--format=custom",
                 "--exit-on-error",
@@ -94,7 +94,6 @@ class PostgresBackup:
                 f"--dbname={self._connection_argument()}",
                 from_file,
             ),
-            environment=self._environment(),
         )
 
     async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
@@ -131,6 +130,11 @@ class PostgresBackup:
                 say("This server is older than any version this application can back up")
             )
         return f"postgres:{major}"
+
+    def _program(self, image: str, argv: tuple[str, ...]) -> BackupProgram:
+        """The program, with the TLS files written before it starts (D447)."""
+        wrapped, files = with_program_files(argv, self._options.tls())
+        return BackupProgram(image=image, argv=wrapped, environment={**self._environment(), **files})
 
     def _connection_argument(self) -> str:
         """Where to connect, as one string, with no password in it.

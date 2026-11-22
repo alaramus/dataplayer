@@ -270,7 +270,11 @@ def test_the_password_is_a_secret_of_the_union_as_a_whole() -> None:
     """Declared by one variant, and that is enough to be encrypted."""
     from app.adapters import options as options_module
 
-    assert options_module.secret_field_names(PostgresOptions) == {"password"}
+    assert options_module.secret_field_names(PostgresOptions) == {
+        "password",
+        "tls_client_key",
+        "tls_client_key_passphrase",
+    }
 
 
 def test_a_draft_is_addressed_by_as_much_of_it_as_there_is() -> None:

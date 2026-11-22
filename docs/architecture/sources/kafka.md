@@ -21,7 +21,8 @@ nobody. confluent-kafka is imported by `app.adapters.kafka` and nothing else,
 which an import-linter contract holds.
 
 Options are the brokers (`host:port`, comma-separated; the first that answers
-tells the client of the rest), TLS with an optional CA certificate as PEM, and
+tells the client of the rest), the shared TLS block ([D446](cloud-auth.md)) with a client
+certificate for mutual TLS, and
 one of four ways in: none, SASL PLAIN, SCRAM-SHA-256 or SCRAM-SHA-512 with a
 user and password. The check describes the cluster.
 

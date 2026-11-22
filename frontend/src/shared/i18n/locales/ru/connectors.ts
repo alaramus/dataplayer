@@ -39,6 +39,7 @@ export const connectors: Messages["connectors"] = {
     connection: "Подключение",
     options: "Параметры",
     permissions: "Права",
+    tls: "TLS",
   },
   new_connection: "Новое подключение",
   catalog_dialog: {

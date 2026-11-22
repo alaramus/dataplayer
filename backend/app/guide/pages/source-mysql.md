@@ -41,8 +41,9 @@ A connection string such as `mysql://ann@db.example.com:3306/sales` pasted into
 **URL** fills these fields; `mariadb://` is read the same way. A password in
 the pasted string goes into the password field and leaves the string.
 
-The connection is encrypted when the server offers TLS, and stays plain when it
-does not. The server's certificate is not checked.
+By default the connection is encrypted when the server offers TLS, and stays
+plain when it does not, without checking the server's certificate. The **TLS**
+page can require it, check the certificate and offer a client certificate.
 
 MySQL 8.0.16 and later and MariaDB 10.6 and later are supported. An older
 server is refused when the connection is checked, with its version named.

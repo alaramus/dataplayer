@@ -8,9 +8,12 @@ environment and is written with `printf '%s'`, so none is ever read as shell
 syntax.
 """
 
+from dataclasses import replace
+
 from app.adapters.protocol import AdapterError
 from app.adapters.rabbitmq.options import RabbitmqOptions
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.tls import TlsSettings, program_paths, with_program_files
 from app.adapters.tunnels import tunnel_of
 from app.core.translation import say
 
@@ -19,12 +22,10 @@ IMAGE = "rabbitmq:4.3.7-management"
 
 CONFIG_PATH_VARIABLE = "RABBITMQADMIN_CONFIG_FILE_PATH"
 CONFIG_VARIABLE = "DP_CONFIG"
-CA_VARIABLE = "DP_CA"
 RC_VARIABLE = "DP_RC"
 NOTE_VARIABLE = "DP_NOTE"
 
 CONFIG_PATH = "/tmp/rabbitmqadmin.conf"
-CA_PATH = "/tmp/ca.pem"
 RC_PATH = "/tmp/rabbitrc"
 
 _TOML_ESCAPES = {
@@ -52,6 +53,15 @@ def toml_string(text: str) -> str:
     return '"' + "".join(escaped) + '"'
 
 
+def _management_tls(options: RabbitmqOptions) -> TlsSettings:
+    """The block rabbitmqadmin speaks with: an `https` management address is
+    TLS whatever AMQP does, as the session holds it."""
+    settings = options.tls()
+    if not settings.enabled and options.management().startswith("https://"):
+        return replace(settings, mode="verify_full")
+    return settings
+
+
 def node_config(options: RabbitmqOptions) -> str:
     """The `[default]` node rabbitmqadmin uses unless told another."""
     management = options.management()
@@ -64,8 +74,13 @@ def node_config(options: RabbitmqOptions) -> str:
     ]
     if management.startswith("https://"):
         lines.append("tls = true")
-    if options.ca_certificate.strip():
-        lines.append(f"ca_certificate_bundle_path = {toml_string(CA_PATH)}")
+    # The PEMs where the shell writes them (D446).
+    paths = program_paths(_management_tls(options))
+    if paths.ca:
+        lines.append(f"ca_certificate_bundle_path = {toml_string(paths.ca)}")
+    if paths.certificate and paths.key:
+        lines.append(f"client_certificate_file_path = {toml_string(paths.certificate)}")
+        lines.append(f"client_private_key_file_path = {toml_string(paths.key)}")
     return "\n".join(lines) + "\n"
 
 
@@ -74,7 +89,7 @@ def _rc() -> str:
     return (
         "\n".join(
             [
-                f"unset {CONFIG_VARIABLE} {CA_VARIABLE} {RC_VARIABLE}",
+                f"unset {CONFIG_VARIABLE} {RC_VARIABLE}",
                 "source <(rabbitmqadmin shell completions --shell bash 2>/dev/null)",
                 "PS1='rabbitmq> '",
                 f'printf "%s\\n\\n" "${NOTE_VARIABLE}"',
@@ -88,7 +103,6 @@ def _rc() -> str:
 # The settings and the start file written, then bash in the shell's place.
 _SCRIPT = (
     f'umask 077; printf "%s" "${CONFIG_VARIABLE}" > {CONFIG_PATH}; '
-    f'[ -n "${CA_VARIABLE}" ] && printf "%s" "${CA_VARIABLE}" > {CA_PATH}; '
     f'printf "%s" "${RC_VARIABLE}" > {RC_PATH}; '
     f"exec bash --rcfile {RC_PATH} -i"
 )
@@ -109,8 +123,5 @@ def console_program(options: RabbitmqOptions) -> ConsoleProgram:
             "rabbitmqadmin list exchanges"
         ),
     }
-    if options.ca_certificate.strip():
-        environment[CA_VARIABLE] = options.ca_certificate
-    return ConsoleProgram(
-        image=IMAGE, argv=("sh", "-c", _SCRIPT), environment=environment
-    )
+    argv, files = with_program_files(("sh", "-c", _SCRIPT), _management_tls(options))
+    return ConsoleProgram(image=IMAGE, argv=argv, environment={**environment, **files})

@@ -6,6 +6,7 @@ server reaches them by their service names on its own network — `db`,
 means, and what CI names its services too.
 """
 
+import ssl
 import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -14,6 +15,7 @@ import pytest
 
 from app.adapters.clickhouse.adapter import ClickhouseAdapter
 from app.adapters.clickhouse.options import ClickhouseUserPassword
+from app.adapters.clickhouse.session import ClickhouseSession
 from app.adapters.mysql.adapter import MysqlAdapter
 from app.adapters.mysql.options import MysqlUserPassword
 from app.adapters.postgres.adapter import PostgresAdapter
@@ -125,25 +127,26 @@ async def test_clickhouse_is_read_through_the_ssh_server(through: _Through) -> N
     assert result.ok, result.message
 
 
-async def test_clickhouse_over_https_is_refused_through_a_tunnel(through: _Through) -> None:
-    """A certificate names the server, never a port on this loopback."""
+def test_clickhouse_over_https_checks_the_server_name_through_a_tunnel() -> None:
+    """A certificate names the server, never a port on this loopback (D448):
+    the context httpx is handed answers to the form's host whatever is dialled."""
     options = ClickhouseUserPassword.model_validate(
         {
             "auth_method": "user_password",
             "host": "clickhouse",
             "port": 8443,
-            "secure": True,
+            "tls_mode": "verify_full",
             "user": "default",
             "password": "irrelevant",
             "ssh_tunnel": TUNNEL,
         }
     )
 
-    result = await ClickhouseAdapter(options, tunnels=through).check_connection()
+    context = ClickhouseSession(options)._verify()
 
-    assert not result.ok
-    assert result.error_kind == "config"
-    assert "HTTPS" in result.message
+    assert isinstance(context, ssl.SSLContext)
+    assert context.check_hostname
+    assert getattr(context, "server_name", None) == "clickhouse"
 
 
 async def test_redis_is_read_through_the_ssh_server(through: _Through) -> None:

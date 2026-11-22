@@ -10,6 +10,7 @@ conversation rather than a result. `redis-cli` reads the password from
 from app.adapters.protocol import AdapterError
 from app.adapters.redis.options import RedisOptions, RedisPassword
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.tls import program_paths, with_program_files
 from app.adapters.tunnels import tunnel_of
 from app.core.translation import say
 
@@ -29,16 +30,19 @@ def console_program(options: RedisOptions) -> ConsoleProgram:
         if isinstance(options, RedisPassword)
         else {}
     )
-    return ConsoleProgram(
-        image=IMAGE,
-        argv=(
-            "redis-cli",
-            "-h",
-            options.host,
-            "-p",
-            str(options.port),
-            "-n",
-            str(options.database),
-        ),
-        environment=environment,
-    )
+    argv = ["redis-cli", "-h", options.host, "-p", str(options.port), "-n", str(options.database)]
+    if isinstance(options, RedisPassword) and options.user:
+        argv += ["--user", options.user]
+    settings = options.tls()
+    if settings.enabled:
+        # redis-cli verifies the server's certificate or nothing at all (D446).
+        argv.append("--tls")
+        paths = program_paths(settings)
+        if not settings.verifies:
+            argv.append("--insecure")
+        elif paths.ca:
+            argv += ["--cacert", paths.ca]
+        if paths.certificate and paths.key:
+            argv += ["--cert", paths.certificate, "--key", paths.key]
+    wrapped, files = with_program_files(tuple(argv), settings)
+    return ConsoleProgram(image=IMAGE, argv=wrapped, environment={**environment, **files})

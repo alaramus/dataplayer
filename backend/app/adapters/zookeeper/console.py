@@ -12,6 +12,12 @@ expanded in double quotes, so neither is ever read as shell syntax.
 
 from app.adapters.protocol import AdapterError
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.tls import (
+    PROGRAM_PAIR,
+    TlsSettings,
+    program_paths,
+    with_program_files,
+)
 from app.adapters.tunnels import tunnel_of
 from app.adapters.zookeeper.options import ZookeeperDigest, ZookeeperOptions
 from app.adapters.zookeeper.session import compose_url
@@ -37,14 +43,38 @@ _SCRIPT = (
 )
 
 
+def tls_flags(settings: TlsSettings) -> str:
+    """The client's TLS as Java properties: Netty, and the PEMs where the
+    shell writes them (D446). zkCli has no switch that checks nothing, so
+    Required is refused rather than quietly verified."""
+    if not settings.enabled:
+        return ""
+    if not settings.verifies:
+        raise AdapterError(
+            "config", say("zkCli checks the server's certificate; choose Verify CA or Verify full")
+        )
+    paths = program_paths(settings)
+    flags = [
+        "-Dzookeeper.client.secure=true",
+        "-Dzookeeper.clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty",
+        f"-Dzookeeper.ssl.hostnameVerification={'true' if settings.mode == 'verify_full' else 'false'}",
+    ]
+    if paths.ca:
+        flags += [f"-Dzookeeper.ssl.trustStore.location={paths.ca}", "-Dzookeeper.ssl.trustStore.type=PEM"]
+    if paths.certificate:
+        flags += [f"-Dzookeeper.ssl.keyStore.location={PROGRAM_PAIR}", "-Dzookeeper.ssl.keyStore.type=PEM"]
+    return " " + " ".join(flags)
+
+
 def console_program(options: ZookeeperOptions) -> ConsoleProgram:
     if tunnel_of(options.ssh_tunnel) is not None:
         # The container cannot reach a port on this process's loopback.
         raise AdapterError(
             "config", say("A console does not go through an SSH tunnel yet")
         )
+    settings = options.tls()
     environment = {
-        "CLIENT_JVMFLAGS": _FLAGS,
+        "CLIENT_JVMFLAGS": _FLAGS + tls_flags(settings),
         SERVER_VARIABLE: compose_url(
             host=options.host, port=options.port, chroot=options.chroot
         ),
@@ -55,6 +85,5 @@ def console_program(options: ZookeeperOptions) -> ConsoleProgram:
             "addauth digest {user}:<password>",
             user=options.user,
         )
-    return ConsoleProgram(
-        image=IMAGE, argv=("sh", "-c", _SCRIPT), environment=environment
-    )
+    argv, files = with_program_files(("sh", "-c", _SCRIPT), settings)
+    return ConsoleProgram(image=IMAGE, argv=argv, environment={**environment, **files})

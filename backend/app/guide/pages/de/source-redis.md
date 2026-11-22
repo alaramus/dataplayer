@@ -32,8 +32,9 @@ Die Seite **Verbindung** des Fensters fragt nach:
 - **Authentifizierung**: ein Passwort oder keines.
 
 Eine Verbindungszeichenfolge wie `redis://:secret@cache.example.com:6379/0`, in
-**URL** eingefügt, füllt diese Felder. Eine `rediss://`-Adresse, die TLS braucht,
-wird noch nicht unterstützt.
+**URL** eingefügt, füllt diese Felder. Eine `rediss://`-Adresse schaltet TLS mit
+vollständiger Prüfung ein, ein Benutzer vor dem `@` ist ein ACL-Benutzer; der Rest
+steht auf der Seite **TLS**.
 
 ## Der Katalog
 

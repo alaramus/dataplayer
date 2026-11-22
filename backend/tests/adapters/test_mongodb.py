@@ -118,7 +118,7 @@ def test_a_connection_string_fills_the_form() -> None:
     ) == {
         "host": "db.example.com",
         "port": 27019,
-        "tls": True,
+        "tls_mode": "verify_full",
         "database": "shop",
         "auth_method": "user_password",
         "user": "ann@corp",
@@ -127,7 +127,7 @@ def test_a_connection_string_fills_the_form() -> None:
     }
     assert options_from_url("mongodb://localhost") == {
         "host": "localhost",
-        "tls": False,
+        "tls_mode": "disabled",
         "auth_method": "no_password",
     }
     # Without authSource the user is looked for where the address points.
@@ -156,7 +156,7 @@ def test_the_address_is_composed_without_the_password() -> None:
             user="ann@corp",
             password=SecretStr("secret"),
             database="shop",
-            tls=True,
+            tls_mode="verify_full",
         )
     )
     assert (

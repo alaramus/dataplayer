@@ -21,6 +21,17 @@ OPTIONS = {
 }
 
 
+# The TLS block every server source inherits, as a form that never opened its
+# page leaves it (D446): in the configuration, and its two empty secrets.
+TLS_DEFAULTS = {
+    "tls_mode": "preferred",
+    "tls_trust": "system",
+    "tls_ca_certificate": "",
+    "tls_client_certificate": "",
+}
+TLS_SECRETS = {"tls_client_key": "", "tls_client_key_passphrase": ""}
+
+
 def _postgres_type() -> registry.AdapterType:
     return registry.get("postgres")
 
@@ -36,6 +47,7 @@ def test_secret_fields_are_kept_out_of_config() -> None:
         "database": "analytics",
         "user": "reader",
         "ssh_tunnel": "",
+        **TLS_DEFAULTS,
     }
 
 
@@ -54,7 +66,7 @@ def test_secrets_blob_does_not_contain_the_password() -> None:
 def test_merge_restores_original_options() -> None:
     config, secrets_blob = service.split_options(_postgres_type(), OPTIONS)
 
-    assert service.merge_options(config, secrets_blob) == OPTIONS
+    assert service.merge_options(config, secrets_blob) == {**OPTIONS, **TLS_DEFAULTS, **TLS_SECRETS}
 
 
 def test_invalid_options_are_rejected() -> None:
@@ -93,7 +105,10 @@ def test_build_adapter_returns_driver_instance() -> None:
 def test_encrypted_blob_is_readable_only_through_crypto() -> None:
     _, secrets_blob = service.split_options(_postgres_type(), OPTIONS)
 
-    assert json.loads(crypto.decrypt(secrets_blob, purpose="connector")) == {"password": "s3cret"}
+    assert json.loads(crypto.decrypt(secrets_blob, purpose="connector")) == {
+        "password": "s3cret",
+        **TLS_SECRETS,
+    }
 
 
 # The schema is a union now, and which fields exist depends on the variant. The
@@ -114,13 +129,13 @@ NO_AUTH_OPTIONS = {
 def test_the_chosen_variant_decides_what_is_stored() -> None:
     config, _ = service.split_options(_postgres_type(), NO_AUTH_OPTIONS)
 
-    assert config == NO_AUTH_OPTIONS
+    assert config == {**NO_AUTH_OPTIONS, **TLS_DEFAULTS}
 
 
-def test_a_variant_that_carries_no_secret_stores_none() -> None:
+def test_a_variant_that_carries_no_password_stores_none() -> None:
     _, secrets_blob = service.split_options(_postgres_type(), NO_AUTH_OPTIONS)
 
-    assert json.loads(crypto.decrypt(secrets_blob, purpose="connector")) == {}
+    assert json.loads(crypto.decrypt(secrets_blob, purpose="connector")) == TLS_SECRETS
 
 
 def test_a_password_sent_to_a_variant_without_one_is_not_kept() -> None:
@@ -129,7 +144,7 @@ def test_a_password_sent_to_a_variant_without_one_is_not_kept() -> None:
         _postgres_type(), {**NO_AUTH_OPTIONS, "password": "s3cret"}
     )
 
-    assert json.loads(crypto.decrypt(secrets_blob, purpose="connector")) == {}
+    assert json.loads(crypto.decrypt(secrets_blob, purpose="connector")) == TLS_SECRETS
     assert b"s3cret" not in secrets_blob
 
 

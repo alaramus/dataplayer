@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import re
+import ssl
 import time
 import uuid
 from collections.abc import AsyncIterator, Mapping
@@ -24,7 +25,8 @@ from app.adapters.clickhouse.pool import client_for, make_client
 from app.adapters.clickhouse.types import decode_line
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
-from app.adapters.tunnels import TunnelAccess, reach, tunnel_of
+from app.adapters.tls import ssl_context
+from app.adapters.tunnels import TunnelAccess, reach
 from app.core.logs import record_failure, with_ref
 from app.core.translation import N_, say
 
@@ -214,7 +216,10 @@ def options_from_url(url: str) -> dict[str, Any]:
     secure = scheme == "https" or any(
         value.lower() in _SECURE_WORDS for value in query.get("secure", [])
     )
-    options: dict[str, Any] = {"host": unquote(parts.hostname), "secure": secure}
+    options: dict[str, Any] = {
+        "host": unquote(parts.hostname),
+        "tls_mode": "verify_full" if secure else "disabled",
+    }
     if port is not None:
         options["port"] = port
     if parts.username:
@@ -303,6 +308,7 @@ class ClickhouseSession:
         # Where requests go once `_reach` has asked; the address itself until.
         self._address = (options.host, options.port)
         self._profile: ServerProfile | None = None
+        self._tls: ssl.SSLContext | bool | None = None
 
     @property
     def options(self) -> ClickhouseOptions:
@@ -316,17 +322,18 @@ class ClickhouseSession:
     async def _reach(self) -> None:
         """Ask where requests go now: through the tunnel when there is one (D282)."""
         options = self._options
-        if options.secure and tunnel_of(options.ssh_tunnel) is not None:
-            # A certificate names the server, not a port on this loopback.
-            raise AdapterError(
-                "config",
-                say("Through an SSH tunnel, connect without HTTPS: the tunnel encrypts it already"),
-            )
         self._address = await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
+
+    def _verify(self) -> ssl.SSLContext | bool:
+        """What httpx checks the server by: a context naming the form's host,
+        also at a tunnel's end (D448); False for plain HTTP."""
+        if self._tls is None:
+            self._tls = ssl_context(self._options.tls(), server_name=self._options.host) or False
+        return self._tls
 
     def _base_url(self) -> str:
         options = self._options
-        scheme = "https" if options.secure else "http"
+        scheme = "https" if options.tls().enabled else "http"
         address, port = self._address
         host = f"[{address}]" if ":" in address else address
         return f"{scheme}://{host}:{port}/"
@@ -338,7 +345,7 @@ class ClickhouseSession:
             port=options.port,
             user=options.user,
             database=options.database,
-            secure=options.secure,
+            secure=options.tls().enabled,
         )
 
     def database(self) -> str:
@@ -354,14 +361,14 @@ class ClickhouseSession:
             options = self._options
             # What makes two clients different, and nothing about the request.
             fingerprint = (
-                f"{options.host}:{options.port}:{options.secure}:{options.user}:"
-                f"{self._password()}"
+                f"{options.host}:{options.port}:{options.user}:"
+                f"{self._password()}:{options.tls().fingerprint()}"
             )
-            kept = await client_for(self._pooling, fingerprint, verify=options.secure)
+            kept = await client_for(self._pooling, fingerprint, verify=self._verify())
         if kept is not None:
             yield kept.client
             return
-        client = make_client(verify=self._options.secure, read_timeout=None)
+        client = make_client(verify=self._verify(), read_timeout=None)
         try:
             yield client
         finally:
@@ -424,7 +431,7 @@ class ClickhouseSession:
 
     async def check(self) -> ConnectionCheckResult:
         started = time.perf_counter()
-        client = make_client(verify=self._options.secure, read_timeout=CHECK_TIMEOUT_SECONDS)
+        client = make_client(verify=self._verify(), read_timeout=CHECK_TIMEOUT_SECONDS)
         try:
             await self._reach()
             body = await self._send(

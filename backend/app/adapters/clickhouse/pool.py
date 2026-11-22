@@ -6,6 +6,7 @@ a TLS one, for ClickHouse Cloud.
 """
 
 import hashlib
+import ssl
 import uuid
 
 import httpx
@@ -20,7 +21,7 @@ ACQUIRE_TIMEOUT_SECONDS = 5.0
 KEEPALIVE_SECONDS = 5.0
 
 
-def make_client(*, verify: bool, read_timeout: float | None) -> httpx.AsyncClient:
+def make_client(*, verify: ssl.SSLContext | bool, read_timeout: float | None) -> httpx.AsyncClient:
     return httpx.AsyncClient(
         verify=verify,
         # `read` is how long a statement may go without the server sending a
@@ -59,7 +60,7 @@ def key_for(connector_id: uuid.UUID, fingerprint_source: str) -> str:
 
 
 async def client_for(
-    pooling: Pooling, fingerprint_source: str, *, verify: bool
+    pooling: Pooling, fingerprint_source: str, *, verify: ssl.SSLContext | bool
 ) -> KeptClient | None:
     """The connector's client, or None where the store makes none to keep (D127)."""
     key = key_for(pooling.connector_id, fingerprint_source)

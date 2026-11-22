@@ -42,8 +42,10 @@ Una cadena de conexión como `mysql://ann@db.example.com:3306/sales` pegada en
 **URL** rellena estos campos; `mariadb://` se lee igual. Una contraseña en la
 cadena pegada pasa al campo de la contraseña y sale de la cadena.
 
-La conexión se cifra cuando el servidor ofrece TLS, y queda sin cifrar cuando
-no. El certificado del servidor no se comprueba.
+De forma predeterminada la conexión se cifra cuando el servidor ofrece TLS, y
+queda sin cifrar cuando no, sin comprobar el certificado del servidor. La
+página **TLS** permite exigirlo, comprobar el certificado y presentar un
+certificado de cliente.
 
 Se admiten MySQL 8.0.16 y posteriores y MariaDB 10.6 y posteriores. Un servidor
 más antiguo se rechaza al comprobar la conexión, indicando su versión.

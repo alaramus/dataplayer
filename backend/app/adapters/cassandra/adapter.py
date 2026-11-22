@@ -186,7 +186,7 @@ class CassandraAdapter:
             port=_as_port(options.get("port")),
             user=_user_of(options),
             keyspace=_as_text(options.get("keyspace")),
-            secure=options.get("secure") is True,
+            secure=options.get("tls_mode", "disabled") != "disabled",
         )
 
     @classmethod
@@ -200,7 +200,7 @@ class CassandraAdapter:
             port=_as_port(options.get("port")),
             user=_user_of(options),
             keyspace=_as_text(options.get("keyspace")),
-            secure=options.get("secure") is True,
+            secure=options.get("tls_mode", "disabled") != "disabled",
             password=password if isinstance(password, str) else "",
         )
 

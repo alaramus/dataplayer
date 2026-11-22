@@ -99,7 +99,7 @@ def test_a_server_is_read_as_its_number() -> None:
 def test_a_connection_string_fills_the_form() -> None:
     assert options_from_url("clickhouse://ann%40corp:p%2Fw@ch.example.com:8443/sales?secure=true") == {
         "host": "ch.example.com",
-        "secure": True,
+        "tls_mode": "verify_full",
         "port": 8443,
         "user": "ann@corp",
         "database": "sales",
@@ -109,7 +109,7 @@ def test_a_connection_string_fills_the_form() -> None:
     # The HTTP interface's own address is one as well.
     assert options_from_url("https://default@ch.example.com:8443/?database=logs") == {
         "host": "ch.example.com",
-        "secure": True,
+        "tls_mode": "verify_full",
         "port": 8443,
         "user": "default",
         "database": "logs",
@@ -134,7 +134,7 @@ def test_the_address_is_composed_without_the_password() -> None:
 
     assert source.connection_string() == "clickhouse://ann%40corp@ch:8123/a%2Fb"
     assert ClickhouseAdapter.connection_url_with_password(
-        {"host": "ch", "port": "8443", "user": "u", "password": "p@ss", "secure": True}
+        {"host": "ch", "port": "8443", "user": "u", "password": "p@ss", "tls_mode": "verify_full"}
     ) == "clickhouse://u:p%40ss@ch:8443?secure=true"
     assert ClickhouseAdapter.draft_connection_string({"host": "ch", "port": "81"}) == (
         "clickhouse://ch:81"

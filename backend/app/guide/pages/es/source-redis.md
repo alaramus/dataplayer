@@ -32,8 +32,9 @@ La página **Conexión** de la ventana pide:
 - **Autenticación**: una contraseña, o ninguna.
 
 Una cadena de conexión como `redis://:secret@cache.example.com:6379/0` pegada en
-**URL** rellena estos campos. Una dirección `rediss://`, que necesita TLS, aún no
-es compatible.
+**URL** rellena estos campos. Una dirección `rediss://` activa TLS con verificación
+completa, y un usuario antes de `@` es un usuario de ACL; el resto está en la
+página **TLS**.
 
 ## El catálogo
 

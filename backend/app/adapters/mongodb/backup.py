@@ -15,8 +15,13 @@ from collections.abc import Sequence
 
 from app.adapters.mongodb.console import IMAGE
 from app.adapters.mongodb.options import MongodbOptions
-from app.adapters.mongodb.session import MongodbSession, compose_url_with_password
+from app.adapters.mongodb.session import (
+    MongodbSession,
+    compose_url_with_password,
+    program_tls,
+)
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
+from app.adapters.tls import with_program_files
 from app.adapters.tunnels import backup_through
 from app.core.translation import say
 
@@ -111,11 +116,11 @@ class MongodbBackup:
             port=options.port,
             user=user,
             auth_source=auth_source,
-            tls=options.tls,
+            tls=options.tls().enabled,
+            tls_query=program_tls(options.tls()),
             password=password,
         )
-        return BackupProgram(
-            image=IMAGE,
-            argv=("sh", "-c", _SCRIPTS[what], "sh", options.database, path),
-            environment={ADDRESS: address},
+        argv, files = with_program_files(
+            ("sh", "-c", _SCRIPTS[what], "sh", options.database, path), options.tls()
         )
+        return BackupProgram(image=IMAGE, argv=argv, environment={ADDRESS: address, **files})

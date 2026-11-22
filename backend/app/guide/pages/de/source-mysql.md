@@ -44,8 +44,10 @@ Eine Verbindungszeichenfolge wie `mysql://ann@db.example.com:3306/sales`, in
 Passwort in der eingefügten Zeichenfolge wandert in das Passwortfeld und
 verlässt die Zeichenfolge.
 
-Die Verbindung ist verschlüsselt, wenn der Server TLS anbietet, und bleibt
-unverschlüsselt, wenn nicht. Das Zertifikat des Servers wird nicht geprüft.
+Standardmäßig ist die Verbindung verschlüsselt, wenn der Server TLS anbietet,
+und bleibt sonst unverschlüsselt, ohne das Zertifikat des Servers zu prüfen.
+Auf der Seite **TLS** lässt sich TLS verlangen, das Zertifikat prüfen und ein
+Client-Zertifikat vorlegen.
 
 Unterstützt werden MySQL ab 8.0.16 und MariaDB ab 10.6. Ein älterer Server wird
 beim Prüfen der Verbindung abgelehnt, mit Nennung seiner Version.

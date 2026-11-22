@@ -26,10 +26,10 @@ request that goes away stops its statement on the server. A connector keeps one
 client in the resource store; its connections are reused below the server's
 keep-alive. A server error is reduced by its code, never by its text.
 
-TLS, when asked for, verifies the server's certificate. Options are host, port,
-TLS, a user (`default` unless named), an optional password and an optional
-database that says where the catalog opens. `clickhouse://`, `http://` and
-`https://` addresses are parsed; `?secure=true` or `https` is TLS.
+Options are host, port, a user (`default` unless named), an optional password,
+an optional database that says where the catalog opens, and the shared TLS
+block ([D446](cloud-auth.md)), HTTPS when it is on. `clickhouse://`, `http://` and `https://`
+addresses are parsed; `?secure=true` or `https` is Verify full.
 
 The catalog is databases as schemas, named as databases, whose node ids are
 MySQL's (`app.adapters.database_ids`, D229), then their tables, views and
@@ -45,7 +45,6 @@ Known deviations:
 
 - A user whose profile sets `readonly = 1` cannot read through this source: the
   server refuses every setting a request carries, and every read carries some.
-- A self-signed certificate cannot be trusted; TLS is verified or off.
 - The native protocol (9000) is not spoken.
 
 Spec: [A ClickHouse source](../../decisions/2026-10-25-clickhouse-source-design.md)

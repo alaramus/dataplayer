@@ -134,7 +134,7 @@ def test_a_connection_string_fills_the_form() -> None:
     ) == {
         "host": "db.example.com",
         "port": 9142,
-        "secure": True,
+        "tls_mode": "verify_full",
         "keyspace": "sales",
         "consistency": "LOCAL_QUORUM",
         "auth_method": "user_password",

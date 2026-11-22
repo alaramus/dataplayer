@@ -17,8 +17,7 @@ from urllib.parse import parse_qs, quote, unquote, urlsplit
 from app.core.translation import say
 
 SCHEME = "redis"
-# The scheme for a TLS connection. Recognised so that pasting one gets an
-# answer about what is missing rather than a silent plaintext connection.
+# The scheme of a TLS connection, read as Verify full (D446).
 TLS_SCHEME = "rediss"
 
 DEFAULT_PORT = 6379
@@ -28,7 +27,14 @@ DEFAULT_PORT = 6379
 MAX_DATABASE = 15
 
 
-def compose_url(*, host: str, port: int | None = None, database: int | None = None) -> str:
+def compose_url(
+    *,
+    host: str,
+    port: int | None = None,
+    database: int | None = None,
+    user: str = "",
+    tls: bool = False,
+) -> str:
     """A Redis address, from as many of its parts as there are.
 
     Never the password. This string is shown on screen and pasted into other
@@ -40,15 +46,18 @@ def compose_url(*, host: str, port: int | None = None, database: int | None = No
     is a puzzle.
     """
     authority = quote(host, safe="")
+    if user:
+        authority = f"{quote(user, safe='')}@{authority}"
     if port is not None:
         authority += f":{port}"
+    scheme = TLS_SCHEME if tls else SCHEME
     if database is None:
-        return f"{SCHEME}://{authority}"
-    return f"{SCHEME}://{authority}/{database}"
+        return f"{scheme}://{authority}"
+    return f"{scheme}://{authority}/{database}"
 
 
 def compose_url_with_password(
-    *, host: str, port: int | None, database: int | None, password: str
+    *, host: str, port: int | None, database: int | None, password: str, tls: bool = False
 ) -> str:
     """The same address with the password in it, for somebody to paste.
 
@@ -57,10 +66,11 @@ def compose_url_with_password(
     window that reveals a service's credentials once (D89); everything else
     composes the address without a secret in it.
     """
+    plain = compose_url(host=host, port=port, database=database, tls=tls)
     if password == "":
-        return compose_url(host=host, port=port, database=database)
-    plain = compose_url(host=host, port=port, database=database)
-    return plain.replace(f"{SCHEME}://", f"{SCHEME}://:{quote(password, safe='')}@", 1)
+        return plain
+    scheme = TLS_SCHEME if tls else SCHEME
+    return plain.replace(f"{scheme}://", f"{scheme}://:{quote(password, safe='')}@", 1)
 
 
 def options_from_url(url: str) -> dict[str, Any]:
@@ -76,14 +86,15 @@ def options_from_url(url: str) -> dict[str, Any]:
     same string.
     """
     parsed = urlsplit(url.strip())
-    if parsed.scheme == TLS_SCHEME:
-        raise ValueError(say("This connection does not do TLS yet"))
-    if parsed.scheme != SCHEME:
+    if parsed.scheme not in (SCHEME, TLS_SCHEME):
         raise ValueError(say("That is not a Redis connection string"))
     if not parsed.hostname:
         raise ValueError(say("The connection string names no host"))
 
-    options: dict[str, Any] = {"host": parsed.hostname}
+    options: dict[str, Any] = {
+        "host": parsed.hostname,
+        "tls_mode": "verify_full" if parsed.scheme == TLS_SCHEME else "disabled",
+    }
     try:
         port = parsed.port
     except ValueError:
@@ -92,13 +103,14 @@ def options_from_url(url: str) -> dict[str, Any]:
     options["database"] = _database_of(parsed.path, parsed.query)
 
     # Redis puts the password in the userinfo, with the user usually empty:
-    # `redis://:secret@host`. A user is accepted and dropped — this source
-    # connects with the default user, and refusing a string that names one
-    # would refuse the strings most tools write.
+    # `redis://:secret@host`. A user named there is an ACL user; `default` is
+    # the one an empty user means anyway.
     password = unquote(parsed.password) if parsed.password else ""
     if password:
         options["auth_method"] = "password"
         options["password"] = password
+        user = unquote(parsed.username) if parsed.username else ""
+        options["user"] = "" if user == "default" else user
     else:
         options["auth_method"] = "no_auth"
     return options

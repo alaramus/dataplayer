@@ -26,7 +26,7 @@ spoken to, alone or as one member of a replica set, and a tunnel's end
 (D282) is never traded for the names a set calls its members by. Moments come
 back aware and in UTC, and a UUID is the standard binary subtype.
 
-Options are host, port (27017), TLS (verified), and either a user, a password
+Options are host, port (27017), the shared TLS block ([D446](cloud-auth.md)), and either a user, a password
 and an authentication database (`admin` unless named), or no password for a
 server without access control. An optional database says where the catalog
 opens. `mongodb://` addresses with one host are parsed; without `authSource`
@@ -59,7 +59,6 @@ Known deviations:
 
 - No replica set is discovered: a `mongodb+srv://` address and a seed list are
   refused, and a write to a secondary is refused by the server.
-- A self-signed certificate cannot be trusted; TLS is verified or off.
 - A user without `collStats` sees collections without counts.
 
 Spec: [A MongoDB source](../../decisions/2026-10-31-mongodb-source-design.md)

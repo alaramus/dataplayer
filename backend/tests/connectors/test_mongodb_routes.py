@@ -40,7 +40,7 @@ async def _connector(client: AsyncClient, headers: dict[str, str]) -> str:
             "name": f"mongodb {uuid.uuid4()}",
             "adapter_type": "mongodb",
             "options": {
-                **chosen.model_dump(exclude={"password"}),
+                **chosen.model_dump(exclude={"password", "tls_client_key", "tls_client_key_passphrase"}),
                 "password": chosen.password.get_secret_value(),
             },
         },

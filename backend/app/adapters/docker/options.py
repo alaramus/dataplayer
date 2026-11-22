@@ -20,6 +20,7 @@ from pydantic import (
 
 from app.adapters.layout import layout
 from app.adapters.options import TUNNEL_REFERENCE
+from app.adapters.tls import CERTIFICATE, pem
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_, say
 
@@ -29,11 +30,8 @@ TLS_PORT = 2376
 
 _UUID = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 _SOCKET = re.compile(r"^/[^\x00]*$")
-# Every PEM block in a text, its kind and its base64 however it was wrapped.
-_BLOCK = re.compile(r"-----BEGIN ([A-Z0-9 ]+)-----(.*?)-----END \1-----", re.DOTALL)
-_CERTIFICATE = "CERTIFICATE"
+# A daemon's key is pasted without a passphrase (D418).
 _KEYS = ("PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY")
-_MAX_PEM = 64 * 1024
 
 
 def socket_problem(path: str) -> str | None:
@@ -86,27 +84,6 @@ class DockerSshOptions(BaseModel):
         return self.ssh_connection
 
 
-def _pem(text: str, kinds: tuple[str, ...], problem: str) -> str:
-    """The blocks of the kinds asked for, each wrapped at 64 as OpenSSL reads it.
-
-    Rewrapped because a one-line field — the form's secret field is one — drops
-    the line breaks of what is pasted into it, and OpenSSL cannot read a body
-    on one line.
-    """
-    if len(text) > _MAX_PEM:
-        raise ValueError(problem)
-    blocks = []
-    for kind, body in _BLOCK.findall(text):
-        if kind not in kinds:
-            continue
-        joined = "".join(body.split())
-        lines = [joined[i : i + 64] for i in range(0, len(joined), 64)]
-        blocks.append("\n".join([f"-----BEGIN {kind}-----", *lines, f"-----END {kind}-----"]))
-    if not blocks:
-        raise ValueError(problem)
-    return "\n".join(blocks) + "\n"
-
-
 class DockerTlsOptions(BaseModel):
     model_config = ConfigDict(extra="forbid", title=N_("TCP with TLS"))
 
@@ -151,7 +128,7 @@ class DockerTlsOptions(BaseModel):
     @field_validator("ca_certificate", "client_certificate")
     @classmethod
     def _certificate(cls, text: str) -> str:
-        return _pem(text, (_CERTIFICATE,), say("Paste a certificate in PEM, BEGIN CERTIFICATE and all"))
+        return pem(text, CERTIFICATE, say("Paste a certificate in PEM, BEGIN CERTIFICATE and all"))
 
     @field_validator("client_key")
     @classmethod
@@ -159,7 +136,7 @@ class DockerTlsOptions(BaseModel):
         text = key.get_secret_value()
         if "ENCRYPTED" in text:
             raise ValueError(say("The key is encrypted; paste one without a passphrase"))
-        return SecretStr(_pem(text, _KEYS, say("Paste a private key in PEM, BEGIN PRIVATE KEY and all")))
+        return SecretStr(pem(text, _KEYS, say("Paste a private key in PEM, BEGIN PRIVATE KEY and all")))
 
     @property
     def tunnel(self) -> str:

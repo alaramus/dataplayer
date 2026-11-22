@@ -7,9 +7,10 @@ every keyspace its role may see (D340).
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.adapters.tls import TlsOptions
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_
 
@@ -46,7 +47,7 @@ def _auth_method_field(method: str) -> Any:
     return Field(default=method, title=N_("Authentication"), json_schema_extra=layout())
 
 
-class _CassandraBase(BaseModel):
+class _CassandraBase(TlsOptions):
     host: str = Field(
         default="localhost",
         title=N_("Host"),
@@ -62,12 +63,6 @@ class _CassandraBase(BaseModel):
         ge=1,
         le=65535,
         json_schema_extra=layout(row="address"),
-    )
-    secure: bool = Field(
-        default=False,
-        title=N_("TLS"),
-        description=N_("TLS, with the server's certificate verified"),
-        json_schema_extra=layout(),
     )
     consistency: Consistency = Field(
         default="LOCAL_ONE",

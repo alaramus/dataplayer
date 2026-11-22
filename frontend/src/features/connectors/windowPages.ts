@@ -22,15 +22,28 @@ export interface WindowPage {
 
 export const OPTIONS_PAGE = "options"
 export const PERMISSIONS_PAGE = "permissions"
+/** The page every server source puts its TLS block on (D446), named as an acronym is. */
+export const TLS_PAGE = "tls"
 
 export function windowPages(groups: readonly { id: string }[]): WindowPage[] {
-  const pages: WindowPage[] = groups.map((group) => ({
+  // The connection page first whatever the declaration order: the TLS block
+  // is inherited by a source's base model, so its fields come first (D446).
+  const ordered = [
+    ...groups.filter((group) => group.id === DEFAULT_GROUP),
+    ...groups.filter((group) => group.id !== DEFAULT_GROUP),
+  ]
+  const pages: WindowPage[] = ordered.map((group) => ({
     id: group.id,
     // A source names its own groups and this only shows the name, capitalised
     // as a tab's first word. The one exception is the group a field falls into
     // when its model says nothing: that word is this application's, and
     // "general" says nothing about what the page holds.
-    label: group.id === DEFAULT_GROUP ? t("connectors.pages.connection") : group.id.charAt(0).toUpperCase() + group.id.slice(1),
+    label:
+      group.id === DEFAULT_GROUP
+        ? t("connectors.pages.connection")
+        : group.id === TLS_PAGE
+          ? t("connectors.pages.tls")
+          : group.id.charAt(0).toUpperCase() + group.id.slice(1),
     owner: "source",
   }))
 

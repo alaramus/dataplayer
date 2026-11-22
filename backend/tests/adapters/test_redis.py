@@ -95,7 +95,7 @@ def test_a_password_is_a_secret_of_the_schema() -> None:
     """So D4's split encrypts it without being told."""
     secrets = adapter_options.secret_field_names(registry.get("redis").options_schema)
 
-    assert secrets == {"password"}
+    assert secrets == {"password", "tls_client_key", "tls_client_key_passphrase"}
 
 
 def test_the_two_ways_of_connecting_are_two_shapes() -> None:

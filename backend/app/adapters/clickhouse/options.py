@@ -8,9 +8,10 @@ one connection reaches every database its user may see (D267).
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.adapters.tls import TlsOptions
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_
 
@@ -32,7 +33,7 @@ def _auth_method_field(method: str) -> Any:
     return Field(default=method, title=N_("Authentication"), json_schema_extra=layout())
 
 
-class _ClickhouseBase(BaseModel):
+class _ClickhouseBase(TlsOptions):
     host: str = Field(
         default="localhost",
         title=N_("Host"),
@@ -46,12 +47,6 @@ class _ClickhouseBase(BaseModel):
         ge=1,
         le=65535,
         json_schema_extra=layout(row="address"),
-    )
-    secure: bool = Field(
-        default=False,
-        title=N_("TLS"),
-        description=N_("HTTPS, with the server's certificate verified"),
-        json_schema_extra=layout(),
     )
     # The SSH connection this server is reached through, if any (D282).
     ssh_tunnel: str = ssh_tunnel_field()
@@ -89,7 +84,6 @@ def container_options(env: Mapping[str, str]) -> dict[str, Any]:
     found: dict[str, Any] = {
         "user": env.get("CLICKHOUSE_USER") or "default",
         "database": env.get("CLICKHOUSE_DB") or "",
-        "secure": False,
     }
     password = env.get("CLICKHOUSE_PASSWORD")
     if password:

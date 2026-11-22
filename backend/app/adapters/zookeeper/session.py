@@ -40,6 +40,7 @@ from app.adapters.protocol import (
     ErrorKind,
     NodeNotFound,
 )
+from app.adapters.tls import TlsFiles, name_not_verifiable
 from app.adapters.tunnels import TunnelAccess, reach
 from app.adapters.zookeeper.options import (
     ZookeeperDigest,
@@ -137,7 +138,13 @@ class ZookeeperSession:
             auth.append(
                 ("digest", f"{options.user}:{options.password.get_secret_value()}")
             )
-        return KazooClient(
+        settings = options.tls()
+        # kazoo checks the name it dialled, a tunnel's loopback (D448).
+        name_not_verifiable(settings, options.ssh_tunnel)
+        # Read at every connect and every reconnection, so the files live as
+        # long as the client and go when it closes (D447).
+        files = TlsFiles(settings) if settings.enabled else None
+        client = KazooClient(
             hosts=address + options.chroot,
             timeout=TIMEOUT_SECONDS,
             # One attempt: a person is waiting on the answer, and the retries
@@ -147,10 +154,16 @@ class ZookeeperSession:
             ),
             command_retry={"max_tries": 0},
             auth_data=auth or None,
-            use_ssl=options.tls,
-            verify_certs=True,
+            use_ssl=settings.enabled,
+            verify_certs=settings.verifies,
+            check_hostname=settings.mode == "verify_full",
+            ca=str(files.ca) if files is not None and files.ca and settings.verifies else None,
+            certfile=str(files.certificate) if files is not None and files.certificate else None,
+            keyfile=str(files.key) if files is not None and files.key else None,
             read_only=False,
         )
+        setattr(client, _FILES, files)
+        return client
 
     async def check(self) -> ConnectionCheckResult:
         """Open a session and read the root, in words that name no address."""
@@ -189,6 +202,20 @@ def _close(client: KazooClient) -> None:
         client.close()
     except Exception:  # noqa: BLE001 - closing a session that failed to open
         logger.debug("ZooKeeper session did not close cleanly", exc_info=True)
+    finally:
+        release_files(client)
+
+
+def release_files(client: KazooClient) -> None:
+    """Remove the TLS files a client was made with, once it is closed (D447)."""
+    files = getattr(client, _FILES, None)
+    if isinstance(files, TlsFiles):
+        files.close()
+
+
+# Where a client keeps the files it was made with: kazoo's class is untyped,
+# so it is not subclassed, and both ways of closing one call `release_files`.
+_FILES = "dp_tls_files"
 
 
 def _refused(kind: ErrorKind, message: str) -> ConnectionCheckResult:

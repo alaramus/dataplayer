@@ -10,9 +10,10 @@ D4's schema split would not recognise as a secret at all.
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.adapters.tls import TlsOptions
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_
 
@@ -21,7 +22,7 @@ def _auth_method_field(value: str) -> Any:
     return Field(default=value, title=N_("Authentication"), json_schema_extra=layout())
 
 
-class _RedisBase(BaseModel):
+class _RedisBase(TlsOptions):
     model_config = ConfigDict(extra="forbid")
 
     # A default rather than an empty box, for the reason PostgreSQL has one: a
@@ -55,6 +56,14 @@ class RedisPassword(_RedisBase):
     model_config = ConfigDict(title=N_("Password"))
 
     auth_method: Literal["password"] = _auth_method_field("password")
+    # Redis 6's ACL: a named user, or the default one when left empty.
+    user: str = Field(
+        default="",
+        max_length=255,
+        title=N_("User"),
+        description=N_("An ACL user; empty for the default user"),
+        json_schema_extra=layout(),
+    )
     password: SecretStr = Field(title=N_("Password"), json_schema_extra=layout())
 
 

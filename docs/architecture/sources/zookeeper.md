@@ -22,7 +22,7 @@ znode is a handful of round trips. kazoo is imported by
 holds. A failure is reduced by kazoo's exception class, never by its text: a
 missing znode is a 404, a changed version a conflict, a refused ACL `auth`.
 
-Options are host, port (2181), a root path, TLS (verified), an SSH tunnel
+Options are host, port (2181), a root path, the shared TLS block ([D446](cloud-auth.md)), an SSH tunnel
 (D282), and either a digest user and password or an anonymous session. The
 root path is kazoo's chroot: every path is read under it as if it were the
 top, and nothing above it is reachable. One server is named; the rest of an
@@ -34,7 +34,7 @@ says so when the root path is not there.
 Known deviations:
 
 - No ensemble list: a connection names one server and does not fail over.
-- No SASL or Kerberos, and no client certificate; TLS verifies the server only.
+- No SASL or Kerberos.
 - kazoo tries a refused address three times before giving up, a few seconds
   inside the five-second limit on opening a session.
 

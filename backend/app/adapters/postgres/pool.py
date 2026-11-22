@@ -5,8 +5,10 @@ the pool (`adapters/resources.py`) stays free of any driver, and the session
 below asks for a pool without knowing where it is kept.
 """
 
+import asyncio
 import hashlib
 import uuid
+from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from typing import Any
 
@@ -14,6 +16,7 @@ from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from app.adapters.resources import Pooling
+from app.adapters.tls import TlsFiles, TlsSettings
 from app.core.config import settings
 
 # How long a caller waits for the pool to hand out a connection. Kept equal to
@@ -25,7 +28,10 @@ ACQUIRE_TIMEOUT_SECONDS = 5.0
 class PooledConnections:
     """A psycopg pool, configured the way this application wants one."""
 
-    def __init__(self, conninfo: str) -> None:
+    def __init__(self, conninfo: str, files: TlsFiles | None = None) -> None:
+        # libpq reads its key files at every connect, so they live as long as
+        # the pool and go when it closes (D447).
+        self._files = files
         self._pool: AsyncConnectionPool[AsyncConnection[Any]] = AsyncConnectionPool(
             conninfo,
             # Nothing is held for a connector nobody is looking at; the first
@@ -49,7 +55,11 @@ class PooledConnections:
         return self._pool.connection()
 
     async def close(self) -> None:
-        await self._pool.close()
+        try:
+            await self._pool.close()
+        finally:
+            if self._files is not None:
+                self._files.close()
 
 
 def key_for(connector_id: uuid.UUID, conninfo: str) -> str:
@@ -67,21 +77,35 @@ def key_for(connector_id: uuid.UUID, conninfo: str) -> str:
     return f"postgres:{connector_id}:{fingerprint}"
 
 
-async def pool_for(pooling: Pooling, conninfo: str) -> PooledConnections | None:
+async def pool_for(
+    pooling: Pooling,
+    conninfo: str,
+    tls: TlsSettings,
+    dial: Callable[[TlsFiles], str],
+) -> PooledConnections | None:
     """The connector's pool, or None where the store makes none to keep.
 
     A pool made for one search across many connections would be closed with
     it, and would hide a refused password behind its wait for a connection.
     Such a search uses the pool somebody already has, or connects on its own,
     as the metrics collector does (D127).
+
+    `conninfo` is the key: the TLS files named by a digest of their PEMs, not
+    by where a pool happens to write them. `dial` is what the pool connects
+    with once its files are written.
     """
     key = key_for(pooling.connector_id, conninfo)
     if not pooling.store.keeps:
         return await pooling.store.existing(key, PooledConnections)
 
     async def create() -> PooledConnections:
-        pool = PooledConnections(conninfo)
-        await pool.open()
+        files = await asyncio.to_thread(TlsFiles, tls)
+        pool = PooledConnections(dial(files), files)
+        try:
+            await pool.open()
+        except BaseException:
+            await pool.close()
+            raise
         return pool
 
     return await pooling.store.get_or_create(key, PooledConnections, create)

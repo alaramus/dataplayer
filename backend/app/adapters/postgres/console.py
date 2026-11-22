@@ -10,6 +10,7 @@ from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.tls import with_program_files
 from app.adapters.tunnels import tunnel_of
 from app.core.translation import say
 
@@ -28,8 +29,5 @@ def console_program(session: PostgresSession, options: PostgresOptions) -> Conso
         if isinstance(options, PostgresUserPassword)
         else {}
     )
-    return ConsoleProgram(
-        image=IMAGE,
-        argv=("psql", session.conninfo_without_password()),
-        environment=environment,
-    )
+    argv, files = with_program_files(("psql", session.conninfo_without_password()), options.tls())
+    return ConsoleProgram(image=IMAGE, argv=argv, environment={**environment, **files})

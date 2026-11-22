@@ -40,6 +40,7 @@ export const connectors: Messages["connectors"] = {
     connection: "الاتصال",
     options: "الخيارات",
     permissions: "الأذونات",
+    tls: "TLS",
   },
   new_connection: "اتصال جديد",
   catalog_dialog: {

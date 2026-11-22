@@ -271,6 +271,21 @@ jobs:
           docker run -d --privileged --name docker-tls --hostname docker-tls --network docker-stand \
             -e DOCKER_TLS_CERTDIR=/certs -e DOCKER_TLS_SAN=DNS:docker-tls,DNS:localhost,IP:127.0.0.1 \
             -v "$GITHUB_WORKSPACE/deploy/docker-tls/certs:/certs" -p 127.0.0.1:2376:2376 docker:29-dind
+      # A PostgreSQL and a Redis that speak only TLS (D446), started as compose
+      # starts them: pg-tls makes the certificates both use, and the client's,
+      # into the checkout for the tests.
+      - run: |
+          docker run -d --name pg-tls --hostname pg-tls --entrypoint sh \
+            -e POSTGRES_PASSWORD=dataplayer \
+            -v "$GITHUB_WORKSPACE/deploy/tls-test/start-postgres.sh:/setup/start-postgres.sh:ro" \
+            -v "$GITHUB_WORKSPACE/deploy/tls-test/certs:/certs" \
+            -p 127.0.0.1:5442:5432 postgres:18 /setup/start-postgres.sh
+          until [ -f deploy/tls-test/certs/server.crt ] && [ -f deploy/tls-test/certs/client-encrypted.key ]; do sleep 1; done
+          docker run -d --name redis-tls -v "$GITHUB_WORKSPACE/deploy/tls-test/certs:/certs:ro" \
+            -p 127.0.0.1:6390:6390 redis:8 redis-server --port 0 --tls-port 6390 \
+            --tls-cert-file /certs/server.crt --tls-key-file /certs/server.key \
+            --tls-ca-cert-file /certs/ca.crt --tls-auth-clients optional \
+            --user default off --user reader on '>dataplayer' '~*' '&*' '+@all'
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"

@@ -40,6 +40,7 @@ export const connectors: Messages["connectors"] = {
     connection: "连接",
     options: "选项",
     permissions: "权限",
+    tls: "TLS",
   },
   new_connection: "新建连接",
   catalog_dialog: {

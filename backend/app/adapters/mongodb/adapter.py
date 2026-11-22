@@ -139,7 +139,7 @@ def _address(options: Mapping[str, Any]) -> dict[str, Any] | None:
         "user": _as_text(options.get("user")) if named else "",
         "database": _as_text(options.get("database")),
         "auth_source": _as_text(options.get("auth_source")) if named else "",
-        "tls": options.get("tls") is True,
+        "tls": options.get("tls_mode", "disabled") != "disabled",
     }
 
 

@@ -22,6 +22,7 @@ from app.adapters.mysql.options import MysqlOptions, MysqlUserPassword
 from app.adapters.mysql.pool import PoolExhausted, pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
+from app.adapters.tls import ssl_context
 from app.adapters.tunnels import TunnelAccess, reach
 from app.core.logs import record_failure, with_ref
 from app.core.translation import N_, say
@@ -50,12 +51,10 @@ _AUTH_ERRORS = frozenset({1044, 1045, 1698, 1251})
 _CONFIG_ERRORS = frozenset({1049})
 _NETWORK_ERRORS = frozenset({2002, 2003, 2005, 2006, 2013, 2055})
 
-# Encrypted when the server can, and not refused when it cannot: libpq's
-# `prefer`, which is what a PostgreSQL connection gets without asking. The
-# server's certificate is not verified, so this keeps a password off the wire
-# without proving who is on the other end. MySQL 8 signs in with
-# caching_sha2_password, which over plain TCP needs the server's public key
-# fetched first; over TLS it does not.
+# `preferred` is libpq's `prefer`: encrypted when the server can, nothing
+# verified, plain text when it cannot — what every connection had before the
+# choice (D446). MySQL 8 signs in with caching_sha2_password, which over plain
+# TCP needs the server's public key fetched first; over TLS it does not.
 _PREFERRED_TLS = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 _PREFERRED_TLS.check_hostname = False
 _PREFERRED_TLS.verify_mode = ssl.CERT_NONE
@@ -382,6 +381,7 @@ class MysqlSession:
         self._pooling = pooling
         self._tunnels = tunnels
         self._profile: ServerProfile | None = None
+        self._tls: ssl.SSLContext | None = None
 
     @property
     def options(self) -> MysqlOptions:
@@ -413,9 +413,33 @@ class MysqlSession:
             "autocommit": True,
             "connect_timeout": CHECK_TIMEOUT_SECONDS,
             "init_command": _SESSION_SETUP,
-            "ssl": _PREFERRED_TLS,
+            "ssl": self._tls_context(),
             "cursorclass": QuietCursor,
         }
+
+    def _tls_context(self) -> ssl.SSLContext | None:
+        """One context for the session's life: a client key is read once (D447)."""
+        settings = self._options.tls()
+        if settings.mode == "preferred" and settings.client_certificate is None:
+            return _PREFERRED_TLS
+        if self._tls is None:
+            # The certificate names the server, also at a tunnel's end (D448).
+            self._tls = ssl_context(settings, server_name=self._options.host)
+        return self._tls
+
+    def _encrypted(self, connection: aiomysql.Connection) -> aiomysql.Connection:
+        """The connection, or a refusal when TLS was required and the server had none.
+
+        aiomysql goes on in plain text when the server offers no TLS, as libpq's
+        `prefer` does; anything stricter than `preferred` is held to it here.
+        The handshake's answer has gone by then — a scramble of the password,
+        never the password itself.
+        """
+        mode = self._options.tls_mode
+        if mode not in ("disabled", "preferred") and not getattr(connection, "_secure", False):
+            connection.close()
+            raise AdapterError("config", say("The server does not offer TLS, which this connection requires"))
+        return connection
 
     def connection_string(self) -> str:
         options = self._options
@@ -431,9 +455,9 @@ class MysqlSession:
         return self._options.database
 
     async def _direct(self) -> aiomysql.Connection:
-        return await asyncio.wait_for(
-            aiomysql.connect(**self._connect_arguments(await self._address())),
-            CHECK_TIMEOUT_SECONDS,
+        arguments = self._connect_arguments(await self._address())
+        return self._encrypted(
+            await asyncio.wait_for(aiomysql.connect(**arguments), CHECK_TIMEOUT_SECONDS)
         )
 
     @asynccontextmanager
@@ -447,7 +471,8 @@ class MysqlSession:
             # the tunnel's port among it, so a port opened again is a new pool.
             fingerprint = (
                 f"{options.host}:{options.port}:{options.user}:{options.database}:"
-                f"{options.ssh_tunnel}:{address}:{self._password()}"
+                f"{options.ssh_tunnel}:{address}:{self._password()}:"
+                f"{options.tls().fingerprint()}"
             )
             pool = await pool_for(self._pooling, fingerprint, self._connect_arguments(address))
         if pool is None:
@@ -458,7 +483,7 @@ class MysqlSession:
                 connection.close()
             return
         async with pool.connection() as connection:
-            yield connection
+            yield self._encrypted(connection)
 
     @asynccontextmanager
     async def acquire(self) -> AsyncIterator[aiomysql.Connection]:

@@ -11,7 +11,6 @@ import asyncio
 import hashlib
 import logging
 import re
-import ssl
 import time
 from collections import OrderedDict
 from collections.abc import AsyncIterator, Mapping, Sequence
@@ -52,6 +51,7 @@ from app.adapters.cassandra.options import (
 from app.adapters.cassandra.types import driver_value
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
+from app.adapters.tls import ssl_context
 from app.adapters.tunnels import TunnelAccess, reach
 from app.core.logs import record_failure, with_ref
 from app.core.translation import N_, say
@@ -259,7 +259,10 @@ def options_from_url(url: str) -> dict[str, Any]:
         for key in ("ssl", "tls", "secure")
         for value in query.get(key, [])
     )
-    options: dict[str, Any] = {"host": unquote(parts.hostname), "secure": secure}
+    options: dict[str, Any] = {
+        "host": unquote(parts.hostname),
+        "tls_mode": "verify_full" if secure else "disabled",
+    }
     if port is not None:
         options["port"] = port
     keyspace = unquote(parts.path.lstrip("/")) or next(
@@ -364,10 +367,10 @@ def make_cluster(options: CassandraOptions, address: tuple[str, int]) -> Cluster
         else None
     )
     tls: dict[str, Any] = {}
-    if options.secure:
-        context = ssl.create_default_context()
+    context = ssl_context(options.tls())
+    if context is not None:
         # The name the certificate is for is the server's, also when the
-        # connection goes to this end of an SSH tunnel (D282).
+        # connection goes to this end of an SSH tunnel (D282, D448).
         tls = {"ssl_context": context, "ssl_options": {"server_hostname": options.host}}
     return Cluster(
         contact_points=[host],
@@ -572,7 +575,7 @@ class CassandraSession:
             port=options.port,
             user=options.user if isinstance(options, CassandraUserPassword) else "",
             keyspace=options.keyspace,
-            secure=options.secure,
+            secure=options.tls().enabled,
         )
 
     async def _address(self) -> tuple[str, int]:
@@ -611,7 +614,7 @@ class CassandraSession:
             # What makes two clusters different, and nothing about a request;
             # the address dialled too, which a tunnel may change.
             fingerprint = (
-                f"{address[0]}:{address[1]}:{options.host}:{options.secure}:"
+                f"{address[0]}:{address[1]}:{options.host}:{options.tls().fingerprint()}:"
                 f"{options.consistency}:{user}:{self._password()}"
             )
             key = key_for(self._pooling, fingerprint)

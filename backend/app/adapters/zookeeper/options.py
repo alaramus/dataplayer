@@ -8,9 +8,10 @@ that one.
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import ConfigDict, Field, SecretStr, field_validator
 
 from app.adapters.layout import layout
+from app.adapters.tls import TlsOptions
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_, say
 
@@ -30,7 +31,7 @@ def chroot_problem(chroot: str) -> str | None:
     return None
 
 
-class _ZookeeperBase(BaseModel):
+class _ZookeeperBase(TlsOptions):
     model_config = ConfigDict(extra="forbid")
 
     host: str = Field(
@@ -54,12 +55,6 @@ class _ZookeeperBase(BaseModel):
         description=N_(
             "Everything is read under this path, as if it were the top; empty for the whole tree"
         ),
-        json_schema_extra=layout(),
-    )
-    tls: bool = Field(
-        default=False,
-        title=N_("TLS"),
-        description=N_("Encrypted, with the server's certificate verified"),
         json_schema_extra=layout(),
     )
     # The SSH connection this server is reached through, if any (D282).

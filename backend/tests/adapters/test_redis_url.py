@@ -72,21 +72,24 @@ def test_the_one_that_does_carry_it_quotes_it() -> None:
     assert options_from_url(written)["auth_method"] == "password"
 
 
+_PLAIN = {"tls_mode": "disabled"}
+
+
 @pytest.mark.parametrize(
     ("url", "expected"),
     [
         (
             "redis://cache",
-            {"host": "cache", "port": 6379, "database": 0, "auth_method": "no_auth"},
+            {"host": "cache", "port": 6379, "database": 0, "auth_method": "no_auth", **_PLAIN},
         ),
         (
             "redis://cache:6380/7",
-            {"host": "cache", "port": 6380, "database": 7, "auth_method": "no_auth"},
+            {"host": "cache", "port": 6380, "database": 7, "auth_method": "no_auth", **_PLAIN},
         ),
         (
             # Both spellings of the database exist in the wild.
             "redis://cache:6380?db=4",
-            {"host": "cache", "port": 6380, "database": 4, "auth_method": "no_auth"},
+            {"host": "cache", "port": 6380, "database": 4, "auth_method": "no_auth", **_PLAIN},
         ),
         (
             "redis://:secret@cache:6380/1",
@@ -96,11 +99,12 @@ def test_the_one_that_does_carry_it_quotes_it() -> None:
                 "database": 1,
                 "auth_method": "password",
                 "password": "secret",
+                "user": "",
+                **_PLAIN,
             },
         ),
         (
-            # A user is accepted and dropped: this source connects as the
-            # default user, and refusing would refuse what most tools write.
+            # `default` is the user an empty one means anyway.
             "redis://default:secret@cache/2",
             {
                 "host": "cache",
@@ -108,6 +112,21 @@ def test_the_one_that_does_carry_it_quotes_it() -> None:
                 "database": 2,
                 "auth_method": "password",
                 "password": "secret",
+                "user": "",
+                **_PLAIN,
+            },
+        ),
+        (
+            # An ACL user, over TLS (D446).
+            "rediss://reader:secret@cache/3",
+            {
+                "host": "cache",
+                "port": 6379,
+                "database": 3,
+                "auth_method": "password",
+                "password": "secret",
+                "user": "reader",
+                "tls_mode": "verify_full",
             },
         ),
     ],
@@ -127,10 +146,6 @@ def test_an_address_is_taken_apart_into_the_fields_of_the_form(
         ("", "not a Redis connection string"),
         ("redis://cache/99", "between 0 and 15"),
         ("redis://cache/main", "no usable database"),
-        # Recognised rather than treated as a stranger, so that pasting one
-        # gets an answer about what is missing instead of a plaintext
-        # connection nobody asked for.
-        ("rediss://cache", "does not do TLS"),
     ],
 )
 def test_a_string_that_is_not_an_address_says_what_is_wrong(

@@ -8,9 +8,10 @@ database its user may see.
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.adapters.tls import TlsOptionsRds
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_
 
@@ -28,7 +29,7 @@ def _auth_method_field(method: str) -> Any:
     return Field(default=method, title=N_("Authentication"), json_schema_extra=layout())
 
 
-class _MongodbBase(BaseModel):
+class _MongodbBase(TlsOptionsRds):
     host: str = Field(
         default="localhost",
         title=N_("Host"),
@@ -41,12 +42,6 @@ class _MongodbBase(BaseModel):
         ge=1,
         le=65535,
         json_schema_extra=layout(row="address"),
-    )
-    tls: bool = Field(
-        default=False,
-        title=N_("TLS"),
-        description=N_("Encrypted, with the server's certificate verified"),
-        json_schema_extra=layout(),
     )
     # The SSH connection this server is reached through, if any (D282).
     ssh_tunnel: str = ssh_tunnel_field()

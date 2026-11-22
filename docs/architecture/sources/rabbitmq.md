@@ -30,7 +30,7 @@ heartbeat for nobody. aio-pika, aiormq and pamqp are imported by
 Options are a host, the AMQP port (5672, 5671 with TLS), the management
 address (empty is `http://<host>:15672`, `https` with TLS), one user and
 password for both doors, a virtual host (empty is every one the user may see),
-TLS and a CA certificate as PEM. A connection string is
+and the shared TLS block ([D446](cloud-auth.md)). A connection string is
 `amqp://user:password@host:port/vhost`, `amqps://` for TLS, the path the
 virtual host percent-encoded.
 
@@ -148,7 +148,7 @@ needs the node's cookie and a port a broker does not expose to clients.
 
 The connection is one `[default]` node of a TOML file the server composes —
 the management address, user, password, the connection's virtual host or `/`,
-`tls` for an `https` address and the CA bundle — every value a TOML basic
+`tls` for an `https` address, the CA bundle and a client certificate — every value a TOML basic
 string with its quote, backslash and control characters escaped. It reaches
 the container in a variable, is written with `printf '%s'` under `umask 077`,
 and the variable is unset before the prompt, as Kafka's settings are (D307);
@@ -417,9 +417,9 @@ its path kept. The default management address names the host as the SSH
 server sees it, as every other address of the connection does, and so does the
 connection string.
 
-TLS through a tunnel is refused, for AMQP and for an `https` management
-address alike: a certificate names the broker, not a port on this loopback,
-and the tunnel encrypts already. **Open management** needs the Address for the
+TLS goes through a tunnel, for AMQP and for an `https` management address
+alike: the context checks the name in the form, not the loopback dialled
+([D448](cloud-auth.md)). **Open management** needs the Address for the
 browser through a tunnel, since the management address names a host the
 person's browser does not see; without it the action is refused with that
 reason. The console does not go through a tunnel yet, as no console does.

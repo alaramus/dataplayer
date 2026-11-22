@@ -9,7 +9,7 @@ import hashlib
 import logging
 import re
 import time
-from collections.abc import AsyncIterator, Iterator, Mapping
+from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any
 from urllib.parse import parse_qs, quote, unquote, urlsplit
@@ -34,6 +34,13 @@ from app.adapters.protocol import (
     NodeNotFound,
 )
 from app.adapters.resources import Pooling
+from app.adapters.tls import (
+    PROGRAM_PAIR,
+    TlsFiles,
+    TlsSettings,
+    name_not_verifiable,
+    program_paths,
+)
 from app.adapters.tunnels import TunnelAccess, reach
 from app.adapters.update import RowConflict
 from app.core.config import settings
@@ -123,8 +130,13 @@ def compose_url(
     database: str = "",
     auth_source: str = "",
     tls: bool = False,
+    tls_query: Sequence[tuple[str, str]] = (),
 ) -> str:
-    """A MongoDB address, every part quoted, as `mongosh` accepts it."""
+    """A MongoDB address, every part quoted, as `mongosh` accepts it.
+
+    `tls_query` is what a program needs beyond `tls=true`: its files and how
+    much it checks (`program_tls`).
+    """
     authority = f"[{host}]" if ":" in host else quote(host, safe="")
     if user != "":
         authority = f"{quote(user, safe='')}@{authority}"
@@ -138,6 +150,7 @@ def compose_url(
         query.append(f"authSource={quote(auth_source, safe='')}")
     if tls:
         query.append("tls=true")
+        query += [f"{name}={quote(value, safe='/')}" for name, value in tls_query]
     return url + ("?" + "&".join(query) if query else "")
 
 
@@ -149,11 +162,18 @@ def compose_url_with_password(
     database: str = "",
     auth_source: str = "",
     tls: bool = False,
+    tls_query: Sequence[tuple[str, str]] = (),
     password: str = "",
 ) -> str:
     """The same address with the password in it, for somebody to paste (D89)."""
     plain = compose_url(
-        host=host, port=port, user=user, database=database, auth_source=auth_source, tls=tls
+        host=host,
+        port=port,
+        user=user,
+        database=database,
+        auth_source=auth_source,
+        tls=tls,
+        tls_query=tls_query,
     )
     if password == "" or user == "":
         return plain
@@ -187,11 +207,12 @@ def options_from_url(url: str) -> dict[str, Any]:
     if not parts.hostname:
         raise ValueError(say("The connection string names no host"))
     query = parse_qs(parts.query)
+    tls = any(
+        value.lower() in _TRUE_WORDS for value in query.get("tls", []) + query.get("ssl", [])
+    )
     options: dict[str, Any] = {
         "host": unquote(parts.hostname),
-        "tls": any(
-            value.lower() in _TRUE_WORDS for value in query.get("tls", []) + query.get("ssl", [])
-        ),
+        "tls_mode": "verify_full" if tls else "disabled",
     }
     if port is not None:
         options["port"] = port
@@ -228,20 +249,58 @@ def make_client(
             "password": options.password.get_secret_value(),
             "authSource": options.auth_source,
         }
-    return AsyncMongoClient(
-        host=host,
-        port=port,
-        directConnection=True,
-        tls=options.tls,
-        serverSelectionTimeoutMS=SELECT_MILLISECONDS,
-        connectTimeoutMS=SELECT_MILLISECONDS,
-        tz_aware=True,
-        uuidRepresentation="standard",
-        appname="DataPlayer",
-        maxPoolSize=pool_size,
-        connect=False,
-        **credentials,
-    )
+    # pymongo reads its files once, while the client is made (D447).
+    with TlsFiles(options.tls()) as files:
+        return AsyncMongoClient(
+            host=host,
+            port=port,
+            directConnection=True,
+            serverSelectionTimeoutMS=SELECT_MILLISECONDS,
+            connectTimeoutMS=SELECT_MILLISECONDS,
+            tz_aware=True,
+            uuidRepresentation="standard",
+            appname="DataPlayer",
+            maxPoolSize=pool_size,
+            connect=False,
+            **_tls_arguments(options.tls(), files),
+            **credentials,
+        )
+
+
+def _tls_arguments(settings: TlsSettings, files: TlsFiles) -> dict[str, Any]:
+    """pymongo's words for the TLS block (D446)."""
+    if not settings.enabled:
+        return {"tls": False}
+    found: dict[str, Any] = {"tls": True}
+    if settings.mode == "required":
+        found["tlsAllowInvalidCertificates"] = True
+    elif settings.mode == "verify_ca":
+        found["tlsAllowInvalidHostnames"] = True
+    if files.ca is not None and settings.verifies:
+        found["tlsCAFile"] = str(files.ca)
+    if files.pair is not None:
+        found["tlsCertificateKeyFile"] = str(files.pair)
+    return found
+
+
+def program_tls(settings: TlsSettings) -> list[tuple[str, str]]:
+    """The same, as a program's address names it, its files where
+    `tls.with_program_files` writes them."""
+    if not settings.enabled:
+        return []
+    found: list[tuple[str, str]] = []
+    if settings.mode == "required":
+        found.append(("tlsAllowInvalidCertificates", "true"))
+    elif settings.mode == "verify_ca":
+        found.append(("tlsAllowInvalidHostnames", "true"))
+    paths = program_paths(settings)
+    if paths.ca is not None and settings.verifies:
+        found.append(("tlsCAFile", paths.ca))
+    if paths.certificate is not None:
+        # mongosh takes the certificate and its key as one file.
+        found.append(("tlsCertificateKeyFile", PROGRAM_PAIR))
+    return found
+
 
 
 class KeptClient:
@@ -288,7 +347,7 @@ class MongodbSession:
             user=user,
             database=options.database,
             auth_source=auth_source,
-            tls=options.tls,
+            tls=options.tls().enabled,
         )
 
     def database(self) -> str:
@@ -297,6 +356,8 @@ class MongodbSession:
 
     async def _address(self) -> tuple[str, int]:
         options = self._options
+        # pymongo checks the name it dialled, a tunnel's loopback (D448).
+        name_not_verifiable(options.tls(), options.ssh_tunnel)
         return await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
 
     @asynccontextmanager
@@ -311,7 +372,7 @@ class MongodbSession:
             store = self._pooling.store
             user, password, auth_source = self.credentials()
             fingerprint = hashlib.sha256(
-                f"{host}:{port}:{self._options.tls}:{user}:{password}:{auth_source}".encode()
+                f"{host}:{port}:{self._options.tls().fingerprint()}:{user}:{password}:{auth_source}".encode()
             ).hexdigest()[:16]
             key = f"mongodb:{self._pooling.connector_id}:{fingerprint}"
             kept: KeptClient | None

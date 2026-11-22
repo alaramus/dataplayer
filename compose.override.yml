@@ -132,6 +132,62 @@ services:
     ports:
       - "127.0.0.1:2376:2376"
 
+  # A PostgreSQL that accepts only TLS, and a client certificate for the role
+  # `certuser`, for the TLS block (D446): port 5432 from the backend,
+  # 127.0.0.1:5442 from this machine, user `postgres` and password
+  # `dataplayer`. It makes its CA and certificates on first start into
+  # deploy/tls-test/certs, which git ignores. Behind the `tools` profile,
+  # published on the loopback only.
+  pg-tls:
+    image: postgres:18
+    profiles: ["tools"]
+    hostname: pg-tls
+    entrypoint: ["sh", "/setup/start-postgres.sh"]
+    environment:
+      POSTGRES_PASSWORD: dataplayer
+    volumes:
+      - ./deploy/tls-test/start-postgres.sh:/setup/start-postgres.sh:ro
+      - ./deploy/tls-test/certs:/certs
+    ports:
+      - "127.0.0.1:5442:5432"
+
+  # A Redis that speaks only TLS, with pg-tls's certificate, and an ACL user
+  # `reader` with password `dataplayer` where the default user is off (D446,
+  # D456): port 6390, from this machine 127.0.0.1:6390. Behind `tools`.
+  redis-tls:
+    image: redis:8
+    profiles: ["tools"]
+    hostname: redis-tls
+    depends_on: [pg-tls]
+    command:
+      - redis-server
+      - --port
+      - "0"
+      - --tls-port
+      - "6390"
+      - --tls-cert-file
+      - /certs/server.crt
+      - --tls-key-file
+      - /certs/server.key
+      - --tls-ca-cert-file
+      - /certs/ca.crt
+      - --tls-auth-clients
+      - optional
+      - --user
+      - default
+      - "off"
+      - --user
+      - reader
+      - "on"
+      - ">dataplayer"
+      - "~*"
+      - "&*"
+      - "+@all"
+    volumes:
+      - ./deploy/tls-test/certs:/certs:ro
+    ports:
+      - "127.0.0.1:6390:6390"
+
   # A MySQL and a MariaDB for the backend suite and for a person to point a
   # MySQL connection at: user `root`, password `dataplayer`, host `mysql` or
   # `mariadb` port 3306 from the backend, 127.0.0.1:3307 and 127.0.0.1:3308

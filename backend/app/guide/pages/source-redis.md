@@ -31,8 +31,8 @@ The **Connection** page of the window asks for:
 - **Authentication**: a password, or none.
 
 A connection string such as `redis://:secret@cache.example.com:6379/0` pasted
-into **URL** fills these fields. A `rediss://` address, which needs TLS, is not
-supported yet.
+into **URL** fills these fields. A `rediss://` address turns on TLS, checked in
+full, and a user before the `@` is an ACL user; the **TLS** page has the rest.
 
 ## The catalog
 

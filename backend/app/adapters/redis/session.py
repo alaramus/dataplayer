@@ -11,6 +11,7 @@ the connection it failed on, so none of it crosses this boundary.
 """
 
 import logging
+import ssl
 import time
 from collections.abc import AsyncIterator, Awaitable, Mapping
 from contextlib import asynccontextmanager
@@ -31,6 +32,7 @@ from redis.exceptions import (
 
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.redis.options import RedisOptions, RedisPassword
+from app.adapters.tls import ssl_context
 from app.adapters.tunnels import TunnelAccess, reach
 from app.core.logs import record_failure, with_ref
 from app.core.translation import say
@@ -69,12 +71,24 @@ def read_version(info: Mapping[str, object]) -> str | None:
     return f"KeyDB {version}" if program == "keydb-server" else version
 
 
+class _TlsConnection(redis.Connection):
+    """A connection that wraps its socket in a context made elsewhere."""
+
+    def __init__(self, *, tls_context: ssl.SSLContext, **kwargs: Any) -> None:
+        self._tls_context = tls_context
+        super().__init__(**kwargs)
+
+    def _connection_arguments(self) -> Mapping[str, Any]:
+        return {**super()._connection_arguments(), "ssl": self._tls_context}
+
+
 class RedisSession:
     """A way to reach one Redis server, opened per operation."""
 
     def __init__(self, options: RedisOptions, tunnels: TunnelAccess | None = None) -> None:
         self._options = options
         self._tunnels = tunnels
+        self._tls: ssl.SSLContext | None = None
 
     async def _address(self) -> tuple[str, int]:
         """Where to dial now: through the tunnel when there is one (D282)."""
@@ -100,22 +114,38 @@ class RedisSession:
             else None
         )
         host, port = address
-        return redis.Redis(
-            host=host,
-            port=port,
-            db=self._options.database if database is None else database,
+        user = self._options.user if isinstance(self._options, RedisPassword) else ""
+        arguments: dict[str, Any] = {
+            "host": host,
+            "port": port,
+            "db": self._options.database if database is None else database,
             # Named so the driver signs in inside HELLO: Dragonfly refuses a
             # HELLO sent before AUTH, which Redis answers (D378). RESP3 needs
             # Redis 6, whose default user this is.
-            username="default" if password is not None else None,
-            password=password,
-            socket_connect_timeout=TIMEOUT_SECONDS,
-            socket_timeout=TIMEOUT_SECONDS,
+            "username": (user or "default") if password is not None else None,
+            "password": password,
+            "socket_connect_timeout": TIMEOUT_SECONDS,
+            "socket_timeout": TIMEOUT_SECONDS,
             # Bytes, decoded where a value is shown rather than by the driver:
             # a key may hold anything at all, and a driver that decoded would
             # raise on the first one that is not text.
-            decode_responses=False,
+            "decode_responses": False,
+        }
+        context = self._tls_context()
+        if context is None:
+            return redis.Redis(**arguments)
+        # redis-py's own TLS connection builds its context from file names;
+        # this one is handed the context the TLS block made (D446, D448).
+        pool = redis.ConnectionPool(
+            connection_class=_TlsConnection, tls_context=context, **arguments
         )
+        return redis.Redis.from_pool(pool)
+
+    def _tls_context(self) -> ssl.SSLContext | None:
+        if self._tls is None:
+            # The certificate names the server, also at a tunnel's end.
+            self._tls = ssl_context(self._options.tls(), server_name=self._options.host)
+        return self._tls
 
     @asynccontextmanager
     async def connection(

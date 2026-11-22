@@ -6,9 +6,14 @@ screen. It starts without a connection and makes one from an address in its
 environment, which it then forgets, so the password is never an argument.
 """
 
-from app.adapters.mongodb.session import MongodbSession, compose_url_with_password
+from app.adapters.mongodb.session import (
+    MongodbSession,
+    compose_url_with_password,
+    program_tls,
+)
 from app.adapters.protocol import AdapterError
 from app.adapters.terminal import ConsoleProgram
+from app.adapters.tls import with_program_files
 from app.adapters.tunnels import tunnel_of
 from app.core.translation import say
 
@@ -35,11 +40,11 @@ def console_program(session: MongodbSession) -> ConsoleProgram:
         user=user,
         database=options.database,
         auth_source=auth_source,
-        tls=options.tls,
+        tls=options.tls().enabled,
+        tls_query=program_tls(options.tls()),
         password=password,
     )
-    return ConsoleProgram(
-        image=IMAGE,
-        argv=("mongosh", "--nodb", "--norc", "--quiet", "--shell", "--eval", _CONNECT),
-        environment={URI_VARIABLE: address},
+    argv, files = with_program_files(
+        ("mongosh", "--nodb", "--norc", "--quiet", "--shell", "--eval", _CONNECT), options.tls()
     )
+    return ConsoleProgram(image=IMAGE, argv=argv, environment={URI_VARIABLE: address, **files})

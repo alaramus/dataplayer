@@ -7,9 +7,10 @@ both, so a second set of fields would only ever be filled with the same.
 
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import ConfigDict, Field, SecretStr, field_validator
 
 from app.adapters.layout import layout
+from app.adapters.tls import TlsOptions
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_, say
 
@@ -33,7 +34,7 @@ def checked_management_url(text: str) -> str:
     return url
 
 
-class RabbitmqOptions(BaseModel):
+class RabbitmqOptions(TlsOptions):
     model_config = ConfigDict(extra="forbid")
 
     host: str = Field(
@@ -88,19 +89,6 @@ class RabbitmqOptions(BaseModel):
         max_length=255,
         json_schema_extra=layout(),
     )
-    tls: bool = Field(
-        default=False,
-        title=N_("TLS"),
-        description=N_("Encrypted, with the broker's certificate verified"),
-        json_schema_extra=layout(),
-    )
-    # Not secret: a CA certificate is what everybody is meant to have.
-    ca_certificate: str = Field(
-        default="",
-        title=N_("CA certificate"),
-        description=N_("PEM, for TLS; empty to trust the system's authorities"),
-        json_schema_extra=layout(multiline=True),
-    )
 
     @field_validator("host")
     @classmethod
@@ -125,5 +113,5 @@ class RabbitmqOptions(BaseModel):
         """The management API's root, the default filled in."""
         if self.management_url:
             return self.management_url
-        scheme = "https" if self.tls else "http"
+        scheme = "https" if self.tls_mode != "disabled" else "http"
         return f"{scheme}://{self.host}:15672"

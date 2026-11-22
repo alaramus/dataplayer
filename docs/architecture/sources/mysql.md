@@ -28,13 +28,10 @@ refuses the server with its version named rather than leaving it half working.
 
 The driver is aiomysql, on PyMySQL. It encodes a password as Latin-1 while the
 server compares UTF-8 bytes, so the session hands it the UTF-8 bytes spelt as
-Latin-1. The connection asks for TLS and takes plain TCP when the server offers
-no TLS, without verifying the certificate: libpq's `prefer`, which a
-PostgreSQL connection gets unasked.
-
-Known deviations:
-
-- There is no option to require TLS or to verify the server's certificate.
+Latin-1. TLS is the shared block ([D446](cloud-auth.md)): by default the connection asks for
+TLS and takes plain TCP when the server offers none, without verifying the
+certificate — libpq's `prefer`, which a PostgreSQL connection gets unasked —
+and it can require, verify and offer a client certificate.
 
 Spec: [A MySQL source](../../decisions/2026-10-18-mysql-source-design.md)
 
@@ -395,8 +392,8 @@ Backups (D87) of a MySQL connection run `mysqldump` and the `mysql` client
 from the image of the server's own release, `mysql:8.4`, and MariaDB's own
 `mariadb-dump` and `mariadb` from `mariadb:11.4`: a dump by the other family
 or an older release may not restore. The password travels in `MYSQL_PWD`,
-which both clients read; TLS is as the connection has it (D228), so MariaDB's
-client is told not to check the certificate.
+which both clients read; TLS is as the connection has it (D446): MySQL's
+`--ssl-mode` names the same modes, MariaDB's client is told whether to check.
 
 - **One database: the one the connection names.** A connection that names
   none is not offered a backup, since a dump of everything its user sees would

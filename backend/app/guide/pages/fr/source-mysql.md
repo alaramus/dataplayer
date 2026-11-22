@@ -46,8 +46,9 @@ dans **URL** remplit ces champs ; `mariadb://` se lit de la même façon. Un mot
 passe présent dans la chaîne collée passe dans le champ du mot de passe et
 quitte la chaîne.
 
-La connexion est chiffrée quand le serveur propose TLS, et reste en clair sinon.
-Le certificat du serveur n'est pas vérifié.
+Par défaut la connexion est chiffrée quand le serveur propose TLS, et reste en
+clair sinon, sans vérifier le certificat du serveur. La page **TLS** permet de
+l'exiger, de vérifier le certificat et de présenter un certificat client.
 
 MySQL 8.0.16 et plus récent et MariaDB 10.6 et plus récent sont pris en charge.
 Un serveur plus ancien est refusé lors de la vérification de la connexion, avec
