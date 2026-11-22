@@ -204,10 +204,13 @@ class Action[P: BaseModel](ABC):
     # something that adds a row belongs.
     offered_in: ClassVar[OfferedIn] = "catalog"
     # What to draw where the action is offered as a picture rather than as a
-    # line of a menu. Only the row of commands over a grid needs one, so only
-    # what is offered there declares one; a client choosing it would be a
-    # table of action names on that side.
+    # line of a menu: the row of commands over a grid, or the head of a view.
+    # A client choosing it would be a table of action names on that side.
     icon: ClassVar[str | None] = None
+    # Whether the node's document view draws it in its head as well, by its
+    # icon, for the one node the view shows (D424). The catalog still offers
+    # it; the view is only nearer.
+    in_view: ClassVar[bool] = False
     # The submenu the action is drawn in, when it belongs to a family the source
     # names; declared here for the same reason as `icon` (D207).
     menu_group: ClassVar[str | None] = None

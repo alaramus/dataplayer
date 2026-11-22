@@ -12,7 +12,7 @@ from app.adapters.actions import ActionRefused
 from app.adapters.changes import Changed
 from app.adapters.docker.adapter import DockerAdapter
 from app.adapters.docker.session import DockerSession
-from app.adapters.docker.watch import changed_by
+from app.adapters.docker.watch import changed_by, views_told
 from app.adapters.docker_api.client import EngineClient
 from app.adapters.terminal import OpensTerminal, Terminal, TerminalSize
 from tests.adapters.docker_stand import (
@@ -177,3 +177,63 @@ def test_an_event_names_only_the_levels_shown() -> None:
     assert changed_by(exec_start, frozenset({"containers"})) is None
     healthy = {"Type": "container", "Action": "health_status: healthy", "Actor": {}}
     assert changed_by(healthy, frozenset({"standalone"})) == Changed(levels=frozenset({"standalone"}))
+
+
+C1 = "a" * 64
+C2 = "b" * 64
+NET = "c" * 64
+IMG = "sha256:" + "d" * 64
+
+
+def _viewed(*ids: str) -> dict[str, tuple[str, str]]:
+    return {one: (one.split(":", 1)[0], one.split(":", 1)[1].removesuffix("/inspect")) for one in ids}
+
+
+def test_a_container_event_tells_its_own_view_and_the_lists_of_users() -> None:
+    """Its own view by id; an image's and a volume's list states, so every one (D422)."""
+    viewed = _viewed(
+        f"container:{C1}/inspect", f"container:{C2}", f"image:{IMG}", "volume:data", f"network:{NET}"
+    )
+    paused = {"Type": "container", "Action": "pause", "Actor": {"ID": C1}}
+    assert views_told(paused, viewed) == {f"container:{C1}/inspect", f"image:{IMG}", "volume:data"}
+    healthy = {"Type": "container", "Action": "health_status: healthy", "Actor": {"ID": C2}}
+    assert f"container:{C2}" in views_told(healthy, viewed)
+    exec_start = {"Type": "container", "Action": "exec_start: /bin/sh -c true", "Actor": {"ID": C1}}
+    assert views_told(exec_start, viewed) == frozenset()
+
+
+def test_a_network_event_tells_the_network_and_the_container_it_connects() -> None:
+    viewed = _viewed(f"container:{C1}/inspect", f"network:{NET}", f"image:{IMG}")
+    connected = {
+        "Type": "network",
+        "Action": "connect",
+        "Actor": {"ID": NET, "Attributes": {"container": C1}},
+    }
+    assert views_told(connected, viewed) == {f"container:{C1}/inspect", f"network:{NET}"}
+
+
+def test_a_pull_tells_every_image_view_and_a_tag_its_own() -> None:
+    other = "sha256:" + "e" * 64
+    viewed = _viewed(f"image:{IMG}", f"image:{other}")
+    pulled = {"Type": "image", "Action": "pull", "Actor": {"ID": "alpine:3.20"}}
+    assert views_told(pulled, viewed) == {f"image:{IMG}", f"image:{other}"}
+    tagged = {"Type": "image", "Action": "tag", "Actor": {"ID": IMG}}
+    assert views_told(tagged, viewed) == {f"image:{IMG}"}
+
+
+async def test_an_open_view_is_told_when_its_container_changes(
+    adapter: DockerAdapter, engine: EngineClient, stand: dict[str, str]
+) -> None:
+    node = f"container:{stand['tty']}/inspect"
+    sink = _Told(lambda changed: node in changed.nodes)
+    watch = await adapter.watch_changes(sink)
+    try:
+        # A view alone, no level: the events stream opens for it too.
+        await watch.follow([node])
+        await asyncio.sleep(1.0)
+        await engine.request("POST", f"/containers/{stand['tty']}/pause", expected=(204,))
+        async with asyncio.timeout(10):
+            await sink.arrived.wait()
+    finally:
+        await watch.close()
+        await engine.request("POST", f"/containers/{stand['tty']}/unpause", expected=(204, 409, 500))

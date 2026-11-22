@@ -11,6 +11,7 @@ auf der Seite [Verbindungen](connections.md).
 - Container, nach Compose-Projekt gruppiert, laufend oder nicht
 - Images, Volumes und Netzwerke, und welche Container sie nutzen
 - Was der Daemon über jedes davon sagt, als JSON-Baum
+- Einen Container auf einen Blick, Geheimnisse bis zum Anzeigen verborgen
 - Die Logs eines Containers, während sie entstehen, und seine Prozesse
 - Die Schichten eines Images und die Anweisungen dahinter
 - Die Engine: Versionen, Treiber, CPUs, Speicher, Platz, Ereignisse
@@ -78,33 +79,49 @@ das Zertifikat nicht gilt, oder ein Client-Zertifikat, das der Daemon ablehnt.
 ## Der Katalog
 
 - **System** enthält die Berichte des Daemons, siehe unten.
-- **Container** enthält einen Ordner pro Compose-Projekt, benannt nach dem
-  Label, das Compose schreibt, und **Ohne Projekt** für den Rest. Jeder
-  Container zeigt seinen Zustand in einem Wort — läuft, gesund, ungesund,
-  startet, pausiert, startet neu, gestoppt, fehlgeschlagen, erstellt oder
-  tot — daneben den Status des Daemons, sein Image, seinen Compose-Dienst und
-  seine veröffentlichten Ports.
-- **Images** listet jedes Image nach seiner Id, mit oder ohne Tag, mit Größe
-  und der Zahl der Container, die es nutzen.
-- **Volumes** listet jedes Volume nach Namen; **Netzwerke** jedes Netzwerk,
-  die drei von Docker zuerst, jedes als eingebaut, Compose oder eigenes
-  markiert.
-- Jeder dieser Ordner öffnet sich auch als Tabelle, nach jeder Spalte
-  filter- und sortierbar. Mehr als zehntausend einer Art werden nicht
-  aufgeführt.
+- **Container** enthält je einen Ordner pro Compose-Projekt und **Ohne Projekt**
+  für den Rest. Jeder Container zeigt Zustand, Daemon-Status, Image,
+  Compose-Dienst und veröffentlichte Ports.
+- **Images** sind nach ID aufgeführt, mit oder ohne Tag, mit Größe und der Zahl
+  ihrer Container. **Volumes** sind nach Namen aufgeführt; **Netzwerke** zeigen
+  alle Netzwerke, zuerst die drei von Docker, markiert als integriert, Compose
+  oder benutzerdefiniert.
+- Jede Gruppe lässt sich auch als Tabelle öffnen und nach jeder Spalte filtern
+  und sortieren. Mehr als zehntausend Objekte derselben Art werden nicht gelistet.
+- Ein Klick auf Container, Image, Volume oder Netzwerk öffnet direkt dessen
+  Übersicht in einem Tab mit dem Namen des Knotens. Es wird keine weitere
+  Katalogebene geöffnet. Die Aktionen eines Containers stehen auch als Symbole
+  im Kopf seiner Übersicht; das Katalogmenü behält sie für mehrere markierte
+  Container.
 
 ## Wie sich ein Knoten öffnet
 
-- Ein Container, ein Image, ein Volume oder ein Netzwerk öffnet sich als das,
-  was der Daemon darüber sagt, als JSON-Baum. Beim Container gehört seine
-  Umgebung dazu, die oft Passwörter enthält: Jeder, mit dem Sie diese
-  Verbindung teilen, sieht sie.
-- In einem Container: **Logs** — Zeit, Strom (stdout oder stderr) und Text
-  jeder Zeile, Neuestes zuerst, bis zu zehntausend Zeilen zurück, eine Zeile
-  bei 16 KB gekürzt — und **Prozesse**, was jetzt darin läuft. Ein gestoppter
-  Container hat keine.
-- In einem Image: **Verlauf**, seine Schichten.
-- In einem Volume oder Netzwerk: **Container**, die es nutzen.
+- Ein Container öffnet seine Übersicht in einem Tab mit seinem Namen: Zustand,
+  Image, Erstellungs- und Startzeit oder Ende, Neustartrichtlinie und Anzahl,
+  Befehl, Healthcheck und letzte Ergebnisse, Ports, Netzwerke und Adressen,
+  Mounts, Umgebung, Labels und Ressourcengrenzen. Ein Hinweis erscheint bei
+  mehr als drei Neustarts oder wenn Speichermangel ihn beendet hat.
+- Die Befehle im Kopf einer Übersicht sind Symbole; ihr Name erscheint, wenn
+  der Zeiger darauf ruht. **Als JSON** öffnet den schreibgeschützten JSON-Baum
+  des Daemons in einem eigenen Tab, etwa `dp-test-web — Als JSON`. Wird der
+  Container entfernt, schließt sich seine Übersicht. Image, Volume, Netzwerk und
+  Compose-Projekt sind Links zur jeweiligen eigenen Übersicht.
+- **Logs** und **Prozesse** in der Karte öffnen jeweils einen eigenen Tab mit
+  einer Tabelle. Der Tabname enthält Container und Seite, etwa
+  `dp-test-web — Logs`. Logs zeigen Zeit, Stream und Text, neueste zuerst, bis
+  zu zehntausend Zeilen; eine Zeile wird bei 16 KB gekürzt. Prozesse zeigen,
+  was gerade läuft; ein gestoppter Container hat keine.
+- **Verlauf** öffnet die Image-Schichten in einem eigenen Tab. **Container** bei
+  einem Volume oder Netzwerk öffnet dort die Container, die es nutzen, ebenfalls
+  separat. Der Übersichts-Tab behält den Namen des Knotens.
+- Eine Karte aus der Suche oder einem Link hat dieselben Seiten-Schaltflächen.
+  Sie liest sich neu, wenn der Daemon eine Änderung an ihren Daten meldet,
+  solange ein Katalog dieser Verbindung geöffnet ist.
+- Eine Variable, deren Name PASSWORD, PASSWD, SECRET, TOKEN, KEY, CREDENTIAL
+  oder PRIVATE enthält, erscheint als Punkte, bis Sie auf ihr Auge drücken,
+  und wird erst dann kopiert. Das verbirgt sie vor einem Blick, nicht vor einem
+  Leser: Das JSON zeigt sie offen, und jeder, mit dem Sie diese Verbindung
+  teilen, sieht die Umgebung eines Containers.
 
 ## Der Abschnitt System
 

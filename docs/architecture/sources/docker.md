@@ -8,13 +8,14 @@ volumes, networks and the daemon's reports (D407), what a node opens as
 lifecycle (D410), removing, pruning and making volumes and networks (D411),
 pull and commit as jobs (D412), a terminal inside a container (D413) and what
 changed told as it happens (D414), metrics (D415), search (D416) and a
-database's container opened as a connection (D417) and a daemon reached
-on TCP with mutual TLS (D418). The contract
+database's container opened as a connection (D417), a daemon reached
+on TCP with mutual TLS (D418) and a container's view of its inspect (D422).
+The contract
 every source type follows is in [contract.md](contract.md); the SSH tunnel it
 rides is D282 in [ssh.md](ssh.md). Read this before changing the `docker`
 adapter or `app/adapters/docker_api`.
 
-Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414, D415, D416, D417, D418.
+Decisions here: D405, D406, D407, D408, D409, D410, D411, D412, D413, D414, D415, D416, D417, D418, D422, D423.
 
 ## D405. Only a remote daemon, its socket forwarded through an SSH connection
 
@@ -120,13 +121,15 @@ Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-sou
 
 ## D408. What a node opens as
 
-A container, image, volume or network is walked into, and holds its views:
-**Inspect** first, the daemon's JSON for it as a read-only tree (D295), then
-tables — a container's **Logs** and **Processes**, an image's **History**, a
-volume's and a network's **Containers**. Opened from elsewhere — a search, a
-link — the node itself still answers as its Inspect tree. Walked rather than
-opened because a node that opens and holds nodes opens as a workbook does
-(D51), and that tab offers only sibling tables: the logs were out of reach.
+A container, image, volume or network opens directly as its own node on
+the **Overview** view and declares `[view, tree]` (D422). This direct opening
+replaces the former catalog expansion in this decision (D423). **As JSON**
+opens the daemon's read-only tree (D295) in a tab of its own (D424). Its `DocumentView`
+lists the related table pages: a container's **Logs** and **Processes**, an
+image's **History**, and a volume's or network's **Containers** (D423). Each
+page opens in a separate tab. The node is not a catalog level and its pages are
+not rows there; their source-issued IDs still read and resolve through
+`path_to`.
 
 Logs are read with `timestamps=true` and `tail` = offset + limit, at most
 10,000 lines, and shown newest first as time, stream and text; a container
@@ -144,7 +147,10 @@ Known deviations:
   they are not filtered or sorted.
 - **A Containers row does not open its container.** The grid's link is a
   relation's foreign key with a predicate; the container is found in the
-  catalog.
+  catalog. A link in a document view and a search result do open the
+  container's preferred view, with its pages (D423). A link in a document view and a search result do open the
+  container's preferred view, with its pages (D423). A link in a document view and a search result do open the
+  container's preferred view, with its pages (D423).
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
 
@@ -398,3 +404,80 @@ which only somebody already holding that daemon has; an address cannot be
 judged "this machine" reliably behind containers and proxies anyway.
 
 Spec: [2026-11-21-docker-source-design.md](../../decisions/2026-11-21-docker-source-design.md)
+
+## D422. An inspect opens on its view
+
+A container, image, volume and network declare `[view "Overview", tree
+"As JSON"]` on the node itself. The view (D419, [views.md](views.md)) is built
+by `docker/card.py` (a container, and the values every Docker view reads
+alike) and `docker/cards.py` (the rest) from the inspect the tree reads. The
+view's source-owned pages are described in D423.
+
+- **Container.** Header: the name; the state word of D407 read from inspect
+  (running and healthy `good`, starting, restarting and removing `busy`,
+  unhealthy, failed and dead `bad`, paused `warning`, stopped, never started
+  and unknown `neutral`); the image as a link. Sections: Overview — id,
+  created, started (running) or finished and exit code, restart policy and
+  count, command and entrypoint as code, working directory, user, the Compose
+  project as a link to its level and the service; Health, only when a check is
+  defined or reported — status, failing streak, the check, the last results
+  newest first; Network — the mode, published ports one row per address, the
+  networks with address and gateway as links; Storage — mounts, a volume as a
+  link; Environment — pairs, sensitive by name (D421: `PASSWORD`, `PASSWD`,
+  `SECRET`, `TOKEN`, `KEY`, `CREDENTIAL`, `PRIVATE`, case-folded); Labels —
+  collapsed; Resources — memory, CPUs and processes, `empty` when the daemon
+  says 0. Notices above: killed for memory, more than three restarts.
+- **Image.** Tags as chips, id, size, created, platform, entrypoint, command,
+  working directory, user, exposed ports, the layers counted as a link to its
+  History; the containers that run it with their state; environment; labels.
+- **Volume.** Driver, mount point, scope, created; the containers that mount
+  it, their state, where and whether writable; options; labels.
+- **Network.** Id, driver, scope, internal, attachable, IPv6, created; the
+  subnets, gateways and ranges; the containers on it with IPv4, IPv6 and MAC
+  as its inspect names them; options and labels, collapsed.
+- **What changed is told** (on D414). An open view's node — the leaf or its
+  Inspect — is followed like a level: `/events` is opened for it alone if no
+  level is shown, and `views_told` names the views an event is about. A
+  container's event tells its view, and every image and volume view shown,
+  since they list container states; a network's connect or disconnect tells
+  the network and the container; an image's tag, untag or delete tells that
+  image, and a pull — which names a reference, not an id — every image view;
+  a volume's create, destroy, mount or unmount tells that volume. A health
+  check's exec is not an event any view shows.
+
+Docker's `created` state is worded "never started": the English key
+"created" is shared with another package, whose Russian is feminine.
+
+Known deviations:
+
+- **An image's and a volume's view read the container list too**, one request
+  beside the inspect: who uses them is not in their inspect, and is counted
+  from the containers as the levels count it (D407). A network's inspect
+  names its own containers.
+- **A view is told only while a catalog of the connection is open.** The
+  watch is held by the catalog panel (D303), as a Logs tab's is.
+
+Spec: [A view of a document](../../decisions/2026-11-21-document-views-design.md)
+
+## D423. Docker nodes open directly and advertise their pages
+
+Containers, images, volumes and networks are catalog leaves. Clicking one
+opens its first representation, the **Overview** view; its tab uses the node's
+name. The old level that listed Inspect and the table pages is gone. Catalog
+actions on these nodes keep their existing targets and menu.
+
+The source adds `pages` to the `DocumentView` response. Each page carries its
+source-issued `node_id`, localized `title` and ordered `representations`. The
+client draws a button for each page in the view header and opens its preferred
+representation in a separate tab named `<node> — <page>`. The view and **As
+JSON** still replace each other in the same tab through `switchRepresentation`
+(D419); the client has no Docker-specific branch.
+
+Docker advertises Logs and Processes for a container, History for an image,
+and Containers for a volume or network. `list_children` validates a Docker
+node and returns no catalog rows, while these child IDs remain valid for row
+fetches and `path_to`. Search and links resolve to the node's own preferred
+representation, so they open the same view with the same page buttons. The
+existing D414 IDs keep the log stream and the card event refresh working.
+
+Spec: [Docker node pages and opening](../../decisions/2026-11-21-docker-node-pages-design.md)

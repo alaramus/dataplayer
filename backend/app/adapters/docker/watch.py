@@ -83,6 +83,44 @@ def changed_by(event: dict[str, object], shown: frozenset[str | None]) -> Change
     return Changed(levels=told) if told else None
 
 
+# A container's view shows its networks, so connecting one tells it too; an
+# image's and a volume's list their containers' states, so any change to a
+# container tells every one of them shown.
+_VOLUME_USES = frozenset({"mount", "unmount"})
+
+type Viewed = dict[str, tuple[str, str]]
+
+
+def views_told(event: dict[str, object], viewed: Viewed) -> frozenset[str]:
+    """The open views (D422) one event asks to read again."""
+    kind = str(event.get("Type") or "")
+    action = str(event.get("Action") or "")
+    if action.startswith("health_status"):
+        action = "update"
+    actor = event.get("Actor")
+    actor_id = str(actor.get("ID") or "") if isinstance(actor, dict) else ""
+    attributes = actor.get("Attributes") if isinstance(actor, dict) else None
+    # Which views: a leaf and its key, or a leaf and None for every one of it.
+    wanted: set[tuple[str, str | None]] = set()
+    if kind == "container" and action in _CHANGES["container"]:
+        wanted |= {("container", actor_id), ("image", None), ("volume", None)}
+    elif kind == "image" and action in _CHANGES["image"]:
+        # A pull names the reference, not the id it lands on.
+        wanted.add(("image", actor_id if actor_id.startswith("sha256:") else None))
+    elif kind == "volume" and action in _CHANGES["volume"] | _VOLUME_USES:
+        wanted.add(("volume", actor_id))
+    elif kind == "network" and action in _CHANGES["network"]:
+        wanted.add(("network", actor_id))
+        container = attributes.get("container") if isinstance(attributes, dict) else None
+        if container:
+            wanted.add(("container", str(container)))
+    return frozenset(
+        node
+        for node, (leaf, key) in viewed.items()
+        if (leaf, key) in wanted or (leaf, None) in wanted
+    )
+
+
 class DockerWatch:
     """The streams one screen asked for on one connection."""
 
@@ -92,10 +130,12 @@ class DockerWatch:
         self._logs: dict[str, asyncio.Task[None]] = {}
         self._events: asyncio.Task[None] | None = None
         self._shown: frozenset[str | None] = frozenset()
+        self._viewed: Viewed = {}
 
     async def follow(self, node_ids: Sequence[str | None]) -> None:
         logs: set[str] = set()
         levels: set[str | None] = set()
+        viewed: Viewed = {}
         for node_id in node_ids:
             if node_id is None:
                 levels.add(None)
@@ -109,14 +149,19 @@ class DockerWatch:
                 logs.add(named.key)
             elif named.view is None:
                 levels.add(node_id)
+            if named.leaf is not None and named.view in (None, "inspect"):
+                # A node opened on its view, or its Inspect: the same view.
+                viewed[node_id] = (named.leaf, named.key)
         for key in set(self._logs) - logs:
             self._logs.pop(key).cancel()
         for key in logs - set(self._logs):
             self._logs[key] = asyncio.create_task(self._log(key))
         self._shown = frozenset(levels)
-        if levels and self._events is None:
+        self._viewed = viewed
+        watched = bool(levels) or bool(viewed)
+        if watched and self._events is None:
             self._events = asyncio.create_task(self._watch_events())
-        elif not levels and self._events is not None:
+        elif not watched and self._events is not None:
             self._events.cancel()
             self._events = None
 
@@ -196,8 +241,14 @@ class DockerWatch:
                     continue
                 if isinstance(event, dict):
                     told = changed_by(event, self._shown)
-                    if told is not None:
-                        self._sink(told)
+                    views = views_told(event, self._viewed)
+                    if told is not None or views:
+                        self._sink(
+                            Changed(
+                                levels=told.levels if told is not None else frozenset(),
+                                nodes=views,
+                            )
+                        )
 
         await self._streamed("/events", {}, on_chunk)
 

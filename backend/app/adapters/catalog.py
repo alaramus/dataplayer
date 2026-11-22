@@ -378,7 +378,7 @@ class ContainerNode(BaseNode):
     """
 
     kind: Literal["container"] = "container"
-    has_children: bool = True
+    has_children: bool = False
     state: ContainerState = "unknown"
     # The daemon's own words beside it: "Exited (3) 2 hours ago".
     status: str | None = None
@@ -394,7 +394,7 @@ class ImageNode(BaseNode):
     """One image of a Docker daemon, by its id; untagged ones too (D407)."""
 
     kind: Literal["image"] = "image"
-    has_children: bool = True
+    has_children: bool = False
     tags: list[str] = Field(default_factory=list)
     size_bytes: int | None = None
     created_at: datetime | None = None
@@ -406,7 +406,7 @@ class VolumeNode(BaseNode):
     """One volume of a Docker daemon, by its name (D407)."""
 
     kind: Literal["volume"] = "volume"
-    has_children: bool = True
+    has_children: bool = False
     driver: str
     created_at: datetime | None = None
     containers: int = 0
@@ -420,7 +420,7 @@ class NetworkNode(BaseNode):
     """One network of a Docker daemon, by its id (D407)."""
 
     kind: Literal["network"] = "network"
-    has_children: bool = True
+    has_children: bool = False
     driver: str
     scope: str | None = None
     internal: bool = False

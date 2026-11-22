@@ -95,6 +95,8 @@ def declared_for(inspected: dict[str, Any]) -> tuple[AdapterType, ContainerImage
 class OpenAsConnection(Action[NoParams]):
     name: ClassVar[str] = "docker_open_as_connection"
     title: ClassVar[str] = N_("Open as connection")
+    icon: ClassVar[str | None] = "cable"
+    in_view: ClassVar[bool] = True
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"container"})
     acts_on: ClassVar[ActsOn] = "node"
     # The draft carries passwords read from the container's environment, and

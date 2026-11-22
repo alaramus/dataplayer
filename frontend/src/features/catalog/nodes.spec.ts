@@ -65,6 +65,24 @@ describe("what the catalog does with a node", () => {
     expect(roleOf(leaf("dataset"))).toBe("leaf")
   })
 
+  it("opens nodes with source-owned pages by their preferred representation", () => {
+    const docker = (kind: "container" | "image" | "volume" | "network") =>
+      ({
+        kind,
+        id: `${kind}:id`,
+        name: "node",
+        has_children: false,
+        representations: [
+          { kind: "view", title: "Overview" },
+          { kind: "tree", title: "As JSON" },
+        ],
+      }) as CatalogNode
+
+    for (const kind of ["container", "image", "volume", "network"] as const) {
+      expect(roleOf(docker(kind))).toBe("leaf")
+    }
+  })
+
   it("walks into a file that says it holds nodes and nothing else", () => {
     // An archive: what is inside it has the viewers, and the file itself has
     // none of its own.

@@ -214,6 +214,8 @@ class PullImage(Action[PullParams]):
 class CommitContainer(Action[CommitParams]):
     name: ClassVar[str] = "docker_commit"
     title: ClassVar[str] = N_("Commit to an image")
+    icon: ClassVar[str | None] = "save"
+    in_view: ClassVar[bool] = True
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"container"})
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"

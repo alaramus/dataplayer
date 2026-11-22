@@ -193,6 +193,10 @@ export type ActionInfo = {
    */
   icon?: string | null
   /**
+   * In View
+   */
+  in_view?: boolean
+  /**
    * Menu Group
    */
   menu_group?: string | null
@@ -1679,6 +1683,20 @@ export type BooleanGroup = {
 }
 
 /**
+ * BooleanValue
+ */
+export type BooleanValue = {
+  /**
+   * Kind
+   */
+  kind?: "boolean"
+  /**
+   * Value
+   */
+  value: boolean
+}
+
+/**
  * BrowserAnswer
  */
 export type BrowserAnswer = {
@@ -1783,6 +1801,22 @@ export type BucketNode = {
    * Created At
    */
   created_at?: string | null
+}
+
+/**
+ * BytesValue
+ *
+ * A size, drawn in the reader's units.
+ */
+export type BytesValue = {
+  /**
+   * Kind
+   */
+  kind?: "bytes"
+  /**
+   * Value
+   */
+  value: number
 }
 
 /**
@@ -2349,6 +2383,26 @@ export type ClipboardRequest = {
    * Node Ids
    */
   node_ids?: Array<string>
+}
+
+/**
+ * CodeValue
+ *
+ * Monospaced, with a copy button.
+ */
+export type CodeValue = {
+  /**
+   * Kind
+   */
+  kind?: "code"
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Truncated
+   */
+  truncated?: boolean
 }
 
 /**
@@ -3321,6 +3375,7 @@ export type ContentRequest = {
     | "sql"
     | "database"
     | "tree"
+    | "view"
   /**
    * Limit
    */
@@ -4962,6 +5017,43 @@ export type DocumentText = {
 }
 
 /**
+ * DocumentView
+ *
+ * What a node's document means, as its source says it (D420).
+ */
+export type DocumentView = {
+  /**
+   * Kind
+   */
+  kind?: "view"
+  header: ViewHeader
+  /**
+   * Blocks
+   */
+  blocks: Array<
+    | ({
+        kind: "section"
+      } & SectionBlock)
+    | ({
+        kind: "fields"
+      } & FieldsBlock)
+    | ({
+        kind: "pairs"
+      } & PairsBlock)
+    | ({
+        kind: "table"
+      } & TableBlock)
+    | ({
+        kind: "notice"
+      } & NoticeBlock)
+  >
+  /**
+   * Pages
+   */
+  pages?: Array<ViewPage>
+}
+
+/**
  * DocumentsPage
  */
 export type DocumentsPage = {
@@ -5146,6 +5238,20 @@ export type DropIndexRequest = {
 }
 
 /**
+ * DurationValue
+ */
+export type DurationValue = {
+  /**
+   * Kind
+   */
+  kind?: "duration"
+  /**
+   * Seconds
+   */
+  seconds: number
+}
+
+/**
  * EditorContent
  *
  * A bounded source document and the version an update must still match.
@@ -5214,6 +5320,18 @@ export type EditorLayout = {
    * Wrap
    */
   wrap?: boolean
+}
+
+/**
+ * EmptyValue
+ *
+ * Not there, drawn as a dash: "not set" told apart from "not shown".
+ */
+export type EmptyValue = {
+  /**
+   * Kind
+   */
+  kind?: "empty"
 }
 
 /**
@@ -6064,6 +6182,20 @@ export type FieldHints = {
   values?: {
     [key: string]: string
   }
+}
+
+/**
+ * FieldsBlock
+ */
+export type FieldsBlock = {
+  /**
+   * Kind
+   */
+  kind?: "fields"
+  /**
+   * Fields
+   */
+  fields: Array<ViewField>
 }
 
 /**
@@ -8524,6 +8656,46 @@ export type LinkRun = {
 }
 
 /**
+ * LinkValue
+ *
+ * Text that opens another node of the same connection, by its id (D21).
+ */
+export type LinkValue = {
+  /**
+   * Kind
+   */
+  kind?: "link"
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Node Id
+   */
+  node_id: string
+}
+
+/**
+ * ListValue
+ *
+ * Short texts, drawn as chips.
+ */
+export type ListValue = {
+  /**
+   * Kind
+   */
+  kind?: "list"
+  /**
+   * Items
+   */
+  items: Array<string>
+  /**
+   * Omitted
+   */
+  omitted?: number
+}
+
+/**
  * LiteralDefault
  *
  * A value the column type coerces, exactly as D30 assigns one.
@@ -9367,6 +9539,22 @@ export type MetricsCatalog = {
 }
 
 /**
+ * MomentValue
+ *
+ * An instant, drawn as the date and how long ago.
+ */
+export type MomentValue = {
+  /**
+   * Kind
+   */
+  kind?: "moment"
+  /**
+   * Value
+   */
+  value: string
+}
+
+/**
  * MoveRequest
  */
 export type MoveRequest = {
@@ -9765,9 +9953,7 @@ export type NodeReplacement = {
  *
  * One way a source says a node may be opened.
  *
- * The order in ``CatalogNode.representations`` matters: the first one is the
- * source's preferred representation. ``kind`` is the viewer contract and
- * ``title`` is the wording used when another representation is offered.
+ * The order in a node's representations matters: the first one is preferred.
  */
 export type NodeRepresentation = {
   /**
@@ -9788,6 +9974,7 @@ export type NodeRepresentation = {
     | "tree"
     | "documents"
     | "market"
+    | "view"
   /**
    * Title
    */
@@ -10089,6 +10276,26 @@ export type NodeTarget = {
 }
 
 /**
+ * NoticeBlock
+ *
+ * A sentence the source wants read.
+ */
+export type NoticeBlock = {
+  /**
+   * Kind
+   */
+  kind?: "notice"
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Tone
+   */
+  tone?: "good" | "busy" | "warning" | "bad" | "neutral"
+}
+
+/**
  * NowFunction
  *
  * A function Timescale would accept as integer_now for a column of `type`.
@@ -10218,6 +10425,24 @@ export type NullabilityChanged = {
    * Nullable
    */
   nullable: boolean
+}
+
+/**
+ * NumberValue
+ */
+export type NumberValue = {
+  /**
+   * Kind
+   */
+  kind?: "number"
+  /**
+   * Value
+   */
+  value: number
+  /**
+   * Unit
+   */
+  unit?: string | null
 }
 
 /**
@@ -10509,6 +10734,24 @@ export type PairSide = {
    * Ticked
    */
   ticked?: Array<string>
+}
+
+/**
+ * PairsBlock
+ */
+export type PairsBlock = {
+  /**
+   * Kind
+   */
+  kind?: "pairs"
+  /**
+   * Pairs
+   */
+  pairs: Array<ViewPair>
+  /**
+   * Omitted
+   */
+  omitted?: number
 }
 
 /**
@@ -14334,6 +14577,43 @@ export type SearchRequest = {
 }
 
 /**
+ * SectionBlock
+ *
+ * A title and the blocks under it. Sections do not nest.
+ */
+export type SectionBlock = {
+  /**
+   * Kind
+   */
+  kind?: "section"
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Collapsed
+   */
+  collapsed?: boolean
+  /**
+   * Blocks
+   */
+  blocks: Array<
+    | ({
+        kind: "fields"
+      } & FieldsBlock)
+    | ({
+        kind: "pairs"
+      } & PairsBlock)
+    | ({
+        kind: "table"
+      } & TableBlock)
+    | ({
+        kind: "notice"
+      } & NoticeBlock)
+  >
+}
+
+/**
  * Segment
  *
  * A run of text, marked when it is what matched.
@@ -15360,6 +15640,26 @@ export type StatWidget = {
 }
 
 /**
+ * StateValue
+ *
+ * A word and the meaning of it; the client turns the tone into a colour.
+ */
+export type StateValue = {
+  /**
+   * Kind
+   */
+  kind?: "state"
+  /**
+   * Word
+   */
+  word: string
+  /**
+   * Tone
+   */
+  tone?: "good" | "busy" | "warning" | "bad" | "neutral"
+}
+
+/**
  * StatementPublic
  *
  * One statement of a run, as the console reads it.
@@ -15634,6 +15934,64 @@ export type SymbolNode = {
    * Contract Type
    */
   contract_type?: string | null
+}
+
+/**
+ * TableBlock
+ */
+export type TableBlock = {
+  /**
+   * Kind
+   */
+  kind?: "table"
+  /**
+   * Columns
+   */
+  columns: Array<string>
+  /**
+   * Rows
+   */
+  rows: Array<
+    Array<
+      | ({
+          kind: "text"
+        } & TextValue)
+      | ({
+          kind: "code"
+        } & CodeValue)
+      | ({
+          kind: "number"
+        } & NumberValue)
+      | ({
+          kind: "bytes"
+        } & BytesValue)
+      | ({
+          kind: "moment"
+        } & MomentValue)
+      | ({
+          kind: "duration"
+        } & DurationValue)
+      | ({
+          kind: "boolean"
+        } & BooleanValue)
+      | ({
+          kind: "state"
+        } & StateValue)
+      | ({
+          kind: "list"
+        } & ListValue)
+      | ({
+          kind: "link"
+        } & LinkValue)
+      | ({
+          kind: "empty"
+        } & EmptyValue)
+    >
+  >
+  /**
+   * Omitted
+   */
+  omitted?: number
 }
 
 /**
@@ -16229,6 +16587,24 @@ export type TextContents = {
    * Not Counted
    */
   not_counted?: string | null
+}
+
+/**
+ * TextValue
+ */
+export type TextValue = {
+  /**
+   * Kind
+   */
+  kind?: "text"
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Truncated
+   */
+  truncated?: boolean
 }
 
 /**
@@ -17041,6 +17417,104 @@ export type VideoContents = {
 }
 
 /**
+ * ViewField
+ */
+export type ViewField = {
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Value
+   */
+  value:
+    | ({
+        kind: "text"
+      } & TextValue)
+    | ({
+        kind: "code"
+      } & CodeValue)
+    | ({
+        kind: "number"
+      } & NumberValue)
+    | ({
+        kind: "bytes"
+      } & BytesValue)
+    | ({
+        kind: "moment"
+      } & MomentValue)
+    | ({
+        kind: "duration"
+      } & DurationValue)
+    | ({
+        kind: "boolean"
+      } & BooleanValue)
+    | ({
+        kind: "state"
+      } & StateValue)
+    | ({
+        kind: "list"
+      } & ListValue)
+    | ({
+        kind: "link"
+      } & LinkValue)
+    | ({
+        kind: "empty"
+      } & EmptyValue)
+}
+
+/**
+ * ViewHeader
+ *
+ * Once, at the top.
+ */
+export type ViewHeader = {
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Subtitle
+   */
+  subtitle?:
+    | ({
+        kind: "text"
+      } & TextValue)
+    | ({
+        kind: "code"
+      } & CodeValue)
+    | ({
+        kind: "number"
+      } & NumberValue)
+    | ({
+        kind: "bytes"
+      } & BytesValue)
+    | ({
+        kind: "moment"
+      } & MomentValue)
+    | ({
+        kind: "duration"
+      } & DurationValue)
+    | ({
+        kind: "boolean"
+      } & BooleanValue)
+    | ({
+        kind: "state"
+      } & StateValue)
+    | ({
+        kind: "list"
+      } & ListValue)
+    | ({
+        kind: "link"
+      } & LinkValue)
+    | ({
+        kind: "empty"
+      } & EmptyValue)
+    | null
+  state?: StateValue | null
+}
+
+/**
  * ViewNode
  */
 export type ViewNode = {
@@ -17081,6 +17555,48 @@ export type ViewNode = {
    */
   is_system?: boolean
   specialization?: TimescaleContinuousAggregate | null
+}
+
+/**
+ * ViewPage
+ *
+ * A source-owned page of the node shown by this view.
+ */
+export type ViewPage = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Icon
+   */
+  icon?: string | null
+}
+
+/**
+ * ViewPair
+ */
+export type ViewPair = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Value
+   */
+  value: string
+  /**
+   * Sensitive
+   */
+  sensitive?: boolean
 }
 
 /**
@@ -18896,6 +19412,9 @@ export type connectorsReadContentResponses = {
     | ({
         kind: "database"
       } & DatabaseContent)
+    | ({
+        kind: "view"
+      } & DocumentView)
 }
 
 export type connectorsReadContentResponse =

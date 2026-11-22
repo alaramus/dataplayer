@@ -1070,6 +1070,11 @@ const actions: WorkspaceActions = {
       representation: preferred.kind,
       ...(table === undefined ? {} : { tableTitle: table.title }),
       ...(source === undefined ? {} : { sourceTitle: source.title }),
+      // Carried only where there is a view, which offers the others as tabs
+      // of their own (D424), so a stored panel of any other kind is what it was.
+      ...(request.representations.some((one) => one.kind === "view")
+        ? { representations: request.representations }
+        : {}),
     })
   },
   documentTarget,
@@ -1216,6 +1221,9 @@ const actions: WorkspaceActions = {
   },
   closeQueryDocument: (documentId: string) => {
     workspace.context.close(queryPanelId(documentId))
+  },
+  closeTab: (panelId: string) => {
+    workspace.context.close(panelId)
   },
   openChart: (request: OpenChartRequest) => {
     const viewKey = chartViewKey(request.connectorId, request.request, request.columns)

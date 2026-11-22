@@ -11,6 +11,7 @@ propio demonio. Cómo funcionan las conexiones en general está en la página
 - Contenedores, agrupados por proyecto de Compose, en marcha o no
 - Imágenes, volúmenes y redes, y qué contenedores los usan
 - Lo que el demonio dice de cualquiera de ellos, como árbol JSON
+- Un contenedor de un vistazo, con sus secretos ocultos hasta pedirlos
 - Los registros de un contenedor según se escriben, y sus procesos
 - Las capas de una imagen y las instrucciones que las crearon
 - El motor: versiones, controladores, CPU, memoria, disco, eventos
@@ -74,34 +75,52 @@ un certificado de cliente que el demonio no acepta.
 
 ## El catálogo
 
-- **Sistema** contiene los informes del demonio, abajo.
-- **Contenedores** tiene una carpeta por proyecto de Compose, nombrada por la
-  etiqueta que escribe Compose, y **Sin proyecto** para el resto. Cada
-  contenedor muestra su estado en una palabra — en marcha, sano, enfermo,
-  arrancando, en pausa, reiniciando, detenido, fallido, creado o muerto — con
-  el estado del propio demonio al lado, su imagen, su servicio de Compose y
-  sus puertos publicados.
-- **Imágenes** lista cada imagen por su id, con etiqueta o sin ella, con su
-  tamaño y cuántos contenedores la usan.
-- **Volúmenes** lista cada volumen por nombre; **Redes** cada red, primero
-  las tres de Docker, cada una marcada como integrada, de Compose o de
+- **Sistema** contiene los informes del demonio, más abajo.
+- **Contenedores** contiene una carpeta por proyecto de Compose y **Sin
+  proyecto** para el resto. Cada contenedor muestra su estado, el estado del
+  demonio, su imagen, servicio de Compose y puertos publicados.
+- **Imágenes** lista todas por id, etiquetadas o no, con su tamaño y cuántos
+  contenedores las usan. **Volúmenes** lista todos por nombre; **Redes** lista
+  todas, primero las tres de Docker, marcadas como integradas, de Compose o de
   usuario.
-- Cada una de estas carpetas se abre también como tabla, que se puede
-  filtrar y ordenar por cualquier columna. Más de diez mil de un mismo tipo
-  no se listan.
+- Cada grupo también se abre como tabla, filtrable y ordenable por cualquier
+  columna. No se listan más de diez mil objetos de un mismo tipo.
+- Al hacer clic en un contenedor, imagen, volumen o red se abre directamente su
+  resumen en una pestaña con el nombre del nodo. No se abre otro nivel del
+  catálogo. Las acciones de un contenedor también son iconos en la cabecera de
+  su resumen; el menú del catálogo las conserva para varios contenedores
+  marcados.
 
 ## Cómo se abre un nodo
 
-- Un contenedor, una imagen, un volumen o una red se abre como lo que el
-  demonio dice de él, en árbol JSON. El de un contenedor incluye su entorno,
-  que a menudo guarda contraseñas: cualquiera con quien compartas esta
-  conexión lo ve.
-- Dentro de un contenedor: **Registros** — la hora, el flujo (stdout o
-  stderr) y el texto de cada línea, lo más reciente primero, hasta diez mil
-  líneas atrás, una línea cortada a 16 KB — y **Procesos**, lo que corre en él
-  ahora. Un contenedor detenido no tiene ninguno.
-- Dentro de una imagen: **Historial**, sus capas.
-- Dentro de un volumen o una red: **Contenedores**, los que lo usan.
+- Al hacer clic en un contenedor, se abre su resumen en una pestaña con el
+  nombre del contenedor: estado, imagen, creación e inicio o salida, política
+  y número de reinicios, comando, comprobación de salud y últimos resultados,
+  puertos, redes y direcciones, montajes, entorno, etiquetas y límites de
+  recursos. Un aviso indica más de tres reinicios o una salida por falta de
+  memoria.
+- Los comandos de la cabecera de un resumen son iconos; su nombre aparece al
+  pasar el puntero. **Como JSON** abre el árbol de solo lectura del demonio en
+  una pestaña aparte, por ejemplo `dp-test-web — Como JSON`. Al eliminar el
+  contenedor se cierra su resumen. La imagen, el volumen, la red y el proyecto de Compose
+  son enlaces a sus propios resúmenes.
+- **Registros** y **Procesos** en la tarjeta abren pestañas separadas con una
+  tabla. El nombre de cada pestaña incluye el contenedor y la página, por
+  ejemplo `dp-test-web — Registros`. Los registros muestran hora, flujo y texto,
+  los más recientes primero, hasta diez mil líneas; cada línea se corta en
+  16 KB. Los procesos muestran lo que se ejecuta ahora; un contenedor detenido
+  no tiene ninguno.
+- **Historial** abre las capas de una imagen en otra pestaña. **Contenedores**
+  en un volumen o una red abre por separado los contenedores que lo usan. La
+  pestaña del resumen conserva el nombre del nodo.
+- Una tarjeta abierta desde la búsqueda o un enlace tiene los mismos botones.
+  Se vuelve a leer cuando el demonio informa de cambios en sus datos, mientras
+  haya abierto un catálogo de esta conexión.
+- Una variable cuyo nombre contiene PASSWORD, PASSWD, SECRET, TOKEN, KEY,
+  CREDENTIAL o PRIVATE se muestra como puntos hasta que pulses su ojo, y solo
+  se copia una vez mostrada. Eso la oculta de un vistazo, no de quien lee: el
+  JSON la muestra tal cual, y cualquiera con quien compartas esta conexión ve
+  el entorno de un contenedor.
 
 ## La sección Sistema
 

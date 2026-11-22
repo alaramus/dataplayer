@@ -11,6 +11,7 @@ démon lui-même. Le fonctionnement des connexions est décrit sur la page
 - Les conteneurs, par projet Compose, en marche ou non
 - Images, volumes et réseaux, et les conteneurs qui les utilisent
 - Ce que le démon dit de chacun, sous forme d'arbre JSON
+- Un conteneur d'un coup d'œil, ses secrets cachés jusqu'à demande
 - Les journaux d'un conteneur au fil de l'écriture, et ses processus
 - Les couches d'une image et les instructions qui les ont créées
 - Le moteur : versions, pilotes, CPU, mémoire, espace disque, événements
@@ -76,31 +77,50 @@ pas, ou un certificat client que le démon refuse.
 ## Le catalogue
 
 - **Système** contient les rapports du démon, ci-dessous.
-- **Conteneurs** contient un dossier par projet Compose, nommé d'après
-  l'étiquette qu'écrit Compose, et **Hors projet** pour le reste. Chaque
-  conteneur montre son état en un mot — en marche, sain, malade, démarrage,
-  en pause, redémarrage, arrêté, en échec, créé ou mort — avec à côté le
-  statut du démon, son image, son service Compose et ses ports publiés.
-- **Images** liste chaque image par son id, étiquetée ou non, avec sa taille
-  et le nombre de conteneurs qui l'utilisent.
-- **Volumes** liste chaque volume par nom ; **Réseaux** chaque réseau, les
-  trois de Docker d'abord, chacun marqué intégré, Compose ou utilisateur.
-- Chacun de ces dossiers s'ouvre aussi comme un tableau, filtrable et triable
-  par n'importe quelle colonne. Au-delà de dix mille d'un même type, rien
-  n'est listé de plus.
+- **Conteneurs** contient un dossier par projet Compose et **Hors projet** pour
+  les autres. Chaque conteneur indique son état, celui du démon, son image, son
+  service Compose et ses ports publiés.
+- **Images** liste chaque image par id, avec ou sans tag, sa taille et le nombre
+  de conteneurs qui l'utilisent. **Volumes** liste chaque volume par nom ;
+  **Réseaux** liste les réseaux, les trois de Docker d'abord, marqués intégré,
+  Compose ou utilisateur.
+- Chaque groupe s'ouvre aussi comme un tableau filtrable et triable par colonne.
+  Au-delà de dix mille objets du même type, les suivants ne sont pas listés.
+- Un clic sur un conteneur, une image, un volume ou un réseau ouvre directement
+  sa vue d'ensemble dans un onglet nommé d'après ce nœud. Il n'ouvre pas un autre
+  niveau du catalogue. Les actions d'un conteneur sont aussi des icônes dans
+  l'en-tête de sa vue d'ensemble ; le menu du catalogue les garde pour plusieurs
+  conteneurs cochés.
 
 ## Comment s'ouvre un nœud
 
-- Un conteneur, une image, un volume ou un réseau s'ouvre comme ce que le
-  démon en dit, en arbre JSON. Celui d'un conteneur inclut son
-  environnement, qui contient souvent des mots de passe : quiconque partage
-  cette connexion avec vous le voit.
-- Dans un conteneur : **Journaux** — l'heure, le flux (stdout ou stderr) et le
-  texte de chaque ligne, du plus récent, jusqu'à dix mille lignes en arrière,
-  une ligne coupée à 16 Ko — et **Processus**, ce qui y tourne maintenant. Un
-  conteneur arrêté n'en a aucun.
-- Dans une image : **Historique**, ses couches.
-- Dans un volume ou un réseau : **Conteneurs**, ceux qui l'utilisent.
+- Un clic sur un conteneur ouvre sa vue d'ensemble dans un onglet à son nom :
+  état, image, création et démarrage ou sortie, politique et nombre de
+  redémarrages, commande, contrôle de santé et derniers résultats, ports,
+  réseaux et adresses, montages, environnement, étiquettes et limites. Un avis
+  signale plus de trois redémarrages ou un arrêt par manque de mémoire.
+- Les commandes de l'en-tête d'une vue d'ensemble sont des icônes ; leur nom
+  s'affiche au survol. **En JSON** ouvre l'arbre en lecture seule du démon dans
+  un onglet séparé, par exemple `dp-test-web — En JSON`. Supprimer le conteneur
+  ferme sa vue d'ensemble. L'image, le volume, le réseau et le projet
+  Compose sont des liens vers leur propre vue.
+- **Journaux** et **Processus** dans la carte ouvrent chacun un onglet séparé
+  avec un tableau. Son nom indique le conteneur et la page, par exemple
+  `dp-test-web — Journaux`. Les journaux affichent l'heure, le flux et le texte,
+  du plus récent au plus ancien, jusqu'à dix mille lignes ; une ligne est coupée
+  à 16 Ko. Les processus montrent ce qui tourne actuellement ; un conteneur
+  arrêté n'en a aucun.
+- **Historique** ouvre les couches d'une image dans un onglet distinct.
+  **Conteneurs** sur un volume ou un réseau ouvre séparément les conteneurs qui
+  l'utilisent. L'onglet de la vue garde le nom du nœud.
+- Une carte ouverte depuis la recherche ou un lien présente les mêmes boutons.
+  Elle se relit lorsque le démon signale un changement de ses données, tant
+  qu'un catalogue de cette connexion est ouvert.
+- Une variable dont le nom contient PASSWORD, PASSWD, SECRET, TOKEN, KEY,
+  CREDENTIAL ou PRIVATE s'affiche en points jusqu'à ce que vous appuyiez sur
+  son œil, et ne se copie qu'une fois affichée. Elle est cachée d'un coup d'œil,
+  pas d'un lecteur : le JSON la montre en clair et toute personne avec qui vous
+  partagez la connexion voit l'environnement d'un conteneur.
 
 ## La section Système
 

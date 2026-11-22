@@ -129,7 +129,7 @@ useReloadable(() => props.panelId, async () => {
     <AppSpinner v-else-if="content.isPending.value" />
     <div
       v-else-if="tree !== null"
-      class="tree-panel__body"
+      class="tree-panel__body dp-panel-scroll"
       data-testid="tree-body"
     >
       <JsonTreeNode

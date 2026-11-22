@@ -67,6 +67,8 @@ export interface ActionCommand {
    * client choosing one would be a table of action names on this side.
    */
   icon: string | null
+  /** Drawn by its icon in the head of the node's view as well (D424). */
+  inView?: boolean
   /** The submenu the source draws it in, or null for a line of the menu itself (D207). */
   menuGroup?: string | null
   /** Whether the source says, for one node, what some of its fields are. */
@@ -106,6 +108,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       actsOn: action.acts_on,
       offeredIn: action.offered_in,
       icon: action.icon ?? null,
+      inView: action.in_view === true,
       menuGroup: action.menu_group ?? null,
       offersHints: action.offers_hints === true,
       fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],

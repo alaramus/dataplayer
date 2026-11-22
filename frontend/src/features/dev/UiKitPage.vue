@@ -4,6 +4,7 @@ import { computed, ref } from "vue"
 import {
   AppActions,
   AppBadge,
+  AppStateTag,
   AppBanner,
   AppButton,
   AppCard,
@@ -52,7 +53,9 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
-import type { ButtonVariant, MenuItem, SelectOption, Tone } from "@/shared/ui"
+import type { ButtonVariant, MenuItem, SelectOption, StateTone, Tone } from "@/shared/ui"
+import ViewBlock from "@/features/content/view/ViewBlock.vue"
+import { SAMPLE_VIEW } from "@/features/content/view/sample"
 import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
 const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "chosen", "current", "danger", "danger-quiet", "quiet"]
@@ -86,6 +89,7 @@ const savedEntries = ref<MenuItem[]>([
 ])
 
 const TONES: Tone[] = ["error", "success", "warning", "info"]
+const STATE_TONES: StateTone[] = ["good", "busy", "warning", "bad", "neutral"]
 // The window sizes a dialog opens at. A window is measured to its
 // content afterwards, so these are a starting width and height.
 const SIZES = ["sm", "md", "lg"] as const
@@ -361,6 +365,7 @@ function removeSavedEntry(name: string) {
             />
           </AppIconButton>
           <AppCopyButton />
+          <AppCopyButton compact />
           <AppButton
             variant="secondary"
             label="Row actions"
@@ -498,6 +503,38 @@ function removeSavedEntry(name: string) {
           icon="inbox"
           text="Nothing to show, inset as in a tool's body"
           inset
+        />
+      </AppSection>
+      <AppSection divided>
+        <div class="row items-center ui-kit__row">
+          <AppStateTag
+            v-for="tone in STATE_TONES"
+            :key="tone"
+            :tone="tone"
+            :label="tone"
+          />
+        </div>
+      </AppSection>
+      <!-- A document's view, every block and every kind of value (D420): the
+           blocks live with the content panel, since they read the client's
+           types, and are shown here because a screen meets them as kit. -->
+      <AppSection
+        divided
+        data-testid="ui-kit-document-view"
+      >
+        <div class="row items-center ui-kit__row">
+          <strong>{{ SAMPLE_VIEW.header.title }}</strong>
+          <AppStateTag
+            v-if="SAMPLE_VIEW.header.state"
+            :label="SAMPLE_VIEW.header.state.word"
+            :tone="SAMPLE_VIEW.header.state.tone"
+          />
+        </div>
+        <ViewBlock
+          v-for="(block, index) in SAMPLE_VIEW.blocks"
+          :key="index"
+          :block="block"
+          @open="(nodeId) => toast.info(`would open ${nodeId}`)"
         />
       </AppSection>
       <AppSection divided>

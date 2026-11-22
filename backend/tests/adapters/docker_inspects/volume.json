@@ -1,0 +1,9 @@
+{
+ "CreatedAt": "2026-11-21T11:37:02Z",
+ "Driver": "local",
+ "Labels": null,
+ "Mountpoint": "/var/lib/docker/volumes/dp-test-data/_data",
+ "Name": "dp-test-data",
+ "Options": null,
+ "Scope": "local"
+}

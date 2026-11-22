@@ -6,6 +6,7 @@ connections. No driver of its own: the Engine API client is the one the
 services use (D406), and `asyncssh` stays in the SSH adapter.
 """
 
+import json
 from collections.abc import AsyncIterator
 from typing import Any, ClassVar
 
@@ -22,6 +23,8 @@ from app.adapters.docker.actions import (
     REMOVALS,
     plain_actions,
 )
+from app.adapters.docker.card import container_view
+from app.adapters.docker.cards import image_view, network_view, volume_view
 from app.adapters.docker.catalog import (
     GROUPS,
     Group,
@@ -33,6 +36,7 @@ from app.adapters.docker.catalog import (
     parse,
     project_node,
     project_of,
+    view_pages,
     views_of,
     volume_node,
 )
@@ -69,7 +73,7 @@ from app.adapters.docker.watch import DockerWatch
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.metrics import MetricPreset, MetricSample
-from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
+from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, CatalogFace, register
 from app.adapters.search import (
     LastSearch,
@@ -81,6 +85,7 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.tunnels import TunnelAccess
+from app.adapters.views import DocumentView
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_, say
 
@@ -144,8 +149,10 @@ class DockerAdapter:
         if named.leaf is not None:
             if named.view is not None:
                 return []
+            # Keep the missing-node refusal while this node no longer exposes
+            # its pages as a catalog level (D423).
             await self._inspect(named)
-            return views_of(named.leaf, named.key)
+            return []
         return await self._level(named)
 
     async def _level(self, named: Named) -> list[CatalogNode]:
@@ -255,13 +262,22 @@ class DockerAdapter:
         return body
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
-        if request.representation != "tree":
+        if request.representation not in ("tree", "view"):
             raise ValueError(say("This opens as what the Docker server says about it"))
         named = parse(request.node_id)
         # The node itself, or its Inspect view: the same answer (D408).
         if named.leaf is None or named.view not in (None, "inspect"):
             raise ValueError(say("This opens as a table"))
         body = await self._inspect(named)
+        if request.representation == "view":
+            # The same inspect the tree draws, read as what it means (D422).
+            try:
+                document = json.loads(body)
+            except ValueError:
+                document = None
+            if not isinstance(document, dict):
+                raise AdapterError("unknown", say("The Docker server did not answer with JSON"))
+            return await self._view(named, document)
         try:
             return JsonContent(value=json_tree(jsontext.load(body.decode("utf-8"))))
         except ValueError:
@@ -270,6 +286,23 @@ class DockerAdapter:
                 notice=say("The Docker server did not answer with JSON"),
             )
 
+
+    async def _view(self, named: Named, inspect: dict[str, Any]) -> DocumentView:
+        assert named.leaf is not None
+        if named.leaf == "container":
+            document = container_view(inspect)
+        elif named.leaf == "network":
+            # A network's inspect names its own containers.
+            document = network_view(inspect)
+        else:
+            # Who uses an image or mounts a volume is counted from the containers,
+            # which the levels read the same way (D407).
+            containers = (await read_containers(self._session)).items
+            if named.leaf == "image":
+                document = image_view(inspect, containers)
+            else:
+                document = volume_view(inspect, containers)
+        return document.model_copy(update={"pages": view_pages(named.leaf, named.key)})
 
     # --- metrics and search (D415, D416) ------------------------------------------
 

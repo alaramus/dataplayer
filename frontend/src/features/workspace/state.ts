@@ -137,6 +137,8 @@ export interface WorkspaceActions {
   renameQueryDocument: (documentId: string, title: string | null, connectorId?: string | null) => void
   /** Close the tab of a document that was deleted from the library. */
   closeQueryDocument: (documentId: string) => void
+  /** Close one tab: what it showed is gone, as a removed container is (D424). */
+  closeTab: (panelId: string) => void
   openChart: (request: OpenChartRequest) => void
   /**
    * A dashboard widget as a workspace tab, lifted out of its floating window

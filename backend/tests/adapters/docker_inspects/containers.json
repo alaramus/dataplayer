@@ -1,0 +1,172 @@
+[
+ {
+  "Id": "2124c6420cb1d1c9ffcb76363dec5db79f83fd6b359d68b38cd4e75542f831fe",
+  "Names": [
+   "/dp-test-life"
+  ],
+  "Image": "alpine:3.20",
+  "ImageID": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "Command": "sleep 100000",
+  "Created": 1795285683,
+  "Ports": [],
+  "Labels": {},
+  "State": "exited",
+  "Status": "Exited (137) 15 minutes ago",
+  "HostConfig": {
+   "NetworkMode": "bridge"
+  },
+  "NetworkSettings": {
+   "Networks": {
+    "bridge": {
+     "IPAMConfig": null,
+     "Links": null,
+     "Aliases": null,
+     "DriverOpts": null,
+     "GwPriority": 0,
+     "NetworkID": "8ac8b796bedd0e304c492b52f9b1b4043f1a5f67572f7ce239aa584388592d88",
+     "EndpointID": "",
+     "Gateway": "",
+     "IPAddress": "",
+     "MacAddress": "",
+     "IPPrefixLen": 0,
+     "IPv6Gateway": "",
+     "GlobalIPv6Address": "",
+     "GlobalIPv6PrefixLen": 0,
+     "DNSNames": null
+    }
+   }
+  },
+  "Mounts": []
+ },
+ {
+  "Id": "777b4f9089768e9fcde79789afde510a7a2f28b3fda798dde98d1742f804eca7",
+  "Names": [
+   "/dp-test-failed"
+  ],
+  "Image": "alpine:3.20",
+  "ImageID": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "Command": "sh -c 'exit 3'",
+  "Created": 1795261023,
+  "Ports": [],
+  "Labels": {},
+  "State": "exited",
+  "Status": "Exited (3) Less than a second ago",
+  "HostConfig": {
+   "NetworkMode": "bridge"
+  },
+  "NetworkSettings": {
+   "Networks": {
+    "bridge": {
+     "IPAMConfig": null,
+     "Links": null,
+     "Aliases": null,
+     "DriverOpts": null,
+     "GwPriority": 0,
+     "NetworkID": "8ac8b796bedd0e304c492b52f9b1b4043f1a5f67572f7ce239aa584388592d88",
+     "EndpointID": "",
+     "Gateway": "",
+     "IPAddress": "",
+     "MacAddress": "",
+     "IPPrefixLen": 0,
+     "IPv6Gateway": "",
+     "GlobalIPv6Address": "",
+     "GlobalIPv6PrefixLen": 0,
+     "DNSNames": null
+    }
+   }
+  },
+  "Mounts": []
+ },
+ {
+  "Id": "2f00a7aa92f69dc921584f8913bc6712e28cf0a4d52fe0fd131b2604c4be935d",
+  "Names": [
+   "/dp-test-tty"
+  ],
+  "Image": "alpine:3.20",
+  "ImageID": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "Command": "sh -c 'echo hello tty; sleep 100000'",
+  "Created": 1795261023,
+  "Ports": [],
+  "Labels": {},
+  "State": "running",
+  "Status": "Up 2 hours",
+  "HostConfig": {
+   "NetworkMode": "bridge"
+  },
+  "NetworkSettings": {
+   "Networks": {
+    "bridge": {
+     "IPAMConfig": null,
+     "Links": null,
+     "Aliases": null,
+     "DriverOpts": null,
+     "GwPriority": 0,
+     "NetworkID": "8ac8b796bedd0e304c492b52f9b1b4043f1a5f67572f7ce239aa584388592d88",
+     "EndpointID": "5eae2f5d0b2e63cd45218f5b2bca5b3f7bf1d4f47b27727304d61396e3dfd872",
+     "Gateway": "172.17.0.1",
+     "IPAddress": "172.17.0.2",
+     "MacAddress": "aa:cb:78:93:f1:1e",
+     "IPPrefixLen": 16,
+     "IPv6Gateway": "",
+     "GlobalIPv6Address": "",
+     "GlobalIPv6PrefixLen": 0,
+     "DNSNames": null
+    }
+   }
+  },
+  "Mounts": []
+ },
+ {
+  "Id": "7bbf74993ae51484c614e8a2a81c754317af5c09ed857baf322d76ec14600e53",
+  "Names": [
+   "/dp-test-web"
+  ],
+  "Image": "alpine:3.20",
+  "ImageID": "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc",
+  "Command": "sh -c 'echo started; echo warned >&2; sleep 100000'",
+  "Created": 1795261022,
+  "Ports": [],
+  "Labels": {
+   "com.docker.compose.project": "dp-test",
+   "com.docker.compose.service": "web"
+  },
+  "State": "running",
+  "Status": "Up 15 minutes",
+  "HostConfig": {
+   "NetworkMode": "dp-test-net"
+  },
+  "NetworkSettings": {
+   "Networks": {
+    "dp-test-net": {
+     "IPAMConfig": null,
+     "Links": null,
+     "Aliases": null,
+     "DriverOpts": null,
+     "GwPriority": 0,
+     "NetworkID": "4d5fc2ab63b18101bcb30defea523b828ea6cfa24098c7d1c5ae3300dfa4f7bc",
+     "EndpointID": "e596ea2fb295f72a68e39f348230db12573ae0e049d0d769339a901e8a6fd9f7",
+     "Gateway": "172.20.0.1",
+     "IPAddress": "172.20.0.2",
+     "MacAddress": "ee:d5:1c:fb:a3:be",
+     "IPPrefixLen": 16,
+     "IPv6Gateway": "",
+     "GlobalIPv6Address": "",
+     "GlobalIPv6PrefixLen": 0,
+     "DNSNames": null
+    }
+   }
+  },
+  "Mounts": [
+   {
+    "Type": "volume",
+    "Name": "dp-test-data",
+    "Source": "/var/lib/docker/volumes/dp-test-data/_data",
+    "Destination": "/data",
+    "Driver": "local",
+    "Mode": "z",
+    "RW": true,
+    "Propagation": ""
+   }
+  ]
+ }
+]

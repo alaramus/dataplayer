@@ -98,4 +98,5 @@ MESSAGES: dict[str, str] = {
     "Your personal storage is full: {used} MB of {limit} MB in use": "Личное хранилище заполнено: занято {used} МБ из {limit} МБ",
     # A category of sources (D405).
     "Containers": "Контейнеры",
+    "View as table": "Открыть как таблицу",
 }

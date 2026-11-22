@@ -1,0 +1,39 @@
+{
+ "Name": "dp-test-net",
+ "Id": "4d5fc2ab63b18101bcb30defea523b828ea6cfa24098c7d1c5ae3300dfa4f7bc",
+ "Created": "2026-11-21T11:37:02.83539025Z",
+ "Scope": "local",
+ "Driver": "bridge",
+ "EnableIPv4": true,
+ "EnableIPv6": false,
+ "IPAM": {
+  "Driver": "default",
+  "Options": null,
+  "Config": [
+   {
+    "Subnet": "172.20.0.0/16",
+    "Gateway": "172.20.0.1"
+   }
+  ]
+ },
+ "Internal": false,
+ "Attachable": false,
+ "Ingress": false,
+ "ConfigFrom": {
+  "Network": ""
+ },
+ "ConfigOnly": false,
+ "Options": {},
+ "Labels": {
+  "com.docker.compose.network": "net"
+ },
+ "Containers": {
+  "7bbf74993ae51484c614e8a2a81c754317af5c09ed857baf322d76ec14600e53": {
+   "Name": "dp-test-web",
+   "EndpointID": "e596ea2fb295f72a68e39f348230db12573ae0e049d0d769339a901e8a6fd9f7",
+   "MacAddress": "ee:d5:1c:fb:a3:be",
+   "IPv4Address": "172.20.0.2/16",
+   "IPv6Address": ""
+  }
+ }
+}

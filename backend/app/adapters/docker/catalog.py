@@ -36,6 +36,7 @@ from app.adapters.docker.inventory import (
     users_of_network,
     users_of_volume,
 )
+from app.adapters.views import ViewPage
 from app.adapters.words import worded_titles
 from app.core.translation import N_, say
 
@@ -66,6 +67,16 @@ _VIEW_TITLES: dict[View, tuple[str, str]] = {
     "containers": (N_("Containers"), N_("The containers that use it")),
 }
 
+# What a page's button in the view draws (D424): the same pictures the
+# workspace's own logs and services carry.
+_VIEW_ICONS: dict[View, str] = {
+    "inspect": "info",
+    "logs": "receipt_long",
+    "processes": "dns",
+    "history": "history",
+    "containers": "deployed_code",
+}
+
 _HEX = re.compile(r"^[0-9a-f]{64}$")
 _IMAGE = re.compile(r"^sha256:[0-9a-f]{64}$")
 # Docker's rule for a volume's name, and the one a new network is held to.
@@ -79,7 +90,12 @@ _PATTERNS: dict[Leaf, re.Pattern[str]] = {
 }
 
 TABLE = NodeRepresentation(kind="table", title=N_("View as table"))
-INSPECT = NodeRepresentation(kind="tree", title=N_("Inspect"))
+# An inspect opens on what it means, its JSON one click away (D422).
+OVERVIEW = NodeRepresentation(kind="view", title=N_("Overview"))
+AS_JSON = NodeRepresentation(kind="tree", title=N_("As JSON"))
+_OPENS: dict[Leaf, list[NodeRepresentation]] = {
+    leaf: [OVERVIEW, AS_JSON] for leaf in ("container", "image", "volume", "network")
+}
 
 
 @dataclass(frozen=True)
@@ -153,12 +169,25 @@ def view_node(leaf: Leaf, key: str, view: View) -> ReportNode:
         name=say(title),
         description=say(description),
         has_children=False,
-        representations=worded_titles([INSPECT if view == "inspect" else TABLE]),
+        representations=worded_titles(_OPENS[leaf] if view == "inspect" else [TABLE]),
     )
 
 
 def views_of(leaf: Leaf, key: str) -> list[CatalogNode]:
     return [view_node(leaf, key, view) for view in _VIEWS[leaf]]
+
+
+def view_pages(leaf: Leaf, key: str) -> list[ViewPage]:
+    """The node's pages beside its view, each opening in a tab of its own (D423)."""
+    return [
+        ViewPage(
+            node_id=page.id,
+            title=page.name,
+            representations=page.representations,
+            icon=_VIEW_ICONS[view],
+        )
+        for view, page in zip(_VIEWS[leaf][1:], views_of(leaf, key)[1:], strict=True)
+    ]
 
 
 def project_of(container: dict[str, Any]) -> str:
@@ -170,7 +199,7 @@ def container_node(container: dict[str, Any]) -> ContainerNode:
     return ContainerNode(
         id=leaf_id("container", str(container.get("Id"))),
         name=name_of(container),
-        representations=worded_titles([INSPECT]),
+        representations=worded_titles(_OPENS["container"]),
         state=state_of(container),
         status=str(container["Status"]) if container.get("Status") else None,
         image=str(container["Image"]) if container.get("Image") else None,
@@ -197,7 +226,7 @@ def image_node(image: dict[str, Any], containers: list[dict[str, Any]]) -> Image
     return ImageNode(
         id=leaf_id("image", image_id),
         name=image_title(image),
-        representations=worded_titles([INSPECT]),
+        representations=worded_titles(_OPENS["image"]),
         tags=tags_of(image),
         size_bytes=size if isinstance(size, int) and size >= 0 else None,
         created_at=datetime_of(moment(image.get("Created"))),
@@ -210,7 +239,7 @@ def volume_node(volume: dict[str, Any], containers: list[dict[str, Any]]) -> Vol
     return VolumeNode(
         id=leaf_id("volume", name),
         name=name,
-        representations=worded_titles([INSPECT]),
+        representations=worded_titles(_OPENS["volume"]),
         driver=str(volume.get("Driver") or "local"),
         created_at=datetime_of(instant(volume.get("CreatedAt"))),
         containers=len(users_of_volume(containers, name)),
@@ -221,7 +250,7 @@ def network_node(network: dict[str, Any], containers: list[dict[str, Any]]) -> N
     return NetworkNode(
         id=leaf_id("network", str(network.get("Id"))),
         name=str(network.get("Name")),
-        representations=worded_titles([INSPECT]),
+        representations=worded_titles(_OPENS["network"]),
         driver=str(network.get("Driver") or ""),
         scope=str(network["Scope"]) if network.get("Scope") else None,
         internal=bool(network.get("Internal")),

@@ -98,4 +98,5 @@ MESSAGES: dict[str, str] = {
     "Your personal storage is full: {used} MB of {limit} MB in use": "आपका निजी संग्रहण भर गया है: {limit} MB में से {used} MB उपयोग में",
     # A category of sources (D405).
     "Containers": "कंटेनर",
+    "View as table": "टेबल के रूप में देखें",
 }

@@ -78,6 +78,7 @@ export const CONTENT_REPRESENTATIONS = [
   "tree",
   "documents",
   "market",
+  "view",
 ] as const
 export type ContentRepresentation = (typeof CONTENT_REPRESENTATIONS)[number]
 
@@ -190,6 +191,17 @@ export const panelSchema = z.discriminatedUnion("kind", [
     // What the source calls this document's other representation, so the
     // button says the source's words rather than this screen's.
     sourceTitle: z.string().min(1).optional(),
+    // Every way the node opens, as the source declared them, where one is a
+    // view: the view offers the others, each in a tab of its own (D424).
+    // Optional, as every field added to a stored panel is.
+    representations: z
+      .array(
+        z.object({
+          kind: z.enum(["table", ...CONTENT_REPRESENTATIONS]),
+          title: z.string().min(1),
+        })
+      )
+      .optional(),
   }),
   z.object({
     id: z.string(),
@@ -369,6 +381,10 @@ const MarketPanelView = defineAsyncComponent(
 // file's text, so not the editor a file's JSON opens in.
 const TreePanelView = defineAsyncComponent(
   () => import("@/features/content/TreePanel.vue")
+)
+// What a node's document means, drawn from blocks the source chose (D419).
+const ViewPanelView = defineAsyncComponent(
+  () => import("@/features/content/view/ViewPanel.vue")
 )
 const DocumentsPanelView = defineAsyncComponent(
   () => import("@/features/content/DocumentsPanel.vue")
@@ -808,10 +824,21 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
           })
         )
       }
-      if (representation === "tree" || representation === "documents") {
-        if (representation === "tree") {
-          return bind(key, () =>
-            h(TreePanelView, {
+      if (representation === "view" || representation === "tree") {
+        // One binding for both: a tab stored before the JSON opened in a tab
+        // of its own (D424) may still name either.
+        return bind(key, () =>
+          panel.representation === "view"
+            ? h(ViewPanelView, {
+              panelId: panel.id,
+              connectorId: panel.connectorId,
+              nodeId: panel.nodeId,
+              title: panel.title,
+              connectorName: panel.connectorName,
+              adapterType: panel.adapterType,
+              representations: panel.representations,
+            })
+            : h(TreePanelView, {
               panelId: panel.id,
               connectorId: panel.connectorId,
               nodeId: panel.nodeId,
@@ -821,8 +848,9 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
               sourceTitle: panel.sourceTitle,
               tableTitle: panel.tableTitle,
             })
-          )
-        }
+        )
+      }
+      if (representation === "documents") {
         return bind(key, () =>
           h(DocumentsPanelView, {
             panelId: panel.id,
