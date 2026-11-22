@@ -62,6 +62,8 @@ are encrypted at rest and never leave the backend.
   znodes made, re-ACLed and deleted from the catalog.
 - <img src="frontend/public/icons/services/binance.svg" height="20" alt=""> **Binance**: spot, USDⓈ-M and COIN-M market data as rows, a symbol's chart,
   order book and trades live, and with a read-only key the account's balances, orders and trades.
+- <img src="frontend/public/icons/services/bybit.svg" height="20" alt=""> **Bybit**: spot, USDT and USDC futures and inverse futures as rows, a symbol's
+  chart, order book and trades live, and with a read-only key the unified account's balances, positions, orders and trades.
 - <img src="frontend/public/icons/services/folder.svg" height="20" alt=""> **Files** on the server, and <img src="frontend/public/icons/services/ssh.svg" height="20" alt=""> **SSH servers**: a file explorer with
   preview, upload and download, and a terminal in the browser.
 - <img src="frontend/public/icons/services/ftp.svg" height="20" alt=""> **FTP and FTPS servers**: the same file explorer, signing in with a
