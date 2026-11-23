@@ -31,3 +31,6 @@ backend/htmlcov/
 # Per-person Claude Code settings
 .claude/settings.local.json
 /deploy/tls-test/certs/
+
+# k6 step summaries
+loadtest/results/

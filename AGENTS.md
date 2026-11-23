@@ -255,6 +255,10 @@ bash scripts/generate-client.sh   # after backend API changes
 bash scripts/check-docs.sh
 ```
 
+Load tests use k6 against a running backend: `./loadtest/run.ps1 -Scenario mix`
+with `DP_EMAIL` and `DP_PASSWORD` set. Scenarios, what they need and how to
+profile are in [loadtest/README.md](loadtest/README.md).
+
 CI runs backend tests and static checks, frontend unit/type/lint/build checks and
 the documentation check. E2E is local because it needs the database, backend and
 a warmed dev server together.
