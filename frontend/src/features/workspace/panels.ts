@@ -961,6 +961,7 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
           panelId: panel.id,
           viewKey: panel.viewKey,
           connectorId: panel.connectorId,
+          title: panel.title,
           request: panel.request,
           columns: panel.columns,
         })

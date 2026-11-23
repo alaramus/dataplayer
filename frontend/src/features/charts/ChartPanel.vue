@@ -24,6 +24,7 @@ const props = defineProps<{
   panelId: string
   viewKey: string
   connectorId: string
+  title: string
   request: FetchRequest
   columns: string[]
 }>()
@@ -81,6 +82,15 @@ const pageLabel = computed(() => {
          is not a view of a node, so it offers no button rather than one that
          does nothing (D112). -->
     <div class="chart-panel__bar">
+      <span class="chart-panel__title">{{ title }}</span>
+      <div
+        v-if="result"
+        class="chart-panel__notice"
+      >
+        <strong>{{ pageLabel }}</strong>
+        <span v-if="result?.has_more">{{ t("charts.page.more") }}</span>
+        <span v-else>{{ t("charts.page.bounded") }}</span>
+      </div>
       <PanelCommands :panel-id="panelId" />
     </div>
 
@@ -102,12 +112,6 @@ const pageLabel = computed(() => {
     </div>
 
     <template v-else>
-      <div class="chart-panel__notice">
-        <strong>{{ pageLabel }}</strong>
-        <span v-if="result?.has_more">{{ t("charts.page.more") }}</span>
-        <span v-else>{{ t("charts.page.bounded") }}</span>
-      </div>
-
       <ChartView
         :view-key="viewKey"
         :columns="visibleColumns"
@@ -130,9 +134,20 @@ const pageLabel = computed(() => {
 .chart-panel__bar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   flex: none;
-  gap: var(--dp-space-half);
+  gap: var(--dp-space-2);
+  min-height: 36px;
+  padding: 0 var(--dp-space-2);
+  border-bottom: 1px solid var(--dp-border);
+}
+
+.chart-panel__title {
+  flex: 0 1 var(--dp-width-name);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 .chart-panel__message {
@@ -147,13 +162,22 @@ const pageLabel = computed(() => {
 
 .chart-panel__notice {
   display: flex;
-  flex: none;
+  flex: 1;
+  min-width: 0;
   align-items: center;
   gap: var(--dp-space-2);
-  min-height: 36px;
-  padding: var(--dp-space-1) var(--dp-space-2);
-  border-bottom: 1px solid var(--dp-border);
+  overflow: hidden;
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-sm);
+  white-space: nowrap;
+}
+
+.chart-panel__notice strong {
+  flex: none;
+}
+
+.chart-panel__notice span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
