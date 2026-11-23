@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 
 import pytest
@@ -5,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from pwdlib.hashers.bcrypt import BcryptHasher
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core import security
 from app.core.security import verify_password
 from app.users import crud, storage
 from app.users.models import User, UserCreate, UserUpdate
@@ -28,6 +30,38 @@ async def test_authenticate_user(db: AsyncSession) -> None:
     authenticated_user = await crud.authenticate(session=db, email=email, password=password)
     assert authenticated_user
     assert user.email == authenticated_user.email
+
+
+async def test_password_hashing_runs_outside_the_event_loop(
+    db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Argon2 takes ~45 ms of CPU; on the loop thread every login froze the
+    # whole server while it ran.
+    threads: list[int] = []
+    real_verify, real_hash = security.verify_password, security.get_password_hash
+
+    def verify(plain: str, hashed: str) -> tuple[bool, str | None]:
+        threads.append(threading.get_ident())
+        return real_verify(plain, hashed)
+
+    def hash_(password: str) -> str:
+        threads.append(threading.get_ident())
+        return real_hash(password)
+
+    monkeypatch.setattr(security, "verify_password", verify)
+    monkeypatch.setattr(security, "get_password_hash", hash_)
+    email, password = random_email(), random_lower_string()
+    await crud.create_user(
+        session=db, user_create=UserCreate(email=email, password=password)
+    )
+    assert await crud.authenticate(session=db, email=email, password=password)
+    assert (
+        await crud.authenticate(session=db, email=random_email(), password=password)
+        is None
+    )
+
+    assert len(threads) == 3
+    assert threading.get_ident() not in threads
 
 
 async def test_not_authenticate_user(db: AsyncSession) -> None:

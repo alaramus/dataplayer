@@ -5,14 +5,17 @@ from anyio import to_thread
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.security import get_password_hash, verify_password
+from app.core.security import get_password_hash_off_loop, verify_password_off_loop
 from app.users import invitations, quota, storage
 from app.users.models import User, UserCreate, UserInvite, UserUpdate
 
 
 async def create_user(*, session: AsyncSession, user_create: UserCreate) -> User:
     db_obj = User.model_validate(
-        user_create, update={"hashed_password": get_password_hash(user_create.password)}
+        user_create,
+        update={
+            "hashed_password": await get_password_hash_off_loop(user_create.password)
+        },
     )
     session.add(db_obj)
     await session.commit()
@@ -50,7 +53,7 @@ async def update_user(
     extra_data = {}
     if "password" in user_data:
         password = user_data["password"]
-        hashed_password = get_password_hash(password)
+        hashed_password = await get_password_hash_off_loop(password)
         extra_data["hashed_password"] = hashed_password
     db_user.sqlmodel_update(user_data, update=extra_data)
     session.add(db_user)
@@ -100,14 +103,16 @@ async def authenticate(
         # Prevent timing attacks by running password verification even when user
         # doesn't exist. This ensures the response time is similar whether or not
         # the email exists.
-        verify_password(password, DUMMY_HASH)
+        await verify_password_off_loop(password, DUMMY_HASH)
         return None
     if not db_user.password_set:
         # Nobody may sign in before choosing a password, and the answer takes
         # as long as one that checked a password.
-        verify_password(password, DUMMY_HASH)
+        await verify_password_off_loop(password, DUMMY_HASH)
         return None
-    verified, updated_password_hash = verify_password(password, db_user.hashed_password)
+    verified, updated_password_hash = await verify_password_off_loop(
+        password, db_user.hashed_password
+    )
     if not verified:
         return None
     if updated_password_hash:

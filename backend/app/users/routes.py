@@ -8,7 +8,7 @@ from sqlmodel import col, func, select
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message
-from app.core.security import get_password_hash, verify_password
+from app.core.security import get_password_hash_off_loop, verify_password_off_loop
 from app.core.translation import say
 from app.users import crud, invitations, preferences, quota, storage
 from app.users.deps import CurrentUser, get_current_active_superuser
@@ -143,12 +143,14 @@ async def update_password_me(
     """
     Update own password.
     """
-    verified, _ = verify_password(body.current_password, current_user.hashed_password)
+    verified, _ = await verify_password_off_loop(
+        body.current_password, current_user.hashed_password
+    )
     if not verified:
         raise Problem(400, "users.wrong_password")
     if body.current_password == body.new_password:
         raise Problem(400, "users.same_password")
-    hashed_password = get_password_hash(body.new_password)
+    hashed_password = await get_password_hash_off_loop(body.new_password)
     current_user.hashed_password = hashed_password
     session.add(current_user)
     await session.commit()

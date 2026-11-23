@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.core.db import SessionDep
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash_off_loop
 from app.users.models import (
     User,
     UserPublic,
@@ -29,7 +29,7 @@ async def create_user(user_in: PrivateUserCreate, session: SessionDep) -> Any:
     user = User(
         email=user_in.email,
         full_name=user_in.full_name,
-        hashed_password=get_password_hash(user_in.password),
+        hashed_password=await get_password_hash_off_loop(user_in.password),
     )
 
     session.add(user)
