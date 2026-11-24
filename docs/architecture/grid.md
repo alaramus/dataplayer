@@ -251,7 +251,9 @@ The header shows only commands the current representation supports, as icon
 buttons with tooltips. A rows tab opened from the catalog retains the source's
 ordered representations, so a source-named content alternative such as
 **View DDL** is reachable without the grid inferring one. Column names select
-whole columns; sorting, pinning and hiding are separate controls inside each
+whole columns. A whole-document representation has its own command beside the
+content/DDL command; when it is not offered, that command stays in its place
+disabled (D295). Sorting, pinning and hiding are separate controls inside each
 column header. The row-number column
 and pinned data columns remain at the left edge, while reference controls sit
 over the top-right of their cells without changing row geometry. Cell content

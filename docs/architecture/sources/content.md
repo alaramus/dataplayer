@@ -443,6 +443,13 @@ A document too large to draw (256 KB of text) shows its beginning and is not
 edited. The documents panel opens the `tree` of the same node, since the
 grid offers only one content alternative (D57).
 
+MongoDB's rows toolbar gives its preferred `documents` representation a
+dedicated command beside the code/DDL command. The DDL command remains in place
+but is disabled; the document command opens the whole-document view. A later
+definition representation is not silently substituted into the content slot.
+This keeps the code icon from changing meaning between collections and SQL
+relations.
+
 Known deviations:
 
 - **Editing is of the text only.** A field cannot yet be changed in the tree

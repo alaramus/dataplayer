@@ -141,6 +141,8 @@ const props = defineProps<{
   canQuery?: boolean
   /** The source's wording for one non-tabular view of these rows. */
   contentTitle?: string
+  /** The source's wording for a whole-document view of these rows (D295). */
+  documentsTitle?: string
   /**
    * A predicate the source built for a reference somebody followed here.
    *
@@ -167,6 +169,7 @@ defineSlots<{
 const emit = defineEmits<{
   describe: []
   content: []
+  documents: []
   /** Open a console on this relation, with SQL the source wrote. */
   query: []
   chart: [request: FetchRequest, columns: string[]]
@@ -1063,6 +1066,23 @@ function offers(command: PageCommand): boolean {
   return page.page_commands?.includes(command) ?? true
 }
 
+const contentCommandTitle = computed(() =>
+  props.contentTitle ??
+  (props.documentsTitle === undefined
+    ? GRID_COMMANDS.document.label
+    : GRID_COMMANDS.ddl.label)
+)
+const contentCommandReason = computed<Unavailable>(() =>
+  props.contentTitle !== undefined
+    ? null
+    : props.documentsTitle === undefined
+      ? NOT_OFFERED.document
+      : NOT_OFFERED.ddl
+)
+const documentsCommandReason = computed<Unavailable>(() =>
+  props.documentsTitle === undefined ? NOT_OFFERED.documents : null
+)
+
 /**
  * Why each command of this row is off, or null while it is not.
  *
@@ -1384,10 +1404,20 @@ defineExpose({
       />
       <AppIconButton
         :icon="GRID_COMMANDS.document.icon"
-        :tooltip="contentTitle ?? tipOf(GRID_COMMANDS.document.label, NOT_OFFERED.document)"
-        :disable="!contentTitle"
+        :tooltip="tipOf(contentCommandTitle, contentCommandReason)"
+        :disable="contentCommandReason !== null"
         data-testid="grid-content"
         @click="emit('content')"
+      />
+      <AppIconButton
+        :icon="GRID_COMMANDS.documents.icon"
+        :tooltip="tipOf(
+          documentsTitle ?? GRID_COMMANDS.documents.label,
+          documentsCommandReason
+        )"
+        :disable="documentsCommandReason !== null"
+        data-testid="grid-documents"
+        @click="emit('documents')"
       />
       <AppIconButton
         :icon="GRID_COMMANDS.chart.icon"

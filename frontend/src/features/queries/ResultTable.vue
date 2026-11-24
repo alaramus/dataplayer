@@ -165,7 +165,7 @@ const chartRows = computed(() => snapshot.data.value?.rows ?? [])
 
 /** What the grid of a node offers here and a result cannot, by group. */
 type Missing = keyof typeof NOT_IN_A_RESULT
-const MISSING_OPEN: Missing[] = ["structure", "query", "document"]
+const MISSING_OPEN: Missing[] = ["structure", "query", "document", "documents"]
 const MISSING_OUT: Missing[] = ["share", "keep"]
 const MISSING_WRITE: Missing[] = ["paste", "import", "insert", "remove"]
 

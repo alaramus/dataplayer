@@ -49,3 +49,9 @@ The grid shows a document as columns, which loses its shape. The `jsonl`
 representation the file explorer already uses for JSON lines — a page of
 records, each a JSON tree — shows each document as itself, every level of it.
 No new viewer was needed.
+
+The rows toolbar gives this view a dedicated button beside the generic
+code/DDL button. The code/DDL button stays visible but disabled for a MongoDB
+collection, so its meaning does not change to documents in one source and DDL
+in another. The dedicated button opens the same whole-document representation;
+the definition tree remains available within that panel.

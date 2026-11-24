@@ -37,8 +37,14 @@ const props = defineProps<{
 }>()
 const workspace = useWorkspaceActions()
 
-const contentRepresentation = computed(() =>
-  props.representations?.find((representation) => representation.kind !== "table")
+const contentRepresentation = computed(() => {
+  const preferred = props.representations?.find(
+    (representation) => representation.kind !== "table"
+  )
+  return preferred?.kind === "documents" ? undefined : preferred
+})
+const documentsRepresentation = computed(() =>
+  props.representations?.find((representation) => representation.kind === "documents")
 )
 
 /**
@@ -213,8 +219,7 @@ function showStructure() {
   })
 }
 
-function showContent() {
-  const representation = contentRepresentation.value
+function openRepresentation(representation: NodeRepresentation | undefined) {
   if (representation === undefined) return
   const others = (props.representations ?? []).filter(
     (candidate) => candidate.kind !== representation.kind
@@ -228,6 +233,14 @@ function showContent() {
     representations: [representation, ...others],
     describable: props.describable,
   })
+}
+
+function showContent() {
+  openRepresentation(contentRepresentation.value)
+}
+
+function showDocuments() {
+  openRepresentation(documentsRepresentation.value)
 }
 
 function showChart(request: FetchRequest, columns: string[]) {
@@ -275,11 +288,13 @@ function showReferenced(target: ReferencedRows) {
       :can-describe="canDescribe"
       :can-query="canQuery"
       :content-title="contentRepresentation?.title"
+      :documents-title="documentsRepresentation?.title"
       :reference-filters="referenceFilters"
       :shared-view="sharedView"
       @query="openAsQuery"
       @describe="showStructure"
       @content="showContent"
+      @documents="showDocuments"
       @chart="showChart"
       @follow="showReferenced"
       @record="showRecord"

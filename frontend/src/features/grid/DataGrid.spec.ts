@@ -59,6 +59,7 @@ function mountGrid(
     canDescribe?: boolean
     canQuery?: boolean
     contentTitle?: string
+    documentsTitle?: string
     referenceFilters?: Filter[] | null
   } = {},
   /** Shared to mount a second grid on a page the client already holds. */
@@ -362,6 +363,23 @@ describe("the basic data grid", () => {
     await wrapper.get('[data-testid="grid-content"]').trigger("click")
 
     expect(wrapper.findComponent(DataGrid).emitted("content")).toHaveLength(1)
+  })
+
+  it("keeps DDL disabled and gives a whole-document view its own command", async () => {
+    mockPages()
+    const wrapper = mountGrid({ documentsTitle: "View as documents" })
+    await flushPromises()
+
+    const ddlButton = wrapper.get('[data-testid="grid-content"]')
+    expect(ddlButton.element.parentElement?.getAttribute("aria-disabled")).toBe("true")
+    expect(ddlButton.element.parentElement?.getAttribute("aria-label")).toContain(
+      "View DDL — this node has no DDL view"
+    )
+    const documentsButton = wrapper.get('[data-testid="grid-documents"]')
+    expect(documentsButton.element.parentElement?.getAttribute("aria-disabled")).toBeNull()
+    await wrapper.get('[data-testid="grid-documents"]').trigger("click")
+
+    expect(wrapper.findComponent(DataGrid).emitted("documents")).toHaveLength(1)
   })
 
   it("renders server columns and requests 100 rows by default", async () => {

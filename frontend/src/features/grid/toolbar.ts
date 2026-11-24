@@ -78,6 +78,18 @@ export const GRID_COMMANDS = {
       return t("grid.toolbar.commands.document")
     },
   },
+  ddl: {
+    icon: appIcons.code,
+    get label() {
+      return t("grid.toolbar.commands.ddl")
+    },
+  },
+  documents: {
+    icon: appIcons.dataObject,
+    get label() {
+      return t("grid.toolbar.commands.documents")
+    },
+  },
   chart: {
     icon: appIcons.insertChart,
     get label() {
@@ -187,6 +199,12 @@ export const NOT_OFFERED = {
   get document() {
     return t("grid.toolbar.not_offered.document")
   },
+  get ddl() {
+    return t("grid.toolbar.not_offered.ddl")
+  },
+  get documents() {
+    return t("grid.toolbar.not_offered.documents")
+  },
   get query() {
     return t("grid.toolbar.not_offered.query")
   },
@@ -214,6 +232,9 @@ export const NOT_IN_A_RESULT = {
   },
   get document() {
     return NOT_OFFERED.document
+  },
+  get documents() {
+    return t("grid.toolbar.not_in_result.documents")
   },
   get share() {
     return t("grid.toolbar.not_in_result.share")

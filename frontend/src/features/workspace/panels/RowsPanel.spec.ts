@@ -5,6 +5,7 @@ import { defineComponent, ref } from "vue"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService, QueriesService } from "@/client"
+import type { NodeRepresentation } from "@/client"
 import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 
@@ -27,9 +28,10 @@ const workspace = {
 const DataGridStub = {
   props: {
     contentTitle: { type: String, default: "" },
+    documentsTitle: { type: String, default: "" },
     canDescribe: { type: Boolean, default: false },
   },
-  emits: ["content", "describe", "chart", "follow"],
+  emits: ["content", "documents", "describe", "chart", "follow"],
   // The row the pager is on is the grid's, and what the panel puts there is
   // handed to it as a slot — so a stub that dropped it would hide the strip
   // this file is about.
@@ -38,34 +40,58 @@ const DataGridStub = {
       <button
         data-testid="rows-content"
         :data-title="contentTitle"
+        :data-documents-title="documentsTitle"
         :data-describable="String(canDescribe)"
         @click="$emit('content')"
       >
         content
+      </button>
+      <button
+        data-testid="rows-documents"
+        @click="$emit('documents')"
+      >
+        documents
       </button>
       <slot name="pager-start" />
     </div>
   `,
 }
 
+const POSTGRES_REPRESENTATIONS: NodeRepresentation[] = [
+  { kind: "table", title: "View as table" },
+  { kind: "sql", title: "View DDL" },
+]
+const MONGO_REPRESENTATIONS: NodeRepresentation[] = [
+  { kind: "table", title: "View as table" },
+  { kind: "documents", title: "View as documents" },
+  { kind: "tree", title: "View the definition" },
+]
+
 const Host = defineComponent({
   components: { RowsPanel },
-  setup() {
+  props: { mongo: { type: Boolean, default: false } },
+  setup(props) {
     provideReloadRegistry(createReloadRegistry())
+    const mongo = props.mongo
+    return {
+      panelId: mongo ? "rows:c1:shop.customers" : "rows:c1:public.orders",
+      nodeId: mongo ? "shop.customers" : "public.orders",
+      title: mongo ? "customers" : "orders",
+      connectorName: mongo ? "local mongo" : "local pg",
+      adapterType: mongo ? "mongodb" : "postgres",
+      representations: mongo ? MONGO_REPRESENTATIONS : POSTGRES_REPRESENTATIONS,
+    }
   },
   template: `
     <RowsPanel
-      panel-id="rows:c1:public.orders"
+      :panel-id="panelId"
       connector-id="c1"
-      node-id="public.orders"
-      title="orders"
-      connector-name="local pg"
-      adapter-type="postgres"
+      :node-id="nodeId"
+      :title="title"
+      :connector-name="connectorName"
+      :adapter-type="adapterType"
       :describable="true"
-      :representations="[
-        { kind: 'table', title: 'View as table' },
-        { kind: 'sql', title: 'View DDL' },
-      ]"
+      :representations="representations"
     />
   `,
 })
@@ -237,6 +263,47 @@ describe("a rows panel with another source representation", () => {
       representations: [
         { kind: "sql", title: "View DDL" },
         { kind: "table", title: "View as table" },
+      ],
+      describable: true,
+    })
+  })
+
+  it("opens MongoDB documents from their dedicated representation command", async () => {
+    const wrapper = mount(Host, {
+      props: { mongo: true },
+      global: {
+        plugins: [
+          Quasar,
+          [
+            VueQueryPlugin,
+            {
+              queryClient: new QueryClient({
+                defaultOptions: { queries: { retry: false, gcTime: 0 } },
+              }),
+            },
+          ],
+        ],
+        provide: { [workspaceActionsKey as symbol]: workspace },
+        stubs: { DataGrid: DataGridStub },
+      },
+    })
+
+    expect(wrapper.get('[data-testid="rows-content"]').attributes("data-title")).toBe("")
+    expect(wrapper.get('[data-testid="rows-content"]').attributes("data-documents-title")).toBe(
+      "View as documents"
+    )
+    await wrapper.get('[data-testid="rows-documents"]').trigger("click")
+
+    expect(openRepresentation).toHaveBeenCalledWith({
+      connectorId: "c1",
+      nodeId: "shop.customers",
+      title: "customers",
+      connectorName: "local mongo",
+      adapterType: "mongodb",
+      representations: [
+        { kind: "documents", title: "View as documents" },
+        { kind: "table", title: "View as table" },
+        { kind: "tree", title: "View the definition" },
       ],
       describable: true,
     })
