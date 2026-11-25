@@ -12,7 +12,7 @@ El agente funciona con su propia clave de un proveedor de modelos: Anthropic, Op
 
 ## Un chat
 
-- **Nuevo chat** inicia uno. Escriba en **Escribe un mensaje al agente** y pulse **Enviar**; donde el navegador puede escuchar, el micrófono dicta en su lugar.
+- **Nuevo chat** inicia uno. Escriba en **Escribe un mensaje al agente** y pulse **Enviar**; donde el navegador puede escuchar, el micrófono dicta en su lugar. El mismo micrófono también está junto a un archivo, al texto de una carta, a una consulta y a un documento. En esos editores, lo dicho llega al cursor, se corrige allí mientras el navegador se decide y cede ante lo que se escriba al lado.
 - Mientras trabaja, los pasos del agente se muestran uno a uno: qué leyó, qué ejecutó, cuánto tardó. **Detener** termina la respuesta.
 - Las respuestas son texto con formato, con tablas, gráficos y diagramas. Cada uno puede copiarse o leerse en voz alta.
 - Al seleccionar palabras de una respuesta aparecen **Añadir al chat**, que las cita en su siguiente mensaje, y **Más detalles**, que pide al chat rápido que las explique.

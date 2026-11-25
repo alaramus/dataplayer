@@ -15,10 +15,6 @@ export const ai = {
   },
   composer: {
     empty: "What would you like to know?",
-    mic_refused: "The microphone is not allowed for this page",
-    dictation_stopped: "Dictation stopped",
-    cannot_listen: "This browser cannot listen",
-    stop_dictating: "Stop dictating",
     dictate: "Dictate the message",
     stop: "Stop",
     send: "Send",

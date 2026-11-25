@@ -17,10 +17,6 @@ export const ai: Messages["ai"] = {
   },
   composer: {
     empty: "想了解什么？",
-    mic_refused: "此页面不允许使用麦克风",
-    dictation_stopped: "听写已停止",
-    cannot_listen: "此浏览器无法聆听",
-    stop_dictating: "停止听写",
     dictate: "听写消息",
     stop: "停止",
     send: "发送",

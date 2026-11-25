@@ -20,6 +20,7 @@ general está en la página [Conexiones](connections.md).
 - Mensajes movidos a la papelera y eliminados de ella para siempre
 - Adjuntos guardados en tu equipo o en tu propia carpeta
 - Borradores guardados, terminados más tarde y enviados
+- El texto del mensaje se dicta con el micrófono junto al campo: se inserta donde está el cursor y se corrige allí mientras se reconoce; después de escribir, el dictado continúa desde el nuevo cursor
 - Mensajes movidos a otra carpeta
 - Archivos de tu propia carpeta adjuntos a un mensaje
 

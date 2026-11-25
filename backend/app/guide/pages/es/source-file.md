@@ -97,6 +97,8 @@ un archivo no se puede ordenar, y un filtro solo coincide con un valor exacto.
   escribe nada. **Recargar archivo** lo vuelve a leer.
 - Se pueden editar archivos de hasta 4 MB. Un archivo mayor se abre en solo
   lectura e indica por qué.
+- **Dictar**, sobre el editor, escribe donde está el cursor: el navegador corrige
+  en el sitio lo que oyó, y lo que se escriba al lado toma el relevo.
 - En una tabla CSV o TSV puedes cambiar celdas, insertar filas, eliminar las
   filas marcadas y añadir, renombrar o quitar columnas desde **Estructura**.
 

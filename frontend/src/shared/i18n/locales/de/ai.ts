@@ -17,10 +17,6 @@ export const ai: Messages["ai"] = {
   },
   composer: {
     empty: "Was möchten Sie wissen?",
-    mic_refused: "Das Mikrofon ist für diese Seite nicht zugelassen",
-    dictation_stopped: "Diktat gestoppt",
-    cannot_listen: "Dieser Browser kann nicht zuhören",
-    stop_dictating: "Diktat stoppen",
     dictate: "Die Nachricht diktieren",
     stop: "Stoppen",
     send: "Senden",

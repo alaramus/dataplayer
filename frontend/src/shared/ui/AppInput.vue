@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, inject, useAttrs } from "vue"
+import { computed, inject, ref, useAttrs } from "vue"
+import type { QInput } from "quasar"
 
 import { formLayoutKey } from "./formLayout"
 import { fieldLook } from "./tokens"
@@ -99,6 +100,19 @@ const emit = defineEmits<{
  */
 const toolbar = computed(() => props.compact && !formLayout)
 
+const field = ref<QInput | null>(null)
+
+/**
+ * The browser's own field inside, for a caller that has to reach the caret:
+ * dictation writes where the caret stands rather than at the end (D138).
+ */
+function nativeElement(): HTMLInputElement | HTMLTextAreaElement | null {
+  const root = field.value?.$el as HTMLElement | undefined
+  return root?.querySelector("input, textarea") ?? null
+}
+
+defineExpose({ nativeElement })
+
 // QInput reports string | number | null whatever its type is. A text field
 // deals in strings, so the caller is not made to widen its own state to match
 // a detail of the library. Numbers have their own component.
@@ -109,6 +123,7 @@ function report(value: string | number | null) {
 
 <template>
   <q-input
+    ref="field"
     :class="{
       'app-form-field': formLayout,
       'app-input--monospace': monospace,

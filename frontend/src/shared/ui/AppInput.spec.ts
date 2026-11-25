@@ -59,6 +59,14 @@ describe("AppInput", () => {
     wrapper.unmount()
   })
 
+  it("exposes the native textarea for caret-aware writing", () => {
+    const wrapper = mountInput({ type: "textarea" })
+    const exposed = wrapper.vm as unknown as { nativeElement: () => HTMLTextAreaElement | null }
+
+    expect(exposed.nativeElement()).toBe(wrapper.get("textarea").element)
+    wrapper.unmount()
+  })
+
   it("renders a secret as a password input", () => {
     expect(mountInput({ type: "password" }).get("input").attributes("type")).toBe("password")
   })

@@ -19,7 +19,10 @@ d'autres.
 ## Un chat
 
 - **Nouvelle discussion** en démarre un. Écrivez dans **Envoyer un message à l'agent** puis cliquez sur **Envoyer** ; là où le navigateur
-  peut écouter, le micro dicte à la place.
+  peut écouter, le micro dicte à la place. Le même micro est aussi présent près
+  d'un fichier, du texte d'une lettre, d'une requête et d'un document. Dans ces
+  éditeurs, les paroles arrivent au curseur, y sont corrigées à mesure que le
+  navigateur se décide et cèdent devant ce qui est tapé à côté.
 - Pendant que l'agent travaille, ses étapes s'affichent une à une : ce qu'il a lu, ce qu'il a exécuté, combien de
   temps cela a pris. **Arrêter** met fin à la réponse.
 - Les réponses sont du texte mis en forme, avec des tableaux, des graphiques et des diagrammes. Chacun peut être

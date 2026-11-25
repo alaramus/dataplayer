@@ -20,7 +20,11 @@ DeepSeek und andere.
 ## Ein Chat
 
 - **Neuer Chat** startet einen. Tippen Sie in **Nachricht an den Agenten** und klicken Sie auf **Senden**; wo der
-  Browser zuhören kann, diktiert das Mikrofon stattdessen.
+  Browser zuhören kann, diktiert das Mikrofon stattdessen. Dasselbe Mikrofon gibt
+  es auch neben einer Datei, dem Text eines Briefs, einer Abfrage und einem
+  Dokument. In diesen Editoren landet Gesprochenes an der Schreibmarke, wird
+  dort nachgeführt, sobald der Browser sich festlegt, und weicht allem, was
+  daneben getippt wird.
 - Während der Agent arbeitet, werden seine Schritte einzeln angezeigt: was er gelesen, was er
   ausgeführt hat, wie lange es dauerte. **Stoppen** beendet die Antwort.
 - Antworten sind formatierter Text mit Tabellen, Diagrammen und Schemata. Jede kann kopiert oder

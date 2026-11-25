@@ -10,11 +10,12 @@ import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
 import { useNow } from "@/shared/freshness/useNow"
 import { serverStorageKey } from "@/shared/servers/context"
+import DictateButton from "@/features/speech/DictateButton.vue"
+import { useDictation } from "@/features/speech/dictation"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { acceptFor, admit, kindOf } from "./attachments"
 import type { AttachmentKind } from "./attachments"
-import { useDictation } from "./dictation"
 import { useAiDraft } from "./draft"
 import { markAt, outlineMarks } from "./outline"
 import { unansweredEnds } from "./endedRuns"
@@ -457,26 +458,16 @@ async function answerQuestion(choice: string) {
 // What was typed before the microphone was pressed. Everything heard is kept
 // beside it, so speaking adds to a half-written message instead of erasing it.
 const spokenInto = ref("")
-const dictation = useDictation(
-  (heard) => { draft.value = `${spokenInto.value}${heard}` },
-  (reason) => {
-    toast.error(reason === "not-allowed"
-      ? t("ai.composer.mic_refused")
-      : t("ai.composer.dictation_stopped"))
-  }
-)
+const dictation = useDictation((heard) => { draft.value = `${spokenInto.value}${heard}` })
+function startDictation() {
+  const typed = draft.value.trimEnd()
+  spokenInto.value = typed ? `${typed} ` : ""
+}
 /** What a run that ended without an answer says, when it gave no reason. */
 function endedWords(run: AgentRunPublic): string {
   if (run.status === "cancelled") return t("ai.conversation.ended.cancelled")
   if (run.status === "interrupted") return t("ai.conversation.ended.interrupted")
   return t("ai.conversation.ended.failed")
-}
-function dictate() {
-  if (!dictation.listening.value) {
-    const typed = draft.value.trimEnd()
-    spokenInto.value = typed ? `${typed} ` : ""
-  }
-  dictation.toggle()
 }
 
 watch(() => conversation.data.value, async () => {
@@ -851,15 +842,12 @@ onBeforeUnmount(() => {
                   data-testid="ai-chat-model"
                   @update:model-value="chooseModel"
                 />
-                <AppIconButton
-                  :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
-                  :live="dictation.listening.value"
-                  :tooltip="!dictation.supported
-                    ? t('ai.composer.cannot_listen')
-                    : dictation.listening.value ? t('ai.composer.stop_dictating') : t('ai.composer.dictate')"
-                  :disable="!dictation.supported || activeRun !== null"
-                  data-testid="ai-dictate"
-                  @click="dictate"
+                <DictateButton
+                  :dictation="dictation"
+                  :label="t('ai.composer.dictate')"
+                  :disable="activeRun !== null"
+                  testid="ai-dictate"
+                  @start="startDictation"
                 />
                 <span class="ai-conversation__gap" />
                 <AppButton

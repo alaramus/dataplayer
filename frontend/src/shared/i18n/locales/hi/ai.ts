@@ -17,10 +17,6 @@ export const ai: Messages["ai"] = {
   },
   composer: {
     empty: "आप क्या जानना चाहेंगे?",
-    mic_refused: "इस पृष्ठ के लिए माइक्रोफ़ोन की अनुमति नहीं है",
-    dictation_stopped: "श्रुतलेखन रुक गया",
-    cannot_listen: "यह ब्राउज़र सुन नहीं सकता",
-    stop_dictating: "श्रुतलेखन रोकें",
     dictate: "संदेश का श्रुतलेखन करें",
     stop: "रोकें",
     send: "भेजें",

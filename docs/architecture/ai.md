@@ -107,7 +107,6 @@ frontend/src/features/ai/
 ├── api.ts              vue-query ownership of server state
 ├── attachments.ts      which picked files join a message, by the server's rules
 ├── context.ts          which open panels a chip may name, and the open intent
-├── dictation.ts        the browser's recogniser behind the composer's microphone
 ├── outline.ts          the questions of a conversation, and which one is being read
 ├── streaming.ts        open-fence protection while an answer streams
 └── state.ts            selected-chat restoration and a chat requested from outside; the shared space store remembers AI
@@ -115,8 +114,10 @@ frontend/src/features/ai/
 
 ```
 frontend/src/features/speech/
+├── DictateButton.vue   the microphone of every text a person writes (D138)
 ├── ReadAloudButton.vue the listen button of chats, documents and files
 ├── VoiceSelect.vue     the reading voice, in Preferences and AI settings
+├── dictation.ts        the browser's recogniser, and where the words it hears stand
 ├── readAloud.ts        the one voice of the browser, shared by every reader and keyed by it
 ├── speechText.ts       prose without the marks around it, for Markdown only
 └── voices.ts           the browser's voices, arriving after the page
@@ -277,10 +278,13 @@ final, an open fence waits until it closes, re-rendering is throttled. Remote
 resources stay blocked with no unblock, because injected data could turn an
 image address into a leak. Relative links do nothing. At most 20 rows appear in
 an answer, then the agent offers to open them. Copy gives raw Markdown; Listen
-uses the browser's speech synthesis on plain text, and the composer borrows the
-other half of the same browser: its microphone dictates into the message in the
-browser's own language, keeping what was already typed in front of what is
-heard. A browser with no recogniser says so on a microphone that stays off.
+uses the browser's speech synthesis on plain text. The Dictate button and
+browser recognition code serve the AI composers, file editor, mail body, query
+and MongoDB document editor. The AI composers keep the text already typed before
+the transcript. In the file, mail, query and document editors, speech starts at
+the caret and revises its unsettled words in place; typing takes that place
+over, and later speech continues from the new caret with only words not already
+written. A browser with no recogniser says so on a microphone that stays off.
 Which voice reads is the person's choice, kept in this browser and chosen in
 Preferences or AI settings — one store serves both controls, so either one is
 the choice everywhere; without one the browser reads in its default voice.

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { computed, ref, watch } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
 
 import type { EditorContent, EditorContentRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import { useEditorContent, useUpdateContent } from "@/features/content/api"
+import DictateButton from "@/features/speech/DictateButton.vue"
 import ReadAloudButton from "@/features/speech/ReadAloudButton.vue"
+import { useDictation } from "@/features/speech/dictation"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
@@ -40,6 +42,11 @@ const baseline = ref("")
 const loadedVersion = ref<string | null>(null)
 const saveError = ref("")
 const saveConflict = ref(false)
+
+/** The editor itself, which is where words spoken go (D138). */
+const code = ref<InstanceType<typeof CodeEditor> | null>(null)
+const dictation = useDictation((heard) => code.value?.writeSpeech(heard))
+onBeforeUnmount(() => dictation.stop())
 
 const dirty = computed(() => draft.value !== baseline.value)
 useClosable(props.panelId, async () => {
@@ -153,6 +160,12 @@ watch(
           :listen-label="t('content.editor.listen')"
           testid="content-listen"
         />
+        <DictateButton
+          v-if="writable"
+          :dictation="dictation"
+          testid="content-dictate"
+          @start="code?.startSpeech()"
+        />
         <span
           v-if="dirty"
           class="content-panel__dirty"
@@ -227,6 +240,7 @@ watch(
         />
       </AppBanner>
       <CodeEditor
+        ref="code"
         v-model="draft"
         class="content-panel__editor-control dp-panel-scroll"
         bare

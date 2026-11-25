@@ -115,6 +115,9 @@ Spec: [A mailbox as a source](../../decisions/2026-11-15-mail-source-design.md)
   rather than pydantic's `EmailStr`, which refuses `.local` domains.
 - A new letter's uploads and a forward's attachments together are at most
   25 MB.
+- The letter's body is dictated into as well as typed into ([D138](../ai.md)):
+  words spoken land at the caret there and are revised in place, so speaking
+  adds to a half-written letter rather than replacing it.
 - Delete moves to the folder whose role is `trash`, made as `Trash` when there
   is none: UID MOVE, or COPY then `\Deleted` and UID EXPUNGE. In Trash, delete
   is for good; the screen asks first.

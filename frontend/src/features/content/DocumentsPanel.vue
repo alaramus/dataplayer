@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
+import type { ComponentPublicInstance } from "vue"
 
 import type { DocumentItem, DocumentsRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
@@ -7,6 +8,8 @@ import JsonTreeNode from "@/features/content/JsonTreeNode.vue"
 import { useChangeDocument, useDocuments } from "@/features/content/api"
 import { documentId } from "@/features/content/jsonTree"
 import { loadGridState } from "@/features/grid/persist"
+import DictateButton from "@/features/speech/DictateButton.vue"
+import { useDictation } from "@/features/speech/dictation"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useClosable } from "@/features/workspace/closable"
@@ -76,6 +79,17 @@ const original = ref("")
 const saveError = ref("")
 const conflict = ref(false)
 const dirty = computed(() => editing.value !== null && draft.value !== original.value)
+
+/** The editor of the document being edited, which is where words spoken go (D138). */
+const documentEditor = ref<InstanceType<typeof CodeEditor> | null>(null)
+/** A string ref inside the document list would resolve to an array (Vue's v-for ref rule). */
+function setDocumentEditor(editor: Element | ComponentPublicInstance | null) {
+  documentEditor.value = editor as InstanceType<typeof CodeEditor> | null
+}
+const dictation = useDictation((heard) => documentEditor.value?.writeSpeech(heard))
+// A document nobody is editing is not dictated into.
+watch(editing, () => dictation.stop())
+onBeforeUnmount(() => dictation.stop())
 
 function canEdit(item: DocumentItem): boolean {
   return page.value?.change_supported === true && !item.truncated && item.row_handle != null
@@ -266,12 +280,18 @@ useClosable(props.panelId, leaveEdit)
           </AppBanner>
           <div class="documents-panel__editor">
             <CodeEditor
+              :ref="setDocumentEditor"
               v-model="draft"
               filename="document.json"
               validation="json"
             />
           </div>
           <div class="documents-panel__edit-actions">
+            <DictateButton
+              :dictation="dictation"
+              testid="document-dictate"
+              @start="documentEditor?.startSpeech()"
+            />
             <AppButton
               variant="quiet"
               size="sm"

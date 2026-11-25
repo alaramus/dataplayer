@@ -147,7 +147,9 @@ takes new documents and changes none; the server's own collections take
 nothing.
 
 A collection is also offered as its documents whole ("View as documents"),
-read and edited as JSON field by field (D295, in [content.md](content.md)).
+read and edited as JSON field by field (D295, in [content.md](content.md)). A
+document so opened is dictated into as well ([D138](../ai.md)): words spoken
+land at the caret and are revised there as the browser settles on them.
 
 Known deviations:
 

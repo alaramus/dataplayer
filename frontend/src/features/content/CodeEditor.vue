@@ -8,7 +8,7 @@ import type {
   CompletionSource,
 } from "@codemirror/autocomplete"
 import { type Diagnostic, linter } from "@codemirror/lint"
-import { Compartment, EditorState, type Extension, Prec } from "@codemirror/state"
+import { Compartment, EditorState, type Extension, Prec, Transaction } from "@codemirror/state"
 import { EditorView, keymap } from "@codemirror/view"
 import { isolateHistory } from "@codemirror/commands"
 import { basicSetup } from "codemirror"
@@ -16,6 +16,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { syntaxColours } from "@/features/content/highlight"
 import { languageFor } from "@/features/content/language"
+import { SpeechWriter } from "@/features/speech/dictation"
 import { t } from "@/shared/i18n"
 
 const props = withDefaults(
@@ -78,6 +79,14 @@ const completionSlot = new Compartment()
 const marksSlot = new Compartment()
 let view: EditorView | null = null
 let languageRequest = 0
+
+/**
+ * Where the words spoken into this editor stand (D138). The caret of the
+ * moment listening began, revised in place, until something else is typed.
+ */
+const speech = new SpeechWriter()
+/** Whether the change going through is this editor's own dictation. */
+let speechWriting = false
 
 function permissionExtensions(): Extension {
   return [
@@ -197,6 +206,42 @@ function validationExtension(): Extension {
   return []
 }
 
+/** Words go where the caret is, and a selection gives way to them. */
+function startSpeech() {
+  const editor = view
+  if (!editor || props.readonly) return
+  editor.focus()
+  const range = editor.state.selection.main
+  speech.begin({ from: range.from, to: range.to })
+}
+
+/**
+ * Everything heard since listening began — settled words and the ones still
+ * being revised together — written where the caret stood.
+ */
+function writeSpeech(heard: string) {
+  const editor = view
+  if (!editor || props.readonly) return
+  const edit = speech.write(editor.state.doc.length, editor.state.selection.main.to, heard)
+  if (edit.from === edit.to && edit.text === "") return
+  const caret = edit.from + edit.text.length
+  speechWriting = true
+  try {
+    editor.dispatch({
+      changes: { from: edit.from, to: edit.to, insert: edit.text },
+      selection: { anchor: caret },
+      // A word put down by voice is a word typed: one undo takes it back, and
+      // the view follows the words as they are said.
+      annotations: Transaction.userEvent.of("input.type"),
+      effects: EditorView.scrollIntoView(caret, { y: "nearest" }),
+    })
+  } finally {
+    speechWriting = false
+  }
+}
+
+defineExpose({ startSpeech, writeSpeech })
+
 async function loadLanguage() {
   const editor = view
   if (!editor) return
@@ -251,6 +296,9 @@ onMounted(() => {
           ])
         ),
         EditorView.updateListener.of((update) => {
+          // Somebody typed or pasted: the place dictation had is gone, and the
+          // next words go where they left the caret rather than over their work.
+          if (update.docChanged && !speechWriting) speech.interrupt()
           if (update.docChanged) emit("update:modelValue", update.state.doc.toString())
           if (update.selectionSet || update.docChanged) {
             const range = update.state.selection.main

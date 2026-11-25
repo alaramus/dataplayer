@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { transcriptOf, useDictation } from "./dictation"
+import { SpeechWriter, transcriptOf, useDictation } from "./dictation"
 import type { Recognition, RecognitionEvent, RecognitionResult } from "./dictation"
 
 function result(transcript: string, isFinal: boolean): RecognitionResult {
@@ -43,7 +43,7 @@ describe("what was heard", () => {
 
 describe("dictation", () => {
   it("says it cannot listen where the browser has no listener", () => {
-    const dictation = useDictation(() => {}, () => {}, () => null)
+    const dictation = useDictation(() => {}, () => null)
 
     dictation.toggle()
 
@@ -54,7 +54,7 @@ describe("dictation", () => {
   it("hands over everything heard while it listens", () => {
     const engine = fake()
     const written: string[] = []
-    const dictation = useDictation((heard) => written.push(heard), () => {}, () => engine)
+    const dictation = useDictation((heard) => written.push(heard), () => engine)
 
     dictation.toggle()
     engine.onresult?.(event(result("count the ", true), result("orders", false)))
@@ -64,9 +64,20 @@ describe("dictation", () => {
     expect(written).toEqual(["count the orders"])
   })
 
+  it("does not send an empty interim result to the text writer", () => {
+    const engine = fake()
+    const written: string[] = []
+    const dictation = useDictation((heard) => written.push(heard), () => engine)
+
+    dictation.toggle()
+    engine.onresult?.(event(result("", false)))
+
+    expect(written).toEqual([])
+  })
+
   it("stops when pressed again, and when the browser ends the session itself", () => {
     const engine = fake()
-    const dictation = useDictation(() => {}, () => {}, () => engine)
+    const dictation = useDictation(() => {}, () => engine)
 
     dictation.toggle()
     dictation.toggle()
@@ -80,14 +91,55 @@ describe("dictation", () => {
 
   it("reports a refused microphone but not a silence", () => {
     const engine = fake()
-    const reasons: string[] = []
-    const dictation = useDictation(() => {}, (reason) => reasons.push(reason), () => engine)
+    const dictation = useDictation(() => {}, () => engine)
 
     dictation.toggle()
     engine.onerror?.({ error: "no-speech" })
     engine.onerror?.({ error: "not-allowed" })
 
-    expect(reasons).toEqual(["not-allowed"])
+    expect(dictation.failure.value).toBe("not-allowed")
     expect(dictation.listening.value).toBe(false)
+  })
+})
+
+describe("words spoken into a text", () => {
+  it("takes the place of the selection and revises what it wrote there", () => {
+    const speech = new SpeechWriter()
+    speech.begin({ from: 7, to: 11 })
+
+    expect(speech.write(20, 0, "count the ord")).toEqual({ from: 7, to: 11, text: "count the ord" })
+    // The recogniser revises the open end rather than adding to it.
+    expect(speech.write(20, 0, "count the orders")).toEqual({
+      from: 7,
+      to: 20,
+      text: "count the orders",
+    })
+  })
+
+  it("carries on at the caret with only the words not yet written", () => {
+    const speech = new SpeechWriter()
+    speech.begin({ from: 0, to: 0 })
+    speech.write(0, 0, "one two")
+    speech.interrupt()
+
+    // Somebody typed somewhere else; a place that is gone must not be written
+    // over, and the words already down must not be said again.
+    expect(speech.write(30, 30, "one two three")).toEqual({ from: 30, to: 30, text: " three" })
+  })
+
+  it("keeps a place inside a text that has shrunk under it", () => {
+    const speech = new SpeechWriter()
+    speech.begin({ from: 20, to: 25 })
+
+    expect(speech.write(4, 0, "tail")).toEqual({ from: 4, to: 4, text: "tail" })
+  })
+
+  it("says nothing twice when an interrupted session hears the same words again", () => {
+    const speech = new SpeechWriter()
+    speech.begin({ from: 0, to: 0 })
+    speech.write(0, 0, "the ledger")
+    speech.interrupt()
+
+    expect(speech.write(10, 10, "the ledger")).toEqual({ from: 10, to: 10, text: "" })
   })
 })

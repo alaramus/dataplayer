@@ -21,6 +21,7 @@ fonctionnement général des connexions est décrit sur la page
 - Messages déplacés vers la corbeille, puis supprimés définitivement
 - Pièces jointes enregistrées sur l’ordinateur ou dans votre dossier
 - Brouillons enregistrés, terminés plus tard et envoyés
+- Le texte du message se dicte avec le micro à côté du champ : les mots s’insèrent au curseur et sont corrigés sur place au fil de la reconnaissance ; après une saisie, la dictée reprend au nouveau curseur
 - Messages déplacés vers un autre dossier
 - Fichiers de votre propre dossier joints à un message
 

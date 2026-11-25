@@ -99,6 +99,9 @@ qu'à une valeur exacte.
   refusé et rien n'est écrit. **Recharger le fichier** le relit.
 - Les fichiers jusqu'à 4 Mo peuvent être modifiés. Un fichier plus gros s'ouvre
   en lecture seule et dit pourquoi.
+- **Dicter**, au-dessus de l'éditeur, écrit là où se trouve le curseur : le
+  navigateur corrige sur place ce qu'il a entendu, et ce qui est tapé à côté
+  prend le relais.
 - Dans une table CSV ou TSV, vous pouvez modifier des cellules, insérer des
   lignes, supprimer les lignes cochées, et ajouter, renommer ou supprimer des
   colonnes depuis **Structure**.

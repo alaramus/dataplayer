@@ -89,6 +89,8 @@ file cannot be sorted, and a filter only matches a value exactly.
 - If the file changed since you opened it, saving is refused and nothing is
   written. **Reload file** reads it again.
 - Files up to 4 MB can be edited. A larger file opens read only and says why.
+- **Dictate**, above the editor, writes where the cursor is: the browser
+  revises what it heard in place, and anything typed beside it takes over.
 - In a CSV or TSV table you can change cells, insert rows, delete ticked rows,
   and add, rename or drop columns from **Structure**.
 

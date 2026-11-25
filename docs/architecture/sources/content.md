@@ -113,6 +113,10 @@ against.
   failure leaves the previous document rather than half of the new one.
 - A content tab has one mode: opening a file opens its source, with no
   viewer/editor switch.
+- The editor is dictated into as well as typed into ([D138](../ai.md)): words
+  spoken land at the caret and are revised there as the browser settles on them,
+  and anything typed beside them takes the place over. A document that is not
+  writable offers no microphone, because there is nowhere to put the words.
 
 Known deviations:
 

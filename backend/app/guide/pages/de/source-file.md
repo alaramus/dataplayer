@@ -101,6 +101,9 @@ genau auf einen Wert.
   erneut.
 - Dateien bis 4 MB können bearbeitet werden. Eine größere Datei öffnet sich
   schreibgeschützt und sagt, warum.
+- **Diktieren**, über dem Editor, schreibt dorthin, wo die Schreibmarke steht:
+  der Browser führt Gehörtes an Ort und Stelle nach, und Getipptes daneben
+  übernimmt.
 - In einer CSV- oder TSV-Tabelle können Sie Zellen ändern, Zeilen einfügen,
   angehakte Zeilen löschen und Spalten über **Struktur** hinzufügen, umbenennen
   oder verwerfen.

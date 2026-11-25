@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed, onBeforeUnmount, ref, useTemplateRef } from "vue"
 
 import { formatSize } from "@/features/catalog/nodes"
+import DictateButton from "@/features/speech/DictateButton.vue"
+import { SpeechWriter, useDictation } from "@/features/speech/dictation"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
 import {
@@ -49,6 +51,44 @@ const picking = ref(false)
 const toast = useToast()
 const confirm = useConfirm()
 
+/**
+ * Words spoken into the letter's text (D138): the body field's caret is where
+ * they go, revised in place until somebody types something of their own.
+ */
+const textField = useTemplateRef<InstanceType<typeof AppInput>>("textField")
+const speech = new SpeechWriter()
+/** Whether the change going through is this window's own dictation. */
+let speechWriting = false
+const dictation = useDictation((heard) => writeSpeech(heard))
+onBeforeUnmount(() => dictation.stop())
+
+function startSpeech() {
+  const area = textField.value?.nativeElement()
+  if (!(area instanceof HTMLTextAreaElement)) return
+  area.focus()
+  speech.begin({ from: area.selectionStart, to: area.selectionEnd })
+}
+
+function writeSpeech(heard: string) {
+  const area = textField.value?.nativeElement()
+  if (!(area instanceof HTMLTextAreaElement)) return
+  const edit = speech.write(area.value.length, area.selectionStart, heard)
+  speechWriting = true
+  try {
+    area.setRangeText(edit.text, edit.from, edit.to, "end")
+    // The field's own event is what v-model hears, and setRangeText says nothing.
+    area.dispatchEvent(new Event("input", { bubbles: true }))
+  } finally {
+    speechWriting = false
+  }
+}
+
+/** Typing of one's own takes over the place dictation had. */
+function onText(value: string) {
+  if (!speechWriting) speech.interrupt()
+  draft.value.text = value
+}
+
 const total = computed(
   () =>
     files.value.reduce((sum, file) => sum + file.size, 0) +
@@ -88,6 +128,7 @@ const touched = computed(
 )
 
 function close() {
+  dictation.stop()
   open.value = false
   emit("closed")
 }
@@ -129,6 +170,7 @@ function addStored(chosen: StoredFile[]) {
 /** Into Drafts; the window closes, and the draft opens again from Drafts (D375). */
 async function keepDraft() {
   if (draftBlocked.value || busy.value) return
+  dictation.stop()
   try {
     const saved = await saveDraft.mutateAsync({ draft: draft.value, files: files.value })
     toast.success(t("mail.composer.draft_saved", { folder: saved.folder }))
@@ -141,6 +183,7 @@ async function keepDraft() {
 
 async function submit() {
   if (blocked.value || busy.value) return
+  dictation.stop()
   try {
     const sent = await send.mutateAsync({ draft: draft.value, files: files.value })
     toast.success(sent.kept_copy ? t("mail.composer.sent") : t("mail.composer.sent_no_copy"))
@@ -206,11 +249,22 @@ async function submit() {
         data-testid="mail-subject"
       />
       <AppInput
-        v-model="draft.text"
+        ref="textField"
+        :model-value="draft.text"
         type="textarea"
         class="mail-composer__text"
         data-testid="mail-text"
-      />
+        @update:model-value="onText"
+      >
+        <template #after>
+          <DictateButton
+            :dictation="dictation"
+            :disable="busy"
+            testid="mail-dictate"
+            @start="startSpeech"
+          />
+        </template>
+      </AppInput>
       <!-- The second way to attach beside the field, where To keeps Cc and
            Bcc: one line, the button centred on the box rather than on the
            box and its label together. -->

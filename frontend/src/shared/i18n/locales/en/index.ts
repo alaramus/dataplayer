@@ -17,6 +17,7 @@ import { connectors } from "./connectors"
 import { content } from "./content"
 import { dashboards } from "./dashboards"
 import { declared } from "./declared"
+import { dictation } from "./dictation"
 import { freshness } from "./freshness"
 import { graph } from "./graph"
 import { grid } from "./grid"
@@ -47,6 +48,6 @@ import { terminals } from "./terminals"
 import { windows } from "./windows"
 import { workspace } from "./workspace"
 
-export const en = { common, language, auth, theme, preferences, workspace, layout, catalog, kit, grid, dashboards, ai, content, queries, connectors, servers, ssh_keys, table_design, hypertable_design, structure, pipelines, services, search, search_index, activity, notifications, shares, terminals, admin, logs, onboarding, charts, summary, relationships, declared, record, graph, windows, freshness, schema_form, shell, mail }
+export const en = { common, language, auth, theme, preferences, workspace, layout, catalog, kit, grid, dashboards, ai, content, queries, connectors, servers, ssh_keys, table_design, hypertable_design, structure, pipelines, services, search, search_index, activity, notifications, shares, terminals, admin, logs, onboarding, charts, summary, relationships, declared, dictation, record, graph, windows, freshness, schema_form, shell, mail }
 
 export type Messages = typeof en

@@ -347,7 +347,9 @@ the source does not read as a statement, which runs the statement around it:
 undo leaves restored text selected, and that text is rarely a statement. Formatting has
 selection, statement and document commands and is one undo operation; autosave
 never formats. Focus stays in the editor after execution and terminal states are
-announced without stealing it.
+announced without stealing it. The document is dictated into as well
+([D138](ai.md)): words spoken land at the caret and are revised in place until
+something is typed beside them.
 
 The result area lists statement status and duration on one side and the selected
 statement's result tabs on the other, with a permanent chronological Messages

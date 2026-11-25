@@ -20,7 +20,10 @@ Google, DeepSeek and others.
 ## A chat
 
 - **New chat** starts one. Type in **Message the agent** and **Send**; the
-  microphone dictates instead, where the browser can listen.
+  microphone dictates instead, where the browser can listen. The same
+  microphone is also beside a file, a letter's text, a query and a document.
+  In those editors, words spoken land at the cursor, are revised there as the
+  browser settles them, and give way to anything typed beside them.
 - While it works, the agent's steps are shown one by one: what it read, what it
   ran, how long it took. **Stop** ends the answer.
 - Answers are formatted text, with tables, charts and diagrams. Each can be

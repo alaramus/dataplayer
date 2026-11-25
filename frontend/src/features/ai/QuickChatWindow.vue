@@ -7,8 +7,10 @@ import type { QuickChatPublic } from "@/client"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
 import { realtime } from "@/shared/realtime/client"
-import { AppBanner, AppButton, AppIconButton, AppInput, AppProgress, AppSpinner, appIcons, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppInput, AppProgress, AppSpinner, appIcons, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
+import DictateButton from "@/features/speech/DictateButton.vue"
+import { useDictation } from "@/features/speech/dictation"
 
 import AiMessageActions from "./AiMessageActions.vue"
 import AiModelSelect from "./AiModelSelect.vue"
@@ -21,7 +23,6 @@ import {
   rememberBrowserModel,
   useBrowserModel,
 } from "./browserModel"
-import { useDictation } from "./dictation"
 import { deletedQuickChat, explainRequest, explainTitle, quickChatIntent } from "./quickChatLauncher"
 
 const toast = useToast()
@@ -39,20 +40,10 @@ watch(deletedQuickChat, (id) => {
 const busy = ref(false)
 const scroller = ref<HTMLElement | null>(null)
 const spokenInto = ref("")
-const dictation = useDictation(
-  (heard) => { draft.value = `${spokenInto.value}${heard}` },
-  (reason) => {
-    toast.error(reason === "not-allowed"
-      ? t("ai.composer.mic_refused")
-      : t("ai.composer.dictation_stopped"))
-  }
-)
-function dictate() {
-  if (!dictation.listening.value) {
-    const typed = draft.value.trimEnd()
-    spokenInto.value = typed ? `${typed} ` : ""
-  }
-  dictation.toggle()
+const dictation = useDictation((heard) => { draft.value = `${spokenInto.value}${heard}` })
+function startDictation() {
+  const typed = draft.value.trimEnd()
+  spokenInto.value = typed ? `${typed} ` : ""
 }
 watch(open, (value) => { if (!value) dictation.stop() })
 onBeforeUnmount(() => dictation.stop())
@@ -427,15 +418,12 @@ function editorKeydown(event: KeyboardEvent) {
                 :disable="busy"
                 @update:model-value="chooseModel"
               />
-              <AppIconButton
-                :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
-                :live="dictation.listening.value"
-                :tooltip="!dictation.supported
-                  ? t('ai.composer.cannot_listen')
-                  : dictation.listening.value ? t('ai.composer.stop_dictating') : t('ai.composer.dictate')"
-                :disable="!dictation.supported || busy"
-                data-testid="quick-chat-dictate"
-                @click="dictate"
+              <DictateButton
+                :dictation="dictation"
+                :label="t('ai.composer.dictate')"
+                :disable="busy"
+                testid="quick-chat-dictate"
+                @start="startDictation"
               />
               <span class="quick-chat__gap" />
               <AppButton

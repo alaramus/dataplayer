@@ -71,6 +71,8 @@ import {
   cannotBeTriedOut,
 } from "@/features/queries/structure"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
+import DictateButton from "@/features/speech/DictateButton.vue"
+import { useDictation } from "@/features/speech/dictation"
 import { useClosable } from "@/features/workspace/closable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
@@ -156,6 +158,9 @@ const plan = ref<ExplainResult | null>(null)
 const manualTransaction = ref(false)
 const transactionId = ref<string | null>(null)
 const frame = useTemplateRef<HTMLElement>("frame")
+/** The editor itself, which is where words spoken go (D138). */
+const code = useTemplateRef<InstanceType<typeof CodeEditor>>("code")
+const dictation = useDictation((heard) => code.value?.writeSpeech(heard))
 
 let pending: ReturnType<typeof setTimeout> | null = null
 let preparing: ReturnType<typeof setTimeout> | null = null
@@ -967,6 +972,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  dictation.stop()
   if (pending !== null) clearTimeout(pending)
   if (preparing !== null) clearTimeout(preparing)
   if (ticking !== null) clearInterval(ticking)
@@ -1083,6 +1089,12 @@ onBeforeUnmount(() => {
           :disable="formatting.isPending.value"
           data-testid="query-format"
           @click="format(selection.to > selection.from ? 'selection' : 'document')"
+        />
+        <DictateButton
+          :dictation="dictation"
+          :disable="going"
+          testid="query-dictate"
+          @start="code?.startSpeech()"
         />
         <AppIconButton
           :icon="appIcons.wrapText"
@@ -1219,6 +1231,7 @@ onBeforeUnmount(() => {
         data-testid="query-editor-pane"
       >
         <CodeEditor
+          ref="code"
           :model-value="draft.body"
           :filename="editorLanguage === 'javascript' ? 'query.js' : 'query.sql'"
           :language-hint="editorLanguage"
