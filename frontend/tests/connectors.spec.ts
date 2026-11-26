@@ -265,6 +265,16 @@ test("a stored secret stands in for itself and needs no retyping", async ({
   await page.getByTestId("field-password").fill("something-else")
   await page.getByTestId("field-user").click()
   await expect(page.getByTestId("field-password")).toHaveValue("something-else")
+
+  // The eye decides whether the value is shown, and typing into it does not
+  // decide for it.
+  await page.getByTestId("field-password-visibility").click()
+  await expect(page.getByTestId("field-password")).toHaveAttribute("type", "text")
+  await page.getByTestId("field-password").fill("something-else-entirely")
+  await expect(page.getByTestId("field-password")).toHaveAttribute("type", "text")
+  await page.getByTestId("field-password-visibility").click()
+  await expect(page.getByTestId("field-password")).toHaveAttribute("type", "password")
+
   await page.getByTestId("field-password").fill("")
   await page.getByTestId("field-user").click()
   await expect(page.getByTestId("field-password")).toHaveValue("<hidden>")
@@ -277,6 +287,37 @@ test("a stored secret stands in for itself and needs no retyping", async ({
   await page.getByRole("button", { name: "Cancel" }).click()
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("the eye keeps a password in plain text until it is pressed again", async ({ page }) => {
+  await login(page)
+  await pickAdapterType(page, "postgres")
+  await fillConnectionFields(page, DATABASE.password)
+
+  const password = page.getByTestId("field-password")
+  const eye = page.getByTestId("field-password-visibility")
+  await expect(password).toHaveAttribute("type", "password")
+
+  await eye.click()
+  await expect(password).toHaveAttribute("type", "text")
+  await expect(password).toHaveValue(DATABASE.password)
+
+  // Typing into it does not hide it: the eye is on, and only a second press
+  // decides otherwise. Clearing it first is how a value is replaced by hand.
+  await password.fill("")
+  await password.pressSequentially("replacement-password")
+  await expect(password).toHaveAttribute("type", "text")
+  await expect(password).toHaveValue("replacement-password")
+
+  // Leaving the field is not a press either.
+  await page.getByTestId("field-user").click()
+  await expect(password).toHaveAttribute("type", "text")
+
+  await eye.click()
+  await expect(password).toHaveAttribute("type", "password")
+  await expect(password).toHaveValue("replacement-password")
+
+  await page.getByTestId("cancel-connector").click()
 })
 
 test("the result of a check is anchored to Test Connection", async ({ page }) => {

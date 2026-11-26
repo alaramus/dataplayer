@@ -72,6 +72,54 @@ describe("SchemaFields", () => {
   })
 
   /**
+   * The connection form derives a tunnel's choices from the values it holds, so
+   * it hands over a new array of fields with every keystroke. Resetting the eye
+   * on the identity of that array hid the password the moment it was typed
+   * into, which is not what the eye was asked for.
+   */
+  it("keeps a shown secret in plain text while it is typed into", async () => {
+    const wrapper = mountFields()
+    const typed = { host: "localhost", port: 5432, password: "correct-horse", ssl: false }
+    await wrapper.setProps({ modelValue: typed })
+    await wrapper.get("[data-testid='field-password-visibility']").trigger("click")
+    expect(wrapper.get("[data-testid='field-password']").attributes("type")).toBe("text")
+
+    // Every keystroke comes back as a recomputed list of fields.
+    await wrapper.setProps({
+      fields: schemaToFields(SCHEMA),
+      modelValue: { ...typed, password: "correct-hors" },
+    })
+    expect(wrapper.get("[data-testid='field-password']").attributes("type")).toBe("text")
+
+    // Emptying it, then typing again, does not hide it either: only the eye
+    // decides, and it has not been pressed a second time.
+    await wrapper.get("[data-testid='field-password']").setValue("")
+    await wrapper.setProps({ modelValue: { ...typed, password: "" } })
+    expect(wrapper.get("[data-testid='field-password']").attributes("type")).toBe("text")
+    await wrapper.setProps({ modelValue: { ...typed, password: "c" } })
+    expect(wrapper.get("[data-testid='field-password']").attributes("type")).toBe("text")
+  })
+
+  it("hides a shown secret when a different set of fields arrives", async () => {
+    const wrapper = mountFields()
+    await wrapper.setProps({
+      modelValue: { host: "localhost", port: 5432, password: "correct-horse", ssl: false },
+    })
+    await wrapper.get("[data-testid='field-password-visibility']").trigger("click")
+    expect(wrapper.get("[data-testid='field-password']").attributes("type")).toBe("text")
+
+    // Another way of connecting is another set of secrets, even though the
+    // field is still there.
+    await wrapper.setProps({
+      fields: schemaToFields({
+        ...SCHEMA,
+        properties: { ...SCHEMA.properties, user: { type: "string", title: "User" } },
+      } as JsonSchema),
+    })
+    expect(wrapper.get("[data-testid='field-password']").attributes("type")).toBe("password")
+  })
+
+  /**
    * U03: with nothing said, Chrome read the pair of fields as a login form and
    * filled a saved address and password into a form for connecting to a
    * database, which then looked ready to test and save.

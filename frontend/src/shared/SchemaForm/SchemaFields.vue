@@ -57,11 +57,6 @@ const slots = defineSlots<{
 }>()
 
 function update(name: string, value: unknown) {
-  if (value === "" && visiblePasswords.value.has(name)) {
-    const next = new Set(visiblePasswords.value)
-    next.delete(name)
-    visiblePasswords.value = next
-  }
   emit("update:modelValue", { ...props.modelValue, [name]: value })
 }
 
@@ -141,9 +136,24 @@ function togglePassword(name: string) {
   visiblePasswords.value = next
 }
 
-// A different connection in the same window is a different set of secrets.
+/**
+ * What the form is showing, as a signature that survives a re-render.
+ *
+ * A parent hands over a new array of fields whenever it recomputes them, and
+ * one recomputes on every keystroke: the connection form derives a tunnel's
+ * choices from the values it holds. Resetting on the identity of that array
+ * hid a password the moment it was typed into — the eye had been pressed and
+ * the field went back to dots. Only a different set of fields is a different
+ * set of secrets.
+ */
+const fieldSignature = computed(() =>
+  props.fields.map((field) => `${field.group}:${field.name}:${field.kind}`).join("\u0000")
+)
+
+// A different set of fields — another way of connecting, another source — is
+// a different set of secrets.
 watch(
-  () => [props.fields, props.secretsAreStored],
+  () => [fieldSignature.value, props.secretsAreStored],
   () => {
     touched.value = new Set()
     visiblePasswords.value = new Set()
