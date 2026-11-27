@@ -893,8 +893,37 @@ source_modules =
     app.adapters.cloud.signin
     app.adapters.cloud.stored
     app.adapters.cloud.aws
+    app.adapters.cloud.azure
 forbidden_modules =
     google
+
+# azure-identity and msal sign an Azure account's requests in its provider
+# alone (D453).
+[importlinter:contract:azure-identity-is-contained]
+name = azure-identity and msal are imported only by the Azure provider
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.core
+    app.users
+    app.connectors
+    app.queries
+    app.adapters.postgres
+    app.adapters.mysql
+    app.adapters.redis
+    app.adapters.kafka
+    app.adapters.mongodb
+    app.adapters.s3
+    app.adapters.cloud.accounts
+    app.adapters.cloud.cache
+    app.adapters.cloud.requests
+    app.adapters.cloud.signin
+    app.adapters.cloud.stored
+    app.adapters.cloud.aws
+    app.adapters.cloud.gcp
+forbidden_modules =
+    azure
+    msal
 
 # A client socket to a market's streams, by the rule every driver follows:
 # the shared layer of market data owns it, and the exchanges reach it only

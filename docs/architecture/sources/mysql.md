@@ -28,8 +28,8 @@ refuses the server with its version named rather than leaving it half working.
 
 The driver is aiomysql, on PyMySQL. It encodes a password as Latin-1 while the
 server compares UTF-8 bytes, so the session hands it the UTF-8 bytes spelt as
-Latin-1. Besides a password, a connection signs in with an RDS or Cloud SQL
-IAM token over verified TLS or a password from a secret store, asked at every
+Latin-1. Besides a password, a connection signs in with an RDS, Cloud SQL or
+Microsoft Entra token over verified TLS or a password from a secret store, asked at every
 new connection ([D450](cloud-auth.md), [D453](cloud-auth.md),
 [D455](cloud-auth.md)). TLS is the shared block ([D446](cloud-auth.md)): by default the connection asks for
 TLS and takes plain TCP when the server offers none, without verifying the

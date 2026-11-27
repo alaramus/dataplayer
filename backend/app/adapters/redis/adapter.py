@@ -39,6 +39,7 @@ from app.adapters.redis.metrics import RedisMetrics
 from app.adapters.redis.model import RedisModel
 from app.adapters.redis.options import (
     RedisAwsIam,
+    RedisAzureEntra,
     RedisOptions,
     RedisPassword,
     container_options,
@@ -138,7 +139,7 @@ class RedisAdapter:
             host=options.host,
             port=options.port,
             database=options.database,
-            user=options.user if isinstance(options, RedisPassword | RedisAwsIam) else "",
+            user=options.user if isinstance(options, RedisPassword | RedisAwsIam | RedisAzureEntra) else "",
             tls=options.tls().enabled,
         )
 

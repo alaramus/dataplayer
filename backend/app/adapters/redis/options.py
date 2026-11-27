@@ -14,9 +14,12 @@ from pydantic import ConfigDict, Field, SecretStr, model_validator
 
 from app.adapters.cloud import CloudAccess
 from app.adapters.cloud.signin import (
+    AZURE_REDIS_SCOPE,
     SignIn,
     aws_account_field,
+    azure_account_field,
     elasticache_sign_in,
+    entra_sign_in,
     region_field,
 )
 from app.adapters.layout import layout
@@ -142,8 +145,34 @@ class RedisAwsIam(_RedisBase):
         )
 
 
+class RedisAzureEntra(_RedisBase):
+    """Microsoft Entra sign-in to Azure Cache for Redis: the token is the
+    password, the user the principal's object ID; TLS only, as the cache is."""
+
+    model_config = ConfigDict(title=N_("Microsoft Entra (Azure)"))
+
+    auth_method: Literal["azure_entra"] = _auth_method_field("azure_entra")
+    user: str = Field(
+        min_length=1,
+        max_length=255,
+        title=N_("User"),
+        description=N_("The object ID of the application or managed identity given access to the cache"),
+        json_schema_extra=layout(),
+    )
+    account: str = azure_account_field()
+
+    @model_validator(mode="after")
+    def _encrypted(self) -> Self:
+        if self.tls_mode == "disabled":
+            raise ValueError(say("IAM sign-in needs TLS; choose a mode on the TLS page"))
+        return self
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await entra_sign_in(cloud, self.account, self.user, AZURE_REDIS_SCOPE)
+
+
 RedisOptions = Annotated[
-    RedisPassword | RedisNoAuth | RedisAwsIam, Field(discriminator="auth_method")
+    RedisPassword | RedisNoAuth | RedisAwsIam | RedisAzureEntra, Field(discriminator="auth_method")
 ]
 
 

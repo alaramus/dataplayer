@@ -16,9 +16,12 @@ from pydantic import ConfigDict, Field, SecretStr, model_validator
 
 from app.adapters.cloud import CloudAccess
 from app.adapters.cloud.signin import (
+    AZURE_DATABASE_SCOPE,
     SignIn,
     aws_account_field,
+    azure_account_field,
     cloudsql_sign_in,
+    entra_sign_in,
     gcp_account_field,
     password_key_field,
     rds_sign_in,
@@ -159,6 +162,36 @@ class MysqlGcpIam(_MysqlBase):
         return await cloudsql_sign_in(cloud, self.account, self.user)
 
 
+class MysqlAzureEntra(_MysqlBase):
+    """Microsoft Entra sign-in to Azure Database for MySQL: the token goes with
+    the cleartext plugin, as the server asks, so TLS that verifies is required."""
+
+    model_config = ConfigDict(title=N_("Microsoft Entra (Azure)"))
+
+    auth_method: Literal["azure_entra"] = _auth_method_field("azure_entra")
+    database: str = _database_field()
+    user: str = Field(
+        title=N_("User"),
+        min_length=1,
+        description=N_("The Entra user, group or application as the server knows it"),
+        json_schema_extra=layout(),
+    )
+    account: str = azure_account_field()
+
+    cleartext: ClassVar[bool] = True
+
+    @model_validator(mode="after")
+    def _verified(self) -> Self:
+        if self.tls_mode not in ("verify_ca", "verify_full"):
+            raise ValueError(
+                say("The token is sent in the clear; choose Verify CA or Verify full on the TLS page")
+            )
+        return self
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await entra_sign_in(cloud, self.account, self.user, AZURE_DATABASE_SCOPE)
+
+
 class MysqlSecretStore(_MysqlBase):
     """A password kept in a secret store, read at every new connection (D454)."""
 
@@ -181,7 +214,12 @@ class MysqlSecretStore(_MysqlBase):
 
 
 MysqlOptions = Annotated[
-    MysqlUserPassword | MysqlNoPassword | MysqlAwsIam | MysqlGcpIam | MysqlSecretStore,
+    MysqlUserPassword
+    | MysqlNoPassword
+    | MysqlAwsIam
+    | MysqlGcpIam
+    | MysqlAzureEntra
+    | MysqlSecretStore,
     Field(discriminator="auth_method"),
 ]
 

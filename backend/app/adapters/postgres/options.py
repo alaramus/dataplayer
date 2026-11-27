@@ -29,9 +29,12 @@ from pydantic import ConfigDict, Field, SecretStr, model_validator
 
 from app.adapters.cloud import CloudAccess
 from app.adapters.cloud.signin import (
+    AZURE_DATABASE_SCOPE,
     SignIn,
     aws_account_field,
+    azure_account_field,
     cloudsql_sign_in,
+    entra_sign_in,
     gcp_account_field,
     password_key_field,
     rds_sign_in,
@@ -167,6 +170,32 @@ class PostgresGcpIam(_PostgresBase):
         return await cloudsql_sign_in(cloud, self.account, self.user)
 
 
+class PostgresAzureEntra(_PostgresBase):
+    """Microsoft Entra sign-in to Azure Database for PostgreSQL: the token is
+    the password, the user the Entra principal's name as the server knows it."""
+
+    model_config = ConfigDict(title=N_("Microsoft Entra (Azure)"))
+
+    auth_method: Literal["azure_entra"] = _auth_method_field("azure_entra")
+    database: str = _database_field()
+    user: str = Field(
+        title=N_("User"),
+        min_length=1,
+        description=N_("The Entra user, group or application as the server knows it"),
+        json_schema_extra=layout(),
+    )
+    account: str = azure_account_field()
+
+    @model_validator(mode="after")
+    def _encrypted(self) -> Self:
+        if self.tls_mode == "disabled":
+            raise ValueError(say("IAM sign-in needs TLS; choose a mode on the TLS page"))
+        return self
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await entra_sign_in(cloud, self.account, self.user, AZURE_DATABASE_SCOPE)
+
+
 class PostgresSecretStore(_PostgresBase):
     """A password kept in a secret store, read at every new connection (D454)."""
 
@@ -187,7 +216,12 @@ class PostgresSecretStore(_PostgresBase):
 
 
 PostgresOptions = Annotated[
-    PostgresUserPassword | PostgresNoAuth | PostgresAwsIam | PostgresGcpIam | PostgresSecretStore,
+    PostgresUserPassword
+    | PostgresNoAuth
+    | PostgresAwsIam
+    | PostgresGcpIam
+    | PostgresAzureEntra
+    | PostgresSecretStore,
     Field(discriminator="auth_method"),
 ]
 

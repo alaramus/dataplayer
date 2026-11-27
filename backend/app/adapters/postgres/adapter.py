@@ -621,8 +621,8 @@ class PostgresAdapter:
             options={"database": "postgres"},
             note=N_(
                 "Flexible server. Allow this server's address under Networking "
-                "and sign in with a PostgreSQL user; Microsoft Entra sign-in is "
-                "not supported yet."
+                "and sign in with a PostgreSQL user, or with Microsoft Entra "
+                "through one of your Azure accounts."
             ),
             note_link="https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/quickstart-create-server",
         ),

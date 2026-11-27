@@ -62,6 +62,14 @@ class CloudSqlToken(SecretRequest):
 
 
 @dataclass(frozen=True)
+class EntraToken(SecretRequest):
+    """A Microsoft Entra access token for one resource's scope, valid about
+    an hour: Azure's databases and Azure Cache for Redis take it for a password."""
+
+    scope: str
+
+
+@dataclass(frozen=True)
 class CloudCredentials(SecretRequest):
     """The account's own credentials as a driver signs with them: AWS's access
     key in `user`, its secret in `value`, its session token in `session_token`."""

@@ -23,6 +23,7 @@ from app.adapters.cloud.requests import (
     CloudCredentials,
     CloudSqlToken,
     ElastiCacheToken,
+    EntraToken,
     MskToken,
     RdsAuthToken,
     StoredSecret,
@@ -30,6 +31,11 @@ from app.adapters.cloud.requests import (
 from app.adapters.layout import layout
 from app.adapters.protocol import AdapterError
 from app.core.translation import N_, say
+
+# What Azure Database for PostgreSQL and for MySQL, and Azure Cache for Redis,
+# take a Microsoft Entra token for.
+AZURE_DATABASE_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
+AZURE_REDIS_SCOPE = "https://redis.azure.com/.default"
 
 # Every kind a secret can be kept in (D454).
 STORE_KINDS: tuple[AccountKind, ...] = ("aws", "gcp", "azure", "vault")
@@ -52,6 +58,10 @@ def aws_account_field() -> Any:
 
 def gcp_account_field() -> Any:
     return account_field("gcp", title=N_("Google Cloud account"), description=N_("One of your cloud accounts"))
+
+
+def azure_account_field() -> Any:
+    return account_field("azure", title=N_("Azure account"), description=N_("One of your cloud accounts"))
 
 
 def region_field() -> Any:
@@ -130,6 +140,12 @@ async def cloudsql_sign_in(cloud: CloudAccess | None, account: str, user: str) -
     """Cloud SQL's IAM database sign-in: the account's access token is the
     password, the user the IAM principal as the instance names it (D455)."""
     secret = await issue(cloud, account, ("gcp",), CloudSqlToken())
+    return SignIn(user=user, password=secret.value)
+
+
+async def entra_sign_in(cloud: CloudAccess | None, account: str, user: str, scope: str) -> SignIn:
+    """A Microsoft Entra token for the resource's scope as the password."""
+    secret = await issue(cloud, account, ("azure",), EntraToken(scope))
     return SignIn(user=user, password=secret.value)
 
 

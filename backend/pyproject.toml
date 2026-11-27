@@ -64,6 +64,7 @@ dependencies = [
     "mcp>=2.3,<3",
     "boto3>=1.44.5,<2",
     "google-auth[requests]>=2.40,<3",
+    "azure-identity>=1.19,<2",
 ]
 
 [dependency-groups]

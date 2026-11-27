@@ -502,8 +502,8 @@ class MysqlAdapter:
             title=N_("Azure Database for MySQL"),
             note=N_(
                 "Flexible server. Allow this server's address under Networking "
-                "and sign in with a MySQL user; Microsoft Entra sign-in is not "
-                "supported yet."
+                "and sign in with a MySQL user, or with Microsoft Entra through "
+                "one of your Azure accounts over verified TLS."
             ),
             note_link="https://learn.microsoft.com/en-us/azure/mysql/flexible-server/quickstart-create-server-portal",
         ),

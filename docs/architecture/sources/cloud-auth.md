@@ -162,8 +162,8 @@ keeps none.
 
 Known deviations:
 
-- **AWS's and Google's providers are installed.** Azure's and Vault's arrive
-  with their slices; until then such an account can be kept and named, its
+- **AWS's, Google's and Azure's providers are installed.** Vault's arrives
+  with its slice; until then such an account can be kept and named, its
   test answers 501 and the form hides Test, and a connection naming it is
   refused at open with "This installation cannot sign in with accounts of
   {kind}".
@@ -284,6 +284,8 @@ S3's that imports boto3.
 | PostgreSQL, TimescaleDB | `aws_iam` | an RDS token for the form's host, port and user, signed locally; TLS not `disabled` |
 | MySQL, MariaDB | `aws_iam` | the same token, sent by aiomysql's `mysql_clear_password` plugin, so only over Verify CA or Verify full; MySQL's own client is given `--enable-cleartext-plugin` |
 | PostgreSQL, MySQL | `gcp_iam` | Cloud SQL's IAM sign-in with an access token (D455) |
+| PostgreSQL, MySQL | `azure_entra` | a Microsoft Entra token for Azure's databases' scope; MySQL's with the cleartext plugin over verified TLS |
+| Redis | `azure_entra` | Azure Cache for Redis: an Entra token for its scope, the principal's object ID as the user; TLS required |
 | Redis | `aws_iam` | ElastiCache or MemoryDB: a signed `connect` for the cache's name and an IAM user; TLS required |
 | MongoDB | `aws_iam` | `MONGODB-AWS` with the account's keys and session token, `$external`; needs `pymongo[aws]` |
 | Kafka | `aws_msk_iam` | SASL/OAUTHBEARER with MSK's token; issued before a run, renewed by librdkafka's callback, which asks the event loop from its own thread and never from the loop's |
@@ -299,6 +301,11 @@ expired credentials, denied, a role that cannot be assumed, a missing secret
 or KMS key — never from its message. boto3 reads `AWS_ENDPOINT_URL` from the
 environment; nothing a person types can point it elsewhere.
 
+Azure's provider is `adapters/cloud/azure/`, the one package importing
+azure-identity and msal: a service principal's secret, or this server's own
+credential chain — environment, workload identity, managed identity (a
+user-assigned one when named), the Azure CLI — gated as D452 says.
+
 Known deviations:
 
 - **S3 has one variant instead of four.** `session_token`, `assume_role` and
@@ -311,11 +318,12 @@ Known deviations:
 - **A 15-minute token can expire during a long dump.** The connection it
   opened stays valid; a program that reconnects would be refused.
 - **What is proven where.** STS, an assumed role and Secrets Manager answer
-  through moto in the test process; RDS, ElastiCache and MSK tokens are
+  through moto in the test process, Microsoft Entra and Key Vault through
+  `responses`, as azure-identity and msal speak HTTP to them; RDS, ElastiCache and MSK tokens are
   checked by their shape, signed here; S3 with an account's keys reads RustFS,
   Redis signs in to `redis-tls` with a token standing for its ACL user's
-  password, PostgreSQL to `pg-tls` as above. No real RDS, ElastiCache, MSK or
-  MongoDB Atlas was reached, and MySQL's cleartext sign-in has no server here.
+  password, PostgreSQL to `pg-tls` as above. No real RDS, ElastiCache, MSK,
+  MongoDB Atlas or Azure database or cache was reached, and MySQL's cleartext sign-in has no server here.
 - **DocumentDB does not take `MONGODB-AWS`;** the variant is for Atlas and
   servers that do.
 
@@ -332,8 +340,11 @@ within minutes. A secret that is not JSON is the password whole.
 
 AWS Secrets Manager and Google Secret Manager answer it now — Google's named
 `projects/P/secrets/S[/versions/V]`, or by its name alone in the key file's
-project, the latest version when none is named; Azure Key Vault and Vault KV
-with their slices, and `vault_dynamic` with Vault's.
+project, the latest version when none is named — and Azure Key Vault, named
+`VAULT/NAME[/VERSION]` or by the identifier the portal shows. A Key Vault
+token is sent only to Key Vault's own domains (`.vault.azure.net`, `.cn`,
+`.usgovcloudapi.net`), never to an address somebody typed. Vault KV comes with
+its slice, and `vault_dynamic` with Vault's.
 
 Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
 
