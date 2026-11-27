@@ -12,6 +12,7 @@ import AppToggle from "@/shared/ui/AppToggle.vue"
 import AppTooltip from "@/shared/ui/AppTooltip.vue"
 import { appIcons } from "@/shared/ui/icons"
 
+import { droppedFile, readFieldFile } from "./fieldFile"
 import { autofillOf, fieldRows } from "./jsonSchema"
 import type { FieldSpec } from "./jsonSchema"
 
@@ -180,6 +181,86 @@ function hintOf(field: FieldSpec, row: FieldSpec[]): string | undefined {
 function tipOf(field: FieldSpec, row: FieldSpec[]): string | undefined {
   return sharesLine(row) && field.description ? field.description : undefined
 }
+
+/**
+ * Why the file last chosen for a field was not read, until the field changes.
+ *
+ * Kept here rather than among the parent's errors: those answer what the
+ * server said about a value, and this value never left the page.
+ */
+const fileErrors = ref<Record<string, string>>({})
+
+function errorOf(field: FieldSpec): string | undefined {
+  return props.errors[field.name] || fileErrors.value[field.name] || undefined
+}
+
+function edit(name: string, value: unknown) {
+  if (fileErrors.value[name] !== undefined) {
+    fileErrors.value = Object.fromEntries(
+      Object.entries(fileErrors.value).filter(([field]) => field !== name)
+    )
+  }
+  update(name, value)
+}
+
+/**
+ * The one native picker, opened by whichever field's button was pressed.
+ *
+ * Trap: it lives outside the fields. Inside a QField the click that opens it
+ * bubbles to the field, which cancels it, and the picker never shows.
+ */
+const picker = ref<HTMLInputElement | null>(null)
+const picking = ref<FieldSpec | null>(null)
+
+function pick(field: FieldSpec) {
+  const input = picker.value
+  if (input === null) return
+  picking.value = field
+  // Set on the element rather than bound: a binding lands after the click.
+  input.accept = field.file ?? ""
+  input.click()
+}
+
+// A file's text replaces the value, exactly as a paste would, and a stored
+// secret's stand-in gives way to it: what was read is what will be saved.
+async function readInto(field: FieldSpec, file: File) {
+  try {
+    const text = await readFieldFile(file, field.label, field.maxLength)
+    touched.value = new Set(touched.value).add(field.name)
+    edit(field.name, text)
+  } catch (cause) {
+    fileErrors.value = {
+      ...fileErrors.value,
+      [field.name]: cause instanceof Error ? cause.message : String(cause),
+    }
+  }
+}
+
+function picked(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // Emptied so that choosing the same file again, after fixing it, reads it again.
+  input.value = ""
+  const field = picking.value
+  if (file !== undefined && field !== null) void readInto(field, file)
+}
+
+// Only a drag carrying files is taken over: text dragged onto the box still
+// lands in it the way the browser puts it there.
+function dragOver(field: FieldSpec, event: DragEvent) {
+  if (props.disable || field.file === undefined) return
+  if (event.dataTransfer?.types.includes("Files") !== true) return
+  event.preventDefault()
+  event.dataTransfer.dropEffect = "copy"
+}
+
+function dropped(field: FieldSpec, event: DragEvent) {
+  if (props.disable || field.file === undefined) return
+  if (event.dataTransfer?.types.includes("Files") !== true) return
+  event.preventDefault()
+  const file = droppedFile(event.dataTransfer)
+  if (file !== null) void readInto(field, file)
+}
 </script>
 
 <template>
@@ -306,14 +387,16 @@ function tipOf(field: FieldSpec, row: FieldSpec[]): string | undefined {
           :hint="hintOf(field, row)"
           :placeholder="field.example"
           :type="inputType(field)"
-          :error="errors[field.name]"
+          :error="errorOf(field)"
           :disable="disable"
           @focus="field.kind === 'password' ? reveal(field.name) : undefined"
           @blur="field.kind === 'password' ? restore(field.name) : undefined"
-          @update:model-value="update(field.name, $event)"
+          @update:model-value="edit(field.name, $event)"
+          @dragover="dragOver(field, $event)"
+          @drop="dropped(field, $event)"
         >
           <template
-            v-if="field.kind === 'password' || tipOf(field, row)"
+            v-if="field.kind === 'password' || field.file !== undefined || tipOf(field, row)"
             #after
           >
             <q-icon
@@ -340,10 +423,28 @@ function tipOf(field: FieldSpec, row: FieldSpec[]): string | undefined {
               :data-testid="`field-${field.name}-visibility`"
               @click="togglePassword(field.name)"
             />
+            <AppIconButton
+              v-if="field.file !== undefined"
+              :icon="appIcons.fromFile"
+              :tooltip="t('schema_form.from_file', { label: field.label })"
+              :disable="disable"
+              :data-testid="`field-${field.name}-from-file`"
+              @click="pick(field)"
+            />
           </template>
         </AppInput>
       </template>
     </div>
+    <input
+      v-if="fields.some((field) => field.file !== undefined)"
+      ref="picker"
+      type="file"
+      class="schema-fields__picker"
+      tabindex="-1"
+      aria-hidden="true"
+      data-testid="schema-fields-file"
+      @change="picked"
+    >
   </div>
 </template>
 
@@ -369,6 +470,9 @@ function tipOf(field: FieldSpec, row: FieldSpec[]): string | undefined {
 }
 .schema-fields--form .schema-fields__row > * + * {
   --dp-form-label-width: auto;
+}
+.schema-fields__picker {
+  display: none;
 }
 .schema-fields__tip {
   font-size: var(--dp-icon-sm);

@@ -117,6 +117,9 @@ Server eines verlangt; ein verschlüsselter Schlüssel braucht seine
 **Passphrase des Schlüssels**. Der Schlüssel wird verschlüsselt gespeichert und
 nie wieder angezeigt; wer das Zertifikat leert, entfernt den Schlüssel mit.
 
+Ein Zertifikat oder Schlüssel muss nicht aus seiner Datei kopiert werden:
+Die Schaltfläche neben dem Feld oder die auf das Feld gezogene Datei liest es ein.
+
 ### Optionen
 
 **Antworten behalten** legt fest, wie lange eine Katalogebene und eine Seite mit

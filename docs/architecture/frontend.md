@@ -364,7 +364,14 @@ with the short ones ([tour.md](tour.md)).
 box, `description` is the sentence under it, and `examples` is shown inside the
 empty control. A field with an example keeps its label above the box, because
 Quasar hides a placeholder until the label floats, exactly where the example
-would be.
+would be. `x-ui-file` — `layout(file=PEM_FILE)` on the server — says the value
+is usually a file somebody has, a PEM certificate or a key in JSON: the field
+gets a button that opens a picker with those extensions and takes a dropped
+file. The browser reads it (`SchemaForm/fieldFile.ts`) and the text replaces the
+value as a paste would, so the server validates and encrypts it as before and
+no file is uploaded; a binary file or one longer than `maxLength` is refused
+under the field. `tests/adapters/test_layout.py` fails on a field described as
+PEM, or titled as JSON, that lacks it.
 
 **Structure.** A value the source does not allow changing stays readable text
 with its reason in a tooltip, so a missing capability does not dim the schema.

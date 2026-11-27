@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils"
+import { flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { describe, expect, it } from "vitest"
 
@@ -243,5 +243,86 @@ describe("SchemaFields on a shared line", () => {
     // A field alone on its line keeps its sentence under it.
     expect(wrapper.text()).toContain("Who signs in")
     expect(wrapper.find("[data-testid='field-user-tip']").exists()).toBe(false)
+  })
+})
+
+describe("SchemaFields with a field read from a file", () => {
+  const PEM = "-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----\n"
+
+  function mountKey(props: { secretsAreStored?: boolean; maxLength?: number } = {}) {
+    return mount(SchemaFields, {
+      global: { plugins: [Quasar] },
+      props: {
+        fields: schemaToFields({
+          type: "object",
+          properties: {
+            host: { type: "string", title: "Host" },
+            tls_client_key: {
+              type: "string",
+              title: "Client key",
+              format: "password",
+              "x-ui-multiline": true,
+              "x-ui-file": ".pem,.key",
+              maxLength: props.maxLength,
+            },
+          },
+        }),
+        modelValue: { host: "db", tls_client_key: "" },
+        errors: {},
+        secretsAreStored: props.secretsAreStored,
+      },
+    })
+  }
+
+  async function choose(wrapper: ReturnType<typeof mountKey>, file: File) {
+    const input = wrapper.get("[data-testid='schema-fields-file']")
+    // The button points the one picker at its field; the browser's dialog is
+    // not there to open in a test, so the choice is handed to it directly.
+    await wrapper.get("[data-testid='field-tls_client_key-from-file']").trigger("click")
+    Object.defineProperty(input.element, "files", { value: [file], configurable: true })
+    await input.trigger("change")
+    await flushPromises()
+  }
+
+  it("offers a picker only on the field that says it can be read from a file", async () => {
+    const wrapper = mountKey()
+
+    expect(wrapper.find("[data-testid='field-host-from-file']").exists()).toBe(false)
+    expect(wrapper.find("[data-testid='field-tls_client_key-from-file']").exists()).toBe(true)
+    const input = wrapper.get<HTMLInputElement>("[data-testid='schema-fields-file']")
+    await wrapper.get("[data-testid='field-tls_client_key-from-file']").trigger("click")
+    expect(input.element.accept).toBe(".pem,.key")
+  })
+
+  it("puts the text of the chosen file in the field, as a paste would", async () => {
+    const wrapper = mountKey({ secretsAreStored: true })
+
+    await choose(wrapper, new File([PEM], "client.key"))
+
+    expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([{ host: "db", tls_client_key: PEM }])
+  })
+
+  it("puts in a dropped file the same way", async () => {
+    const wrapper = mountKey()
+    const file = new File([PEM], "client.key")
+
+    await wrapper.get("[data-testid='field-tls_client_key']").trigger("drop", {
+      dataTransfer: { types: ["Files"], files: [file] },
+    })
+    await flushPromises()
+
+    expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([{ host: "db", tls_client_key: PEM }])
+  })
+
+  it("says why a file was not read, under the field, and forgets it once the field changes", async () => {
+    const wrapper = mountKey({ maxLength: 8 })
+
+    await choose(wrapper, new File([PEM], "client.key"))
+
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined()
+    expect(wrapper.get("[role='alert']").text()).toContain("Client key")
+
+    await wrapper.get("[data-testid='field-tls_client_key']").setValue("x")
+    expect(wrapper.find("[role='alert']").exists()).toBe(false)
   })
 })

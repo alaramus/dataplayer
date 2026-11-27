@@ -119,6 +119,9 @@ en demande un ; une clé chiffrée demande sa **Phrase secrète de la clé**. La
 clé est conservée chiffrée et n’est plus jamais affichée ; vider le certificat
 retire la clé avec lui.
 
+Inutile de copier un certificat ou une clé depuis son fichier : le bouton à
+côté du champ, ou le fichier déposé dessus, le lit.
+
 ### Options
 
 **Conserver les réponses** détermine combien de temps un niveau de catalogue et

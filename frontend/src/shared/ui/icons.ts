@@ -21,6 +21,7 @@ export const appIcons = {
   arrowForward: "arrow_forward",
   arrowUpward: "arrow_upward",
   attachFile: "attach_file",
+  fromFile: "upload_file",
   autoAwesome: "wand_stars",
   autoAwesomeMosaic: "auto_awesome_mosaic",
   autorenew: "autorenew",

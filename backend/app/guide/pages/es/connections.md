@@ -115,6 +115,9 @@ una clave cifrada necesita su **Frase de contraseña de la clave**. La clave se
 guarda cifrada y no vuelve a mostrarse; vaciar el certificado quita también la
 clave.
 
+No hace falta copiar un certificado o una clave de su archivo: el botón junto
+al campo, o el archivo soltado sobre él, lo lee.
+
 ### Opciones
 
 **Conservar respuestas** indica cuánto tiempo se puede reutilizar un nivel del

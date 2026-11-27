@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from app.adapters.addresses import http_origin
 from app.adapters.cloud import AccountKind
-from app.adapters.layout import layout
+from app.adapters.layout import JSON_FILE, PEM_FILE, layout
 from app.adapters.options import OptionsSchema
 from app.adapters.tls import CERTIFICATE, pem
 from app.core.translation import N_, say
@@ -161,7 +161,7 @@ class GcpServiceAccount(CloudAccountSettings):
     key_json: SecretStr = Field(
         max_length=16_384,
         title=N_("Key file (JSON)"),
-        json_schema_extra=layout(multiline=True),
+        json_schema_extra=layout(multiline=True, file=JSON_FILE),
     )
     impersonate: str = _service_account_email()
 
@@ -243,7 +243,7 @@ class _Vault(CloudAccountSettings):
         max_length=65_536,
         title=N_("CA certificate"),
         description=N_("PEM, when the trusted authority is a certificate of your own"),
-        json_schema_extra=layout(multiline=True),
+        json_schema_extra=layout(multiline=True, file=PEM_FILE),
     )
 
     @field_validator("address")

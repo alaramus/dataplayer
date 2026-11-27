@@ -20,7 +20,7 @@ from typing import Any, Literal, Self
 from cryptography.hazmat.primitives import serialization
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
-from app.adapters.layout import layout
+from app.adapters.layout import PEM_FILE, layout
 from app.adapters.protocol import AdapterError
 from app.core.translation import N_, say
 
@@ -138,7 +138,7 @@ def _ca_field() -> Any:
         default="",
         title=N_("CA certificate"),
         description=N_("PEM, when the trusted authority is a certificate of your own"),
-        json_schema_extra=layout(group=TLS_GROUP, multiline=True),
+        json_schema_extra=layout(group=TLS_GROUP, multiline=True, file=PEM_FILE),
     )
 
 
@@ -147,7 +147,7 @@ def _client_certificate_field() -> Any:
         default="",
         title=N_("Client certificate"),
         description=N_("PEM, for a server that asks who connects by certificate"),
-        json_schema_extra=layout(group=TLS_GROUP, multiline=True),
+        json_schema_extra=layout(group=TLS_GROUP, multiline=True, file=PEM_FILE),
     )
 
 
@@ -156,7 +156,7 @@ def _client_key_field() -> Any:
         default=SecretStr(""),
         title=N_("Client key"),
         description=N_("PEM, the private key of the client certificate"),
-        json_schema_extra=layout(group=TLS_GROUP, multiline=True),
+        json_schema_extra=layout(group=TLS_GROUP, multiline=True, file=PEM_FILE),
     )
 
 

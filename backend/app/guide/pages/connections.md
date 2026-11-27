@@ -106,6 +106,9 @@ key** sign you in where the server asks for one; an encrypted key needs its
 **Key passphrase**. The key is kept encrypted and never shown again; emptying
 the certificate takes the key away with it.
 
+A certificate or a key need not be copied out of its file: the button
+beside the field, or the file dropped on it, reads it in.
+
 ### Options
 
 **Keep answers** says how long a catalog level and a page of rows may be

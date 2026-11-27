@@ -37,6 +37,13 @@ export interface JsonSchemaProperty {
    */
   "x-ui-multiline"?: boolean
   /**
+   * The value is usually the text of a file somebody has — a PEM certificate,
+   * a key in JSON — and these are the extensions to offer, as an `accept`
+   * list. The form reads a chosen or dropped file into the field.
+   */
+  "x-ui-file"?: string
+  maxLength?: number
+  /**
    * What the value means, beyond its type, when the form has to do more with
    * it than show a box. `grouping` says the field takes the id of one of the
    * source's own groupings — a schema, for a database — so the form offers
@@ -132,8 +139,11 @@ export interface FieldSpec {
   defaultValue?: unknown
   choices?: SchemaChoice[]
   minLength?: number
+  maxLength?: number
   minimum?: number
   maximum?: number
+  /** The extensions a file picker offers, when the value can be read from a file. */
+  file?: string
   purpose?: JsonSchemaProperty["x-ui-purpose"]
   /** The kinds of cloud account the field takes, when it takes one. */
   accountKinds?: string[]
@@ -247,8 +257,10 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
       property["x-ui-choices"] ??
       property.enum?.map((value) => ({ value, label: value })),
     minLength: property.minLength,
+    maxLength: property.maxLength,
     minimum: property.minimum,
     maximum: property.maximum,
+    file: property["x-ui-file"],
     purpose: property["x-ui-purpose"],
     accountKinds: property["x-ui-account-kind"],
     group: property.group ?? DEFAULT_GROUP,

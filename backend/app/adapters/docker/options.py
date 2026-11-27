@@ -18,7 +18,7 @@ from pydantic import (
     field_validator,
 )
 
-from app.adapters.layout import layout
+from app.adapters.layout import PEM_FILE, layout
 from app.adapters.options import TUNNEL_REFERENCE
 from app.adapters.tls import CERTIFICATE, pem
 from app.adapters.tunnels import ssh_tunnel_field
@@ -103,17 +103,17 @@ class DockerTlsOptions(BaseModel):
     ca_certificate: str = Field(
         title=N_("CA certificate"),
         description=N_("PEM: ca.pem, the authority that signed the daemon's certificate"),
-        json_schema_extra=layout(multiline=True),
+        json_schema_extra=layout(multiline=True, file=PEM_FILE),
     )
     client_certificate: str = Field(
         title=N_("Client certificate"),
         description=N_("PEM: cert.pem, which the daemon accepts"),
-        json_schema_extra=layout(multiline=True),
+        json_schema_extra=layout(multiline=True, file=PEM_FILE),
     )
     client_key: SecretStr = Field(
         title=N_("Client key"),
         description=N_("PEM: key.pem, not encrypted"),
-        json_schema_extra=layout(multiline=True),
+        json_schema_extra=layout(multiline=True, file=PEM_FILE),
     )
 
     @field_validator("host")

@@ -17,6 +17,12 @@ from pydantic.config import JsonDict
 # choice, so a window showing only this group draws no tab strip at all.
 DEFAULT_GROUP = "general"
 
+# What a file picker offers for a field read from a file. A filter, not a
+# rule: the picker still lets a person choose any file, and what is read is
+# checked as the text it is, by the field's own validator.
+PEM_FILE = ".pem,.crt,.cer,.key"
+JSON_FILE = ".json"
+
 
 def layout(
     *,
@@ -24,6 +30,7 @@ def layout(
     row: str | None = None,
     multiline: bool = False,
     purpose: str | None = None,
+    file: str | None = None,
 ) -> JsonDict:
     """Fields sharing a `row` are laid out on one line, in declaration order.
 
@@ -39,6 +46,11 @@ def layout(
     `purpose` says what the value means when a box would not do — the id of
     one of the owner's SSH keys, the key a server proved itself with — so the
     form can offer the right control without knowing which source asked.
+
+    `file` says the value is usually the text of a file somebody has — a PEM
+    certificate, a key in JSON — and names the extensions to offer. The form
+    reads the chosen or dropped file in the browser and puts its text in the
+    field, so what reaches the server is the same text a paste would give.
     """
     extra: JsonDict = {"group": group}
     if row is not None:
@@ -47,4 +59,6 @@ def layout(
         extra["x-ui-multiline"] = True
     if purpose is not None:
         extra["x-ui-purpose"] = purpose
+    if file is not None:
+        extra["x-ui-file"] = file
     return extra
