@@ -160,14 +160,20 @@ class Connection:
         with suppress(Exception):
             self.ftp.close()
 
-    def in_step(self) -> bool:
+    def in_step(self, *, transfer_open: bool = False) -> bool:
         """Whether the next reply read will be the answer to the next command.
 
         After a transfer cut short, a server answers it with 426, 226 or both,
         and an extra reply left unread would be taken for the answer to every
-        command after. NOOP is sent and replies read until its 200.
+        command after. NOOP is sent and replies read until its 200. With a
+        transfer just closed, its own reply is waited for first: a server may
+        answer NOOP before it notices the transfer ended, and the 226 arriving
+        after the 200 would answer the next command instead.
         """
         try:
+            if transfer_open:
+                with suppress(ftplib.error_temp, ftplib.error_perm):
+                    self.ftp.getresp()
             self.ftp.putcmd("NOOP")
             for _ in range(4):
                 try:

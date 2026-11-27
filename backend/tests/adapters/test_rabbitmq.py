@@ -157,7 +157,7 @@ def test_a_connection_string_fills_the_form_and_is_written_back() -> None:
 
 def test_the_management_address_is_a_plain_http_one() -> None:
     assert options().management().startswith("http")
-    made = RabbitmqOptions(host="mq.example", tls=True)
+    made = RabbitmqOptions(host="mq.example", tls_mode="required")
     assert made.management() == "https://mq.example:15672"
     for wrong in ["ftp://mq", "http://ann:pw@mq:15672", "mq.example:15672"]:
         with pytest.raises(ValueError):

@@ -704,7 +704,9 @@ class _RemoteFile(io.RawIOBase):
         data, self._data = self._data, None
         with suppress(OSError):
             data.close()
-        if self._connection is not None and not self._connection.in_step():
+        if self._connection is not None and not self._connection.in_step(
+            transfer_open=True
+        ):
             self._drop()
 
     def _drop(self) -> None:
@@ -800,7 +802,7 @@ class _Arriving:
             data, self._data = self._data, None
             with suppress(OSError):
                 data.close()
-            broken = not connection.in_step()
+            broken = not connection.in_step(transfer_open=True)
         if not self._published and not broken:
             with suppress(Exception):
                 connection.ftp.delete(self._temporary)
