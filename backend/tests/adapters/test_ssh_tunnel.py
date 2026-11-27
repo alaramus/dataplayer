@@ -190,22 +190,27 @@ async def test_rabbitmq_is_reached_through_the_ssh_server_by_both_doors(
     assert "@rabbitmq:5672" in adapter.connection_string()
 
 
-async def test_rabbitmq_with_tls_is_refused_through_a_tunnel(through: _Through) -> None:
-    """A certificate names the broker, never a port on this loopback."""
+async def test_rabbitmq_with_tls_goes_through_a_tunnel(through: _Through) -> None:
+    """A certificate names the broker, never a port on this loopback (D448):
+    TLS is dialled through the tunnel rather than refused, checked against
+    the form's host. The stand has no TLS listener, so the dial ends at the
+    network."""
     adapter = RabbitmqAdapter(
-        _rabbitmq(port=5671, tls=True, management_url="http://rabbitmq:15672"),
+        _rabbitmq(port=5671, tls_mode="verify_full", management_url="http://rabbitmq:15672"),
         tunnels=through,
     )
+    context = adapter._session._ssl_context("rabbitmq")
 
-    with pytest.raises(AdapterError) as refused:
+    with pytest.raises(AdapterError) as failed:
         async with adapter._session.channel():
             pass
 
-    assert refused.value.error_kind == "config"
-    assert "TLS" in refused.value.message
+    assert failed.value.error_kind != "config"
+    assert context.check_hostname
+    assert getattr(context, "server_name", None) == "rabbitmq"
 
 
-async def test_rabbitmq_management_over_https_is_refused_through_a_tunnel(
+async def test_rabbitmq_management_over_https_goes_through_a_tunnel(
     through: _Through,
 ) -> None:
     adapter = RabbitmqAdapter(
@@ -215,8 +220,7 @@ async def test_rabbitmq_management_over_https_is_refused_through_a_tunnel(
     result = await adapter.check_connection()
 
     assert not result.ok
-    assert result.error_kind == "config"
-    assert "HTTPS" in result.message
+    assert result.error_kind == "network"
 
 
 async def test_one_target_is_one_port_and_another_is_another(through: _Through) -> None:
