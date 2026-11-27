@@ -3,6 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "MongoDB": "MongoDB",
+    "MongoDB Atlas": "MongoDB Atlas",
     "Authentication database": "قاعدة بيانات المصادقة",
     "Where the user is defined; admin unless it was made in another database": "حيث عُرِّف المستخدم؛ admin ما لم يُنشأ في قاعدة بيانات أخرى",
     "Encrypted, with the server's certificate verified": "مشفّر، مع التحقق من شهادة الخادم",
@@ -12,6 +13,7 @@ MESSAGES: dict[str, str] = {
     "A DNS seed list names servers a tunnel cannot reach; name one server instead": "تسمّي قائمة خوادم DNS خوادم لا يصل إليها النفق؛ حدّد خادمًا واحدًا",
     "A mongodb+srv address names no port": "لا يحمل عنوان mongodb+srv منفذًا",
     "This server is a secondary and takes no changes; name the primary or the cluster's DNS seed list": "هذا الخادم ثانوي ولا يقبل التغييرات؛ حدّد الخادم الأساسي أو قائمة خوادم DNS للعنقود",
+    "Paste the address from Connect, Drivers on the cluster's page into URL, and allow this server's address under Network Access. Free and shared clusters keep other people's operations, connections, users and roles to themselves.": "الصق في URL العنوان من Connect، Drivers في صفحة العنقود، واسمح بعنوان هذا الخادم في Network Access. لا تعرض العناقيد المجانية والمشتركة عمليات الآخرين واتصالاتهم ومستخدميهم وأدوارهم.",
     "MongoDB Atlas does not allow this on this cluster": "لا يسمح MongoDB Atlas بهذا على هذا العنقود",
     "Name one server; a list of servers is not supported": "حدّد خادمًا واحدًا؛ قائمة الخوادم غير مدعومة",
     "MongoDB {version} is older than this source supports ({oldest})": "الإصدار MongoDB {version} أقدم مما يدعمه هذا المصدر ({oldest})",

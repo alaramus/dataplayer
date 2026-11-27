@@ -3,6 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "MongoDB": "MongoDB",
+    "MongoDB Atlas": "MongoDB Atlas",
     "Authentication database": "Base de données d'authentification",
     "Where the user is defined; admin unless it was made in another database": "Où l'utilisateur est défini ; admin, sauf s'il a été créé dans une autre base de données",
     "Encrypted, with the server's certificate verified": "Chiffré, avec vérification du certificat du serveur",
@@ -12,6 +13,7 @@ MESSAGES: dict[str, str] = {
     "A DNS seed list names servers a tunnel cannot reach; name one server instead": "Une liste de serveurs DNS nomme des serveurs qu'un tunnel n'atteint pas ; indiquez un seul serveur",
     "A mongodb+srv address names no port": "Une adresse mongodb+srv ne porte pas de port",
     "This server is a secondary and takes no changes; name the primary or the cluster's DNS seed list": "Ce serveur est un secondaire et n'accepte aucune modification ; indiquez le primaire ou la liste de serveurs DNS du cluster",
+    "Paste the address from Connect, Drivers on the cluster's page into URL, and allow this server's address under Network Access. Free and shared clusters keep other people's operations, connections, users and roles to themselves.": "Collez dans URL l'adresse de Connect, Drivers sur la page du cluster et autorisez l'adresse de ce serveur dans Network Access. Les clusters gratuits et partagés ne montrent ni les opérations, ni les connexions, ni les utilisateurs, ni les rôles des autres.",
     "MongoDB Atlas does not allow this on this cluster": "MongoDB Atlas ne permet pas cela sur ce cluster",
     "Name one server; a list of servers is not supported": "Indiquez un seul serveur ; une liste de serveurs n'est pas prise en charge",
     "MongoDB {version} is older than this source supports ({oldest})": "MongoDB {version} est plus ancien que ce que cette source prend en charge ({oldest})",

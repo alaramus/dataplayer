@@ -344,11 +344,15 @@ on, fills Verify full unless it says `tls=false`, and fills `admin` as the
 authentication database unless it names another, as Atlas's own record does.
 Every address composed from the form — for a person, the console, a backup —
 is a seed list's too, with `tls=false` written when TLS is off, since a seed
-list implies it; the server Copy tables names is the seed list's name.
+list implies it; the server Copy tables names is the seed list's name. A
+"MongoDB Atlas" card beside "MongoDB" (D264) turns the switch and TLS on,
+fills `admin`, and says where Atlas shows the address and which network list
+must hold this server, with a link to Atlas.
 
 Atlas refuses under one code of its own, 8000 (`AtlasError`), told apart by
 the opening of its text alone: `bad auth` is a failed sign-in, a command
-needing a user is a missing password, and anything else is said as Atlas not
+needing a user is a missing password, one the user may not run is said as
+such, and anything else is said as Atlas not
 allowing it on this cluster. The text is not shown.
 
 The suite runs against Atlas when `TEST_MONGODB_URL` is its address; a seed

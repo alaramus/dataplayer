@@ -76,7 +76,7 @@ from app.adapters.query import (
     QueryProfile,
     QueryRequest,
 )
-from app.adapters.registry import AdapterContext, ContainerImage, register
+from app.adapters.registry import AdapterContext, CatalogFace, ContainerImage, register
 from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.resources import Pooling
 from app.adapters.row_commands import RowCommand, RowCommandResult
@@ -424,6 +424,23 @@ class MongodbAdapter:
     options_schema=MongodbOptions,
     adapter_class=MongodbAdapter,
     images=(ContainerImage(("mongo",), 27017, container_options),),
+    # A server of one's own, and Atlas, whose card fills in its seed list,
+    # TLS and the database its users live in (D457).
+    faces=(
+        CatalogFace(key="mongodb", title=N_("MongoDB"), templates=("mongodb",)),
+        CatalogFace(
+            key="mongodb-atlas",
+            title=N_("MongoDB Atlas"),
+            options={"srv": True, "tls_mode": "verify_full", "auth_source": "admin"},
+            note=N_(
+                "Paste the address from Connect, Drivers on the cluster's page "
+                "into URL, and allow this server's address under Network Access. "
+                "Free and shared clusters keep other people's operations, "
+                "connections, users and roles to themselves."
+            ),
+            note_link="https://cloud.mongodb.com/",
+        ),
+    ),
 )
 def _build(options: MongodbOptions, context: AdapterContext) -> MongodbAdapter:
     return MongodbAdapter(options, context.pooling, context.tunnels, context.cloud)

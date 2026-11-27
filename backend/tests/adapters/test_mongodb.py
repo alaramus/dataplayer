@@ -196,6 +196,8 @@ def test_atlas_s_own_refusals_are_told_apart() -> None:
 
     assert classify(atlas("bad auth : authentication failed"))[0] == "auth"
     assert classify(atlas("command listDatabases requires authentication"))[0] == "auth"
+    kind, message = classify(atlas("(Unauthorized) not authorized on admin to execute command"))
+    assert kind == "auth" and "does not let this user" in message
     kind, message = classify(atlas("CMD_NOT_ALLOWED: createUser"))
     assert kind == "config" and "Atlas" in message and "createUser" not in message
 

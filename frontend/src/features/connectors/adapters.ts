@@ -20,6 +20,8 @@ const ICONS: Record<string, string> = {
   duckdb: "img:/icons/services/duckdb.svg",
   clickhouse: "img:/icons/services/clickhouse.svg",
   mongodb: "img:/icons/services/mongodb.svg",
+  // A card of the `mongodb` type: Atlas draws MongoDB's own leaf (D457).
+  "mongodb-atlas": "img:/icons/services/mongodb.svg",
   zookeeper: "img:/icons/services/zookeeper.svg",
   kafka: "img:/icons/services/kafka.svg",
   rabbitmq: "img:/icons/services/rabbitmq.svg",

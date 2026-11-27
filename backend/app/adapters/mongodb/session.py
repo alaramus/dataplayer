@@ -107,8 +107,10 @@ def _atlas_refusal(exc: OperationFailure) -> tuple[ErrorKind, str]:
     said = str((exc.details or {}).get("errmsg", "")).lower()
     if said.startswith("bad auth"):
         return "auth", say("Authentication failed")
-    if "requires authentication" in said or "unauthorized" in said:
+    if "requires authentication" in said:
         return "auth", say("The server asks for a user and a password")
+    if "not authorized" in said or "unauthorized" in said:
+        return "auth", say("The server does not let this user do that")
     return "config", say("MongoDB Atlas does not allow this on this cluster")
 
 

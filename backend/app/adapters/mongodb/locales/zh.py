@@ -3,6 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "MongoDB": "MongoDB",
+    "MongoDB Atlas": "MongoDB Atlas",
     "Authentication database": "认证数据库",
     "Where the user is defined; admin unless it was made in another database": "用户所在的数据库；除非用户创建在其他数据库中，否则为 admin",
     "Encrypted, with the server's certificate verified": "加密，并验证服务器证书",
@@ -12,6 +13,7 @@ MESSAGES: dict[str, str] = {
     "A DNS seed list names servers a tunnel cannot reach; name one server instead": "DNS 种子列表指向隧道无法到达的服务器；请填写一台服务器",
     "A mongodb+srv address names no port": "mongodb+srv 地址不带端口",
     "This server is a secondary and takes no changes; name the primary or the cluster's DNS seed list": "此服务器是从节点，不接受修改；请填写主节点或集群的 DNS 种子列表",
+    "Paste the address from Connect, Drivers on the cluster's page into URL, and allow this server's address under Network Access. Free and shared clusters keep other people's operations, connections, users and roles to themselves.": "将集群页面上 Connect、Drivers 中的地址粘贴到 URL，并在 Network Access 中允许此服务器的地址。免费和共享集群不显示他人的操作、连接、用户和角色。",
     "MongoDB Atlas does not allow this on this cluster": "MongoDB Atlas 不允许在此集群上这样做",
     "Name one server; a list of servers is not supported": "请指定一台服务器；不支持服务器列表",
     "MongoDB {version} is older than this source supports ({oldest})": "MongoDB {version} 早于此数据源支持的版本（{oldest}）",

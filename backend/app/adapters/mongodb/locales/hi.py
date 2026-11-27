@@ -3,6 +3,7 @@
 MESSAGES: dict[str, str] = {
     # The source and its connection form.
     "MongoDB": "MongoDB",
+    "MongoDB Atlas": "MongoDB Atlas",
     "Authentication database": "प्रमाणीकरण डेटाबेस",
     "Where the user is defined; admin unless it was made in another database": "जहाँ उपयोगकर्ता परिभाषित है; admin, जब तक वह किसी दूसरे डेटाबेस में न बनाया गया हो",
     "Encrypted, with the server's certificate verified": "एन्क्रिप्टेड, सर्वर के प्रमाणपत्र की जाँच के साथ",
@@ -12,6 +13,7 @@ MESSAGES: dict[str, str] = {
     "A DNS seed list names servers a tunnel cannot reach; name one server instead": "DNS सीड सूची ऐसे सर्वर बताती है जिन तक टनल नहीं पहुँचती; एक सर्वर बताएँ",
     "A mongodb+srv address names no port": "mongodb+srv पते में पोर्ट नहीं होता",
     "This server is a secondary and takes no changes; name the primary or the cluster's DNS seed list": "यह सर्वर सेकेंडरी है और बदलाव नहीं लेता; प्राइमरी या क्लस्टर की DNS सीड सूची बताएँ",
+    "Paste the address from Connect, Drivers on the cluster's page into URL, and allow this server's address under Network Access. Free and shared clusters keep other people's operations, connections, users and roles to themselves.": "क्लस्टर के पेज पर Connect, Drivers से पता URL में चिपकाएँ और Network Access में इस सर्वर का पता अनुमति दें। मुफ़्त और साझा क्लस्टर दूसरों के ऑपरेशन, कनेक्शन, उपयोगकर्ता और भूमिकाएँ नहीं दिखाते।",
     "MongoDB Atlas does not allow this on this cluster": "MongoDB Atlas इस क्लस्टर पर इसकी अनुमति नहीं देता",
     "Name one server; a list of servers is not supported": "एक सर्वर बताएँ; सर्वरों की सूची समर्थित नहीं है",
     "MongoDB {version} is older than this source supports ({oldest})": "MongoDB {version} इस स्रोत द्वारा समर्थित संस्करण ({oldest}) से पुराना है",
