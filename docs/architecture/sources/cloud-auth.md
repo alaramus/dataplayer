@@ -4,7 +4,7 @@ For changing how a server source encrypts its connection, which certificate it
 trusts or offers, a person's cloud accounts, and how a password is issued by a
 cloud or fetched from a secret store for every new connection.
 
-Decisions here: D446, D447, D448, D449, D450, D451, D452, D453, D454.
+Decisions here: D446, D447, D448, D449, D450, D451, D452, D453, D454, D455.
 
 ## D446. One TLS block, every server source
 
@@ -162,7 +162,7 @@ keeps none.
 
 Known deviations:
 
-- **Only AWS's provider is installed.** Google's, Azure's and Vault's arrive
+- **AWS's and Google's providers are installed.** Azure's and Vault's arrive
   with their slices; until then such an account can be kept and named, its
   test answers 501 and the form hides Test, and a connection naming it is
   refused at open with "This installation cannot sign in with accounts of
@@ -283,6 +283,7 @@ S3's that imports boto3.
 | --- | --- | --- |
 | PostgreSQL, TimescaleDB | `aws_iam` | an RDS token for the form's host, port and user, signed locally; TLS not `disabled` |
 | MySQL, MariaDB | `aws_iam` | the same token, sent by aiomysql's `mysql_clear_password` plugin, so only over Verify CA or Verify full; MySQL's own client is given `--enable-cleartext-plugin` |
+| PostgreSQL, MySQL | `gcp_iam` | Cloud SQL's IAM sign-in with an access token (D455) |
 | Redis | `aws_iam` | ElastiCache or MemoryDB: a signed `connect` for the cache's name and an IAM user; TLS required |
 | MongoDB | `aws_iam` | `MONGODB-AWS` with the account's keys and session token, `$external`; needs `pymongo[aws]` |
 | Kafka | `aws_msk_iam` | SASL/OAUTHBEARER with MSK's token; issued before a run, renewed by librdkafka's callback, which asks the event loop from its own thread and never from the loop's |
@@ -329,7 +330,48 @@ have it. It is read at every new connection, kept by the issued secrets'
 cache for five minutes, so a password rotated in the store is followed
 within minutes. A secret that is not JSON is the password whole.
 
-AWS Secrets Manager answers it now; Google Secret Manager, Azure Key Vault and
-Vault KV with their slices, and `vault_dynamic` with Vault's.
+AWS Secrets Manager and Google Secret Manager answer it now — Google's named
+`projects/P/secrets/S[/versions/V]`, or by its name alone in the key file's
+project, the latest version when none is named; Azure Key Vault and Vault KV
+with their slices, and `vault_dynamic` with Vault's.
+
+Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
+
+## D455. Cloud SQL: its address, an IAM token and its server CA
+
+Cloud SQL's IAM database sign-in is the `gcp_iam` variant of PostgreSQL and
+MySQL: the password is an OAuth 2 access token for `sqlservice.login`, issued
+by the account (a key file or this server's credentials, acting as another
+service account when one is named) and good for an hour; the user is the IAM
+principal as the instance names it — a service account's email without
+`.gserviceaccount.com` for PostgreSQL, its name before the `@` for MySQL.
+MySQL sends it with the cleartext plugin, so only over Verify CA or Verify
+full; PostgreSQL refuses it without TLS.
+
+The address is the instance's own (public or private IP, the instance's
+server CA pasted on the TLS page, Verify CA, since the certificate names the
+instance rather than its IP), an SSH tunnel to it, or a Cloud SQL Auth Proxy
+run elsewhere, which is an ordinary host and port.
+
+The Cloud SQL Python Connector was not taken. Its public API returns
+connections of the drivers it supports — asyncpg async; pymysql, pg8000,
+pytds and psycopg synchronous, psycopg through a local proxy thread — and
+its per-driver adapters are internal; this application's PostgreSQL is async
+psycopg with its own pool, and its MySQL is aiomysql. Taking its SSL context
+would mean reaching into those internals.
+
+Google's provider is `adapters/cloud/gcp/`, the one package importing
+google-auth; Secret Manager is read over REST with the account's token, so no
+gRPC client is installed.
+
+Known deviations:
+
+- **No ephemeral client certificate.** An instance that requires trusted
+  client certificates takes one downloaded from the console in the TLS block;
+  the Connector's per-hour certificate is not made here.
+- **Proven only against mocked endpoints.** Google's token, impersonation
+  and Secret Manager endpoints answer through `responses` in the test
+  process, with a key file signing its assertion for real; no Cloud SQL
+  instance was reached.
 
 Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)

@@ -63,6 +63,7 @@ dependencies = [
     # The MCP server at /mcp (D357), imported by app.ai.mcp_server alone.
     "mcp>=2.3,<3",
     "boto3>=1.44.5,<2",
+    "google-auth[requests]>=2.40,<3",
 ]
 
 [dependency-groups]
@@ -92,8 +93,9 @@ strict = true
 exclude = ["venv", ".venv", "alembic"]
 # confluent-kafka is typed, but a few of its helpers, OffsetSpec's among them,
 # carry no annotations; the Kafka adapter turns what they return into its own
-# types at once.
-untyped_calls_exclude = ["confluent_kafka"]
+# types at once. google-auth annotates its classes but not their constructors
+# and `refresh`; only the Google Cloud provider calls them (D453).
+untyped_calls_exclude = ["confluent_kafka", "google.auth", "google.oauth2"]
 
 # pyarrow ships no type information and no stub package this project trusts:
 # the community stubs lag its releases, and a wrong signature is worse than an

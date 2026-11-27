@@ -31,6 +31,8 @@ from app.adapters.cloud import CloudAccess
 from app.adapters.cloud.signin import (
     SignIn,
     aws_account_field,
+    cloudsql_sign_in,
+    gcp_account_field,
     password_key_field,
     rds_sign_in,
     region_field,
@@ -139,6 +141,32 @@ class PostgresAwsIam(_PostgresBase):
         return await rds_sign_in(cloud, self.account, self.region, self.host, self.port, self.user)
 
 
+class PostgresGcpIam(_PostgresBase):
+    """Cloud SQL's IAM database sign-in: the account's access token is the
+    password, at the instance's address or a Cloud SQL Auth Proxy (D455)."""
+
+    model_config = ConfigDict(title=N_("Google Cloud IAM (Cloud SQL)"))
+
+    auth_method: Literal["gcp_iam"] = _auth_method_field("gcp_iam")
+    database: str = _database_field()
+    user: str = Field(
+        title=N_("User"),
+        min_length=1,
+        description=N_("A service account's email without .gserviceaccount.com, or a person's email"),
+        json_schema_extra=layout(),
+    )
+    account: str = gcp_account_field()
+
+    @model_validator(mode="after")
+    def _encrypted(self) -> Self:
+        if self.tls_mode == "disabled":
+            raise ValueError(say("IAM sign-in needs TLS; choose a mode on the TLS page"))
+        return self
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await cloudsql_sign_in(cloud, self.account, self.user)
+
+
 class PostgresSecretStore(_PostgresBase):
     """A password kept in a secret store, read at every new connection (D454)."""
 
@@ -159,7 +187,7 @@ class PostgresSecretStore(_PostgresBase):
 
 
 PostgresOptions = Annotated[
-    PostgresUserPassword | PostgresNoAuth | PostgresAwsIam | PostgresSecretStore,
+    PostgresUserPassword | PostgresNoAuth | PostgresAwsIam | PostgresGcpIam | PostgresSecretStore,
     Field(discriminator="auth_method"),
 ]
 

@@ -6,6 +6,7 @@ from app.adapters import registry
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import (
     PostgresAwsIam,
+    PostgresGcpIam,
     PostgresNoAuth,
     PostgresOptions,
     PostgresSecretStore,
@@ -270,6 +271,7 @@ def test_the_options_schema_offers_both_ways_of_connecting() -> None:
         PostgresUserPassword,
         PostgresNoAuth,
         PostgresAwsIam,
+        PostgresGcpIam,
         PostgresSecretStore,
     ]
 

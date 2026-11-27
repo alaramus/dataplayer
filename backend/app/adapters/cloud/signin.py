@@ -21,6 +21,7 @@ from app.adapters.cloud import (
 )
 from app.adapters.cloud.requests import (
     CloudCredentials,
+    CloudSqlToken,
     ElastiCacheToken,
     MskToken,
     RdsAuthToken,
@@ -47,6 +48,10 @@ class SignIn:
 
 def aws_account_field() -> Any:
     return account_field("aws", title=N_("AWS account"), description=N_("One of your cloud accounts"))
+
+
+def gcp_account_field() -> Any:
+    return account_field("gcp", title=N_("Google Cloud account"), description=N_("One of your cloud accounts"))
 
 
 def region_field() -> Any:
@@ -118,6 +123,13 @@ async def rds_sign_in(
     name it was signed for, and through a tunnel that is still the server's.
     """
     secret = await issue(cloud, account, ("aws",), RdsAuthToken(host, port, user, region))
+    return SignIn(user=user, password=secret.value)
+
+
+async def cloudsql_sign_in(cloud: CloudAccess | None, account: str, user: str) -> SignIn:
+    """Cloud SQL's IAM database sign-in: the account's access token is the
+    password, the user the IAM principal as the instance names it (D455)."""
+    secret = await issue(cloud, account, ("gcp",), CloudSqlToken())
     return SignIn(user=user, password=secret.value)
 
 

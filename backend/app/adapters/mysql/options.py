@@ -18,6 +18,8 @@ from app.adapters.cloud import CloudAccess
 from app.adapters.cloud.signin import (
     SignIn,
     aws_account_field,
+    cloudsql_sign_in,
+    gcp_account_field,
     password_key_field,
     rds_sign_in,
     region_field,
@@ -126,6 +128,37 @@ class MysqlAwsIam(_MysqlBase):
         return await rds_sign_in(cloud, self.account, self.region, self.host, self.port, self.user)
 
 
+class MysqlGcpIam(_MysqlBase):
+    """Cloud SQL's IAM database sign-in: the access token is the password,
+    sent with the cleartext plugin as Cloud SQL asks, so TLS that verifies is
+    required (D455)."""
+
+    model_config = ConfigDict(title=N_("Google Cloud IAM (Cloud SQL)"))
+
+    auth_method: Literal["gcp_iam"] = _auth_method_field("gcp_iam")
+    database: str = _database_field()
+    user: str = Field(
+        title=N_("User"),
+        min_length=1,
+        description=N_("A service account's name before the @, or a person's name before it"),
+        json_schema_extra=layout(),
+    )
+    account: str = gcp_account_field()
+
+    cleartext: ClassVar[bool] = True
+
+    @model_validator(mode="after")
+    def _verified(self) -> Self:
+        if self.tls_mode not in ("verify_ca", "verify_full"):
+            raise ValueError(
+                say("The token is sent in the clear; choose Verify CA or Verify full on the TLS page")
+            )
+        return self
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await cloudsql_sign_in(cloud, self.account, self.user)
+
+
 class MysqlSecretStore(_MysqlBase):
     """A password kept in a secret store, read at every new connection (D454)."""
 
@@ -148,7 +181,7 @@ class MysqlSecretStore(_MysqlBase):
 
 
 MysqlOptions = Annotated[
-    MysqlUserPassword | MysqlNoPassword | MysqlAwsIam | MysqlSecretStore,
+    MysqlUserPassword | MysqlNoPassword | MysqlAwsIam | MysqlGcpIam | MysqlSecretStore,
     Field(discriminator="auth_method"),
 ]
 

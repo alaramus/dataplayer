@@ -56,6 +56,12 @@ class MskToken(SecretRequest):
 
 
 @dataclass(frozen=True)
+class CloudSqlToken(SecretRequest):
+    """A Google OAuth 2 access token for Cloud SQL's IAM database sign-in
+    (scope `sqlservice.login`), valid an hour; the same for every instance."""
+
+
+@dataclass(frozen=True)
 class CloudCredentials(SecretRequest):
     """The account's own credentials as a driver signs with them: AWS's access
     key in `user`, its secret in `value`, its session token in `session_token`."""

@@ -174,10 +174,11 @@ account, a database secrets mount and a role; the lease is the expiry.
 
 ## D455. Cloud SQL
 
-Decided in slice 4: the Cloud SQL connector's connection-info API if it gives
-an `SSLContext` and an address cleanly, otherwise direct IP with the IAM token
-and the instance's server CA, the official proxy remaining an ordinary host
-and port.
+Decided in slice 4: direct IP with the IAM token and the instance's server
+CA, the official proxy remaining an ordinary host and port. The connector's
+public API returns its supported drivers' connections (async only for
+asyncpg) and keeps its per-driver adapters internal, so it gives no clean
+`SSLContext` for async psycopg and aiomysql.
 
 ## D456. Engine-native methods
 

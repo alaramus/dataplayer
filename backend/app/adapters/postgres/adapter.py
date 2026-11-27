@@ -632,8 +632,9 @@ class PostgresAdapter:
             options={"database": "postgres", "user": "postgres"},
             note=N_(
                 "Connect to the instance's public IP with this server among its "
-                "authorised networks, or through an SSH tunnel; IAM sign-in and "
-                "the Auth Proxy are not supported yet."
+                "authorised networks, through an SSH tunnel, or to a Cloud SQL Auth "
+                "Proxy. Sign in with a password, or with IAM through one of your "
+                "Google Cloud accounts, trusting the instance's server CA on the TLS page."
             ),
             note_link="https://cloud.google.com/sql/docs/postgres/connect-overview",
         ),

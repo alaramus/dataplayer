@@ -864,10 +864,37 @@ source_modules =
     app.adapters.cloud.cache
     app.adapters.cloud.requests
     app.adapters.cloud.signin
+    app.adapters.cloud.stored
 forbidden_modules =
     boto3
     botocore
     s3transfer
+
+# google-auth signs a Google Cloud account's requests in its provider alone
+# (D453); the agent's Gemini client reaches it through its own library.
+[importlinter:contract:google-auth-is-contained]
+name = Google's libraries are imported only by the Google Cloud provider
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.core
+    app.users
+    app.connectors
+    app.queries
+    app.adapters.postgres
+    app.adapters.mysql
+    app.adapters.redis
+    app.adapters.kafka
+    app.adapters.mongodb
+    app.adapters.s3
+    app.adapters.cloud.accounts
+    app.adapters.cloud.cache
+    app.adapters.cloud.requests
+    app.adapters.cloud.signin
+    app.adapters.cloud.stored
+    app.adapters.cloud.aws
+forbidden_modules =
+    google
 
 # A client socket to a market's streams, by the rule every driver follows:
 # the shared layer of market data owns it, and the exchanges reach it only

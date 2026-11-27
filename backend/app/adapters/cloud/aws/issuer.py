@@ -9,7 +9,6 @@ the test stand points them at LocalStack, and nothing a person types can.
 """
 
 import base64
-import json
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -39,6 +38,7 @@ from app.adapters.cloud.requests import (
     RdsAuthToken,
     StoredSecret,
 )
+from app.adapters.cloud.stored import read_secret
 from app.adapters.protocol import AdapterError
 from app.core.translation import say
 
@@ -171,19 +171,7 @@ def _stored(session: boto3.session.Session, request: StoredSecret) -> IssuedSecr
     text = found.get("SecretString")
     if not isinstance(text, str):
         raise AdapterError("config", say("The secret holds no text; a password is kept as text"))
-    try:
-        parsed = json.loads(text)
-    except ValueError:
-        return IssuedSecret(value=text, expires_at=None)
-    if not isinstance(parsed, dict):
-        return IssuedSecret(value=text, expires_at=None)
-    password = parsed.get(request.password_key)
-    if not isinstance(password, str):
-        raise AdapterError(
-            "config", say("The secret has no {key} to read the password from", key=request.password_key)
-        )
-    user = parsed.get(request.user_key)
-    return IssuedSecret(value=password, expires_at=None, user=user if isinstance(user, str) else None)
+    return read_secret(text, request)
 
 
 def _frozen(session: boto3.session.Session) -> ReadOnlyCredentials:
