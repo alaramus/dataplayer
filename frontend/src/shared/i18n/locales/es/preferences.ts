@@ -11,6 +11,8 @@ export const preferences: Messages["preferences"] = {
     connections_summary: "Con qué frecuencia se comprueban las conexiones mientras hay un espacio de trabajo abierto",
     ssh_keys: "Claves SSH",
     ssh_keys_summary: "Las claves que esta cuenta usa para las conexiones SSH",
+    cloud_accounts: "Cuentas en la nube",
+    cloud_accounts_summary: "De dónde obtienen contraseñas y tokens las conexiones de esta cuenta",
     tours: "Recorridos",
     tours_summary: "El recorrido de bienvenida y recorridos breves por cada parte, cuando quieras",
     mcp: "Acceso MCP",

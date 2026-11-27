@@ -2386,6 +2386,150 @@ export type ClipboardRequest = {
 }
 
 /**
+ * CloudAccountCreate
+ */
+export type CloudAccountCreate = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Settings
+   */
+  settings: {
+    [key: string]: unknown
+  }
+}
+
+/**
+ * CloudAccountKindSchema
+ */
+export type CloudAccountKindSchema = {
+  /**
+   * Kind
+   */
+  kind: "aws" | "gcp" | "azure" | "vault"
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Json Schema
+   */
+  json_schema: {
+    [key: string]: unknown
+  }
+}
+
+/**
+ * CloudAccountPublic
+ *
+ * Everything about an account that may be said out loud.
+ */
+export type CloudAccountPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Kind
+   */
+  kind: "aws" | "gcp" | "azure" | "vault"
+  /**
+   * Kind Title
+   */
+  kind_title: string
+  /**
+   * Method
+   */
+  method: string
+  /**
+   * Method Title
+   */
+  method_title: string
+  /**
+   * Settings
+   */
+  settings: {
+    [key: string]: unknown
+  }
+  /**
+   * Stored Secrets
+   */
+  stored_secrets: Array<string>
+  /**
+   * Ambient
+   */
+  ambient: boolean
+  /**
+   * Testable
+   */
+  testable: boolean
+  /**
+   * Created At
+   */
+  created_at: string | null
+  /**
+   * Updated At
+   */
+  updated_at: string | null
+  /**
+   * Used By
+   */
+  used_by: Array<SshKeyUse>
+}
+
+/**
+ * CloudAccountSchemas
+ *
+ * The kinds of account, each with the methods this person may choose.
+ */
+export type CloudAccountSchemas = {
+  /**
+   * Kinds
+   */
+  kinds: Array<CloudAccountKindSchema>
+  /**
+   * Ambient
+   */
+  ambient: boolean
+}
+
+/**
+ * CloudAccountTest
+ */
+export type CloudAccountTest = {
+  /**
+   * Ok
+   */
+  ok: boolean
+  /**
+   * Message
+   */
+  message: string
+}
+
+/**
+ * CloudAccountUpdate
+ */
+export type CloudAccountUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Settings
+   */
+  settings?: {
+    [key: string]: unknown
+  } | null
+}
+
+/**
  * CodeValue
  *
  * Monospaced, with a copy button.
@@ -11819,6 +11963,13 @@ export type ProblemDetail = {
     | "ssh_keys.not_found"
     | "ssh_keys.in_use"
     | "ssh_keys.no_passphrase"
+    | "cloud_accounts.not_found"
+    | "cloud_accounts.in_use"
+    | "cloud_accounts.name_taken"
+    | "cloud_accounts.kind_fixed"
+    | "cloud_accounts.ambient_off"
+    | "cloud_accounts.ambient_superuser"
+    | "cloud_accounts.untestable"
     | "paste.same_connection"
     | "connectors.no_content_previews"
     | "connectors.no_content_stream"
@@ -22170,6 +22321,185 @@ export type sshKeysLockSshKeyResponses = {
 }
 
 export type sshKeysLockSshKeyResponse = sshKeysLockSshKeyResponses[keyof sshKeysLockSshKeyResponses]
+
+export type cloudAccountsReadCloudAccountsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/cloud-accounts/"
+}
+
+export type cloudAccountsReadCloudAccountsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type cloudAccountsReadCloudAccountsError =
+  cloudAccountsReadCloudAccountsErrors[keyof cloudAccountsReadCloudAccountsErrors]
+
+export type cloudAccountsReadCloudAccountsResponses = {
+  /**
+   * Response Cloud-Accounts-Read Cloud Accounts
+   *
+   * Successful Response
+   */
+  200: Array<CloudAccountPublic>
+}
+
+export type cloudAccountsReadCloudAccountsResponse =
+  cloudAccountsReadCloudAccountsResponses[keyof cloudAccountsReadCloudAccountsResponses]
+
+export type cloudAccountsCreateCloudAccountData = {
+  body: CloudAccountCreate
+  path?: never
+  query?: never
+  url: "/api/v1/cloud-accounts/"
+}
+
+export type cloudAccountsCreateCloudAccountErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type cloudAccountsCreateCloudAccountError =
+  cloudAccountsCreateCloudAccountErrors[keyof cloudAccountsCreateCloudAccountErrors]
+
+export type cloudAccountsCreateCloudAccountResponses = {
+  /**
+   * Successful Response
+   */
+  200: CloudAccountPublic
+}
+
+export type cloudAccountsCreateCloudAccountResponse =
+  cloudAccountsCreateCloudAccountResponses[keyof cloudAccountsCreateCloudAccountResponses]
+
+export type cloudAccountsReadCloudAccountSchemaData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/cloud-accounts/schema"
+}
+
+export type cloudAccountsReadCloudAccountSchemaErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type cloudAccountsReadCloudAccountSchemaError =
+  cloudAccountsReadCloudAccountSchemaErrors[keyof cloudAccountsReadCloudAccountSchemaErrors]
+
+export type cloudAccountsReadCloudAccountSchemaResponses = {
+  /**
+   * Successful Response
+   */
+  200: CloudAccountSchemas
+}
+
+export type cloudAccountsReadCloudAccountSchemaResponse =
+  cloudAccountsReadCloudAccountSchemaResponses[keyof cloudAccountsReadCloudAccountSchemaResponses]
+
+export type cloudAccountsDeleteCloudAccountData = {
+  body?: never
+  path: {
+    /**
+     * Account Id
+     */
+    account_id: string
+  }
+  query?: never
+  url: "/api/v1/cloud-accounts/{account_id}"
+}
+
+export type cloudAccountsDeleteCloudAccountErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type cloudAccountsDeleteCloudAccountError =
+  cloudAccountsDeleteCloudAccountErrors[keyof cloudAccountsDeleteCloudAccountErrors]
+
+export type cloudAccountsDeleteCloudAccountResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type cloudAccountsDeleteCloudAccountResponse =
+  cloudAccountsDeleteCloudAccountResponses[keyof cloudAccountsDeleteCloudAccountResponses]
+
+export type cloudAccountsUpdateCloudAccountData = {
+  body: CloudAccountUpdate
+  path: {
+    /**
+     * Account Id
+     */
+    account_id: string
+  }
+  query?: never
+  url: "/api/v1/cloud-accounts/{account_id}"
+}
+
+export type cloudAccountsUpdateCloudAccountErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type cloudAccountsUpdateCloudAccountError =
+  cloudAccountsUpdateCloudAccountErrors[keyof cloudAccountsUpdateCloudAccountErrors]
+
+export type cloudAccountsUpdateCloudAccountResponses = {
+  /**
+   * Successful Response
+   */
+  200: CloudAccountPublic
+}
+
+export type cloudAccountsUpdateCloudAccountResponse =
+  cloudAccountsUpdateCloudAccountResponses[keyof cloudAccountsUpdateCloudAccountResponses]
+
+export type cloudAccountsTestCloudAccountData = {
+  body?: never
+  path: {
+    /**
+     * Account Id
+     */
+    account_id: string
+  }
+  query?: never
+  url: "/api/v1/cloud-accounts/{account_id}/test"
+}
+
+export type cloudAccountsTestCloudAccountErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type cloudAccountsTestCloudAccountError =
+  cloudAccountsTestCloudAccountErrors[keyof cloudAccountsTestCloudAccountErrors]
+
+export type cloudAccountsTestCloudAccountResponses = {
+  /**
+   * Successful Response
+   */
+  200: CloudAccountTest
+}
+
+export type cloudAccountsTestCloudAccountResponse =
+  cloudAccountsTestCloudAccountResponses[keyof cloudAccountsTestCloudAccountResponses]
 
 export type adaptersReadAdapterTypesData = {
   body?: never

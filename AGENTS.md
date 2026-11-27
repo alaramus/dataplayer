@@ -48,7 +48,7 @@ documentation.
 | Email, a mailbox over IMAP and SMTP, its Mail tab instead of a catalog, folders and their roles, a page of letters, search, reading a letter and its HTML, writing, answering, forwarding, deleting to Trash, an attachment downloaded or kept in the owner's folder, who may open it, new letters announced, a Gmail card, a file attached from one's folder, drafts, moving letters | [sources/mail.md](docs/architecture/sources/mail.md) |
 | MongoDB, the server it reaches, its catalog, its query console, how a collection becomes columns, how documents are read and changed, fields and indexes, reports, search, export, catalog actions, copying collections, backups, metrics, its service and lab | [sources/mongodb.md](docs/architecture/sources/mongodb.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
-| TLS on a connection, a CA or client certificate, key files on disk, the name checked through a tunnel | [sources/cloud-auth.md](docs/architecture/sources/cloud-auth.md) |
+| TLS on a connection, a CA or client certificate, key files on disk, the name checked through a tunnel, a cloud account, a password issued per new connection, signing in as this server | [sources/cloud-auth.md](docs/architecture/sources/cloud-auth.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
 | A source action too long for a request: its plan, review and outcomes | [sources/operations.md](docs/architecture/sources/operations.md) |
 | A source made of files, the storage it brings, the explorer over it, the limit on a person's storage | [sources/explorer.md](docs/architecture/sources/explorer.md) |
@@ -107,7 +107,7 @@ file; `D247–D262` is every number between, all in that file.
 | [frontend](docs/architecture/frontend.md) | D6, D7, D50, D99, D131 |
 | [sources/actions](docs/architecture/sources/actions.md) | D9, D46, D56, D68, D74, D79, D118, D162, D209, D210 |
 | [sources/connecting](docs/architecture/sources/connecting.md) | D10, D15–D17, D31, D100–D105 |
-| [sources/cloud-auth](docs/architecture/sources/cloud-auth.md) | D446–D448 |
+| [sources/cloud-auth](docs/architecture/sources/cloud-auth.md) | D446–D449, D451, D452 |
 | [design-system](docs/architecture/design-system.md) | D11, D185–D187, D196 |
 | [workspace](docs/architecture/workspace.md) | D12, D69, D94, D112, D143 |
 | [windows](docs/architecture/windows.md) | D14, D92, D93, D132, D155, D167 |

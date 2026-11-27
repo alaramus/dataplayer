@@ -256,4 +256,14 @@ MESSAGES: dict[str, str] = {
     "{said}; the link began reading now, and gets what arrives from here on": "{said}; связь начала читать сейчас и получает то, что приходит с этого момента",
     "There is no such folder in your storage": "В вашем хранилище нет такой папки",
     "There is no such file in your storage: {path}": "В вашем хранилище нет такого файла: {path}",
+    # Cloud accounts (D451).
+    "Account deleted": "Учётная запись удалена",
+    "Choose how the account signs in": "Выберите, как учётная запись входит",
+    "Choose one of your cloud accounts": "Выберите одну из своих облачных учётных записей",
+    "The cloud account this connection signs in with is gone; choose another": "Облачной учётной записи, с которой входит это подключение, больше нет; выберите другую",
+    "The cloud account {name} signs in as this server, which is no longer allowed": "Облачная учётная запись {name} входит от имени этого сервера, а это больше не разрешено",
+    "This cloud account signs in a way this server no longer knows": "Эта облачная учётная запись входит способом, который этот сервер больше не знает",
+    "This installation cannot sign in with accounts of {kind}": "Эта установка не умеет входить с учётными записями {kind}",
+    "{kind} did not answer for the account {name}; test it in Preferences": "{kind} не ответил для учётной записи {name}; проверьте её в настройках",
+    "{name} is not an account of {kind}": "{name} — не учётная запись {kind}",
 }

@@ -27,6 +27,9 @@ import {
 import { mergeParsedOptions } from "@/features/connectors/parsedOptions"
 import { withTunnelChoices } from "@/features/connectors/tunnels"
 import { windowPages } from "@/features/connectors/windowPages"
+import CloudAccountDialog from "@/features/cloudAccounts/CloudAccountDialog.vue"
+import { withAccountChoices } from "@/features/cloudAccounts/accounts"
+import { useCloudAccounts } from "@/features/cloudAccounts/api"
 import ServerKeyField from "@/features/sshKeys/ServerKeyField.vue"
 import SshKeyDialog from "@/features/sshKeys/SshKeyDialog.vue"
 import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
@@ -368,13 +371,31 @@ const allFields = computed<FieldSpec[]>(() => {
 const wantsKeys = computed(() => allFields.value.some((field) => field.purpose === "ssh-key"))
 const sshKeys = useSshKeys(wantsKeys)
 
+// The owner's cloud accounts, asked for only by a form that names one (D451);
+// the field says which kind, so only those are offered.
+const accountField = computed(() => allFields.value.find((field) => field.purpose === "cloud-account"))
+const activeAccountField = computed(() => activeFields.value.find((field) => field.purpose === "cloud-account"))
+const cloudAccounts = useCloudAccounts(computed(() => accountField.value !== undefined))
+/** Making an account without leaving for Preferences, of the kind the field takes. */
+const makingAccount = ref(false)
+function takeAccount(id: string) {
+  if (readOnly.value) return
+  const field = activeAccountField.value
+  if (field && !optionValues.value[field.name]) {
+    optionValues.value = { ...optionValues.value, [field.name]: id }
+  }
+}
+
 // The person's SSH connections, for a database that may go through one (D282).
 const connections = useConnectors()
 
 const groups = computed(() =>
   fieldGroups(
     withTunnelChoices(
-      withKeyChoices(activeFields.value, sshKeys.data.value ?? []),
+      withAccountChoices(
+        withKeyChoices(activeFields.value, sshKeys.data.value ?? []),
+        cloudAccounts.data.value ?? []
+      ),
       connections.data.value?.data ?? [],
       optionValues.value,
       { directly: t("connectors.tunnel.directly"), someone_elses: t("connectors.tunnel.someone_elses") }
@@ -878,6 +899,28 @@ async function parseTyped(text: string) {
                the source. Where the form takes one, the choice above
                re-reads itself, and a new key for this connection is pointed
                at it. -->
+          <!-- Cloud accounts beside the keys, for the same reason: an
+               account is the person's and serves any connection (D451).
+               Where the form takes one, a new account is of that kind and
+               the field points at it. -->
+          <section class="connector-window__ssh-keys">
+            <h3 class="connector-window__heading-3 dp-section-title">
+              {{ t('cloud_accounts.section.title') }}
+            </h3>
+            <span class="dp-helper">
+              {{ t('cloud_accounts.section.form_hint') }}
+            </span>
+            <div class="connector-window__ssh-keys-buttons">
+              <AppButton
+                size="sm"
+                :icon="appIcons.add"
+                :label="t('cloud_accounts.section.new_account')"
+                :disable="readOnly"
+                data-testid="connector-cloud-account-new"
+                @click="makingAccount = true"
+              />
+            </div>
+          </section>
           <section class="connector-window__ssh-keys">
             <h3 class="connector-window__heading-3 dp-section-title">
               {{ t('ssh_keys.section.title') }}
@@ -1124,6 +1167,11 @@ async function parseTyped(text: string) {
         :mode="makingKey ?? 'generate'"
         @update:model-value="!$event && (makingKey = null)"
         @created="takeKey"
+      />
+      <CloudAccountDialog
+        v-model="makingAccount"
+        :kind="activeAccountField?.accountKind ?? null"
+        @created="takeAccount"
       />
     </template>
   </AppForm>

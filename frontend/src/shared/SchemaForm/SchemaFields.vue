@@ -62,7 +62,11 @@ function update(name: string, value: unknown) {
 
 // Lines rather than a flat column: which fields share one is decided by the
 // model that declares them and arrives in the schema.
-const rows = computed(() => fieldRows(props.fields))
+// A line holding only hidden fields draws nothing, and is left out so its gap
+// does not open between the lines around it.
+const rows = computed(() =>
+  fieldRows(props.fields).filter((row) => row.some((field) => field.kind !== "hidden"))
+)
 
 function textValue(name: string): string {
   const value = props.modelValue[name]

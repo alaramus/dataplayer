@@ -45,6 +45,7 @@ x-backend-environment: &backend-environment
   EMBEDDINGS_URL: ${EMBEDDINGS_URL:-}
   # Whether the agent may call an outside MCP server on a private address (D360).
   MCP_CLIENT_ALLOW_PRIVATE: ${MCP_CLIENT_ALLOW_PRIVATE:-false}
+  CLOUD_AMBIENT_CREDENTIALS: ${CLOUD_AMBIENT_CREDENTIALS:-false}
 
 services:
 

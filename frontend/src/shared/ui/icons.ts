@@ -29,6 +29,7 @@ export const appIcons = {
   bookmarkAdd: "bookmark_add",
   bookmarks: "bookmarks",
   calendar: "calendar_month",
+  cloud: "cloud",
   cancel: "cancel",
   centerFocusStrong: "center_focus_strong",
   check: "check",

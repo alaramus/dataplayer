@@ -8,7 +8,6 @@ containment rule node ids are, so a prefix cannot be a way out of the root.
 
 from pathlib import PurePosixPath
 from typing import Literal
-from urllib.parse import urlsplit
 
 from pydantic import (
     BaseModel,
@@ -19,6 +18,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.adapters.addresses import http_origin
 from app.adapters.explorer.storage import is_plain_name, stays_inside_root
 from app.adapters.layout import layout
 from app.core.translation import N_, say
@@ -91,27 +91,7 @@ class S3Options(BaseModel):
     def _an_address(cls, value: str) -> str:
         """An origin and nothing else: the bucket and the folder have their
         own fields, and a key in the address would be stored in clear."""
-        value = value.strip().rstrip("/")
-        if value == "":
-            return value
-        try:
-            parts = urlsplit(value)
-            parts.port  # noqa: B018 - a port out of range raises here
-        except ValueError:
-            raise ValueError(
-                say("The endpoint must be an http or https address")
-            ) from None
-        if (
-            parts.scheme not in ("http", "https")
-            or not parts.hostname
-            or parts.username is not None
-            or parts.password is not None
-            or parts.path not in ("", "/")
-            or parts.query != ""
-            or parts.fragment != ""
-        ):
-            raise ValueError(say("The endpoint must be an http or https address"))
-        return value
+        return http_origin(value, say("The endpoint must be an http or https address"))
 
     @field_validator("bucket")
     @classmethod

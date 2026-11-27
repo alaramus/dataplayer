@@ -256,4 +256,14 @@ MESSAGES: dict[str, str] = {
     "{said}; the link began reading now, and gets what arrives from here on": "{said}; लिंक ने अभी पढ़ना शुरू किया है, और अब से जो आता है वह पाता है",
     "There is no such folder in your storage": "आपके संग्रहण में ऐसा कोई फ़ोल्डर नहीं है",
     "There is no such file in your storage: {path}": "आपके संग्रहण में ऐसी कोई फ़ाइल नहीं है: {path}",
+    # Cloud accounts (D451).
+    "Account deleted": "खाता हटाया गया",
+    "Choose how the account signs in": "चुनें कि खाता कैसे साइन इन करता है",
+    "Choose one of your cloud accounts": "अपने क्लाउड खातों में से एक चुनें",
+    "The cloud account this connection signs in with is gone; choose another": "यह कनेक्शन जिस क्लाउड खाते से साइन इन करता है, वह अब नहीं है; कोई दूसरा चुनें",
+    "The cloud account {name} signs in as this server, which is no longer allowed": "क्लाउड खाता {name} इस सर्वर के रूप में साइन इन करता है, जिसकी अब अनुमति नहीं है",
+    "This cloud account signs in a way this server no longer knows": "यह क्लाउड खाता ऐसे तरीके से साइन इन करता है जिसे यह सर्वर अब नहीं जानता",
+    "This installation cannot sign in with accounts of {kind}": "यह इंस्टॉलेशन {kind} के खातों से साइन इन नहीं कर सकता",
+    "{kind} did not answer for the account {name}; test it in Preferences": "{kind} ने खाते {name} के लिए उत्तर नहीं दिया; प्राथमिकताओं में इसकी जाँच करें",
+    "{name} is not an account of {kind}": "{name} {kind} का खाता नहीं है",
 }

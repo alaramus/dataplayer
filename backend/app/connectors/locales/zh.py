@@ -255,4 +255,14 @@ MESSAGES: dict[str, str] = {
     "{said}; the link began reading now, and gets what arrives from here on": "{said}；链接现在开始读取，之后到达的内容都会收到",
     "There is no such folder in your storage": "你的存储中没有这个文件夹",
     "There is no such file in your storage: {path}": "你的存储中没有这个文件：{path}",
+    # Cloud accounts (D451).
+    "Account deleted": "账号已删除",
+    "Choose how the account signs in": "请选择该账号的登录方式",
+    "Choose one of your cloud accounts": "请选择您的一个云账号",
+    "The cloud account this connection signs in with is gone; choose another": "此连接用于登录的云账号已不存在；请另选一个",
+    "The cloud account {name} signs in as this server, which is no longer allowed": "云账号 {name} 以本服务器身份登录，而这已不再被允许",
+    "This cloud account signs in a way this server no longer knows": "此云账号的登录方式本服务器已不再识别",
+    "This installation cannot sign in with accounts of {kind}": "此安装无法使用 {kind} 账号登录",
+    "{kind} did not answer for the account {name}; test it in Preferences": "{kind} 未就账号 {name} 作出响应；请在偏好设置中测试它",
+    "{name} is not an account of {kind}": "{name} 不是 {kind} 账号",
 }

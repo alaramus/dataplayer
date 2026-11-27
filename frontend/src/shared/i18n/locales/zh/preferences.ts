@@ -11,6 +11,8 @@ export const preferences: Messages["preferences"] = {
     connections_summary: "工作区打开时检查连接的频率",
     ssh_keys: "SSH 密钥",
     ssh_keys_summary: "此账户用于 SSH 连接的密钥",
+    cloud_accounts: "云账号",
+    cloud_accounts_summary: "此账户的连接从何处获取密码和令牌",
     tours: "导览",
     tours_summary: "欢迎导览以及各部分的简短导览，随时可进行",
     mcp: "MCP 访问",

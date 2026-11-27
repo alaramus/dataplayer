@@ -9,6 +9,8 @@ export const preferences = {
     connections_summary: "How often connections are checked while a workspace is open",
     ssh_keys: "SSH keys",
     ssh_keys_summary: "The keys this account uses for SSH connections",
+    cloud_accounts: "Cloud accounts",
+    cloud_accounts_summary: "Where this account's connections get passwords and tokens",
     tours: "Tours",
     tours_summary: "The welcome tour and short tours of each part, taken whenever you want",
     mcp: "MCP access",

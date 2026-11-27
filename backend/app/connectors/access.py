@@ -19,6 +19,7 @@ from app.adapters.registry import get as get_adapter_type
 from app.adapters.resources import Pooling, ResourceStore
 from app.connectors import crud, service
 from app.connectors.bookmarks import ConnectionBookmarks
+from app.connectors.cloud_accounts import OwnerCloud
 from app.connectors.models import Connector
 from app.connectors.ssh_keys import OwnerKeys
 from app.connectors.tunnels import OwnerTunnels
@@ -107,7 +108,7 @@ def context_for(
     Always the owner's: a grantee reading a connection signs in with the
     owner's credentials and reads the owner's storage (D33), and a key is a
     credential like the rest (D146), as is the SSH connection a database is
-    reached through (D282).
+    reached through (D282) and a cloud account (D451).
     """
     return AdapterContext(
         home_dir=storage.home_dir(owner_id),
@@ -115,6 +116,7 @@ def context_for(
         pooling=pooling,
         keys=OwnerKeys(owner_id),
         tunnels=OwnerTunnels(owner_id),
+        cloud=OwnerCloud(owner_id),
         bookmarks=None if connector_id is None else ConnectionBookmarks(connector_id),
     )
 

@@ -252,4 +252,14 @@ MESSAGES: dict[str, str] = {
     "{said}; the link began reading now, and gets what arrives from here on": "{said}؛ بدأ الرابط القراءة الآن، ويتلقى ما يصل من الآن فصاعدًا",
     "There is no such folder in your storage": "لا يوجد مثل هذا المجلد في مساحتك",
     "There is no such file in your storage: {path}": "لا يوجد مثل هذا الملف في مساحتك: {path}",
+    # Cloud accounts (D451).
+    "Account deleted": "حُذف الحساب",
+    "Choose how the account signs in": "اختر كيف يسجّل الحساب الدخول",
+    "Choose one of your cloud accounts": "اختر أحد حساباتك السحابية",
+    "The cloud account this connection signs in with is gone; choose another": "الحساب السحابي الذي يسجّل به هذا الاتصال الدخول لم يعد موجودًا؛ اختر غيره",
+    "The cloud account {name} signs in as this server, which is no longer allowed": "الحساب السحابي {name} يسجّل الدخول بصفة هذا الخادم، وهذا لم يعد مسموحًا",
+    "This cloud account signs in a way this server no longer knows": "هذا الحساب السحابي يسجّل الدخول بطريقة لم يعد هذا الخادم يعرفها",
+    "This installation cannot sign in with accounts of {kind}": "لا يستطيع هذا التثبيت تسجيل الدخول بحسابات {kind}",
+    "{kind} did not answer for the account {name}; test it in Preferences": "لم تُجب {kind} عن الحساب {name}؛ اختبره في التفضيلات",
+    "{name} is not an account of {kind}": "{name} ليس حسابًا في {kind}",
 }

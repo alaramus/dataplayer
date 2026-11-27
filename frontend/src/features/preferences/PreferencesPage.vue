@@ -2,6 +2,7 @@
 import { computed } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
+import CloudAccountsSection from "@/features/cloudAccounts/CloudAccountsSection.vue"
 import SshKeysSection from "@/features/sshKeys/SshKeysSection.vue"
 import { t } from "@/shared/i18n"
 import { AppButton, AppLayout, AppPageHeader, AppSectionsLayout, sectionOf } from "@/shared/ui"
@@ -15,7 +16,7 @@ import type { PreferenceSectionId } from "./sections"
 
 /**
  * What this account chose for itself: a list of sections beside what one of
- * them shows, the way Administration reads. There are five sections today,
+ * them shows, the way Administration reads. There are six sections today,
  * and what comes next arrives as an entry in `sections.ts` rather than as a
  * rearrangement of this screen.
  *
@@ -35,6 +36,7 @@ const BODIES: Record<PreferenceSectionId, typeof GeneralSection> = {
   general: GeneralSection,
   connections: ConnectionsSection,
   "ssh-keys": SshKeysSection,
+  "cloud-accounts": CloudAccountsSection,
   mcp: McpSection,
   tours: ToursSection,
 }

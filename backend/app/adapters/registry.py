@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.adapters.actions import DeclaresActions
 from app.adapters.cache import SourceCacheWindows, SupportsReadCache
 from app.adapters.changes import SupportsChangeWatch
+from app.adapters.cloud import CloudAccess
 from app.adapters.credentials import KeyAccess
 from app.adapters.features import FEATURE_TITLES
 from app.adapters.metrics import SupportsMetrics
@@ -69,6 +70,9 @@ class AdapterContext:
     keys: KeyAccess | None = None
     # The owner's SSH connections, for a database reached through one (D282).
     tunnels: TunnelAccess | None = None
+    # The owner's cloud accounts, for a source whose password is issued per
+    # new connection (D449); absent where nothing could name one.
+    cloud: CloudAccess | None = None
     # Where a reader's place is kept for a stored connection whose source
     # keeps none (D319); absent for a draft, which has no identity.
     bookmarks: BookmarkAccess | None = None

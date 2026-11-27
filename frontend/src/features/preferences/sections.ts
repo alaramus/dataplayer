@@ -24,6 +24,12 @@ export const PREFERENCE_SECTIONS = [
     icon: appIcons.sshKey,
   },
   {
+    id: "cloud-accounts",
+    get title() { return t("preferences.sections.cloud_accounts") },
+    get summary() { return t("preferences.sections.cloud_accounts_summary") },
+    icon: appIcons.cloud,
+  },
+  {
     id: "mcp",
     get title() { return t("preferences.sections.mcp") },
     get summary() { return t("preferences.sections.mcp_summary") },

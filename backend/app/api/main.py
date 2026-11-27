@@ -8,6 +8,7 @@ from app.ai.routes import router as agent_router
 from app.connectors import changes as source_changes
 from app.connectors import health as connector_health
 from app.connectors import mail_arrivals
+from app.connectors.cloud_account_routes import router as cloud_accounts_router
 from app.connectors.declared_routes import router as declared_references_router
 from app.connectors.mail_routes import router as mail_router
 from app.connectors.paste.routes import router as paste_router
@@ -55,6 +56,7 @@ api_router.include_router(mail_router)
 api_router.include_router(paste_router)
 api_router.include_router(source_changes.router)
 api_router.include_router(ssh_keys_router)
+api_router.include_router(cloud_accounts_router)
 api_router.include_router(adapter_types_router)
 api_router.include_router(guide_router)
 api_router.include_router(services_router)

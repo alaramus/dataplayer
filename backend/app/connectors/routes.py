@@ -211,6 +211,7 @@ from app.adapters.update import (
 )
 from app.connectors import (
     action_downloads,
+    cloud_accounts,
     content_tickets,
     crud,
     declared,
@@ -254,7 +255,7 @@ from app.core.access import Access, at_least
 from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.problems import Problem, ProblemDetail
-from app.core.schemas import Message, get_datetime_utc
+from app.core.schemas import Message, get_datetime_utc, refusal_sentence
 from app.core.translation import current_language, say, say_if, say_schema
 from app.realtime.topics import TopicsDep
 from app.users import storage
@@ -378,7 +379,7 @@ def _split_or_422(
             detail=[
                 {
                     "loc": ["body", "options", *error["loc"]],
-                    "msg": error["msg"],
+                    "msg": refusal_sentence(error),
                     "type": error["type"],
                 }
                 for error in exc.errors()
@@ -614,6 +615,7 @@ async def create_connector(
             detail=[{"loc": ["body", "face"], "msg": "Unknown card", "type": "value_error"}],
         )
     config, secrets = _split_or_422(adapter_type, connector_in.options)
+    await cloud_accounts.check_references(session, current_user.id, adapter_type, config)
     connector = await crud.create(
         session,
         name=connector_in.name,
@@ -762,6 +764,9 @@ async def update_connector(
             adapter_type, connector_in.options, connector.secrets
         )
         connector.config, connector.secrets = _split_or_422(adapter_type, options)
+        await cloud_accounts.check_references(
+            session, connector.owner_id, adapter_type, connector.config
+        )
 
     connector.updated_at = get_datetime_utc()
     saved = await crud.save(session, connector=connector)
@@ -865,7 +870,7 @@ async def _draft_adapter(
             detail=[
                 {
                     "loc": ["body", "options", *error["loc"]],
-                    "msg": error["msg"],
+                    "msg": refusal_sentence(error),
                     "type": error["type"],
                 }
                 for error in exc.errors()

@@ -257,4 +257,14 @@ MESSAGES: dict[str, str] = {
     "{said}; the link began reading now, and gets what arrives from here on": "{said}; die Verknüpfung hat jetzt zu lesen begonnen und bekommt, was ab jetzt ankommt",
     "There is no such folder in your storage": "In Ihrem Speicher gibt es keinen solchen Ordner",
     "There is no such file in your storage: {path}": "In Ihrem Speicher gibt es keine solche Datei: {path}",
+    # Cloud accounts (D451).
+    "Account deleted": "Konto gelöscht",
+    "Choose how the account signs in": "Wählen Sie, wie sich das Konto anmeldet",
+    "Choose one of your cloud accounts": "Wählen Sie eines Ihrer Cloud-Konten",
+    "The cloud account this connection signs in with is gone; choose another": "Das Cloud-Konto, mit dem sich diese Verbindung anmeldet, gibt es nicht mehr; wählen Sie ein anderes",
+    "The cloud account {name} signs in as this server, which is no longer allowed": "Das Cloud-Konto {name} meldet sich als dieser Server an, was nicht mehr erlaubt ist",
+    "This cloud account signs in a way this server no longer knows": "Dieses Cloud-Konto meldet sich auf eine Weise an, die dieser Server nicht mehr kennt",
+    "This installation cannot sign in with accounts of {kind}": "Diese Installation kann sich nicht mit Konten von {kind} anmelden",
+    "{kind} did not answer for the account {name}; test it in Preferences": "{kind} hat für das Konto {name} nicht geantwortet; testen Sie es in den Einstellungen",
+    "{name} is not an account of {kind}": "{name} ist kein Konto von {kind}",
 }

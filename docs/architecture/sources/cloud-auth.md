@@ -1,10 +1,10 @@
 # Signing in to a connection: TLS, client certificates, issued secrets
 
 For changing how a server source encrypts its connection, which certificate it
-trusts or offers, and — as the later decisions land — how a password is issued
-by a cloud or fetched from a secret store.
+trusts or offers, a person's cloud accounts, and how a password is issued by a
+cloud or fetched from a secret store for every new connection.
 
-Decisions here: D446, D447, D448.
+Decisions here: D446, D447, D448, D449, D451, D452.
 
 ## D446. One TLS block, every server source
 
@@ -130,5 +130,107 @@ Known deviation:
 
 - **Only the substitution is tested, not a tunnel to a TLS server.** The test
   stand has no TLS server behind the SSH server.
+
+Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
+
+## D449. An issued secret, asked for at every new connection
+
+`app/adapters/cloud/` is driver-free. A source whose options name a cloud
+account asks `AdapterContext.cloud` (`CloudAccess.issue(account, kind,
+request)`) for an `IssuedSecret` — the value, when it expires, and a user name
+when the issuer decides it — each time it opens a physical connection, and
+keeps none.
+
+- What is asked is a frozen `SecretRequest` subclass of the provider's (a host,
+  a port, a user), so it is hashable.
+- A provider is a `CredentialIssuer` registered for a kind: synchronous, as
+  every cloud SDK is, and run in a thread by `connectors.cloud_accounts`. It
+  words its own refusals as `AdapterError`s naming what to check; anything else
+  it raises becomes "{kind} did not answer for the account {name}", with the
+  SDK's exception neither chained nor logged beyond its type name (D184).
+- `IssueCache` keeps what was issued in this process only, keyed by
+  (account id, account version, request): reused until a minute before it
+  expires, a secret that never expires by itself for five minutes, so a
+  password rotated in its store is read again; concurrent asks for one key
+  share one issue, a failure is never kept. Changing or deleting an account
+  drops what it issued.
+- `OwnerCloud` is always the owner's, built by `context_for` for every source —
+  requests, the health monitor, the metrics collector, the search-keeper, the
+  agent's tools, transfers, backups and pipelines all build their context
+  there. It reads an account at most every 30 seconds, as `OwnerKeys` reads a
+  key, and checks the account's kind and the ambient gate (D452) on every ask.
+
+Known deviations:
+
+- **No provider is installed yet.** The issuers arrive with their slices; until
+  then an account can be kept and named, its test answers 501 and the form
+  hides Test, and a connection naming it is refused at open with "This
+  installation cannot sign in with accounts of {kind}".
+- **Two contexts are built without it**: the source an SSH tunnel goes through
+  (`connectors/tunnels.py`) and the readiness probe of a service started here
+  (`services/readiness.py`). Neither signs in with a cloud account.
+
+Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
+
+## D451. Cloud accounts are the owner's, like SSH keys
+
+Table `cloudaccount` (revision `e4b7c2a9f1d3`): owner (cascade), name unique
+per owner, kind, method, the settings that may be shown as JSON, the secrets
+as JSON encrypted under the connector key, and a version bumped on every change
+of settings. Routes under `/cloud-accounts`: list (with the connections using
+each), `schema`, create, change, delete, test.
+
+- How an account signs in is declared like a connection's options
+  (`adapters/cloud/accounts.py`): one discriminated union per kind on `method`,
+  `SecretStr` marking what is encrypted (D4), so the connection form's
+  `SchemaFields` draws it. `aws_access_key` (with an optional session token)
+  and `aws_default_chain`, each with an optional role to assume (ARN, external
+  ID, session name, length); `gcp_service_account` (the key file, checked to be
+  a service account's) and `gcp_adc`, each with an optional service account to
+  act as; `azure_service_principal` and `azure_default` (an optional
+  user-assigned identity); `vault_token` and `vault_approle`, each with an
+  address, a namespace and an optional CA.
+- Secrets are write-only: the answer names which are stored, never their
+  values, and an edit keeps a secret left empty when the method stays the
+  same. An account keeps its kind (`cloud_accounts.kind_fixed`).
+- A connection's field says `x-ui-purpose: cloud-account` and
+  `x-ui-account-kind` (`cloud.account_field(kind)`). The account is checked to
+  be the owner's and of that kind when the connection is saved — a 422 on the
+  field — and again when it opens. A grantee's reads use the owner's account
+  without seeing it (D33).
+- An account a connection names is not deleted; the refusal names the
+  connections, read off the schemas and stored options as a key's uses are.
+- Preferences has a "Cloud accounts" section. The connection window's
+  Parameters page has a "New account" button beside the SSH keys' in every
+  connection, as keys do; where the form takes an account, it offers the
+  owner's accounts of the field's kind, and the new account is of that kind and
+  the field points at it.
+
+Known deviation:
+
+- **A connection handed to another owner keeps naming the old owner's
+  account**, and is refused at open as one naming an account that is gone.
+
+Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
+
+## D452. The server's own identity is not a user's to borrow
+
+`aws_default_chain`, `gcp_adc` and `azure_default` sign in as the machine
+running DataPlayer — its environment, instance or container role, mounted
+profile or managed identity. `CLOUD_AMBIENT_CREDENTIALS` (default `false`)
+offers them:
+
+- off, they are absent from the schema the form is built from and refused by
+  the API (`cloud_accounts.ambient_off`), and an account made while it was on
+  is refused when it opens;
+- on, they are offered only to a superuser (`cloud_accounts.ambient_superuser`),
+  and an account whose owner is no longer one is refused when it opens.
+
+An address an account names follows the rule every outbound address already
+follows: S3's endpoint and Vault's address go through one helper,
+`adapters/addresses.http_origin` — an http or https origin and nothing else,
+any host, a private one included, as a database's host or an SSH server may be.
+The agent's outside MCP servers are the one place that refuses private
+addresses (D360), because there the address is the agent's to follow.
 
 Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)

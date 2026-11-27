@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.schemas import refusal_sentence
 from app.search import connections
 from app.search.engine import SearchEngine
 from app.search.models import (
@@ -69,7 +70,7 @@ async def search_for_agent(
         request = SearchRequest(words=words, mode="search", context=asked)
     except ValidationError as invalid:
         # The model's own words would be quoted back in pydantic's text.
-        message = str(invalid.errors()[0]["msg"]).removeprefix("Value error, ")
+        message = refusal_sentence(invalid.errors()[0])
         raise ValueError(message) from None
     answer = await engine.prepare(session, user, request, audience="agent")
     ranks = {one.cell.key: one.cell.group.rank for one in answer.planned}

@@ -12,6 +12,8 @@ export const preferences: Messages["preferences"] = {
     connections_summary: "عدد مرات فحص الاتصالات أثناء فتح مساحة عمل",
     ssh_keys: "مفاتيح SSH",
     ssh_keys_summary: "المفاتيح التي يستخدمها هذا الحساب لاتصالات SSH",
+    cloud_accounts: "الحسابات السحابية",
+    cloud_accounts_summary: "من أين تحصل اتصالات هذا الحساب على كلمات المرور والرموز",
     tours: "الجولات",
     tours_summary: "جولة الترحيب وجولات قصيرة في كل جزء، متى شئت",
     mcp: "الوصول عبر MCP",

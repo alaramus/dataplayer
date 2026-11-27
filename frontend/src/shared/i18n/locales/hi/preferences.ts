@@ -11,6 +11,8 @@ export const preferences: Messages["preferences"] = {
     connections_summary: "वर्कस्पेस खुला रहने पर कनेक्शन कितनी बार जाँचे जाएँ",
     ssh_keys: "SSH कुंजियाँ",
     ssh_keys_summary: "यह खाता SSH कनेक्शनों के लिए जो कुंजियाँ उपयोग करता है",
+    cloud_accounts: "क्लाउड खाते",
+    cloud_accounts_summary: "इस खाते के कनेक्शन पासवर्ड और टोकन कहाँ से पाते हैं",
     tours: "टूर",
     tours_summary: "स्वागत टूर और हर भाग के छोटे टूर, जब चाहें",
     mcp: "MCP पहुँच",

@@ -292,6 +292,11 @@ class Settings(BaseSettings):
     # database or the containers beside the backend.
     MCP_CLIENT_ALLOW_PRIVATE: bool = False
 
+    # Whether a cloud account may sign in as this server itself — the default
+    # credential chain, Application Default Credentials, a managed identity
+    # (D452). Off, nobody can; on, only a superuser may make such an account.
+    CLOUD_AMBIENT_CREDENTIALS: bool = False
+
     # How long one answer of the agent may take before it is stopped (D137).
     AI_RUN_TIMEOUT_SECONDS: float = 900.0
     # The most one answer may write, whatever the model could produce: a

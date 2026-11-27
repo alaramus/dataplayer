@@ -133,6 +133,24 @@ def tunnel_reference_names(schema: OptionsSchema) -> set[str]:
     return _named_for(schema, TUNNEL_REFERENCE)
 
 
+# What a field holding the id of one of the owner's cloud accounts says it is
+# for (D451), and beside it the kind of account it takes.
+CLOUD_ACCOUNT_REFERENCE = "cloud-account"
+CLOUD_ACCOUNT_KIND = "x-ui-account-kind"
+
+
+def cloud_account_names(schema: OptionsSchema) -> dict[str, str]:
+    """Names of fields that name a cloud account, each with the kind it takes."""
+    return {
+        name: str(field.json_schema_extra[CLOUD_ACCOUNT_KIND])
+        for variant in variants(schema)
+        for name, field in variant.model_fields.items()
+        if isinstance(field.json_schema_extra, dict)
+        and field.json_schema_extra.get("x-ui-purpose") == CLOUD_ACCOUNT_REFERENCE
+        and CLOUD_ACCOUNT_KIND in field.json_schema_extra
+    }
+
+
 def _named_for(schema: OptionsSchema, purpose: str) -> set[str]:
     return {
         name

@@ -32,6 +32,7 @@ import { servers } from "./servers"
 import { services } from "./services"
 import { shares } from "./shares"
 import { shell } from "./shell"
+import { cloud_accounts } from "./cloud_accounts"
 import { ssh_keys } from "./ssh_keys"
 import { structure } from "./structure"
 import { summary } from "./summary"
@@ -42,4 +43,4 @@ import { workspace } from "./workspace"
 
 export { problems } from "./problems"
 
-export const messages: Messages = { common, language, auth, theme, preferences, workspace, layout, catalog, kit, grid, dashboards, ai, content, queries, connectors, servers, ssh_keys, table_design, hypertable_design, structure, pipelines, services, search, search_index, activity, notifications, shares, terminals, admin, logs, onboarding, charts, summary, relationships, declared, dictation, record, graph, windows, freshness, schema_form, shell, mail }
+export const messages: Messages = { common, language, auth, theme, preferences, workspace, layout, catalog, kit, grid, dashboards, ai, content, queries, connectors, servers, ssh_keys, cloud_accounts, table_design, hypertable_design, structure, pipelines, services, search, search_index, activity, notifications, shares, terminals, admin, logs, onboarding, charts, summary, relationships, declared, dictation, record, graph, windows, freshness, schema_form, shell, mail }

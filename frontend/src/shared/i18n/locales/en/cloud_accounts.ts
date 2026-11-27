@@ -1,0 +1,35 @@
+/** Cloud accounts that connections sign in with (features/cloudAccounts). */
+export const cloud_accounts = {
+  section: {
+    title: "Cloud accounts",
+    hint:
+      "Accounts your connections get passwords and tokens from: Amazon Web Services, Google Cloud, Microsoft Azure and HashiCorp Vault. A token is issued for every new connection and never stored. Secrets typed here are kept encrypted and never shown again.",
+    form_hint: "Accounts your connections get passwords and tokens from; one serves any connection. Its secrets are kept encrypted and never shown again.",
+    new_account: "New account",
+    empty: "No cloud accounts yet",
+    unused: "No connection uses it",
+    used_by: "Used by {names}",
+    ambient: "This server's identity",
+    test: "Test the account",
+    test_failed: "The account could not be tested",
+    edit: "Change the account",
+    delete_title: "Delete this account?",
+    delete_message: "{name} and its secrets will be gone from this server. The cloud keeps the credentials themselves.",
+    delete: "Delete",
+    delete_failed: "The account could not be deleted",
+    delete_used: "Point its connections at another account first",
+    delete_account: "Delete this account",
+  },
+  dialog: {
+    title_new: "New cloud account",
+    title_edit: "Change the cloud account",
+    subtitle: "Secrets are kept encrypted and never shown again",
+    name: "Name",
+    kind: "Cloud",
+    make: "Make",
+    save: "Save",
+    made: "Account made",
+    saved: "Account saved",
+    save_failed: "The account could not be saved",
+  },
+}

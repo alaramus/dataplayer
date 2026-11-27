@@ -144,6 +144,24 @@ import type {
   backupsRestoreData,
   backupsRestoreErrors,
   backupsRestoreResponses,
+  cloudAccountsCreateCloudAccountData,
+  cloudAccountsCreateCloudAccountErrors,
+  cloudAccountsCreateCloudAccountResponses,
+  cloudAccountsDeleteCloudAccountData,
+  cloudAccountsDeleteCloudAccountErrors,
+  cloudAccountsDeleteCloudAccountResponses,
+  cloudAccountsReadCloudAccountSchemaData,
+  cloudAccountsReadCloudAccountSchemaErrors,
+  cloudAccountsReadCloudAccountSchemaResponses,
+  cloudAccountsReadCloudAccountsData,
+  cloudAccountsReadCloudAccountsErrors,
+  cloudAccountsReadCloudAccountsResponses,
+  cloudAccountsTestCloudAccountData,
+  cloudAccountsTestCloudAccountErrors,
+  cloudAccountsTestCloudAccountResponses,
+  cloudAccountsUpdateCloudAccountData,
+  cloudAccountsUpdateCloudAccountErrors,
+  cloudAccountsUpdateCloudAccountResponses,
   connectorsActionFieldHintsData,
   connectorsActionFieldHintsErrors,
   connectorsActionFieldHintsResponses,
@@ -3900,6 +3918,147 @@ export class SshKeysService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ssh-keys/{key_id}/lock",
+      ...options,
+    })
+  }
+}
+
+export class CloudAccountsService {
+  /**
+   * Read Cloud Accounts
+   *
+   * Every account of this person, with the connections that use each.
+   */
+  public static accountsReadCloudAccounts<ThrowOnError extends boolean = true>(
+    options?: Options<cloudAccountsReadCloudAccountsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      cloudAccountsReadCloudAccountsResponses,
+      cloudAccountsReadCloudAccountsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/cloud-accounts/",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Cloud Account
+   *
+   * Keep an account. Its secrets are never sent back.
+   */
+  public static accountsCreateCloudAccount<ThrowOnError extends boolean = true>(
+    options: Options<cloudAccountsCreateCloudAccountData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      cloudAccountsCreateCloudAccountResponses,
+      cloudAccountsCreateCloudAccountErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/cloud-accounts/",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Cloud Account Schema
+   *
+   * The kinds of account and the ways each signs in that this person may choose.
+   *
+   * A way that signs in as this server is absent unless the installation
+   * offers it and the person is a superuser (D452).
+   */
+  public static accountsReadCloudAccountSchema<ThrowOnError extends boolean = true>(
+    options?: Options<cloudAccountsReadCloudAccountSchemaData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      cloudAccountsReadCloudAccountSchemaResponses,
+      cloudAccountsReadCloudAccountSchemaErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/cloud-accounts/schema",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete Cloud Account
+   *
+   * Delete an account no connection uses.
+   *
+   * Refused while one does, and the answer names them.
+   */
+  public static accountsDeleteCloudAccount<ThrowOnError extends boolean = true>(
+    options: Options<cloudAccountsDeleteCloudAccountData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      cloudAccountsDeleteCloudAccountResponses,
+      cloudAccountsDeleteCloudAccountErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/cloud-accounts/{account_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Update Cloud Account
+   *
+   * Rename an account or change how it signs in; it keeps its kind.
+   *
+   * Every change makes a new version, so nothing issued under the old settings
+   * is handed out again.
+   */
+  public static accountsUpdateCloudAccount<ThrowOnError extends boolean = true>(
+    options: Options<cloudAccountsUpdateCloudAccountData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      cloudAccountsUpdateCloudAccountResponses,
+      cloudAccountsUpdateCloudAccountErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/cloud-accounts/{account_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Test Cloud Account
+   *
+   * Make the cheapest harmless call the account allows, and say what it found.
+   *
+   * A refusal is an answer here rather than an error: the account exists and
+   * the test ran.
+   */
+  public static accountsTestCloudAccount<ThrowOnError extends boolean = true>(
+    options: Options<cloudAccountsTestCloudAccountData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      cloudAccountsTestCloudAccountResponses,
+      cloudAccountsTestCloudAccountErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/cloud-accounts/{account_id}/test",
       ...options,
     })
   }

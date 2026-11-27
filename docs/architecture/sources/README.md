@@ -9,7 +9,7 @@ file holds which decision.
 | [adding-a-source.md](adding-a-source.md) | build a new source type: which adapter to copy, the six slices, every shared place it touches, and the checks |
 | [catalog.md](catalog.md) | change what a catalog shows of a node, how it is searched, or a key space |
 | [connecting.md](connecting.md) | change how a connection is described, composed or parsed, or anything pooled or cached between requests |
-| [cloud-auth.md](cloud-auth.md) | change how a server source encrypts its connection, which certificate it trusts or offers, or where its key files live |
+| [cloud-auth.md](cloud-auth.md) | change how a server source encrypts its connection, which certificate it trusts or offers, or where its key files live; keep a cloud account or issue a password from one |
 | [timescale.md](timescale.md) | implement the designed Timescale feature package, runtime discovery and extension-aware operation restrictions |
 | [operations.md](operations.md) | add a source action too long for one request, or change how its targets are planned and recorded |
 | [relations.md](relations.md) | read a relation or change the rows in it |
