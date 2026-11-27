@@ -11,7 +11,7 @@ import { saveBrowserDownload } from "@/shared/download"
  */
 
 export async function copySource(source: string): Promise<void> {
-  await copyText(source)
+  await copyText(source, { from: "code" })
 }
 
 export function saveSvg(svg: string, filename: string): void {

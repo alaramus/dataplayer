@@ -28,7 +28,7 @@ const number = computed(() => {
 
 async function copy(text: string) {
   try {
-    await copyText(text)
+    await copyText(text, { from: "view" })
     toast.success(t("content.view.copied"))
   } catch {
     toast.error(t("content.view.copy_failed"))

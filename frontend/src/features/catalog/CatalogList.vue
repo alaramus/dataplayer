@@ -95,7 +95,7 @@ function copyTooltip(node: ListNode): string {
 async function copyName(node: ListNode) {
   const text = copiedText(node)
   try {
-    await copyText(text)
+    await copyText(text, { from: "catalog" })
     toast.success(t("catalog.list.copied", { name: text }))
   } catch {
     toast.error(t("catalog.list.copy_refused"))

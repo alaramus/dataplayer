@@ -137,7 +137,7 @@ async function invite(user: UserPublic) {
 
 async function copyInvitation() {
   if (invitation.value === null) return
-  await copyText(invitation.value.link.url)
+  await copyText(invitation.value.link.url, { secret: true })
   toast.success(t("admin.users.link_copied"))
 }
 

@@ -3933,6 +3933,118 @@ export type CopiedRow = {
 }
 
 /**
+ * CopiesDelete
+ */
+export type CopiesDelete = {
+  /**
+   * Ids
+   */
+  ids: Array<string>
+}
+
+/**
+ * CopiesDeleted
+ */
+export type CopiesDeleted = {
+  /**
+   * Deleted
+   */
+  deleted: number
+}
+
+/**
+ * CopiesPublic
+ */
+export type CopiesPublic = {
+  /**
+   * Items
+   */
+  items: Array<CopyBrief>
+  /**
+   * Total
+   */
+  total: number
+}
+
+/**
+ * CopyBrief
+ *
+ * One copy as the list shows it: the start of its text.
+ */
+export type CopyBrief = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Preview
+   */
+  preview: string
+  /**
+   * Length
+   */
+  length: number
+  /**
+   * Cut
+   */
+  cut: boolean
+  /**
+   * Source
+   */
+  source:
+    | "grid"
+    | "agent"
+    | "catalog"
+    | "code"
+    | "connection"
+    | "document"
+    | "view"
+    | "link"
+    | "log"
+    | "record"
+    | "key"
+    | "other"
+  /**
+   * Detail
+   */
+  detail: string | null
+  /**
+   * Copied At
+   */
+  copied_at: string
+}
+
+/**
+ * CopyCreate
+ */
+export type CopyCreate = {
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Source
+   */
+  source:
+    | "grid"
+    | "agent"
+    | "catalog"
+    | "code"
+    | "connection"
+    | "document"
+    | "view"
+    | "link"
+    | "log"
+    | "record"
+    | "key"
+    | "other"
+  /**
+   * Detail
+   */
+  detail?: string | null
+}
+
+/**
  * CopyLoad
  *
  * The rows of one table: which columns are read at one end and written at
@@ -3973,6 +4085,56 @@ export type CopyProblem = {
    * Kind
    */
   kind?: "invalid" | "conflict"
+}
+
+/**
+ * CopyPublic
+ */
+export type CopyPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Preview
+   */
+  preview: string
+  /**
+   * Length
+   */
+  length: number
+  /**
+   * Cut
+   */
+  cut: boolean
+  /**
+   * Source
+   */
+  source:
+    | "grid"
+    | "agent"
+    | "catalog"
+    | "code"
+    | "connection"
+    | "document"
+    | "view"
+    | "link"
+    | "log"
+    | "record"
+    | "key"
+    | "other"
+  /**
+   * Detail
+   */
+  detail: string | null
+  /**
+   * Copied At
+   */
+  copied_at: string
+  /**
+   * Text
+   */
+  text: string
 }
 
 /**
@@ -11958,6 +12120,7 @@ export type ProblemDetail = {
     | "users.wrong_password"
     | "users.same_password"
     | "users.superuser_cannot_delete_self"
+    | "copies.not_found"
     | "connectors.not_found"
     | "connectors.disabled"
     | "connectors.tunnel_in_use"
@@ -18991,6 +19154,142 @@ export type usersUpdateUserResponses = {
 }
 
 export type usersUpdateUserResponse = usersUpdateUserResponses[keyof usersUpdateUserResponses]
+
+export type copiesClearCopiesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/copies/"
+}
+
+export type copiesClearCopiesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type copiesClearCopiesError = copiesClearCopiesErrors[keyof copiesClearCopiesErrors]
+
+export type copiesClearCopiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: CopiesDeleted
+}
+
+export type copiesClearCopiesResponse = copiesClearCopiesResponses[keyof copiesClearCopiesResponses]
+
+export type copiesReadCopiesData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Q
+     */
+    q?: string | null
+  }
+  url: "/api/v1/copies/"
+}
+
+export type copiesReadCopiesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type copiesReadCopiesError = copiesReadCopiesErrors[keyof copiesReadCopiesErrors]
+
+export type copiesReadCopiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: CopiesPublic
+}
+
+export type copiesReadCopiesResponse = copiesReadCopiesResponses[keyof copiesReadCopiesResponses]
+
+export type copiesRecordCopyData = {
+  body: CopyCreate
+  path?: never
+  query?: never
+  url: "/api/v1/copies/"
+}
+
+export type copiesRecordCopyErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type copiesRecordCopyError = copiesRecordCopyErrors[keyof copiesRecordCopyErrors]
+
+export type copiesRecordCopyResponses = {
+  /**
+   * Successful Response
+   */
+  200: CopyBrief
+}
+
+export type copiesRecordCopyResponse = copiesRecordCopyResponses[keyof copiesRecordCopyResponses]
+
+export type copiesReadCopyData = {
+  body?: never
+  path: {
+    /**
+     * Copy Id
+     */
+    copy_id: string
+  }
+  query?: never
+  url: "/api/v1/copies/{copy_id}"
+}
+
+export type copiesReadCopyErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type copiesReadCopyError = copiesReadCopyErrors[keyof copiesReadCopyErrors]
+
+export type copiesReadCopyResponses = {
+  /**
+   * Successful Response
+   */
+  200: CopyPublic
+}
+
+export type copiesReadCopyResponse = copiesReadCopyResponses[keyof copiesReadCopyResponses]
+
+export type copiesDeleteCopiesData = {
+  body: CopiesDelete
+  path?: never
+  query?: never
+  url: "/api/v1/copies/delete"
+}
+
+export type copiesDeleteCopiesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type copiesDeleteCopiesError = copiesDeleteCopiesErrors[keyof copiesDeleteCopiesErrors]
+
+export type copiesDeleteCopiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: CopiesDeleted
+}
+
+export type copiesDeleteCopiesResponse =
+  copiesDeleteCopiesResponses[keyof copiesDeleteCopiesResponses]
 
 export type utilsTestEmailData = {
   body?: never

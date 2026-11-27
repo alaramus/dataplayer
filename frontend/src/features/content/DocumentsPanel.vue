@@ -228,7 +228,7 @@ async function remove(item: DocumentItem) {
 
 async function copy(item: DocumentItem) {
   try {
-    await copyText(item.text)
+    await copyText(item.text, { from: "document" })
     toast.success(t("content.documents.copied"))
   } catch (cause) {
     toast.error(messageOf(cause, t("content.documents.could_not_copy")))

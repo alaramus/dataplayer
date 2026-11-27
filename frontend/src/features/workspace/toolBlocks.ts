@@ -1,6 +1,7 @@
 import type { Component } from "vue"
 
 import QuickChatCommand from "@/features/ai/QuickChatCommand.vue"
+import CopiesCommand from "@/features/copies/CopiesCommand.vue"
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
 import LogsCommand from "@/features/logs/LogsCommand.vue"
 import QueriesCommand from "@/features/queries/QueriesCommand.vue"
@@ -88,5 +89,12 @@ export const TOOL_BLOCKS: readonly ToolBlock[] = [
     beside: "groups-save",
     component: TabGroupList,
     props: (rail) => ({ groups: rail.groups, side: rail.side }),
+  },
+  {
+    id: "copies",
+    home: "right-top",
+    beside: "groups-list",
+    component: CopiesCommand,
+    props: () => ({ iconOnly: true }),
   },
 ]

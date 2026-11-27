@@ -10,6 +10,7 @@ export const problems: Record<ProblemCode, string> = {
   "auth.no_user_with_email": "Es gibt keinen Benutzer mit dieser E-Mail-Adresse",
   "users.email_taken": "Es gibt bereits einen Benutzer mit dieser E-Mail-Adresse",
   "users.not_found": "Benutzer nicht gefunden",
+  "copies.not_found": "Keine solche Kopie",
   "users.wrong_password": "Falsches Passwort",
   "users.same_password": "Das neue Passwort muss sich vom aktuellen unterscheiden",
   "users.superuser_cannot_delete_self": "Ein Superuser kann sich nicht selbst löschen",

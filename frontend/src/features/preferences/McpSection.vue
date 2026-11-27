@@ -50,7 +50,7 @@ function dates(token: McpTokenPublic): string {
 }
 
 async function copyAddress() {
-  await copyText(address.value)
+  await copyText(address.value, { from: "link" })
   toast.success(t("preferences.mcp.dialog.copied"))
 }
 

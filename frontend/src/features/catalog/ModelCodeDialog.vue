@@ -101,7 +101,7 @@ watch(
 )
 
 async function copy() {
-  await copyText(text.value)
+  await copyText(text.value, { from: "code" })
   toast.success(t("catalog.model_code.copied", { name: filename.value }))
 }
 

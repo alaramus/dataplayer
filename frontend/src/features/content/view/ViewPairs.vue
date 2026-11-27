@@ -43,7 +43,7 @@ async function copy(index: number) {
   const pair = props.block.pairs[index]
   if (pair === undefined || hidden(index)) return
   try {
-    await copyText(pair.value)
+    await copyText(pair.value, pair.sensitive === true ? { secret: true } : { from: "view" })
     toast.success(t("content.view.copied"))
   } catch {
     toast.error(t("content.view.copy_failed"))

@@ -57,6 +57,7 @@ import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
 import PipelinesSpace from "@/features/pipelines/PipelinesSpace.vue"
 import WorkspaceBottomPanel from "@/features/workspace/WorkspaceBottomPanel.vue"
 import SearchIndexDialog from "@/features/searchIndex/SearchIndexDialog.vue"
+import CopiesWindow from "@/features/copies/CopiesWindow.vue"
 import WorkspaceToolRail from "@/features/workspace/WorkspaceToolRail.vue"
 import PairWaiting from "@/features/workspace/PairWaiting.vue"
 import PairWindows from "@/features/workspace/PairWindows.vue"
@@ -1432,6 +1433,7 @@ onBeforeUnmount(unregisterSearch)
              screen stays where it is while the spaces change above it (D143). -->
         <WorkspaceBottomPanel />
         <SearchIndexDialog />
+        <CopiesWindow />
       </div>
       <div class="workspace-shell__side">
         <WorkspaceToolRail

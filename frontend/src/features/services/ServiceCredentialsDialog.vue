@@ -116,7 +116,7 @@ const url = computed(() => answer.value?.url ?? null)
 const toast = useToast()
 
 async function copy(what: string, said: string) {
-  await copyText(what)
+  await copyText(what, { secret: true })
   toast.success(said)
 }
 </script>

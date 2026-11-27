@@ -10,6 +10,7 @@ export const problems: Record<ProblemCode, string> = {
   "auth.no_user_with_email": "没有使用此电子邮件地址的用户",
   "users.email_taken": "使用此电子邮件地址的用户已存在",
   "users.not_found": "找不到用户",
+  "copies.not_found": "没有这条复制记录",
   "users.wrong_password": "密码不正确",
   "users.same_password": "新密码必须与当前密码不同",
   "users.superuser_cannot_delete_self": "超级用户不能删除自己",

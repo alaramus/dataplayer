@@ -10,6 +10,7 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "auth.no_user_with_email": "لا يوجد في النظام مستخدم بهذا البريد الإلكتروني",
   "users.email_taken": "يوجد مستخدم بهذا البريد الإلكتروني بالفعل",
   "users.not_found": "لم يتم العثور على المستخدم",
+  "copies.not_found": "لا توجد نسخة كهذه",
   "users.wrong_password": "كلمة المرور غير صحيحة",
   "users.same_password": "لا يمكن أن تكون كلمة المرور الجديدة مطابقة للحالية",
   "users.superuser_cannot_delete_self": "لا يمكن للمستخدم الفائق حذف نفسه",

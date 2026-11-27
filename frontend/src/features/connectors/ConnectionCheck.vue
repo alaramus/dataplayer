@@ -51,7 +51,7 @@ const facts = computed(() => sourceFacts(props.result?.features, props.sourceTit
 
 async function copy() {
   const said = facts.value.map((fact) => `${fact.label}: ${fact.value}`)
-  await copyText([heading.value, ...lines.value, ...said].join("\n"))
+  await copyText([heading.value, ...lines.value, ...said].join("\n"), { from: "connection" })
   toast.success(t("connectors.check.copied"))
 }
 </script>

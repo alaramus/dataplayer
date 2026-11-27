@@ -171,7 +171,7 @@ function openersOf(openers: { email: string; opens: number }[]): string {
 
 async function copyLink() {
   try {
-    await copyText(link.value)
+    await copyText(link.value, { from: "link" })
     toast.success(t("shares.dialog.link_copied"))
   } catch {
     toast.error(t("shares.dialog.copy_refused"))

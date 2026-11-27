@@ -80,7 +80,7 @@ function toggle(entry: LogEntry) {
 
 async function copy(entry: LogEntry) {
   try {
-    await copyText(textOf(entry))
+    await copyText(textOf(entry), { from: "log" })
     toast.info(t("logs.copied"))
   } catch {
     toast.error(t("logs.copy_refused"))

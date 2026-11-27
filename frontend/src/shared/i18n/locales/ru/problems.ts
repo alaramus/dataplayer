@@ -10,6 +10,7 @@ export const problems: Record<ProblemCode, string> = {
   "auth.no_user_with_email": "Пользователя с таким адресом эл. почты нет",
   "users.email_taken": "Пользователь с таким адресом эл. почты уже есть",
   "users.not_found": "Пользователь не найден",
+  "copies.not_found": "Такой копии нет",
   "users.wrong_password": "Неверный пароль",
   "users.same_password": "Новый пароль должен отличаться от текущего",
   "users.superuser_cannot_delete_self": "Суперпользователь не может удалить сам себя",

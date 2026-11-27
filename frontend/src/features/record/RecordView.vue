@@ -175,7 +175,7 @@ function step(by: 1 | -1) {
 }
 
 async function copy(line: Line) {
-  await copyText(line.value ?? "")
+  await copyText(line.value ?? "", { from: "record" })
   toast.success(t("record.copied", { name: line.name }))
 }
 

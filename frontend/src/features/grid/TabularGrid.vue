@@ -687,7 +687,7 @@ async function copySelection() {
   )
   if (matrix.length === 0) return
   try {
-    await copyText(toTsv(matrix))
+    await copyText(toTsv(matrix), { from: "grid" })
   } catch {
     toast.error(t("grid.copy_failed"))
   }

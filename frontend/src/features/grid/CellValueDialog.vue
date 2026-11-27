@@ -16,7 +16,7 @@ const toast = useToast()
 
 async function copyValue() {
   try {
-    await copyText(props.value)
+    await copyText(props.value, { from: "grid", detail: props.columnName })
   } catch {
     toast.error(t("grid.cell_viewer.copy_failed"))
   }

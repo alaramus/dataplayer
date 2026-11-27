@@ -696,7 +696,7 @@ async function remove() {
 }
 
 async function copyUrl() {
-  await copyText(urlText.value)
+  await copyText(urlText.value, { secret: true })
   toast.success(t("connectors.window.url_copied"))
 }
 

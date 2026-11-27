@@ -545,7 +545,7 @@ const describesNodes = computed(
  */
 async function copyPath() {
   try {
-    await copyText(levelPath(level.currentId.value))
+    await copyText(levelPath(level.currentId.value), { from: "catalog" })
     toast.success(t("workspace.catalog.path_copied"))
   } catch {
     toast.error(t("workspace.catalog.path_copy_refused"))

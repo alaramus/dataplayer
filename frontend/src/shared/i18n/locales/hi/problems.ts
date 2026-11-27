@@ -10,6 +10,7 @@ export const problems: Record<ProblemCode, string> = {
   "auth.no_user_with_email": "इस ईमेल पते वाला कोई उपयोगकर्ता नहीं है",
   "users.email_taken": "इस ईमेल पते वाला उपयोगकर्ता पहले से मौजूद है",
   "users.not_found": "उपयोगकर्ता नहीं मिला",
+  "copies.not_found": "ऐसी कोई कॉपी नहीं है",
   "users.wrong_password": "पासवर्ड गलत है",
   "users.same_password": "नया पासवर्ड वर्तमान पासवर्ड से अलग होना चाहिए",
   "users.superuser_cannot_delete_self": "सुपरयूज़र स्वयं को हटा नहीं सकता",

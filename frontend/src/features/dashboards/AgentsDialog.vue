@@ -242,7 +242,8 @@ async function remove(agent: AgentPublic) {
 
 async function copy(text: string, what: string) {
   try {
-    await copyText(text)
+    // The key, and the compose file that carries it.
+    await copyText(text, { secret: true })
     toast.success(t("dashboards.agents.copied", { what }))
   } catch {
     toast.error(t("dashboards.agents.copy_failed", { what }))

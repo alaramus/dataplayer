@@ -1,14 +1,34 @@
+import type { CopyCreate } from "@/client"
+
 /**
- * The single browser boundary for text copied by the application.
- *
- * Copy history will attach here later, so screens must not write to the
- * browser clipboard directly.
+ * Where a copy came from, or that it is a secret (D460). Required, so every
+ * copy button decides: a secret is never kept in the copy history, and
+ * anything else names the place it was copied from.
  */
-export async function copyText(text: string): Promise<void> {
+export type CopyOrigin =
+  | { from: CopyCreate["source"]; detail?: string | null }
+  | { secret: true }
+
+export type CopyListener = (text: string, origin: Exclude<CopyOrigin, { secret: true }>) => void
+
+let listener: CopyListener | null = null
+
+/**
+ * Who hears of a copy that is not a secret: the copy history, installed once
+ * at start-up. A setter rather than an import of the feature, so this module
+ * stays below every screen that copies.
+ */
+export function onCopied(next: CopyListener | null): void {
+  listener = next
+}
+
+/** The single browser boundary for text copied by the application. */
+export async function copyText(text: string, origin: CopyOrigin): Promise<void> {
   // `navigator.clipboard` exists only in a secure context; a page served over
   // plain HTTP to another machine copies through a selection instead.
-  if (navigator.clipboard) return navigator.clipboard.writeText(text)
-  copyThroughSelection(text)
+  if (navigator.clipboard) await navigator.clipboard.writeText(text)
+  else copyThroughSelection(text)
+  if (listener !== null && !("secret" in origin) && text !== "") listener(text, origin)
 }
 
 /**

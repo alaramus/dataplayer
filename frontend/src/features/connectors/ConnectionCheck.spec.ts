@@ -23,7 +23,7 @@ describe("connection check result", () => {
     expect(wrapper.text()).toContain("Key locked")
     expect(wrapper.text()).toContain("Unlock the key")
     await wrapper.get('[data-testid="copy-check-result"]').trigger("click")
-    expect(copyText).toHaveBeenCalledWith("Failed\nKey locked\nUnlock the SSH key to continue\nPing: 0 ms")
+    expect(copyText).toHaveBeenCalledWith("Failed\nKey locked\nUnlock the SSH key to continue\nPing: 0 ms", { from: "connection" })
     await wrapper.setProps({ result: null })
     expect(wrapper.find('[data-testid="check-result"]').exists()).toBe(false)
   })

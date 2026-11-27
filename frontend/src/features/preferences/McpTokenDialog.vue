@@ -93,7 +93,7 @@ async function save() {
 }
 
 async function copy(text: string) {
-  await copyText(text)
+  await copyText(text, { secret: true })
   toast.success(t("preferences.mcp.dialog.copied"))
 }
 </script>

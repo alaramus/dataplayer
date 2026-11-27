@@ -64,7 +64,7 @@ const candidates = computed(() =>
 
 async function copyLink() {
   try {
-    await copyText(link.value)
+    await copyText(link.value, { from: "link" })
     toast.success(t("dashboards.share.link_copied"))
   } catch {
     toast.error(t("dashboards.share.link_copy_refused"))

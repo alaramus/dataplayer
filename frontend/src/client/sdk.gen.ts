@@ -390,6 +390,21 @@ import type {
   connectorsWriteGrantData,
   connectorsWriteGrantErrors,
   connectorsWriteGrantResponses,
+  copiesClearCopiesData,
+  copiesClearCopiesErrors,
+  copiesClearCopiesResponses,
+  copiesDeleteCopiesData,
+  copiesDeleteCopiesErrors,
+  copiesDeleteCopiesResponses,
+  copiesReadCopiesData,
+  copiesReadCopiesErrors,
+  copiesReadCopiesResponses,
+  copiesReadCopyData,
+  copiesReadCopyErrors,
+  copiesReadCopyResponses,
+  copiesRecordCopyData,
+  copiesRecordCopyErrors,
+  copiesRecordCopyResponses,
   declaredReferencesDeclareReferenceData,
   declaredReferencesDeclareReferenceErrors,
   declaredReferencesDeclareReferenceResponses,
@@ -1374,6 +1389,117 @@ export class UsersService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/users/{user_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+}
+
+export class CopiesService {
+  /**
+   * Clear Copies
+   *
+   * Delete every copy this person has.
+   */
+  public static clearCopies<ThrowOnError extends boolean = true>(
+    options?: Options<copiesClearCopiesData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).delete<
+      copiesClearCopiesResponses,
+      copiesClearCopiesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/copies/",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Copies
+   *
+   * This person's copies, newest first, the ones holding `q` when it is given.
+   */
+  public static readCopies<ThrowOnError extends boolean = true>(
+    options?: Options<copiesReadCopiesData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      copiesReadCopiesResponses,
+      copiesReadCopiesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/copies/",
+      ...options,
+    })
+  }
+
+  /**
+   * Record Copy
+   *
+   * Keep what was just copied on top of the list.
+   */
+  public static recordCopy<ThrowOnError extends boolean = true>(
+    options: Options<copiesRecordCopyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      copiesRecordCopyResponses,
+      copiesRecordCopyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/copies/",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Copy
+   *
+   * One copy with its whole text, to be copied again.
+   */
+  public static readCopy<ThrowOnError extends boolean = true>(
+    options: Options<copiesReadCopyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      copiesReadCopyResponses,
+      copiesReadCopyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/copies/{copy_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete Copies
+   *
+   * Delete the copies named. A POST, because a DELETE with a body is one
+   * proxies and clients are free to drop.
+   */
+  public static deleteCopies<ThrowOnError extends boolean = true>(
+    options: Options<copiesDeleteCopiesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      copiesDeleteCopiesResponses,
+      copiesDeleteCopiesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/copies/delete",
       ...options,
       headers: {
         "Content-Type": "application/json",

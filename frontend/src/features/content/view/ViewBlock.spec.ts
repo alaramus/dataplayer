@@ -108,7 +108,7 @@ describe("the values of a view (D420)", () => {
   it("copies code with its button", async () => {
     const wrapper = field({ kind: "code", text: "4f1c2a9d" })
     await wrapper.get("button").trigger("click")
-    expect(copyText).toHaveBeenCalledWith("4f1c2a9d")
+    expect(copyText).toHaveBeenCalledWith("4f1c2a9d", { from: "view" })
   })
 })
 
@@ -140,6 +140,17 @@ describe("pairs, and a value hidden until asked for (D421)", () => {
     expect(copy.attributes("disabled")).toBeDefined()
     await copy.trigger("click")
     expect(copyText).not.toHaveBeenCalled()
+  })
+
+  it("copies a shown sensitive value as a secret, kept out of the copy history (D460)", async () => {
+    vi.mocked(copyText).mockClear()
+    const wrapper = draw(pairs)
+    await wrapper.get('[data-testid="view-pair-reveal"]').trigger("click")
+    const rows = wrapper.findAll('[data-testid="view-pair"]')
+    await rows[0]!.findAll("button").at(-1)!.trigger("click")
+    await rows[1]!.findAll("button").at(-1)!.trigger("click")
+    expect(copyText).toHaveBeenNthCalledWith(1, "hunter2", { secret: true })
+    expect(copyText).toHaveBeenNthCalledWith(2, "info", { from: "view" })
   })
 
   it("offers a filter only past twenty pairs", () => {

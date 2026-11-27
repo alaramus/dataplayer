@@ -57,7 +57,7 @@ function usedBy(key: SshKeyPublic): string {
 }
 
 async function copyPublic(key: SshKeyPublic) {
-  await copyText(key.public_key)
+  await copyText(key.public_key, { from: "key", detail: key.name })
   toast.success(t("ssh_keys.section.public_copied"))
 }
 

@@ -17,7 +17,7 @@ const toast = useToast()
 async function copy() {
   const user = props.role === "user"
   try {
-    await copyText(props.text)
+    await copyText(props.text, { from: "agent" })
     toast.success(user ? t("ai.message.message_copied") : t("ai.message.answer_copied"))
   } catch {
     toast.error(user ? t("ai.message.message_copy_failed") : t("ai.message.answer_copy_failed"))
