@@ -32,6 +32,8 @@ La page **Connexion** de la fenêtre demande :
   connectez ;
 - **Base de données**, **Utilisateur** et **Mot de passe**.
 
+En plus d’un mot de passe, la connexion peut se faire avec **AWS IAM (RDS)**, **Google Cloud IAM (Cloud SQL)** ou **Microsoft Entra (Azure)** : l’un de vos [comptes cloud](cloud-accounts.md) émet un jeton pour chaque nouvelle connexion. **Coffre de secrets** lit le mot de passe dans AWS, Google, Azure ou Vault, et **Identifiants dynamiques Vault** fait créer par Vault un utilisateur pour elle. Un serveur qui vérifie les mots de passe par LDAP, PAM ou RADIUS n’a besoin de rien d’autre : pour DataPlayer, c’est un mot de passe.
+
 Une chaîne de connexion telle que `postgresql://ann@db.example.com:5432/sales`
 collée dans **URL** remplit ces champs. Un mot de passe présent dans la chaîne
 collée va dans le champ du mot de passe et quitte la chaîne.
@@ -262,12 +264,7 @@ connexion ; la carte ne fait que la nommer et dessiner son logo.
 - **TimescaleDB**, **Citus** et **ParadeDB** sont PostgreSQL avec une
   extension. Leurs cartes proposent de démarrer ce serveur ici, et
   l'extension est trouvée dans la base une fois ouverte.
-- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (Aurora aussi),
-  **Azure Database for PostgreSQL** et **Cloud SQL for PostgreSQL** sont du
-  PostgreSQL hébergé. Leurs cartes remplissent ce que le fournisseur nomme
-  toujours de même et disent où trouver l'hôte et le mot de passe.
-  Connexion par mot de passe ; IAM et Microsoft Entra ne sont pas encore
-  pris en charge.
+- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (Aurora aussi), **Azure Database for PostgreSQL** et **Cloud SQL for PostgreSQL** sont du PostgreSQL hébergé. Leurs cartes remplissent ce que le fournisseur nomme toujours de la même façon et disent où trouver l’hôte. La connexion se fait par mot de passe, ou par l’IAM du fournisseur ou Microsoft Entra via l’un de vos comptes cloud.
 
 ## Limites
 

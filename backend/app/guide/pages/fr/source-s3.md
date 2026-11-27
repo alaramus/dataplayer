@@ -38,6 +38,8 @@ La page **Connexion** de la fenêtre demande :
 - **Vérifier le certificat** : à désactiver seulement pour un stockage dont vous
   avez fait le certificat vous-même.
 
+**Compte AWS** se connecte avec l’un de vos [comptes cloud](cloud-accounts.md) au lieu d’une clé : un jeton de session, un rôle endossé ou les identifiants de ce serveur appartiennent au compte.
+
 **URL** montre où est le stockage : son point d'accès, ou l'adresse
 d'Amazon S3 dans la région. Une adresse collée là remplit le point d'accès, et
 une URL Amazon S3 aussi la région ; `s3://reports/2026` remplit le bucket et le

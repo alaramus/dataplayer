@@ -30,6 +30,8 @@
   تتصل منه؛
 - **قاعدة البيانات**، و**المستخدم**، و**كلمة المرور**.
 
+إلى جانب كلمة المرور، يسجّل الدخول عبر **AWS IAM (RDS)** أو **Google Cloud IAM (Cloud SQL)** أو **Microsoft Entra (Azure)**: يُصدر أحد [حساباتك السحابية](cloud-accounts.md) رمزًا لكل اتصال جديد. يقرأ **مخزن الأسرار** كلمة المرور من AWS أو Google أو Azure أو Vault، وتجعل **بيانات اعتماد Vault الديناميكية** خدمة Vault تُنشئ له مستخدمًا. الخادم الذي يتحقق من كلمات المرور عبر LDAP أو PAM أو RADIUS لا يحتاج شيئًا آخر: فهي في نظر DataPlayer كلمة مرور.
+
 سلسلة اتصال مثل `postgresql://ann@db.example.com:5432/sales` تُلصق في **URL**
 فتملأ هذه الحقول. وكلمة المرور في السلسلة الملصقة تذهب إلى حقل كلمة المرور
 وتغادر السلسلة.
@@ -218,7 +220,7 @@ Django أو مستند DBML وينزّله.
 يعرض الكتالوج PostgreSQL في عدة بطاقات. كل بطاقة تنشئ الاتصال نفسه؛ البطاقة تحدد اسمه وشعاره فقط.
 
 - **TimescaleDB** و**Citus** و**ParadeDB** هي PostgreSQL مع امتداد. تعرض بطاقاتها تشغيل ذلك الخادم هنا، ويُعثر على الامتداد في قاعدة البيانات عند فتحها.
-- **Supabase** و**Neon** و**Amazon RDS for PostgreSQL** (وAurora أيضًا) و**Azure Database for PostgreSQL** و**Cloud SQL for PostgreSQL** هي PostgreSQL مُستضاف. تملأ بطاقاتها ما يسميه المزوّد دائمًا بالاسم نفسه وتوضح أين يوجد المضيف وكلمة المرور. يتم الدخول بكلمة مرور؛ تسجيل الدخول عبر IAM وMicrosoft Entra غير مدعوم بعد.
+- **Supabase** و**Neon** و**Amazon RDS for PostgreSQL** (وAurora أيضًا) و**Azure Database for PostgreSQL** و**Cloud SQL for PostgreSQL** هي PostgreSQL مستضاف. تملأ بطاقاتها ما يسمّيه المزوّد دائمًا بالاسم نفسه وتذكر أين يوجد المضيف. تسجّل الدخول بكلمة مرور، أو عبر IAM لدى المزوّد أو Microsoft Entra من خلال أحد حساباتك السحابية.
 
 ## الحدود
 

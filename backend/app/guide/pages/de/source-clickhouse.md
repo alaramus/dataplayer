@@ -36,11 +36,12 @@ Die Seite **Verbindung** des Fensters fragt nach:
 
 - **Host** und **Port** der HTTP-Schnittstelle: 8123 oder 8443 mit TLS. Der
   native Port 9000 ist nicht gemeint;
-- **TLS**: HTTPS mit Prüfung des Serverzertifikats. ClickHouse Cloud benötigt es;
 - **Authentifizierung**: Benutzername und Passwort oder ein Benutzer ohne
   Passwort. Ohne andere Angabe ist der Benutzer `default`;
 - **Datenbank**: der Ort, an dem der Katalog geöffnet wird. Das Feld kann leer
   bleiben. Alle Datenbanken, die der Benutzer sehen darf, erscheinen trotzdem.
+
+Verschlüsselung, vertrauenswürdige Stellen und ein Client-Zertifikat stehen auf der Seite **TLS** des Fensters, beschrieben auf der Seite [Verbindungen](connections.md).
 
 Eine Verbindungszeichenfolge wie `clickhouse://ann@ch.example.com:8123/logs`,
 die in **URL** eingefügt wird, füllt diese Felder aus. Auch

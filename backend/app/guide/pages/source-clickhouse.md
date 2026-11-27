@@ -34,12 +34,12 @@ The **Connection** page of the window asks for:
 
 - **Host** and **Port** of the HTTP interface: 8123, or 8443 with TLS. The
   native port, 9000, is not the one;
-- **TLS**: HTTPS, with the server's certificate checked. ClickHouse Cloud
-  needs it;
 - **Authentication**: a user and a password, or a user that has no password.
   The user is `default` unless you name another;
 - **Database**: where the catalog opens. It may be left empty. Every database
   the user may see is in the catalog either way.
+
+Encryption, the authorities trusted and a client certificate are on the **TLS** page of the window, described on the [Connections](connections.md) page.
 
 A connection string such as `clickhouse://ann@ch.example.com:8123/logs`
 pasted into **URL** fills these fields; `https://ch.example.com:8443` is read

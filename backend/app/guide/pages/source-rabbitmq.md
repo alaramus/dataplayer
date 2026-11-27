@@ -44,8 +44,8 @@ The **Connection** page of the window asks for:
   than DataPlayer does; empty for the management address;
 - **Virtual host**: empty for every virtual host the user may see, or one
   name, such as `/`;
-- **TLS** and **CA certificate**: an encrypted connection, and the authority
-  that signed the broker's certificate when the system does not trust it.
+
+Encryption, the authorities trusted and a client certificate are on the **TLS** page of the window, described on the [Connections](connections.md) page.
 
 A connection string `amqp://user:password@host:5672/vhost` fills the form;
 `amqps://` is TLS, and `%2F` in the path is the virtual host `/`.

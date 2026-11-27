@@ -34,11 +34,14 @@ connexions est décrit sur la page [Connexions](connections.md).
 La page **Connexion** de la fenêtre demande :
 
 - **Hôte** et **Port** d'un serveur, 27017 sauf s'il écoute ailleurs ;
-- **TLS** : une connexion chiffrée, avec vérification du certificat ;
 - **Authentification** : un utilisateur et un mot de passe, ou aucune pour un
   serveur sans contrôle d'accès. La **Base de données d'authentification** est
   celle où l'utilisateur a été créé, `admin` sauf autre ;
 - **Base de données** : où s'ouvre le catalogue. Elle peut rester vide.
+
+Le chiffrement, les autorités de confiance et un certificat client sont sur la page **TLS** de la fenêtre, décrite sur la page [Connexions](connections.md).
+
+En plus d’un mot de passe, la connexion peut se faire avec **AWS IAM (MONGODB-AWS)** via l’un de vos [comptes cloud](cloud-accounts.md), avec un **certificat X.509** — le certificat client de la page **TLS** — ou avec un mot de passe lu dans un **Coffre de secrets**.
 
 Une chaîne de connexion comme `mongodb://ann@db.example.com:27017/shop` collée
 dans **URL** remplit ces champs ; `?authSource=` et `?tls=true` sont lus aussi.

@@ -37,6 +37,10 @@ The **Connection** page of the window asks for:
 - **Database**: where the catalog opens. It may be left empty. Every database
   the user may see is in the catalog either way.
 
+Besides a password, it signs in with **AWS IAM (RDS)**, **Google Cloud IAM (Cloud SQL)** or **Microsoft Entra (Azure)**: one of your [cloud accounts](cloud-accounts.md) issues a token for every new connection. **Secret store** reads the password from AWS, Google, Azure or Vault, and **Vault dynamic credentials** has Vault make a user for it. A server that checks passwords with LDAP, PAM or RADIUS needs nothing more: to DataPlayer they look like a password.
+
+IAM and Entra tokens travel in the clear, as these servers ask, so they need **Verify CA** or **Verify full** on the **TLS** page.
+
 A connection string such as `mysql://ann@db.example.com:3306/sales` pasted into
 **URL** fills these fields; `mariadb://` is read the same way. A password in
 the pasted string goes into the password field and leaves the string.
@@ -270,7 +274,8 @@ spatial keys, a view, a trigger, and a table with no key.
 - **Percona Server** is MySQL. Its card offers to start it here, and the
   server's version says Percona Server.
 - **Amazon RDS for MySQL** (Aurora too), **Azure Database for MySQL** and
-  **Cloud SQL for MySQL** are hosted MySQL, signed into with a password.
+  **Cloud SQL for MySQL** are hosted MySQL, signed into with a password or
+  with the provider's IAM or Microsoft Entra through one of your cloud accounts.
 
 **TiDB** speaks MySQL's protocol, and its card starts a single TiDB here.
 Rows, tables and the console work as they do on MySQL, with these

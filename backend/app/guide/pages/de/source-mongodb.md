@@ -34,12 +34,15 @@ Sie auf der Seite [Verbindungen](connections.md).
 Die Seite **Verbindung** des Fensters fragt nach:
 
 - **Host** und **Port** eines Servers, 27017, sofern er nicht anderswo lauscht;
-- **TLS**: einer verschlüsselten Verbindung mit Prüfung des Serverzertifikats;
 - **Authentifizierung**: Benutzer und Passwort oder keine, für einen Server
   ohne Zugriffskontrolle. Die **Authentifizierungsdatenbank** ist die, in der
   der Benutzer angelegt wurde, `admin`, sofern nicht in einer anderen;
 - **Datenbank**: wo der Katalog öffnet. Sie darf leer bleiben. Jede Datenbank,
   die der Benutzer sehen darf, steht so oder so im Katalog.
+
+Verschlüsselung, vertrauenswürdige Stellen und ein Client-Zertifikat stehen auf der Seite **TLS** des Fensters, beschrieben auf der Seite [Verbindungen](connections.md).
+
+Neben einem Passwort meldet es sich mit **AWS IAM (MONGODB-AWS)** über eines Ihrer [Cloud-Konten](cloud-accounts.md) an, mit einem **X.509-Zertifikat** — dem Client-Zertifikat auf der Seite **TLS** — oder mit einem Passwort aus einem **Geheimnisspeicher**.
 
 Eine Verbindungszeichenfolge wie `mongodb://ann@db.example.com:27017/shop`,
 eingefügt in **URL**, füllt diese Felder; `?authSource=` und `?tls=true`

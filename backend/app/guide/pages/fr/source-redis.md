@@ -31,6 +31,8 @@ La page **Connexion** de la fenêtre demande :
   de données restent accessibles depuis le catalogue ;
 - **Authentification** : un mot de passe, ou aucun.
 
+**AWS IAM (ElastiCache, MemoryDB)** et **Microsoft Entra (Azure)** se connectent avec un jeton que l’un de vos [comptes cloud](cloud-accounts.md) émet pour chaque connexion ; les deux exigent TLS.
+
 Une chaîne de connexion telle que `redis://:secret@cache.example.com:6379/0`
 collée dans **URL** remplit ces champs. Une adresse `rediss://` active
 TLS entièrement vérifié, et un utilisateur avant le `@` est un utilisateur ACL ;

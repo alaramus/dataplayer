@@ -100,6 +100,8 @@ La ventana tiene al menos tres páginas.
 Cómo llegar a la fuente. Los campos dependen del tipo de fuente y se describen
 en su página. Una opción de **Autenticación** cambia qué campos se muestran.
 
+Algunas formas de iniciar sesión usan una de sus [cuentas en la nube](cloud-accounts.md), que emite un token o lee una contraseña para cada conexión nueva; el formulario ofrece solo cuentas de la nube que necesita la forma, y la página **Opciones** tiene un botón **Nueva cuenta**.
+
 ### TLS
 
 Cómo se cifra la conexión con una fuente que es un servidor. **TLS** puede ser

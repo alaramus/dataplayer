@@ -102,6 +102,8 @@ Wie die Quelle zu erreichen ist. Die Felder hängen von der Art der Quelle ab un
 sind auf ihrer Seite beschrieben. Eine Auswahl unter **Authentifizierung**
 ändert, welche Felder gezeigt werden.
 
+Manche Anmeldearten nehmen eines Ihrer [Cloud-Konten](cloud-accounts.md), das für jede neue Verbindung ein Token ausstellt oder ein Passwort liest; das Formular bietet nur Konten der Cloud an, die die Art braucht, und auf der Seite **Optionen** gibt es die Schaltfläche **Neues Konto**.
+
 ### TLS
 
 Wie die Verbindung zu einer Quelle, die ein Server ist, verschlüsselt wird.

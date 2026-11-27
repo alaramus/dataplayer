@@ -28,10 +28,11 @@
 窗口的**连接**页面会询问：
 
 - 原生协议的**主机**和**端口**，除非服务器另有设置，否则为 9042；
-- **TLS**，按主机验证服务器证书；
 - **身份验证**：用户名和密码，或者对于不检查密码的服务器不填。新的 Cassandra 或 ScyllaDB 通常是 `cassandra`，密码为 `cassandra`；
 - **键空间**：目录从哪里打开，可以留空；
 - **一致性**：有多少副本响应读取并确认写入。除非另选，否则为 `LOCAL_ONE`。
+
+加密方式、受信任的颁发机构和客户端证书都在窗口的 **TLS** 页面上，详见[连接](connections.md)页面。
 
 在 **URL** 中粘贴 `cassandra://ann@db.example.com:9042/shop` 这样的连接字符串会填好这些字段；也能读取 `scylla://`，`?ssl=true` 开启 TLS，`?consistency=LOCAL_QUORUM` 选择级别。
 

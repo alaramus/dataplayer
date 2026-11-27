@@ -33,9 +33,10 @@ The **Connection** page of the window asks for:
   elsewhere;
 - **Root path**: everything is read under this path as if it were the top, and
   nothing above it can be reached. Leave it empty for the whole tree;
-- **TLS**: an encrypted connection, with the server's certificate checked;
 - **Authentication**: **Anonymous**, or a **Digest** user and password, added
   to the session as it opens.
+
+Encryption, the authorities trusted and a client certificate are on the **TLS** page of the window, described on the [Connections](connections.md) page.
 
 A connect string such as `zk.example.com:2181/apps/billing` pasted into
 **URL** fills these fields. A list of servers is not supported: name one.

@@ -34,9 +34,10 @@ La página **Conexión** de la ventana pide:
   otro;
 - **Ruta raíz**: todo se lee bajo esta ruta como si fuera la cima, y nada por
   encima es accesible. Déjala vacía para el árbol entero;
-- **TLS**: una conexión cifrada, con el certificado del servidor comprobado;
 - **Autenticación**: **Anónimo**, o un usuario **Digest** y su contraseña,
   añadidos a la sesión al abrirse.
+
+El cifrado, las autoridades de confianza y un certificado de cliente están en la página **TLS** de la ventana, descrita en la página [Conexiones](connections.md).
 
 Una cadena de conexión como `zk.example.com:2181/apps/billing`, pegada en
 **URL**, rellena estos campos. No se admite una lista de servidores: indica uno.

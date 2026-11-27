@@ -31,9 +31,11 @@
 窗口的**连接**页面需要填写：
 
 - **Broker**：一个或多个 broker 的 `host:port`，用逗号分隔。一个就够了：它会告诉 DataPlayer 其余的在哪里；
-- **TLS**：加密连接，并验证 broker 的证书；
-- **CA 证书**：签发证书的机构，PEM 格式，仅当系统尚未信任它时需要；
 - **认证**：**无**，或通过 **SASL PLAIN**、**SASL SCRAM-SHA-256** 或 **SASL SCRAM-SHA-512** 使用用户名和密码。
+
+加密方式、受信任的颁发机构和客户端证书都在窗口的 **TLS** 页面上，详见[连接](connections.md)页面。
+
+**AWS IAM（MSK）** 使用您的某个[云账号](cloud-accounts.md)签发的令牌登录；**SASL OAUTHBEARER（OIDC）** 使用身份提供方根据客户端 ID 和密钥签发的令牌登录。**TLS** 页面上的客户端证书本身即可登录。
 
 DataPlayer 会连接 broker 自己公布的地址，因此这些地址必须能以这些名称从 DataPlayer 服务器访问。不支持 SSH 隧道。
 

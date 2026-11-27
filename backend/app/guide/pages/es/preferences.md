@@ -22,6 +22,14 @@ Las claves con las que entran sus conexiones SSH. Más información en la págin
 - Una clave puede conservar su frase de paso, no tener ninguna, o pedirla. Una que la pide está **Bloqueada** hasta que la **Desbloquear** durante 15 minutos, 1 hora u 8 horas; **Bloquearla ahora** la vuelve a bloquear.
 - Una clave que usa una conexión no puede borrarse hasta que sus conexiones usen otra.
 
+## Cuentas en la nube
+
+Cuentas de Amazon Web Services, Google Cloud, Microsoft Azure y HashiCorp Vault con las que inician sesión las conexiones. Más sobre ellas en la página [Cuentas en la nube](cloud-accounts.md).
+
+- **Nueva cuenta** pide la nube y cómo inicia sesión la cuenta. Sus secretos se guardan cifrados y no se vuelven a mostrar.
+- **Probar** hace la llamada inofensiva más barata y dice quién inició sesión.
+- Una cuenta que usa una conexión no se puede eliminar hasta que sus conexiones usen otra.
+
 ## Recorridos
 
 El recorrido de bienvenida y recorridos breves de cada parte de DataPlayer — leer una tabla de otra forma, un flujo, cuadros de mando, el agente. **Hacer** inicia uno, **Otra vez** repite uno ya hecho. Un recorrido crea para sí mismo una base de datos de práctica y la retira al terminar.

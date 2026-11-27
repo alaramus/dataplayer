@@ -104,6 +104,8 @@ Comment atteindre la source. Les champs dépendent du type de source et sont
 décrits sur sa page. Un choix sous **Authentification** change les champs
 affichés.
 
+Certains modes de connexion utilisent l’un de vos [comptes cloud](cloud-accounts.md), qui émet un jeton ou lit un mot de passe pour chaque nouvelle connexion ; le formulaire ne propose que les comptes du cloud voulu, et la page **Options** a un bouton **Nouveau compte**.
+
 ### TLS
 
 Comment la connexion à une source qui est un serveur est chiffrée. **TLS** est

@@ -44,9 +44,8 @@ Die Seite **Verbindung** des Fensters fragt nach:
   erreicht als DataPlayer; leer für die Management-Adresse;
 - **Virtueller Host**: leer für alle virtuellen Hosts, die der Benutzer sehen
   darf, oder ein Name wie `/`;
-- **TLS** und **CA-Zertifikat**: eine verschlüsselte Verbindung und die
-  Stelle, die das Zertifikat des Brokers signiert hat, wenn das System ihr
-  nicht vertraut.
+
+Verschlüsselung, vertrauenswürdige Stellen und ein Client-Zertifikat stehen auf der Seite **TLS** des Fensters, beschrieben auf der Seite [Verbindungen](connections.md).
 
 Eine Verbindungszeichenfolge `amqp://user:password@host:5672/vhost` füllt das
 Formular; `amqps://` ist TLS, und `%2F` im Pfad ist der virtuelle Host `/`.

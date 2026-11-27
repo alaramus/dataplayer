@@ -34,9 +34,10 @@ Die Seite **Verbindung** des Fensters fragt nach:
   einem anderen lauscht;
 - **Wurzelpfad**: Alles wird unter diesem Pfad gelesen, als wäre er die Spitze,
   und nichts darüber ist erreichbar. Leer lassen für den ganzen Baum;
-- **TLS**: eine verschlüsselte Verbindung mit geprüftem Serverzertifikat;
 - **Authentifizierung**: **Anonym** oder ein **Digest**-Benutzer mit Passwort,
   der beim Öffnen der Sitzung hinzugefügt wird.
+
+Verschlüsselung, vertrauenswürdige Stellen und ein Client-Zertifikat stehen auf der Seite **TLS** des Fensters, beschrieben auf der Seite [Verbindungen](connections.md).
 
 Eine Verbindungszeichenfolge wie `zk.example.com:2181/apps/billing`, in **URL**
 eingefügt, füllt diese Felder. Eine Liste von Servern wird nicht unterstützt:

@@ -41,6 +41,10 @@ La page **Connexion** de la fenêtre demande :
   Chaque base de données que l'utilisateur peut voir figure au catalogue dans
   tous les cas.
 
+En plus d’un mot de passe, la connexion peut se faire avec **AWS IAM (RDS)**, **Google Cloud IAM (Cloud SQL)** ou **Microsoft Entra (Azure)** : l’un de vos [comptes cloud](cloud-accounts.md) émet un jeton pour chaque nouvelle connexion. **Coffre de secrets** lit le mot de passe dans AWS, Google, Azure ou Vault, et **Identifiants dynamiques Vault** fait créer par Vault un utilisateur pour elle. Un serveur qui vérifie les mots de passe par LDAP, PAM ou RADIUS n’a besoin de rien d’autre : pour DataPlayer, c’est un mot de passe.
+
+Les jetons IAM et Entra circulent en clair, comme le demandent ces serveurs ; il leur faut donc Vérifier l’AC ou Vérifier tout sur la page **TLS**.
+
 Une chaîne de connexion comme `mysql://ann@db.example.com:3306/sales` collée
 dans **URL** remplit ces champs ; `mariadb://` se lit de la même façon. Un mot de
 passe présent dans la chaîne collée passe dans le champ du mot de passe et
@@ -305,8 +309,7 @@ déclencheur et une table sans clé.
 
 - **Percona Server** est MySQL. Sa carte propose de le démarrer ici, et la
   version du serveur indique Percona Server.
-- **Amazon RDS for MySQL** (Aurora aussi), **Azure Database for MySQL** et
-  **Cloud SQL for MySQL** sont du MySQL hébergé, avec mot de passe.
+- **Amazon RDS for MySQL** (Aurora aussi), **Azure Database for MySQL** et **Cloud SQL for MySQL** sont du MySQL hébergé, où l’on se connecte par mot de passe ou par l’IAM du fournisseur ou Microsoft Entra via l’un de vos comptes cloud.
 
 **TiDB** parle le protocole de MySQL, et sa carte démarre ici un TiDB unique. Les lignes, les tables et la console fonctionnent comme sur MySQL, avec ces différences :
 

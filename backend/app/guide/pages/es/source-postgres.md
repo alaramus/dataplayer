@@ -31,6 +31,8 @@ La página **Conexión** de la ventana pide:
   servidor que confía en la dirección desde la que te conectas;
 - **Base de datos**, **Usuario** y **Contraseña**.
 
+Además de con una contraseña, inicia sesión con **AWS IAM (RDS)**, **Google Cloud IAM (Cloud SQL)** o **Microsoft Entra (Azure)**: una de sus [cuentas en la nube](cloud-accounts.md) emite un token para cada conexión nueva. **Almacén de secretos** lee la contraseña de AWS, Google, Azure o Vault, y **Credenciales dinámicas de Vault** hace que Vault cree un usuario para ella. Un servidor que comprueba contraseñas con LDAP, PAM o RADIUS no necesita nada más: para DataPlayer parece una contraseña.
+
 Una cadena de conexión como `postgresql://ann@db.example.com:5432/sales` pegada
 en **URL** rellena estos campos. Una contraseña en la cadena pegada va al campo
 de contraseña y sale de la cadena.
@@ -251,11 +253,7 @@ conexión; la tarjeta solo le da nombre y logotipo.
 - **TimescaleDB**, **Citus** y **ParadeDB** son PostgreSQL con una
   extensión. Sus tarjetas ofrecen iniciar ese servidor aquí, y la extensión
   se encuentra en la base de datos una vez abierta.
-- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (también Aurora),
-  **Azure Database for PostgreSQL** y **Cloud SQL for PostgreSQL** son
-  PostgreSQL alojado. Sus tarjetas rellenan lo que el proveedor siempre
-  llama igual y dicen dónde están el host y la contraseña. Se inicia sesión
-  con contraseña; IAM y Microsoft Entra aún no se admiten.
+- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (también Aurora), **Azure Database for PostgreSQL** y **Cloud SQL for PostgreSQL** son PostgreSQL alojado. Sus tarjetas rellenan lo que el proveedor siempre llama igual y dicen dónde está el host. Inicia sesión con una contraseña, o con el IAM del proveedor o Microsoft Entra mediante una de sus cuentas en la nube.
 
 ## Límites
 

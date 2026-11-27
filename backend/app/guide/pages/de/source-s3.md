@@ -38,6 +38,8 @@ Die Seite **Verbindung** des Fensters fragt nach:
 - **Zertifikat prüfen**: nur ausschalten für einen Speicher, dessen Zertifikat
   Sie selbst ausgestellt haben.
 
+**AWS-Konto** meldet sich statt mit einem Schlüssel über eines Ihrer [Cloud-Konten](cloud-accounts.md) an: ein Sitzungstoken, eine übernommene Rolle oder die Anmeldedaten dieses Servers gehören zum Konto.
+
 **URL** zeigt, wo der Speicher ist: seinen Endpunkt oder die Adresse von
 Amazon S3 in der Region. Eine dort eingefügte Adresse füllt den Endpunkt, eine
 Amazon-S3-URL auch die Region; `s3://reports/2026` füllt Bucket und Ordner.

@@ -34,13 +34,14 @@ The **Connection** page of the window asks for:
 
 - **Host** and **Port** of the native protocol, 9042 unless the server says
   otherwise;
-- **TLS**, with the server's certificate checked against the host;
 - **Authentication**: a user and a password, or none for a server that checks
   none. A new Cassandra or ScyllaDB is often `cassandra` with the password
   `cassandra`;
 - **Keyspace**: where the catalog opens. It may be left empty;
 - **Consistency**: how many replicas answer a read and acknowledge a write.
   `LOCAL_ONE` unless you choose another.
+
+Encryption, the authorities trusted and a client certificate are on the **TLS** page of the window, described on the [Connections](connections.md) page.
 
 A connection string such as `cassandra://ann@db.example.com:9042/shop` pasted
 into **URL** fills these fields; `scylla://` is read too, `?ssl=true` turns on

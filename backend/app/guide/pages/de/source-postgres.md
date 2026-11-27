@@ -33,6 +33,8 @@ Die Seite **Verbindung** des Fensters fragt nach:
   einen Server, der der Adresse vertraut, von der Sie sich verbinden;
 - **Datenbank**, **Benutzer** und **Passwort**.
 
+Neben einem Passwort meldet es sich mit **AWS IAM (RDS)**, **Google Cloud IAM (Cloud SQL)** oder **Microsoft Entra (Azure)** an: eines Ihrer [Cloud-Konten](cloud-accounts.md) stellt für jede neue Verbindung ein Token aus. **Geheimnisspeicher** liest das Passwort aus AWS, Google, Azure oder Vault, und **Dynamische Vault-Anmeldedaten** lässt Vault dafür einen Benutzer anlegen. Ein Server, der Passwörter per LDAP, PAM oder RADIUS prüft, braucht nichts weiter: Für DataPlayer sieht das wie ein Passwort aus.
+
 Eine Verbindungszeichenfolge wie `postgresql://ann@db.example.com:5432/sales`, in
 **URL** eingefügt, füllt diese Felder. Ein Passwort in der eingefügten
 Zeichenfolge wandert in das Passwortfeld und verlässt die Zeichenfolge.
@@ -264,11 +266,7 @@ Verbindung an; die Karte gibt ihr nur Namen und Logo.
 - **TimescaleDB**, **Citus** und **ParadeDB** sind PostgreSQL mit einer
   Erweiterung. Ihre Karten bieten an, diesen Server hier zu starten; die
   Erweiterung wird in der geöffneten Datenbank gefunden.
-- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (auch Aurora),
-  **Azure Database for PostgreSQL** und **Cloud SQL for PostgreSQL** sind
-  gehostetes PostgreSQL. Ihre Karten füllen aus, was beim Anbieter immer
-  gleich heißt, und sagen, wo Host und Passwort zu finden sind. Anmeldung
-  mit Passwort; IAM und Microsoft Entra werden noch nicht unterstützt.
+- **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (auch Aurora), **Azure Database for PostgreSQL** und **Cloud SQL for PostgreSQL** sind gehostetes PostgreSQL. Ihre Karten füllen aus, was der Anbieter immer gleich nennt, und sagen, wo der Host steht. Sie melden sich mit einem Passwort an oder mit dem IAM des Anbieters bzw. Microsoft Entra über eines Ihrer Cloud-Konten.
 
 ## Grenzen
 

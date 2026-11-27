@@ -36,6 +36,18 @@ The keys your SSH connections sign in with. More about them is on the
 - A key used by a connection cannot be deleted until its connections use
   another.
 
+## Cloud accounts
+
+Accounts of Amazon Web Services, Google Cloud, Microsoft Azure and HashiCorp
+Vault that connections sign in with. More about them is on the
+[Cloud accounts](cloud-accounts.md) page.
+
+- **New account** asks for the cloud and how the account signs in. Its secrets
+  are kept encrypted and never shown again.
+- **Test** makes the cheapest harmless call and says who signed in.
+- An account used by a connection cannot be deleted until its connections use
+  another.
+
 ## Tours
 
 The welcome tour and short tours of each part of DataPlayer — a table read

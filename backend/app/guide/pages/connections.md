@@ -92,6 +92,8 @@ How to reach the source. The fields depend on the kind of source and are
 described on its page. A choice of **Authentication** changes which fields are
 shown.
 
+Some ways of signing in take one of your [cloud accounts](cloud-accounts.md), which issues a token or reads a password for every new connection; the form offers only accounts of the cloud the way needs, and a **New account** button on the **Options** page.
+
 ### TLS
 
 How the connection is encrypted, for a source that is a server. **TLS** is

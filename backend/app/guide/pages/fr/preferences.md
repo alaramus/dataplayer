@@ -31,6 +31,14 @@ Les clés avec lesquelles vos connexions SSH s'identifient. Davantage d'informat
   jusqu'à ce que vous la **Déverrouiller** pendant 15 minutes, 1 heure ou 8 heures ; **La verrouiller maintenant** la verrouille à nouveau.
 - Une clé utilisée par une connexion ne peut pas être supprimée tant que ces connexions n'en utilisent pas une autre.
 
+## Comptes cloud
+
+Les comptes Amazon Web Services, Google Cloud, Microsoft Azure et HashiCorp Vault avec lesquels les connexions se connectent. Plus de détails sur la page [Comptes cloud](cloud-accounts.md).
+
+- **Nouveau compte** demande le cloud et la façon dont le compte se connecte. Ses secrets sont conservés chiffrés et ne sont plus jamais affichés.
+- **Tester** fait l’appel inoffensif le moins coûteux et dit qui s’est connecté.
+- Un compte utilisé par une connexion ne peut être supprimé tant que ses connexions n’en utilisent pas un autre.
+
 ## Visites guidées
 
 La visite de bienvenue et de courtes visites de chaque partie de DataPlayer — une table lue autrement, un pipeline, les

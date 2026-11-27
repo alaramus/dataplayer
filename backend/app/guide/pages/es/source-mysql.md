@@ -38,6 +38,10 @@ La página **Conexión** de la ventana pide:
 - **Base de datos**: donde se abre el catálogo. Puede quedar vacía. Toda base
   de datos que el usuario pueda ver está en el catálogo de todos modos.
 
+Además de con una contraseña, inicia sesión con **AWS IAM (RDS)**, **Google Cloud IAM (Cloud SQL)** o **Microsoft Entra (Azure)**: una de sus [cuentas en la nube](cloud-accounts.md) emite un token para cada conexión nueva. **Almacén de secretos** lee la contraseña de AWS, Google, Azure o Vault, y **Credenciales dinámicas de Vault** hace que Vault cree un usuario para ella. Un servidor que comprueba contraseñas con LDAP, PAM o RADIUS no necesita nada más: para DataPlayer parece una contraseña.
+
+Los tokens de IAM y Entra viajan en claro, como piden estos servidores, así que necesitan Verificar CA o Verificar todo en la página **TLS**.
+
 Una cadena de conexión como `mysql://ann@db.example.com:3306/sales` pegada en
 **URL** rellena estos campos; `mariadb://` se lee igual. Una contraseña en la
 cadena pegada pasa al campo de la contraseña y sale de la cadena.
@@ -288,8 +292,7 @@ espaciales, una vista, un disparador y una tabla sin clave.
 
 - **Percona Server** es MySQL. Su tarjeta ofrece iniciarlo aquí, y la
   versión del servidor dice Percona Server.
-- **Amazon RDS for MySQL** (también Aurora), **Azure Database for MySQL** y
-  **Cloud SQL for MySQL** son MySQL alojado, con contraseña.
+- **Amazon RDS for MySQL** (también Aurora), **Azure Database for MySQL** y **Cloud SQL for MySQL** son MySQL alojado, con inicio de sesión por contraseña o por el IAM del proveedor o Microsoft Entra mediante una de sus cuentas en la nube.
 
 **TiDB** habla el protocolo de MySQL, y su tarjeta inicia aquí un único TiDB. Las filas, las tablas y la consola funcionan como en MySQL, con estas diferencias:
 

@@ -30,6 +30,8 @@ The **Connection** page of the window asks for:
   trusts the address you connect from;
 - **Database**, **User** and **Password**.
 
+Besides a password, it signs in with **AWS IAM (RDS)**, **Google Cloud IAM (Cloud SQL)** or **Microsoft Entra (Azure)**: one of your [cloud accounts](cloud-accounts.md) issues a token for every new connection. **Secret store** reads the password from AWS, Google, Azure or Vault, and **Vault dynamic credentials** has Vault make a user for it. A server that checks passwords with LDAP, PAM or RADIUS needs nothing more: to DataPlayer they look like a password.
+
 A connection string such as `postgresql://ann@db.example.com:5432/sales`
 pasted into **URL** fills these fields. A password in the pasted string goes
 into the password field and leaves the string.
@@ -247,8 +249,8 @@ connection; the card names it and draws its logo.
 - **Supabase**, **Neon**, **Amazon RDS for PostgreSQL** (Aurora too),
   **Azure Database for PostgreSQL** and **Cloud SQL for PostgreSQL** are
   hosted PostgreSQL. Their cards fill in what the provider always names the
-  same and say where the host and password are found. You sign in with a
-  password; IAM and Microsoft Entra sign-in are not supported yet.
+  same and say where the host is found. You sign in with a password, or with
+  the provider's IAM or Microsoft Entra through one of your cloud accounts.
 
 ## Limits
 

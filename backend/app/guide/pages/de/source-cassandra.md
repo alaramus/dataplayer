@@ -36,13 +36,14 @@ Die Seite **Verbindung** des Fensters fragt nach:
 
 - **Host** und **Port** des nativen Protokolls, 9042, sofern der Server nichts
   anderes vorgibt;
-- **TLS**, mit dem Zertifikat des Servers gegen den Host geprüft;
 - **Authentifizierung**: Benutzer und Passwort, oder nichts für einen Server,
   der keines prüft. Ein neuer Cassandra- oder ScyllaDB-Server hat oft
   `cassandra` mit dem Passwort `cassandra`;
 - **Keyspace**: wo sich der Katalog öffnet. Er darf leer bleiben;
 - **Konsistenz**: wie viele Replikate einen Lesevorgang beantworten und einen
   Schreibvorgang bestätigen. `LOCAL_ONE`, sofern Sie nichts anderes wählen.
+
+Verschlüsselung, vertrauenswürdige Stellen und ein Client-Zertifikat stehen auf der Seite **TLS** des Fensters, beschrieben auf der Seite [Verbindungen](connections.md).
 
 Eine Verbindungszeichenfolge wie `cassandra://ann@db.example.com:9042/shop`,
 in **URL** eingefügt, füllt diese Felder; `scylla://` wird ebenfalls gelesen,

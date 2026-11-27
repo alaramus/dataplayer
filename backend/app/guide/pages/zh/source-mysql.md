@@ -33,6 +33,10 @@ MySQL 或 MariaDB 服务器。你可以浏览它的数据库，按页读取表�
 - **身份验证**：用户和密码，或没有密码的用户；
 - **数据库**：目录从这里打开。可以留空。无论如何，用户可见的每个数据库都会出现在目录中。
 
+除密码外，还可以使用 **AWS IAM（RDS）**、**Google Cloud IAM（Cloud SQL）** 或 **Microsoft Entra（Azure）** 登录：您的某个[云账号](cloud-accounts.md)会为每个新连接签发令牌。**密钥存储**从 AWS、Google、Azure 或 Vault 读取密码，**Vault 动态凭据**则让 Vault 为其创建用户。通过 LDAP、PAM 或 RADIUS 校验密码的服务器无需其他设置：在 DataPlayer 看来它们就是密码。
+
+IAM 和 Entra 令牌按这些服务器的要求以明文传输，因此需要在 **TLS** 页面选择“验证 CA”或“完全验证”。
+
 将 `mysql://ann@db.example.com:3306/sales` 这样的连接字符串粘贴到 **URL** 中会填好这些字段；`mariadb://` 也以同样方式读取。粘贴的字符串中的密码会移到密码字段，并从字符串中移除。
 
 默认情况下，服务器提供 TLS 时连接会加密，不提供时保持明文，且不检查服务器的证书。
@@ -162,7 +166,7 @@ MySQL 连接可以向仪表盘报告。布局名为 **MySQL 服务器**：连接
 ## 此类型下的其他产品
 
 - **Percona Server** 就是 MySQL。它的卡片可在此处启动它，服务器版本会显示 Percona Server。
-- **Amazon RDS for MySQL**（也包括 Aurora）、**Azure Database for MySQL** 和 **Cloud SQL for MySQL** 是托管的 MySQL，使用密码登录。
+- **Amazon RDS for MySQL**（也包括 Aurora）、**Azure Database for MySQL** 和 **Cloud SQL for MySQL** 是托管的 MySQL，可使用密码登录，或通过您的某个云账号以提供商的 IAM 或 Microsoft Entra 登录。
 
 **TiDB** 使用 MySQL 协议，它的卡片可在此处启动单节点 TiDB。行、表和控制台的用法与 MySQL 相同，区别如下：
 

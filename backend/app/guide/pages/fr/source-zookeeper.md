@@ -34,9 +34,10 @@ La page **Connexion** de la fenêtre demande :
   ailleurs ;
 - **Chemin racine** : tout est lu sous ce chemin comme s'il était le sommet, et
   rien au-dessus n'est accessible. Laissez vide pour l'arbre entier ;
-- **TLS** : une connexion chiffrée, avec vérification du certificat du serveur ;
 - **Authentification** : **Anonyme**, ou un utilisateur **Digest** et son mot
   de passe, ajoutés à la session à son ouverture.
+
+Le chiffrement, les autorités de confiance et un certificat client sont sur la page **TLS** de la fenêtre, décrite sur la page [Connexions](connections.md).
 
 Une chaîne de connexion comme `zk.example.com:2181/apps/billing`, collée dans
 **URL**, remplit ces champs. Une liste de serveurs n'est pas prise en charge :

@@ -28,6 +28,8 @@ SQL，并在两个方向之间复制数据。连接的一般工作方式见[连�
 - **身份验证**：用户名和密码，或对于信任你连接来源地址的服务器，不填密码；
 - **数据库**、**用户**和**密码**。
 
+除密码外，还可以使用 **AWS IAM（RDS）**、**Google Cloud IAM（Cloud SQL）** 或 **Microsoft Entra（Azure）** 登录：您的某个[云账号](cloud-accounts.md)会为每个新连接签发令牌。**密钥存储**从 AWS、Google、Azure 或 Vault 读取密码，**Vault 动态凭据**则让 Vault 为其创建用户。通过 LDAP、PAM 或 RADIUS 校验密码的服务器无需其他设置：在 DataPlayer 看来它们就是密码。
+
 将类似 `postgresql://ann@db.example.com:5432/sales` 的连接字符串粘贴到 **URL**
 中会填充这些字段。粘贴的字符串中的密码会进入密码字段，并从字符串中移除。
 
@@ -195,7 +197,7 @@ PostgreSQL 连接可以向仪表盘报告自己的计数器：按状态划分的
 目录中 PostgreSQL 显示为多张卡片。每张卡片创建的都是同一种连接；卡片只决定它的名称和图标。
 
 - **TimescaleDB**、**Citus** 和 **ParadeDB** 是带扩展的 PostgreSQL。它们的卡片可在此处启动该服务器，数据库打开后即可发现扩展。
-- **Supabase**、**Neon**、**Amazon RDS for PostgreSQL**（也包括 Aurora）、**Azure Database for PostgreSQL** 和 **Cloud SQL for PostgreSQL** 是托管的 PostgreSQL。它们的卡片会填好提供商始终相同的字段，并说明在哪里找到主机和密码。使用密码登录；暂不支持 IAM 和 Microsoft Entra 登录。
+- **Supabase**、**Neon**、**Amazon RDS for PostgreSQL**（也包括 Aurora）、**Azure Database for PostgreSQL** 和 **Cloud SQL for PostgreSQL** 是托管的 PostgreSQL。它们的卡片会填好提供商始终相同的字段，并说明在哪里找到主机。可使用密码登录，或通过您的某个云账号以提供商的 IAM 或 Microsoft Entra 登录。
 
 ## 限制
 

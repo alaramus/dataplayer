@@ -33,6 +33,14 @@ Die Schlüssel, mit denen sich Ihre SSH-Verbindungen anmelden. Mehr dazu steht a
 - Ein Schlüssel, den eine Verbindung benutzt, kann nicht gelöscht werden, solange ihre Verbindungen keinen
   anderen verwenden.
 
+## Cloud-Konten
+
+Konten von Amazon Web Services, Google Cloud, Microsoft Azure und HashiCorp Vault, mit denen sich Verbindungen anmelden. Mehr dazu auf der Seite [Cloud-Konten](cloud-accounts.md).
+
+- **Neues Konto** fragt nach der Cloud und danach, wie sich das Konto anmeldet. Seine Geheimnisse werden verschlüsselt aufbewahrt und nie wieder angezeigt.
+- **Testen** macht den günstigsten harmlosen Aufruf und sagt, wer angemeldet ist.
+- Ein Konto, das eine Verbindung verwendet, kann erst gelöscht werden, wenn seine Verbindungen ein anderes verwenden.
+
 ## Touren
 
 Die Willkommenstour und kurze Touren durch jeden Teil von DataPlayer — eine Tabelle auf andere Weise lesen,

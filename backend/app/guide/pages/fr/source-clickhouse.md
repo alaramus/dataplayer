@@ -36,14 +36,14 @@ La page **Connexion** de la fenêtre demande :
 
 - **Hôte** et **Port** de l'interface HTTP : 8123 ou 8443 avec TLS. Le port
   natif 9000 n'est pas celui à utiliser ;
-- **TLS** : HTTPS avec vérification du certificat du serveur. ClickHouse Cloud
-  l'exige ;
 - **Authentification** : un utilisateur et un mot de passe, ou un utilisateur
   sans mot de passe. L'utilisateur est `default` si vous n'en indiquez pas un
   autre ;
 - **Base de données** : celle qui s'affiche à l'ouverture du catalogue. Le
   champ peut rester vide. Le catalogue affiche tout de même chaque base visible
   par l'utilisateur.
+
+Le chiffrement, les autorités de confiance et un certificat client sont sur la page **TLS** de la fenêtre, décrite sur la page [Connexions](connections.md).
 
 Une chaîne de connexion telle que `clickhouse://ann@ch.example.com:8123/logs`,
 collée dans **URL**, remplit ces champs. La forme `https://ch.example.com:8443`

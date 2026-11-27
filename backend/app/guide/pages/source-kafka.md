@@ -34,11 +34,12 @@ The **Connection** page of the window asks for:
 
 - **Brokers**: `host:port` of one or more brokers, separated by commas. One is
   enough: it tells DataPlayer where the rest are;
-- **TLS**: an encrypted connection, with the brokers' certificates checked;
-- **CA certificate**: the authority that signed them, as PEM, when it is not
-  one the system already trusts;
 - **Authentication**: **None**, or a user and password with **SASL PLAIN**,
   **SASL SCRAM-SHA-256** or **SASL SCRAM-SHA-512**.
+
+Encryption, the authorities trusted and a client certificate are on the **TLS** page of the window, described on the [Connections](connections.md) page.
+
+**AWS IAM (MSK)** signs in with a token issued by one of your [cloud accounts](cloud-accounts.md); **SASL OAUTHBEARER (OIDC)** with a token your identity provider issues for a client ID and secret. A client certificate on the **TLS** page signs in by itself.
 
 DataPlayer connects to the addresses the brokers announce about themselves, so
 they must be reachable from the DataPlayer server under those names. An SSH

@@ -34,11 +34,14 @@ página [Conexiones](connections.md).
 La página **Conexión** de la ventana pide:
 
 - **Host** y **Puerto** de un servidor, 27017 salvo que escuche en otro;
-- **TLS**: una conexión cifrada, con el certificado del servidor verificado;
 - **Autenticación**: usuario y contraseña, o ninguna para un servidor sin
   control de acceso. La **Base de datos de autenticación** es donde se creó el
   usuario, `admin` salvo que sea otra;
 - **Base de datos**: dónde se abre el catálogo. Puede quedar vacía.
+
+El cifrado, las autoridades de confianza y un certificado de cliente están en la página **TLS** de la ventana, descrita en la página [Conexiones](connections.md).
+
+Además de con una contraseña, inicia sesión con **AWS IAM (MONGODB-AWS)** mediante una de sus [cuentas en la nube](cloud-accounts.md), con un **certificado X.509** —el certificado de cliente de la página **TLS**— o con una contraseña leída de un **Almacén de secretos**.
 
 Una cadena de conexión como `mongodb://ann@db.example.com:27017/shop` pegada
 en **URL** rellena estos campos; también se leen `?authSource=` y `?tls=true`.

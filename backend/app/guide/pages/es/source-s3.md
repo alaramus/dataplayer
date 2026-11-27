@@ -38,6 +38,8 @@ La página **Conexión** de la ventana pide:
 - **Verificar el certificado**: desactívalo solo para un almacenamiento cuyo
   certificado hiciste tú.
 
+**Cuenta de AWS** inicia sesión con una de sus [cuentas en la nube](cloud-accounts.md) en lugar de una clave: un token de sesión, un rol que asume o las credenciales de este servidor son de la cuenta.
+
 **URL** muestra dónde está el almacén: su punto de acceso, o la dirección de
 Amazon S3 en la región. Una dirección pegada ahí rellena el punto de acceso, y
 una URL de Amazon S3 también la región; `s3://reports/2026` rellena el bucket y

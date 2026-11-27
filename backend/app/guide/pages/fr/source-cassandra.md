@@ -35,13 +35,14 @@ La page **Connexion** de la fenêtre demande :
 
 - **Hôte** et **Port** du protocole natif, 9042 sauf configuration contraire
   du serveur ;
-- **TLS**, avec le certificat du serveur vérifié par rapport à l'hôte ;
 - **Authentification** : un utilisateur et un mot de passe, ou rien pour un
   serveur qui n'en vérifie pas. Un Cassandra ou un ScyllaDB neuf a souvent
   `cassandra` avec le mot de passe `cassandra` ;
 - **Keyspace** : où s'ouvre le catalogue. Il peut rester vide ;
 - **Cohérence** : combien de répliques répondent à une lecture et confirment
   une écriture. `LOCAL_ONE` sauf si vous en choisissez une autre.
+
+Le chiffrement, les autorités de confiance et un certificat client sont sur la page **TLS** de la fenêtre, décrite sur la page [Connexions](connections.md).
 
 Une chaîne de connexion comme `cassandra://ann@db.example.com:9042/shop`
 collée dans **URL** remplit ces champs ; `scylla://` est lu aussi, `?ssl=true`

@@ -30,6 +30,8 @@ The **Connection** page of the window asks for:
   from the catalog;
 - **Authentication**: a password, or none.
 
+**AWS IAM (ElastiCache, MemoryDB)** and **Microsoft Entra (Azure)** sign in with a token that one of your [cloud accounts](cloud-accounts.md) issues for every connection; both need TLS.
+
 A connection string such as `redis://:secret@cache.example.com:6379/0` pasted
 into **URL** fills these fields. A `rediss://` address turns on TLS, checked in
 full, and a user before the `@` is an ACL user; the **TLS** page has the rest.

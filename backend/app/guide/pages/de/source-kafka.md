@@ -35,12 +35,12 @@ Die Seite **Verbindung** des Fensters fragt nach:
 
 - **Broker**: `host:port` eines oder mehrerer Broker, durch Kommas getrennt.
   Einer genügt: Er sagt DataPlayer, wo die anderen sind;
-- **TLS**: eine verschlüsselte Verbindung, bei der die Zertifikate der Broker
-  geprüft werden;
-- **CA-Zertifikat**: die Stelle, die sie signiert hat, als PEM, wenn das
-  System ihr nicht schon vertraut;
 - **Authentifizierung**: **Keine** oder ein Benutzer mit Passwort über
   **SASL PLAIN**, **SASL SCRAM-SHA-256** oder **SASL SCRAM-SHA-512**.
+
+Verschlüsselung, vertrauenswürdige Stellen und ein Client-Zertifikat stehen auf der Seite **TLS** des Fensters, beschrieben auf der Seite [Verbindungen](connections.md).
+
+**AWS IAM (MSK)** meldet sich mit einem Token an, das eines Ihrer [Cloud-Konten](cloud-accounts.md) ausstellt; **SASL OAUTHBEARER (OIDC)** mit einem Token, das Ihr Identitätsanbieter für eine Client-ID und ein Geheimnis ausstellt. Ein Client-Zertifikat auf der Seite **TLS** meldet sich selbst an.
 
 DataPlayer verbindet sich mit den Adressen, die die Broker über sich selbst
 angeben; sie müssen vom DataPlayer-Server unter diesen Namen erreichbar sein.

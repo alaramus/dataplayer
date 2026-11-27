@@ -28,6 +28,8 @@
 - **数据库**：目录打开时所处的数据库。所有数据库仍可从目录访问；
 - **身份验证**：密码，或无。
 
+**AWS IAM（ElastiCache、MemoryDB）** 和 **Microsoft Entra（Azure）** 使用您的某个[云账号](cloud-accounts.md)为每个连接签发的令牌登录；两者都需要 TLS。
+
 将类似 `redis://:secret@cache.example.com:6379/0` 的连接字符串粘贴到 **URL**
 中会填充这些字段。`rediss://` 地址会开启完全验证的 TLS，`@` 前的用户是 ACL 用户；其余设置在 **TLS** 页面。
 

@@ -45,8 +45,8 @@ La page **Connexion** de la fenêtre demande :
   adresse que DataPlayer ; vide pour l'adresse de gestion ;
 - **Hôte virtuel** : vide pour tous les hôtes virtuels que l'utilisateur peut
   voir, ou un nom, comme `/` ;
-- **TLS** et **Certificat CA** : une connexion chiffrée, et l'autorité qui a
-  signé le certificat du broker quand le système ne lui fait pas confiance.
+
+Le chiffrement, les autorités de confiance et un certificat client sont sur la page **TLS** de la fenêtre, décrite sur la page [Connexions](connections.md).
 
 Une chaîne de connexion `amqp://user:password@host:5672/vhost` remplit le
 formulaire ; `amqps://` est TLS, et `%2F` dans le chemin est l'hôte virtuel `/`.

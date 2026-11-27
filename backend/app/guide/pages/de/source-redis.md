@@ -31,6 +31,8 @@ Die Seite **Verbindung** des Fensters fragt nach:
   Katalog aus erreichbar;
 - **Authentifizierung**: ein Passwort oder keines.
 
+**AWS IAM (ElastiCache, MemoryDB)** und **Microsoft Entra (Azure)** melden sich mit einem Token an, das eines Ihrer [Cloud-Konten](cloud-accounts.md) für jede Verbindung ausstellt; beide brauchen TLS.
+
 Eine Verbindungszeichenfolge wie `redis://:secret@cache.example.com:6379/0`, in
 **URL** eingefügt, füllt diese Felder. Eine `rediss://`-Adresse schaltet TLS mit
 vollständiger Prüfung ein, ein Benutzer vor dem `@` ist ein ACL-Benutzer; der Rest

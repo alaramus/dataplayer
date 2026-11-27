@@ -34,12 +34,15 @@ documents. How connections work in general is on the
 The **Connection** page of the window asks for:
 
 - **Host** and **Port** of one server, 27017 unless it listens elsewhere;
-- **TLS**: an encrypted connection, with the server's certificate checked;
 - **Authentication**: a user and a password, or none for a server started
   without access control. The **Authentication database** is where the user
   was made, `admin` unless it was made in another;
 - **Database**: where the catalog opens. It may be left empty. Every database
   the user may see is in the catalog either way.
+
+Encryption, the authorities trusted and a client certificate are on the **TLS** page of the window, described on the [Connections](connections.md) page.
+
+Besides a password, it signs in with **AWS IAM (MONGODB-AWS)** through one of your [cloud accounts](cloud-accounts.md), with an **X.509 certificate** — the client certificate on the **TLS** page — or with a password read from a **Secret store**.
 
 A connection string such as `mongodb://ann@db.example.com:27017/shop` pasted
 into **URL** fills these fields; `?authSource=` and `?tls=true` are read too.

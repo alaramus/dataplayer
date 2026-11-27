@@ -35,12 +35,12 @@ La page **Connexion** de la fenêtre demande :
 
 - **Brokers** : `host:port` d'un ou plusieurs brokers, séparés par des
   virgules. Un seul suffit : il indique à DataPlayer où sont les autres ;
-- **TLS** : une connexion chiffrée, avec vérification des certificats des
-  brokers ;
-- **Certificat de l'AC** : l'autorité qui les a signés, en PEM, si le système
-  ne lui fait pas déjà confiance ;
 - **Authentification** : **Aucune**, ou un utilisateur et un mot de passe en
   **SASL PLAIN**, **SASL SCRAM-SHA-256** ou **SASL SCRAM-SHA-512**.
+
+Le chiffrement, les autorités de confiance et un certificat client sont sur la page **TLS** de la fenêtre, décrite sur la page [Connexions](connections.md).
+
+**AWS IAM (MSK)** se connecte avec un jeton émis par l’un de vos [comptes cloud](cloud-accounts.md) ; **SASL OAUTHBEARER (OIDC)** avec un jeton que votre fournisseur d’identité émet pour un ID et un secret client. Un certificat client sur la page **TLS** suffit à lui seul.
 
 DataPlayer se connecte aux adresses que les brokers annoncent d'eux-mêmes ;
 elles doivent être joignables depuis le serveur DataPlayer sous ces noms. Le

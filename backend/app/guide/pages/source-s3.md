@@ -37,6 +37,8 @@ The **Connection** page of the window asks for:
 - **Verify the certificate**: switch it off only for a store whose certificate
   you made yourself.
 
+**AWS account** signs in with one of your [cloud accounts](cloud-accounts.md) instead of a key: a session token, a role it assumes or this server's own credentials are the account's.
+
 **URL** shows where the store is: its endpoint, or Amazon S3's address in
 the region. An address pasted into it fills the endpoint, and an Amazon S3 URL
 the region too; `s3://reports/2026` fills the bucket and folder. The bucket

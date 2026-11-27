@@ -31,6 +31,8 @@ La página **Conexión** de la ventana pide:
   siendo accesibles desde el catálogo;
 - **Autenticación**: una contraseña, o ninguna.
 
+**AWS IAM (ElastiCache, MemoryDB)** y **Microsoft Entra (Azure)** inician sesión con un token que una de sus [cuentas en la nube](cloud-accounts.md) emite para cada conexión; ambos necesitan TLS.
+
 Una cadena de conexión como `redis://:secret@cache.example.com:6379/0` pegada en
 **URL** rellena estos campos. Una dirección `rediss://` activa TLS con verificación
 completa, y un usuario antes de `@` es un usuario de ACL; el resto está en la
