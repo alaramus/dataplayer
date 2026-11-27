@@ -29,7 +29,8 @@ import { withTunnelChoices } from "@/features/connectors/tunnels"
 import { windowPages } from "@/features/connectors/windowPages"
 import CloudAccountDialog from "@/features/cloudAccounts/CloudAccountDialog.vue"
 import { withAccountChoices } from "@/features/cloudAccounts/accounts"
-import { useCloudAccounts } from "@/features/cloudAccounts/api"
+import { useAwsRegions, useCloudAccounts } from "@/features/cloudAccounts/api"
+import { regionAccount, withRegionChoices } from "@/features/cloudAccounts/regions"
 import ServerKeyField from "@/features/sshKeys/ServerKeyField.vue"
 import SshKeyDialog from "@/features/sshKeys/SshKeyDialog.vue"
 import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
@@ -386,15 +387,28 @@ function takeAccount(id: string) {
   }
 }
 
+// Amazon's regions, asked only by a form with a field naming one (D461): the
+// account's own once the form names an AWS account.
+const wantsRegions = computed(() => activeFields.value.some((field) => field.purpose === "aws-region"))
+const regions = useAwsRegions(
+  computed(() => regionAccount(activeFields.value, optionValues.value)),
+  wantsRegions
+)
+
 // The person's SSH connections, for a database that may go through one (D282).
 const connections = useConnectors()
 
 const groups = computed(() =>
   fieldGroups(
     withTunnelChoices(
-      withAccountChoices(
-        withKeyChoices(activeFields.value, sshKeys.data.value ?? []),
-        cloudAccounts.data.value ?? []
+      withRegionChoices(
+        withAccountChoices(
+          withKeyChoices(activeFields.value, sshKeys.data.value ?? []),
+          cloudAccounts.data.value ?? []
+        ),
+        regions.data.value ?? [],
+        optionValues.value,
+        t("connectors.region_default")
       ),
       connections.data.value?.data ?? [],
       optionValues.value,

@@ -28,7 +28,8 @@ The **Connection** page of the window asks for:
 
 - **Endpoint**: the store's address, such as `https://s3.example.com`. Empty is
   Amazon S3;
-- **Region**: empty is `us-east-1`;
+- **Region**: chosen from the list Amazon gives, or typed once an endpoint
+  names another store; empty is `us-east-1`;
 - **Access key** and **Secret key**;
 - **Bucket**: empty shows every bucket the key may list;
 - **Folder**: where browsing starts inside the bucket;

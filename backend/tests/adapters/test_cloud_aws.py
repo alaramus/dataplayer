@@ -216,3 +216,88 @@ def test_another_kind_s_account_or_question_is_refused() -> None:
         AwsIssuer().issue(vault, CloudCredentials(region=""))
     with pytest.raises(AdapterError):
         AwsIssuer().issue(_key(), cloud.SecretRequest())
+
+
+# Regions (D461): what Amazon publishes, and what an account has enabled.
+
+PUBLISHED = {
+    "prefixes": [
+        {"ip_prefix": "3.5.140.0/22", "region": "ap-northeast-2"},
+        {"ip_prefix": "13.34.37.64/27", "region": "eu-central-1"},
+        {"ip_prefix": "52.93.178.234/32", "region": "GLOBAL"},
+    ],
+    "ipv6_prefixes": [{"ipv6_prefix": "2600:1f14::/35", "region": "eu-central-1"}],
+}
+
+
+@pytest.fixture
+def published(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[Any]]:
+    """Amazon's published list, answered here; what it answers is the list's
+    first item, an exception to raise or the data."""
+    from app.adapters.cloud.aws import regions
+
+    answers: list[Any] = [PUBLISHED]
+    calls: list[int] = []
+
+    def fetch() -> Any:
+        calls.append(1)
+        if isinstance(answers[0], Exception):
+            raise answers[0]
+        return answers[0]
+
+    monkeypatch.setattr(regions, "_fetch", fetch)
+    monkeypatch.setattr(regions, "_published", None)
+    yield [answers, calls]
+
+
+@pytest.mark.usefixtures("published")
+def test_the_published_regions_are_named_sorted_and_titled() -> None:
+    found = AwsIssuer().regions(None)
+
+    assert [region.name for region in found] == ["ap-northeast-2", "eu-central-1"]
+    assert found[1].title == "Europe (Frankfurt)"
+
+
+def test_the_published_regions_are_asked_once_a_day(published: list[Any]) -> None:
+    _, calls = published
+
+    AwsIssuer().regions(None)
+    AwsIssuer().regions(None)
+
+    assert len(calls) == 1
+
+
+def test_without_amazon_the_regions_botocore_knows_stand_in(published: list[Any]) -> None:
+    import httpx
+
+    answers, _ = published
+    answers[0] = httpx.ConnectError("offline")
+
+    names = [region.name for region in AwsIssuer().regions(None)]
+
+    assert "eu-central-1" in names and "us-gov-west-1" in names
+    assert not any(name.endswith("-global") or name.startswith("us-iso") for name in names)
+
+
+@pytest.mark.usefixtures("aws")
+def test_an_account_is_offered_the_regions_ec2_lists_for_it(published: list[Any]) -> None:
+    _, calls = published
+
+    names = [region.name for region in AwsIssuer().regions(_key())]
+
+    assert "eu-west-1" in names and "us-east-1" in names
+    assert calls == []
+
+
+@pytest.mark.usefixtures("aws", "published")
+def test_an_account_ec2_refuses_is_offered_the_published_regions(monkeypatch: pytest.MonkeyPatch) -> None:
+    from botocore.client import BaseClient
+
+    def refuse(_client: Any, operation: str, _kwargs: Any) -> Any:
+        raise ClientError({"Error": {"Code": "UnauthorizedOperation", "Message": SECRET}}, operation)
+
+    monkeypatch.setattr(BaseClient, "_make_api_call", refuse)
+
+    names = [region.name for region in AwsIssuer().regions(_key())]
+
+    assert names == ["ap-northeast-2", "eu-central-1"]

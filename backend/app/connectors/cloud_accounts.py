@@ -142,6 +142,13 @@ class CloudAccountTest(BaseModel):
     message: str
 
 
+class CloudRegion(BaseModel):
+    """A region the field offers: its name, and what the provider calls it."""
+
+    name: str
+    title: str
+
+
 def ambient_offered(user: User) -> bool:
     return installation.CLOUD_AMBIENT_CREDENTIALS and user.is_superuser
 

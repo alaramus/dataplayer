@@ -30,6 +30,7 @@ from app.adapters.cloud.requests import (
     VaultDatabaseCredentials,
 )
 from app.adapters.layout import layout
+from app.adapters.options import AWS_REGION
 from app.adapters.protocol import AdapterError
 from app.core.translation import N_, say
 
@@ -106,7 +107,7 @@ def region_field() -> Any:
         pattern=r"^[a-z0-9-]*$",
         title=N_("Region"),
         description=N_("Empty is the account's region"),
-        json_schema_extra=layout(),
+        json_schema_extra=layout(purpose=AWS_REGION),
     )
 
 

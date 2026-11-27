@@ -22,6 +22,7 @@ from app.adapters.addresses import http_origin
 from app.adapters.cloud.signin import aws_account_field
 from app.adapters.explorer.storage import is_plain_name, stays_inside_root
 from app.adapters.layout import layout
+from app.adapters.options import AWS_REGION, TYPED_WHEN
 from app.core.translation import N_, say
 
 # Virtual-hosted on AWS and path everywhere else, which every compatible store
@@ -99,7 +100,7 @@ class _S3Base(BaseModel):
         pattern=r"^[a-z0-9-]*$",
         title=N_("Region"),
         description=N_("Empty is us-east-1"),
-        json_schema_extra=layout(row="where"),
+        json_schema_extra=layout(row="where", purpose=AWS_REGION) | {TYPED_WHEN: "endpoint"},
     )
 
     if TYPE_CHECKING:

@@ -29,7 +29,8 @@ La page **Connexion** de la fenêtre demande :
 
 - **Point d'accès** : l'adresse du stockage, par exemple
   `https://s3.example.com`. Vide signifie Amazon S3 ;
-- **Région** : vide signifie `us-east-1` ;
+- **Région** : choisie dans la liste que donne Amazon, ou saisie dès qu'un
+  endpoint désigne un autre stockage ; vide signifie `us-east-1` ;
 - **Clé d'accès** et **Clé secrète** ;
 - **Bucket** : vide affiche tous les buckets que la clé peut lister ;
 - **Dossier** : où la navigation commence dans le bucket ;

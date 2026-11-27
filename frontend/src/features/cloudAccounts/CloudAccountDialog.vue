@@ -4,7 +4,9 @@ import { computed, ref, watch } from "vue"
 
 import type { CloudAccountPublic } from "@/client"
 import { accountFields, settingsFor } from "@/features/cloudAccounts/accounts"
+import { withRegionChoices } from "@/features/cloudAccounts/regions"
 import {
+  useAwsRegions,
   useCloudAccountSchema,
   useCreateCloudAccount,
   useUpdateCloudAccount,
@@ -63,6 +65,15 @@ const fields = computed(() =>
   schema.value === null ? [] : accountFields(schema.value, form.values.value.method)
 )
 const busy = computed(() => create.isPending.value || update.isPending.value)
+// The region where credentials are asked, chosen from every region Amazon
+// publishes: the account is still being written, so it is not asked (D461).
+const regions = useAwsRegions(
+  undefined,
+  computed(() => props.modelValue && fields.value.some((field) => field.purpose === "aws-region"))
+)
+const shownFields = computed(() =>
+  withRegionChoices(fields.value, regions.data.value ?? [], form.values.value, t("connectors.region_default"))
+)
 
 function start() {
   const account = editing.value
@@ -149,7 +160,7 @@ async function save() {
       />
       <SchemaFields
         v-model="form.values.value"
-        :fields="fields"
+        :fields="shownFields"
         :errors="form.errors.value"
         :secrets-are-stored="editing !== null"
       />

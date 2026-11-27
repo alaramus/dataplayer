@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import cloud, registry
-from app.adapters.cloud import IssuedSecret, SecretRequest, account_field
+from app.adapters.cloud import IssuedSecret, Region, SecretRequest, account_field
 from app.adapters.cloud.accounts import AwsAccessKey
 from app.adapters.protocol import AdapterError
 from app.connectors import cloud_accounts
@@ -54,6 +54,14 @@ class FakeIssuer:
         if self.fails is not None:
             raise self.fails
         return "Signed in as arn:aws:iam::123456789012:user/test"
+
+    def regions(self, account: BaseModel | None) -> list[Region]:
+        if self.fails is not None:
+            raise self.fails
+        if account is None:
+            return [Region("eu-central-1", "Europe (Frankfurt)"), Region("us-east-1", "US East (N. Virginia)")]
+        assert isinstance(account, AwsAccessKey)
+        return [Region(account.region or "us-east-1", "")]
 
 
 @pytest.fixture
@@ -438,3 +446,52 @@ async def test_the_server_s_own_identity_stops_when_the_installation_withdraws_i
     assert "no longer allowed" in withdrawn.value.message
     assert issuer.calls == 0
     await client.delete(f"{BASE}/{made['id']}", headers=superuser_token_headers)
+
+
+@pytest.mark.usefixtures("issuer")
+async def test_the_regions_are_the_published_ones_without_an_account(
+    client: AsyncClient, person: dict[str, str]
+) -> None:
+    found = await client.get(f"{BASE}/regions", headers=person)
+
+    assert found.status_code == 200
+    assert found.json() == [
+        {"name": "eu-central-1", "title": "Europe (Frankfurt)"},
+        {"name": "us-east-1", "title": "US East (N. Virginia)"},
+    ]
+
+
+@pytest.mark.usefixtures("issuer")
+async def test_the_regions_of_an_account_are_asked_of_it(
+    client: AsyncClient, person: dict[str, str]
+) -> None:
+    made = await _make(client, person, KEY | {"region": "ap-south-2"})
+
+    found = await client.get(f"{BASE}/regions", headers=person, params={"account": made["id"]})
+
+    assert found.json() == [{"name": "ap-south-2", "title": ""}]
+
+
+@pytest.mark.usefixtures("issuer")
+async def test_the_regions_of_somebody_else_s_or_another_kind_s_account_are_not_asked(
+    client: AsyncClient, person: dict[str, str], normal_user_token_headers: dict[str, str]
+) -> None:
+    theirs = await _make(client, normal_user_token_headers)
+    vault = await _make(client, person, VAULT)
+
+    stranger = await client.get(f"{BASE}/regions", headers=person, params={"account": theirs["id"]})
+    other = await client.get(f"{BASE}/regions", headers=person, params={"account": vault["id"]})
+
+    assert stranger.status_code == 404
+    assert other.status_code == 404
+
+
+async def test_a_provider_that_lists_no_regions_or_fails_offers_none(
+    client: AsyncClient, person: dict[str, str], issuer: FakeIssuer
+) -> None:
+    vault = await client.get(f"{BASE}/regions", headers=person, params={"kind": "vault"})
+    issuer.fails = RuntimeError(f"InvalidClientTokenId: {SECRET}")
+    failed = await client.get(f"{BASE}/regions", headers=person)
+
+    assert vault.json() == []
+    assert failed.status_code == 200 and failed.json() == []

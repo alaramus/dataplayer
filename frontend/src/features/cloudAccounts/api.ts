@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
+import { unref } from "vue"
 import type { MaybeRef } from "vue"
 
 import { CloudAccountsService } from "@/client"
@@ -26,6 +27,20 @@ export function useCloudAccountSchema(enabled: MaybeRef<boolean> = true) {
     queryFn: async () => (await CloudAccountsService.accountsReadCloudAccountSchema()).data,
     enabled,
     staleTime: Infinity,
+  })
+}
+
+/**
+ * Amazon's regions for a field that names one (D461): the account's, or
+ * every published one without it. Kept an hour, as regions change by the year.
+ */
+export function useAwsRegions(account: MaybeRef<string | undefined>, enabled: MaybeRef<boolean> = true) {
+  return useQuery({
+    queryKey: [...cloudAccountsKey, "regions", account],
+    queryFn: async () =>
+      (await CloudAccountsService.accountsReadCloudRegions({ query: { account: unref(account) ?? null } })).data,
+    enabled,
+    staleTime: 60 * 60 * 1000,
   })
 }
 

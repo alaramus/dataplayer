@@ -29,7 +29,8 @@ Die Seite **Verbindung** des Fensters fragt nach:
 
 - **Endpunkt**: der Adresse des Speichers, etwa `https://s3.example.com`. Leer
   ist Amazon S3;
-- **Region**: leer ist `us-east-1`;
+- **Region**: aus der Liste gewählt, die Amazon liefert, oder getippt, sobald
+  ein Endpunkt einen anderen Speicher nennt; leer ist `us-east-1`;
 - **Zugriffsschlüssel** und **Geheimer Schlüssel**;
 - **Bucket**: leer zeigt jeden Bucket, den der Schlüssel auflisten darf;
 - **Ordner**: wo das Durchsuchen im Bucket beginnt;

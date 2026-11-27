@@ -1,4 +1,4 @@
-"""A person's cloud accounts: making one, changing it, testing it (D451, D452).
+"""A person's cloud accounts: making one, changing it, testing it, its regions (D451, D452, D461).
 
 A router of its own, as SSH keys have: an account is its owner's and serves
 every connection they point at it.
@@ -9,7 +9,7 @@ from typing import Any, cast
 
 from fastapi import APIRouter
 
-from app.adapters.cloud import AccountKind, issuer_for
+from app.adapters.cloud import AccountKind, Region, RegionLister, issuer_for
 from app.adapters.protocol import AdapterError
 from app.connectors import cloud_accounts
 from app.connectors.cloud_accounts import (
@@ -19,6 +19,7 @@ from app.connectors.cloud_accounts import (
     CloudAccountSchemas,
     CloudAccountTest,
     CloudAccountUpdate,
+    CloudRegion,
 )
 from app.core.db import SessionDep
 from app.core.problems import Problem
@@ -48,6 +49,40 @@ async def read_cloud_account_schema(current_user: CurrentUser) -> Any:
     offers it and the person is a superuser (D452).
     """
     return cloud_accounts.schemas_for(current_user)
+
+
+@router.get("/regions", response_model=list[CloudRegion])
+async def read_cloud_regions(
+    session: SessionDep,
+    current_user: CurrentUser,
+    kind: AccountKind = "aws",
+    account: uuid.UUID | None = None,
+) -> Any:
+    """
+    The regions a field naming one offers: those the account has enabled, or
+    every region the provider publishes when no account is named.
+
+    Empty when the provider cannot list them; the field is then typed. An
+    account that may not ask — signing in as this server where that is no
+    longer lent — gets the published list.
+    """
+    issuer = issuer_for(kind)
+    if not isinstance(issuer, RegionLister):
+        return []
+    settings = None
+    name = kind
+    if account is not None:
+        row = await _own_or_404(session, account, current_user.id)
+        if row.kind != kind:
+            raise Problem(404, "cloud_accounts.not_found")
+        found = cloud_accounts.settings_of(row)
+        if not found.ambient or cloud_accounts.ambient_offered(current_user):
+            settings, name = found, row.name
+    try:
+        regions: list[Region] = await cloud_accounts.run_issuer(kind, name, issuer.regions, settings)
+    except AdapterError:
+        return []
+    return [CloudRegion(name=region.name, title=region.title) for region in regions]
 
 
 @router.post("/", response_model=CloudAccountPublic)

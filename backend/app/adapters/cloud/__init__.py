@@ -78,6 +78,26 @@ class CredentialIssuer(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class Region:
+    """A region a provider names, and what the provider calls it in words."""
+
+    name: str
+    title: str
+
+
+@runtime_checkable
+class RegionLister(Protocol):
+    """A provider that can say its regions, for the field that names one (D461).
+
+    With an account, the regions it may use; without one, or when the account
+    may not ask, every region the provider publishes. Never raises: the list
+    is a convenience, and the field takes a typed name without it.
+    """
+
+    def regions(self, account: BaseModel | None) -> list[Region]: ...
+
+
 _issuers: dict[AccountKind, CredentialIssuer] = {}
 
 

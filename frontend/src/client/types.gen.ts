@@ -2530,6 +2530,22 @@ export type CloudAccountUpdate = {
 }
 
 /**
+ * CloudRegion
+ *
+ * A region the field offers: its name, and what the provider calls it.
+ */
+export type CloudRegion = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Title
+   */
+  title: string
+}
+
+/**
  * CodeValue
  *
  * Monospaced, with a copy button.
@@ -22778,6 +22794,44 @@ export type cloudAccountsReadCloudAccountSchemaResponses = {
 
 export type cloudAccountsReadCloudAccountSchemaResponse =
   cloudAccountsReadCloudAccountSchemaResponses[keyof cloudAccountsReadCloudAccountSchemaResponses]
+
+export type cloudAccountsReadCloudRegionsData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Kind
+     */
+    kind?: "aws" | "gcp" | "azure" | "vault"
+    /**
+     * Account
+     */
+    account?: string | null
+  }
+  url: "/api/v1/cloud-accounts/regions"
+}
+
+export type cloudAccountsReadCloudRegionsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type cloudAccountsReadCloudRegionsError =
+  cloudAccountsReadCloudRegionsErrors[keyof cloudAccountsReadCloudRegionsErrors]
+
+export type cloudAccountsReadCloudRegionsResponses = {
+  /**
+   * Response Cloud-Accounts-Read Cloud Regions
+   *
+   * Successful Response
+   */
+  200: Array<CloudRegion>
+}
+
+export type cloudAccountsReadCloudRegionsResponse =
+  cloudAccountsReadCloudRegionsResponses[keyof cloudAccountsReadCloudRegionsResponses]
 
 export type cloudAccountsDeleteCloudAccountData = {
   body?: never

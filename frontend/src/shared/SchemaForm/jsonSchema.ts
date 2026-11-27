@@ -53,6 +53,7 @@ export interface JsonSchemaProperty {
    * the owner's SSH connections, for a database reached through it (D282).
    * `cloud-account` takes one of the owner's cloud accounts of a kind
    * `x-ui-account-kind` lists (D451): one, or four for a secret store (D454).
+   * `aws-region` names an AWS region, offered from Amazon's list (D461).
    */
   "x-ui-purpose"?:
     | "clipboard-mode"
@@ -65,8 +66,14 @@ export interface JsonSchemaProperty {
     | "ssh-host-key"
     | "ssh-connection"
     | "cloud-account"
+    | "aws-region"
   /** The kinds of cloud account a `cloud-account` field takes (D451). */
   "x-ui-account-kind"?: string[]
+  /**
+   * A field whose value is typed rather than chosen while this other field is
+   * filled: an S3 region once an endpoint names another provider's store (D461).
+   */
+  "x-ui-typed-when"?: string
   // Where the field goes, put here by `layout()` on the server. A statement
   // about the fields, so it is made where the fields are declared — the form
   // would otherwise have to infer that a port is narrow from its being a
@@ -147,6 +154,8 @@ export interface FieldSpec {
   purpose?: JsonSchemaProperty["x-ui-purpose"]
   /** The kinds of cloud account the field takes, when it takes one. */
   accountKinds?: string[]
+  /** The field that, filled, makes this one typed rather than chosen. */
+  typedWhen?: string
   /** The tab this field belongs to. */
   group: string
   /** Fields sharing a row are laid out on one line. */
@@ -263,6 +272,7 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     file: property["x-ui-file"],
     purpose: property["x-ui-purpose"],
     accountKinds: property["x-ui-account-kind"],
+    typedWhen: property["x-ui-typed-when"],
     group: property.group ?? DEFAULT_GROUP,
     row: property.row,
     }

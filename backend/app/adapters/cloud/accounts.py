@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from app.adapters.addresses import http_origin
 from app.adapters.cloud import AccountKind
 from app.adapters.layout import JSON_FILE, PEM_FILE, layout
-from app.adapters.options import OptionsSchema
+from app.adapters.options import AWS_REGION, OptionsSchema
 from app.adapters.tls import CERTIFICATE, pem
 from app.core.translation import N_, say
 
@@ -55,7 +55,7 @@ def _region() -> Any:
         pattern=r"^[a-z0-9-]*$",
         title=N_("Region"),
         description=N_("Where credentials are asked for; empty is us-east-1"),
-        json_schema_extra=layout(),
+        json_schema_extra=layout(purpose=AWS_REGION),
     )
 
 

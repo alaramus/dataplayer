@@ -29,7 +29,8 @@ La página **Conexión** de la ventana pide:
 
 - **Punto de acceso**: la dirección del almacenamiento, como
   `https://s3.example.com`. Vacío es Amazon S3;
-- **Región**: vacío es `us-east-1`;
+- **Región**: se elige de la lista que da Amazon, o se escribe cuando un
+  endpoint nombra otro almacén; vacío es `us-east-1`;
 - **Clave de acceso** y **Clave secreta**;
 - **Bucket**: vacío muestra todos los buckets que la clave puede listar;
 - **Carpeta**: dónde empieza la navegación dentro del bucket;

@@ -149,6 +149,7 @@ export const connectors: Messages["connectors"] = {
     apply: "लागू करें",
     ok: "ठीक है",
   },
+  region_default: "डिफ़ॉल्ट",
   tunnel: {
     directly: "सीधे",
     someone_elses: "मालिक का SSH कनेक्शन",

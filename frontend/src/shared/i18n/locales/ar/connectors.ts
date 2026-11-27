@@ -150,6 +150,7 @@ export const connectors: Messages["connectors"] = {
     apply: "تطبيق",
     ok: "حسنًا",
   },
+  region_default: "الافتراضية",
   tunnel: {
     directly: "مباشرةً",
     someone_elses: "اتصال SSH الخاص بالمالك",

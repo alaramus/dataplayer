@@ -149,6 +149,7 @@ export const connectors: Messages["connectors"] = {
     apply: "Aplicar",
     ok: "Aceptar",
   },
+  region_default: "Predeterminada",
   tunnel: {
     directly: "Directamente",
     someone_elses: "Conexión SSH del propietario",

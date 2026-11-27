@@ -4,7 +4,7 @@ For changing how a server source encrypts its connection, which certificate it
 trusts or offers, a person's cloud accounts, and how a password is issued by a
 cloud or fetched from a secret store for every new connection.
 
-Decisions here: D446, D447, D448, D449, D450, D451, D452, D453, D454, D455, D456.
+Decisions here: D446, D447, D448, D449, D450, D451, D452, D453, D454, D455, D456, D461.
 
 ## D446. One TLS block, every server source
 
@@ -438,3 +438,19 @@ Known deviations:
   provider and no MongoDB with client certificates run here.
 
 Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
+
+## D461. A region is chosen from what Amazon answers
+
+Every field naming an AWS region — an AWS account's, the IAM variants' (D453)
+and S3's — says so with `x-ui-purpose: aws-region`, and the form offers a
+choice once `GET /cloud-accounts/regions` answers: the regions EC2's
+`DescribeRegions` lists for the AWS account the form names, or, without one or
+when it may not ask, the regions of Amazon's published IP ranges, read without
+credentials and kept a day; botocore's own list when Amazon does not answer.
+Titles ("Europe (Frankfurt)") are botocore's. The route never refuses: an
+empty list leaves the box to type in. The empty choice comes first, and a held
+region the list lacks stays a choice. S3's field carries
+`x-ui-typed-when: endpoint`, so another provider's store keeps its typed
+region. The account's own form asks the published list.
+
+Spec: [AWS regions chosen, not typed](../../decisions/2026-11-27-aws-regions-design.md)

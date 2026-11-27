@@ -156,6 +156,9 @@ import type {
   cloudAccountsReadCloudAccountsData,
   cloudAccountsReadCloudAccountsErrors,
   cloudAccountsReadCloudAccountsResponses,
+  cloudAccountsReadCloudRegionsData,
+  cloudAccountsReadCloudRegionsErrors,
+  cloudAccountsReadCloudRegionsResponses,
   cloudAccountsTestCloudAccountData,
   cloudAccountsTestCloudAccountErrors,
   cloudAccountsTestCloudAccountResponses,
@@ -4140,6 +4143,31 @@ export class CloudAccountsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/cloud-accounts/schema",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Cloud Regions
+   *
+   * The regions a field naming one offers: those the account has enabled, or
+   * every region the provider publishes when no account is named.
+   *
+   * Empty when the provider cannot list them; the field is then typed. An
+   * account that may not ask — signing in as this server where that is no
+   * longer lent — gets the published list.
+   */
+  public static accountsReadCloudRegions<ThrowOnError extends boolean = true>(
+    options?: Options<cloudAccountsReadCloudRegionsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      cloudAccountsReadCloudRegionsResponses,
+      cloudAccountsReadCloudRegionsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/cloud-accounts/regions",
       ...options,
     })
   }

@@ -138,6 +138,12 @@ def tunnel_reference_names(schema: OptionsSchema) -> set[str]:
 CLOUD_ACCOUNT_REFERENCE = "cloud-account"
 CLOUD_ACCOUNT_KIND = "x-ui-account-kind"
 
+# A field naming an AWS region: the form offers Amazon's list, an account's
+# when the form names one (D461). With `x-ui-typed-when`, a store of another
+# provider's — an endpoint filled in — has its region typed instead.
+AWS_REGION = "aws-region"
+TYPED_WHEN = "x-ui-typed-when"
+
 
 def cloud_account_names(schema: OptionsSchema) -> dict[str, tuple[str, ...]]:
     """Names of fields that name a cloud account, each with the kinds it takes,

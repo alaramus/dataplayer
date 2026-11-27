@@ -1,4 +1,4 @@
-"""What an AWS account is asked for, answered through boto3 (D449, D453, D454).
+"""What an AWS account is asked for, answered through boto3 (D449, D453, D454, D461).
 
 Synchronous: the caller runs every method in a thread. Every refusal is worded
 here from botocore's error code, never from its message, which can quote a
@@ -29,8 +29,9 @@ from botocore.exceptions import (
 )
 from pydantic import BaseModel
 
-from app.adapters.cloud import IssuedSecret, SecretRequest
+from app.adapters.cloud import IssuedSecret, Region, SecretRequest
 from app.adapters.cloud.accounts import AwsAccessKey, AwsDefaultChain
+from app.adapters.cloud.aws.regions import account_regions, published_regions
 from app.adapters.cloud.requests import (
     CloudCredentials,
     ElastiCacheToken,
@@ -79,6 +80,15 @@ class AwsIssuer:
         except (ClientError, BotoCoreError) as failure:
             raise _reduced(failure) from None
         return say("Signed in as {identity}", identity=str(found.get("Arn", "")))
+
+    def regions(self, account: BaseModel | None) -> list[Region]:
+        if account is None:
+            return published_regions()
+        try:
+            session = _session(_aws(account)).session
+        except (AdapterError, ClientError, BotoCoreError):
+            return published_regions()
+        return account_regions(session, _CONFIG)
 
     def _issue(self, settings: AwsAccessKey | AwsDefaultChain, request: SecretRequest) -> IssuedSecret:
         if isinstance(request, StoredSecret):
