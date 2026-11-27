@@ -28,6 +28,10 @@ frontend/src/features/copies/
   A password, a token, a key, an invitation link, a connection string and a
   value a view hides are secrets and never leave the browser. A new copy
   button decides which it is, because it cannot compile without.
+- **Copying from the history does not reorder it.** Copy again in the window
+  uses `{ history: true }`, which is not kept: the row stays where it is
+  rather than jumping to the top under the pointer. The same text copied
+  anywhere else in the application still moves to the top.
 - **Only the application's copies.** A person's own Ctrl+C on selected text
   is not heard, nor are catalog nodes held for pasting into another
   connection, which are not text.

@@ -1,15 +1,17 @@
 import type { CopyCreate } from "@/client"
 
 /**
- * Where a copy came from, or that it is a secret (D460). Required, so every
- * copy button decides: a secret is never kept in the copy history, and
- * anything else names the place it was copied from.
+ * Where a copy came from (D460). Required, so every copy button decides: a
+ * secret is never kept in the copy history, a copy taken from the history
+ * itself is already there and is not kept again, and anything else names the
+ * place it was copied from.
  */
 export type CopyOrigin =
   | { from: CopyCreate["source"]; detail?: string | null }
   | { secret: true }
+  | { history: true }
 
-export type CopyListener = (text: string, origin: Exclude<CopyOrigin, { secret: true }>) => void
+export type CopyListener = (text: string, origin: Extract<CopyOrigin, { from: unknown }>) => void
 
 let listener: CopyListener | null = null
 
@@ -28,7 +30,7 @@ export async function copyText(text: string, origin: CopyOrigin): Promise<void> 
   // plain HTTP to another machine copies through a selection instead.
   if (navigator.clipboard) await navigator.clipboard.writeText(text)
   else copyThroughSelection(text)
-  if (listener !== null && !("secret" in origin) && text !== "") listener(text, origin)
+  if (listener !== null && "from" in origin && text !== "") listener(text, origin)
 }
 
 /**

@@ -67,7 +67,9 @@ function chooseAll(on: boolean) {
 async function copyAgain(copy: CopyBrief) {
   try {
     const text = copy.preview.length < copy.length ? await wholeText(copy.id) : copy.preview
-    await copyText(text, { from: copy.source, detail: copy.detail })
+    // Not kept again: the row would jump to the top under the pointer while
+    // the person is still working in the list (D460).
+    await copyText(text, { history: true })
     toast.success(t("copies.window.copied"))
   } catch (cause) {
     toast.error(messageOf(cause, t("copies.window.copy_failed")))

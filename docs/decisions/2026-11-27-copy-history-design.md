@@ -47,4 +47,7 @@ to keep. Catalog nodes held for pasting into another connection are not text.
 **The window.** A search over the text, a list newest first showing three
 lines of each copy with its source and time, Copy again and Delete on each,
 tick boxes with Delete selected, and Clear history. One delete is not
-confirmed; several and all are.
+confirmed; several and all are. Copy again is not kept a second time: tried
+first, it moved the row to the top under the pointer while the person was
+still working in the list, so a third origin, `{ history: true }`, copies
+without telling the history.

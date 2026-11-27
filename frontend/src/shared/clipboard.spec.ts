@@ -30,6 +30,17 @@ describe("application clipboard", () => {
       expect(heard).toHaveBeenCalledWith("SELECT 1", { from: "code", detail: "orders" })
     })
 
+    it("never hears of a copy taken from the history itself", async () => {
+      vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
+      const heard = vi.fn()
+      onCopied(heard)
+
+      await copyText("SELECT 1", { history: true })
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("SELECT 1")
+      expect(heard).not.toHaveBeenCalled()
+    })
+
     it("never hears of a secret, an empty copy or one the browser refused", async () => {
       const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
       const heard = vi.fn()
