@@ -11,7 +11,8 @@ Decisions here: D366, D367, D368, D369, D370, D371, D372, D373, D374, D375, D376
 backend/app/adapters/mailbox.py        SupportsMailbox and its models, nothing about IMAP
 backend/app/adapters/mail/
 ├── options.py     address, login, IMAP and SMTP servers; SMTP's own login as a union
-├── session.py     a session per operation in the thread pool; each step's failure named
+├── session.py     an operation per call into the thread pool; each step's failure named
+├── pool.py        signed-in IMAP sessions kept between requests
 ├── utf7.py        IMAP's modified UTF-7 for folder names
 ├── folders.py     LIST, what a folder is for, STATUS counts, the Trash
 ├── messages.py    pages of headings, search, one message, marking, deleting
@@ -54,11 +55,17 @@ visible to them.
 
 Spec: [A mailbox as a source](../../decisions/2026-11-15-mail-source-design.md)
 
-## D368. IMAP, a session per operation in the thread pool; a message is a UID in a folder
+## D368. IMAP in the thread pool, its sessions kept; a message is a UID in a folder
 
 - `imaplib` and `smtplib`, synchronous, one operation per call into the
-  thread pool; no session kept between requests. `imaplib` is contained by an
-  import contract.
+  thread pool. `imaplib` is contained by an import contract.
+- A stored connection's IMAP sessions stay signed in between requests, in the
+  resource store, lent to one operation at a time: up to three idle, none
+  older than two minutes, closed without LOGOUT. Connecting and signing in
+  to Gmail cost about 650 ms of every request, LOGOUT 200 more. Reading work
+  found on a session the server dropped is run again on a new one; a change
+  asks a kept session with NOOP first, so it is never sent twice. A draft,
+  the background check for new letters and SMTP keep nothing.
 - Security is `tls`, `starttls` or `none`, certificates checked against the
   system's store. STARTTLS is upgraded before the login is sent, and a server
   that will not upgrade is refused.
@@ -69,7 +76,12 @@ Spec: [A mailbox as a source](../../decisions/2026-11-15-mail-source-design.md)
 - A folder is named by the server's own name for it, decoded from modified
   UTF-7 for display, and checked against LIST before it is selected. Its role
   comes from SPECIAL-USE attributes, else from the common names; INBOX is
-  always the inbox. Counts come from STATUS.
+  always the inbox, its name compared without case. Counts come in one
+  command where the server offers LIST-STATUS, otherwise as every STATUS sent
+  before the first answer is read: fifteen of Gmail's waited for in turn took
+  three seconds.
+- LIST is read once per operation and not kept between them, so a folder
+  made or removed by another client is seen on the next request.
 - A page of headings is read newest first by sequence number, at most 100,
   with `BODY.PEEK[HEADER.FIELDS …]` only. A search is `UID SEARCH CHARSET
   UTF-8 TEXT` with the words as a literal, so they are a value and never
@@ -85,7 +97,10 @@ Known deviations:
   (`multipart/mixed`), without BODYSTRUCTURE; a letter that carries a file
   some other way shows none until opened.
 - **A folder named by a client is checked with a LIST per request.** One more
-  round trip; kept until sessions are kept.
+  round trip, paid so a session kept between requests never trusts an old list.
+- **Counting without LIST-STATUS calls imaplib's private halves of a
+  command**, `_command` and `_command_complete`: it has no public way to send a
+  command before the last one is answered.
 
 Spec: [A mailbox as a source](../../decisions/2026-11-15-mail-source-design.md)
 

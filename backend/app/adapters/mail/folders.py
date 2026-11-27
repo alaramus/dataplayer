@@ -2,7 +2,9 @@
 
 import imaplib
 import re
+import weakref
 from dataclasses import dataclass
+from typing import Any, Protocol, cast
 
 from app.adapters.mail import utf7
 from app.adapters.mailbox import FolderRole, MailboxRefused, MailFolder
@@ -15,6 +17,15 @@ _LIST_LINE = re.compile(
     re.IGNORECASE,
 )
 _STATUS = re.compile(rb"(MESSAGES|UNSEEN)\s+(\d+)", re.IGNORECASE)
+# `"Sent Items" (MESSAGES 12 UNSEEN 3)`; the name may also be an atom.
+_STATUS_LINE = re.compile(rb'^\s*(?P<name>"(?:[^"\\]|\\.)*"|[^\s(]+)\s*\((?P<items>[^)]*)\)')
+
+# What LIST said, kept for the rest of one operation and forgotten at the start
+# of the next (D368): a session is kept between requests, a folder list is not,
+# so one made or removed by another client is seen on the next request.
+_LISTED: weakref.WeakKeyDictionary[imaplib.IMAP4, list[Listed]] = weakref.WeakKeyDictionary()
+
+Counts = dict[str, tuple[int | None, int | None]]
 
 # SPECIAL-USE (RFC 6154), and Gmail's older XLIST names for the same.
 _ROLE_FLAGS: dict[str, FolderRole] = {
@@ -74,9 +85,23 @@ def ok(status: str, refusal: str) -> None:
         raise MailboxRefused(refusal)
 
 
+def forget(conn: imaplib.IMAP4) -> None:
+    """The next `listed` asks the server again."""
+    _LISTED.pop(conn, None)
+
+
 def listed(conn: imaplib.IMAP4) -> list[Listed]:
+    known = _LISTED.get(conn)
+    if known is not None:
+        return known
     status, lines = conn.list()
     ok(status, say("The mail server would not list the folders"))
+    found = _list_lines(lines)
+    _LISTED[conn] = found
+    return found
+
+
+def _list_lines(lines: list[Any] | None) -> list[Listed]:
     found: list[Listed] = []
     pending: bytes | None = None
     for line in lines or []:
@@ -133,17 +158,20 @@ def selectable(one: Listed) -> bool:
 
 
 def folders(conn: imaplib.IMAP4) -> list[MailFolder]:
-    """Every folder with its counts, read in the session that listed them."""
+    """Every folder with its counts, in one round trip or two rather than one a folder.
+
+    A STATUS waited for in turn costs a round trip a folder: fifteen of Gmail's
+    took three seconds of four (D368).
+    """
+    counted = _listed_with_counts(conn)
+    if counted is None:
+        found = listed(conn)
+        counts = _pipelined_status(conn, [one.id for one in found if selectable(one)])
+    else:
+        found, counts = counted
     result: list[MailFolder] = []
-    for one in listed(conn):
-        messages: int | None = None
-        unseen: int | None = None
-        if selectable(one):
-            status, data = conn.status(quoted(one.id), "(MESSAGES UNSEEN)")
-            if status == "OK" and data and isinstance(data[0], bytes):
-                counts = {key.upper(): int(value) for key, value in _STATUS.findall(data[0])}
-                messages = counts.get(b"MESSAGES")
-                unseen = counts.get(b"UNSEEN")
+    for one in found:
+        messages, unseen = counts.get(one.id, (None, None)) if selectable(one) else (None, None)
         result.append(
             MailFolder(
                 id=one.id,
@@ -156,6 +184,90 @@ def folders(conn: imaplib.IMAP4) -> list[MailFolder]:
             )
         )
     return sorted(result, key=_order)
+
+
+def _capabilities(conn: imaplib.IMAP4) -> set[str]:
+    return {str(one).upper() for one in conn.capabilities}
+
+
+def _listed_with_counts(conn: imaplib.IMAP4) -> tuple[list[Listed], Counts] | None:
+    """LIST-STATUS (RFC 5819): the folders and their counts in one command.
+
+    None where the server does not offer it or turns the command down.
+    """
+    capabilities = _capabilities(conn)
+    if "LIST-STATUS" not in capabilities:
+        return None
+    # A server may send SPECIAL-USE attributes only when asked (RFC 6154).
+    returns = (
+        "(SPECIAL-USE STATUS (MESSAGES UNSEEN))"
+        if "SPECIAL-USE" in capabilities
+        else "(STATUS (MESSAGES UNSEEN))"
+    )
+    conn.untagged_responses.pop("LIST", None)
+    conn.untagged_responses.pop("STATUS", None)
+    try:
+        status, _ = conn.xatom("LIST", '""', '"*"', "RETURN", returns)
+    except imaplib.IMAP4.abort:
+        raise
+    except imaplib.IMAP4.error:
+        return None
+    lines = conn.untagged_responses.pop("LIST", [])
+    statuses = conn.untagged_responses.pop("STATUS", [])
+    if status != "OK":
+        return None
+    found = _list_lines(lines)
+    _LISTED[conn] = found
+    return found, statuses_of(statuses)
+
+
+class _Pipelined(Protocol):
+    def _command(self, name: str, *args: str) -> bytes: ...
+    def _command_complete(self, name: str, tag: bytes) -> tuple[str, list[Any]]: ...
+
+
+def _pipelined_status(conn: imaplib.IMAP4, ids: list[str]) -> Counts:
+    """Every STATUS sent before the first answer is read (RFC 3501, 5.5).
+
+    imaplib waits for each command's answer and has no public way not to, so
+    its own two halves of a command are called apart.
+    """
+    if not ids:
+        return {}
+    raw = cast(_Pipelined, conn)
+    conn.untagged_responses.pop("STATUS", None)
+    tags = [raw._command("STATUS", quoted(one), "(MESSAGES UNSEEN)") for one in ids]
+    for tag in tags:
+        try:
+            raw._command_complete("STATUS", tag)
+        except imaplib.IMAP4.abort:
+            raise
+        except imaplib.IMAP4.error:
+            # BAD for one folder leaves its counts unknown and the rest read.
+            continue
+    return statuses_of(conn.untagged_responses.pop("STATUS", []))
+
+
+def statuses_of(items: list[Any]) -> Counts:
+    """Untagged STATUS answers by folder; a name may come as a literal."""
+    counts: Counts = {}
+    pending: str | None = None
+    for item in items:
+        if isinstance(item, tuple) and len(item) == 2 and isinstance(item[1], bytes):
+            pending = item[1].decode("utf-8", "replace")
+            continue
+        if not isinstance(item, bytes):
+            continue
+        if pending is not None:
+            name, numbers, pending = pending, item, None
+        else:
+            match = _STATUS_LINE.match(item)
+            if match is None:
+                continue
+            name, numbers = _unquoted(match.group("name")), match.group("items")
+        found = {key.upper(): int(value) for key, value in _STATUS.findall(numbers)}
+        counts[name] = (found.get(b"MESSAGES"), found.get(b"UNSEEN"))
+    return counts
 
 
 _ROLE_ORDER: dict[FolderRole | None, int] = {
@@ -178,8 +290,11 @@ def checked(conn: imaplib.IMAP4, folder: str) -> Listed:
     Checked before it is selected, as a column name is checked against the
     relation's columns (ENGINEERING.md).
     """
+    inbox = folder.upper() == "INBOX"
     for one in listed(conn):
-        if one.id == folder and selectable(one):
+        # INBOX is the one name IMAP compares without case (RFC 3501, 5.1).
+        named = one.id == folder or (inbox and one.id.upper() == "INBOX")
+        if named and selectable(one):
             return one
     raise MailboxRefused(say("There is no folder {folder} in this mailbox", folder=folder), status=404)
 
@@ -208,6 +323,7 @@ def trash(conn: imaplib.IMAP4) -> str:
     if found is not None:
         return found
     status, _ = conn.create(quoted(NEW_TRASH))
+    forget(conn)
     ok(status, say("The mail server would not make a Trash folder"))
     return NEW_TRASH
 
@@ -218,5 +334,6 @@ def drafts(conn: imaplib.IMAP4) -> str:
     if found is not None:
         return found
     status, _ = conn.create(quoted(NEW_DRAFTS))
+    forget(conn)
     ok(status, say("The mail server would not make a Drafts folder"))
     return NEW_DRAFTS

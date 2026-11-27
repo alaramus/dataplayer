@@ -50,7 +50,9 @@ const props = defineProps<{
 }>()
 
 const connectorId = computed(() => props.connectorId)
-const folder = ref<string | null>(null)
+// INBOX is every mailbox's, so its letters are asked for alongside the folders
+// rather than after them; the list of folders corrects it if it is not there.
+const folder = ref<string | null>("INBOX")
 const offset = ref(0)
 const searchText = ref("")
 const search = ref("")

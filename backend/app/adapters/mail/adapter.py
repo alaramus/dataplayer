@@ -34,6 +34,7 @@ from app.adapters.mailbox import (
 )
 from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.registry import AdapterContext, CatalogFace, register
+from app.adapters.resources import Pooling
 from app.core.translation import N_, say
 
 logger = logging.getLogger(__name__)
@@ -42,8 +43,8 @@ logger = logging.getLogger(__name__)
 class MailAdapter:
     """Facade over one session's way to the two servers (D2b)."""
 
-    def __init__(self, options: MailOptions) -> None:
-        self._session = MailSession(options)
+    def __init__(self, options: MailOptions, pooling: Pooling | None = None) -> None:
+        self._session = MailSession(options, pooling)
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -52,19 +53,24 @@ class MailAdapter:
         return self._session.options.address
 
     async def mail_folders(self) -> list[MailFolder]:
-        return await self._session.imap(folders.folders)
+        return await self._session.imap(folders.folders, repeatable=True)
 
     async def mail_messages(self, query: MessageQuery) -> MessagePage:
-        return await self._session.imap(lambda conn: messages.page(conn, query))
+        return await self._session.imap(lambda conn: messages.page(conn, query), repeatable=True)
 
     async def mail_message(self, ref: MessageRef) -> MailMessage:
-        return await self._session.imap(lambda conn: messages.read(conn, ref))
+        # Read twice, it is marked read twice: nothing a second run changes.
+        return await self._session.imap(lambda conn: messages.read(conn, ref), repeatable=True)
 
     async def mail_attachment(self, ref: MessageRef, part: str) -> AttachmentBytes:
-        return await self._session.imap(lambda conn: messages.attachment(conn, ref, part))
+        return await self._session.imap(
+            lambda conn: messages.attachment(conn, ref, part), repeatable=True
+        )
 
     async def mark_messages(self, request: MarkRequest) -> None:
-        await self._session.imap(lambda conn: messages.mark(conn, request, "\\Seen", request.seen))
+        await self._session.imap(
+            lambda conn: messages.mark(conn, request, "\\Seen", request.seen), repeatable=True
+        )
 
     async def delete_messages(self, selection: MessageSelection) -> MessagesDeleted:
         return await self._session.imap(lambda conn: messages.delete(conn, selection))
@@ -73,7 +79,9 @@ class MailAdapter:
         return await self._session.imap(lambda conn: messages.move(conn, request))
 
     async def inbox_arrivals(self, since: InboxMark | None) -> Arrivals:
-        return await self._session.imap(lambda conn: messages.arrivals(conn, since))
+        return await self._session.imap(
+            lambda conn: messages.arrivals(conn, since), repeatable=True
+        )
 
     async def _originals(
         self, message: OutgoingMessage
@@ -94,7 +102,7 @@ class MailAdapter:
                 None if carried is None else sending.original(conn, carried),
             )
 
-        return await self._session.imap(read)
+        return await self._session.imap(read, repeatable=True)
 
     async def send_message(
         self, message: OutgoingMessage, files: list[OutgoingFile]
@@ -209,5 +217,4 @@ class MailAdapter:
     ),
 )
 def _build(options: MailOptions, context: AdapterContext) -> MailAdapter:
-    del context
-    return MailAdapter(options)
+    return MailAdapter(options, context.pooling)

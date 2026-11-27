@@ -70,6 +70,17 @@ visible to them, as every shared connection is.
   wrong password.
 - **A folder's counts** — messages and unread — come from STATUS, one per
   folder, in the session that listed them.
+
+**Corrected 2026-11-27.** Measured against Gmail, at about 200 ms a round
+trip, the folders took four seconds and a page of letters two: 650 ms of each
+request was connecting and signing in, 200 LOGOUT, and fifteen STATUS waited
+for in turn three seconds; the page waited for the folders before it was asked
+for. IMAP sessions of a stored connection are now kept between requests in
+the resource store and lent one operation at a time; counts come from
+LIST-STATUS in one command, or from every STATUS sent before the first answer
+is read; LIST is read once per operation; and the Mail tab asks for INBOX
+alongside the folders.
+
 - **A folder is named by the server's own name** for it, as LIST returns it,
   and decoded from IMAP's modified UTF-7 for display. A folder named by a
   client is checked against LIST before it is selected — an identifier is
