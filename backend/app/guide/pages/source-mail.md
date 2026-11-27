@@ -20,7 +20,7 @@ general is on the [Connections](connections.md) page.
 - Letters moved to Trash, and deleted for good from Trash
 - Attachments saved to your computer or into your own folder
 - Drafts saved, finished later and sent
-- The text field has a microphone for dictation: words go at the cursor and are revised in place as they are recognized
+- The microphone beside the text field dictates at the cursor
 - Letters moved to another folder
 - Files from your own folder attached to a letter
 

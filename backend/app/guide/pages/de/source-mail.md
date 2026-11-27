@@ -20,7 +20,7 @@ steht auf der Seite [Verbindungen](connections.md).
 - Briefe in den Papierkorb verschoben und dort endgültig gelöscht
 - Anhänge auf Ihrem Computer oder in Ihrem eigenen Ordner gespeichert
 - Entwürfe speichern, später fertigstellen und senden
-- Der Nachrichtentext lässt sich mit dem Mikrofon neben dem Feld diktieren: Gesprochenes wird an der Schreibmarke eingefügt und während der Erkennung überarbeitet; nach dem Tippen wird an der neuen Schreibmarke weiterdiktiert
+- Das Mikrofon neben dem Textfeld diktiert an der Schreibmarke
 - Briefe in einen anderen Ordner verschieben
 - Dateien aus Ihrem eigenen Ordner an einen Brief hängen
 
