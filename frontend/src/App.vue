@@ -6,6 +6,7 @@ import { createOperations, isActive, operationsKey } from "@/shared/operations"
 import ServerBoundary from "@/features/servers/ServerBoundary.vue"
 import QuickChatWindow from "@/features/ai/QuickChatWindow.vue"
 import AccountPreferences from "@/features/preferences/AccountPreferences.vue"
+import { useHelpCenter } from "@/features/guide/helpCenter"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { confirmInWindow, provideWindows, useWindows, WindowHost } from "@/shared/windows"
 import { useAuthStore } from "@/stores/auth"
@@ -19,6 +20,7 @@ watch(() => auth.token, () => operations.clear(), { flush: "sync" })
 // system, regardless of which feature asked for it.
 const windows = useWindows()
 provideWindows(windows)
+useHelpCenter(windows, () => Boolean(auth.token))
 useServerLeaveGuard(async () => {
   for (const entry of [...windows.context.windows.value]) {
     const guard = entry.beforeClose ?? (() => windows.context.confirmClose?.(entry.id) ?? true)

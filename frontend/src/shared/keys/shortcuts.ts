@@ -9,10 +9,12 @@ import { computed, shallowReactive } from "vue"
  *
  * Mod is Ctrl on Windows and Linux and ⌘ on a Mac. On a Mac Ctrl+K is the
  * system's kill-line and stays so: the SQL editor, CodeMirror, binds it there.
+ * A function key is pressed alone: F1 is help everywhere, and Mod plus a
+ * letter for it would take a letter an editor or the browser already binds.
  */
 export interface Shortcut {
   id: string
-  /** The letter pressed with Mod, lower case. */
+  /** The letter pressed with Mod, lower case, or a function key, "F1", alone. */
   key: string
   /** What it does, in the words the scene lists it with. */
   action: string
@@ -61,6 +63,16 @@ export function isModKey(press: Press, letter: string, mac: boolean): boolean {
   return mod && letterOf(press) === letter
 }
 
+const FUNCTION_KEY = /^F(?:[1-9]|1[0-2])$/
+
+/** Whether a press is this shortcut's key: Mod plus a letter, or a function key alone. */
+export function isShortcutKey(press: Press, key: string, mac: boolean): boolean {
+  if (!FUNCTION_KEY.test(key)) return isModKey(press, key, mac)
+  if (press.isComposing === true) return false
+  if (press.ctrlKey || press.metaKey || press.altKey || press.shiftKey) return false
+  return press.key === key
+}
+
 /** Whether the application may take a shortcut here at all. */
 export function mayTake(where: Where): boolean {
   return !where.ownsKeys && !where.dialogOpen
@@ -68,11 +80,13 @@ export function mayTake(where: Where): boolean {
 
 /** How a shortcut is written for a person on this platform: "Ctrl + K", "⌘ + K". */
 export function keysOf(letter: string, mac: boolean): string {
+  if (FUNCTION_KEY.test(letter)) return letter
   return `${mac ? "⌘" : "Ctrl"} + ${letter.toUpperCase()}`
 }
 
 /** The same keys as `aria-keyshortcuts` spells them: "Control+K", "Meta+K". */
 export function keyshortcutsOf(letter: string, mac: boolean): string {
+  if (FUNCTION_KEY.test(letter)) return letter
   return `${mac ? "Meta" : "Control"}+${letter.toUpperCase()}`
 }
 
@@ -92,9 +106,14 @@ function whereOf(event: KeyboardEvent): Where {
 
 const registered = shallowReactive(new Map<string, Shortcut>())
 
-/** Every shortcut registered now, as the scene lists them. */
+/**
+ * Every shortcut registered now, as the scene lists them: Mod and a letter
+ * first, then function keys, whichever screen registered first.
+ */
 export const shortcutList = computed(() =>
-  [...registered.values()].map((shortcut) => ({
+  [...registered.values()]
+    .sort((a, b) => Number(FUNCTION_KEY.test(a.key)) - Number(FUNCTION_KEY.test(b.key)))
+    .map((shortcut) => ({
     keys: keysOf(shortcut.key, onMac()),
     action: shortcut.action,
   }))
@@ -103,10 +122,10 @@ export const shortcutList = computed(() =>
 function onKeydown(event: KeyboardEvent) {
   const mac = onMac()
   for (const shortcut of registered.values()) {
-    if (!isModKey(event, shortcut.key, mac)) continue
+    if (!isShortcutKey(event, shortcut.key, mac)) continue
     if (!mayTake(whereOf(event))) return
     // The browser's own Mod+K — its search bar — would take the focus away
-    // from the page this was pressed in.
+    // from the page this was pressed in, and its F1 opens its own help.
     event.preventDefault()
     event.stopPropagation()
     shortcut.run()

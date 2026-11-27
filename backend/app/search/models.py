@@ -46,8 +46,8 @@ Cost = Literal["instant", "cheap", "costly", "job"]
 
 # Where a request comes from. One answer is in flight per person and lane: a
 # newer one from the field cancels the older, while the Search tab, a gesture
-# in it and the type catalog each keep their own (D200).
-Lane = Literal["field", "tab", "follow", "types"]
+# in it, the type catalog and the Help Center each keep their own (D200).
+Lane = Literal["field", "tab", "follow", "types", "guide"]
 
 # The kinds of thing the application keeps that the search finds by asking
 # itself. One provider each, except conversations, which answer for the three

@@ -209,6 +209,16 @@ export const onboarding: Messages["onboarding"] = {
     title: "Руководство",
     not_a_page: "Эта ссылка не ведёт на страницу руководства",
     read_failed: "Не удалось прочитать страницу руководства",
+    help_center: "Справочный центр",
+    search: "Искать в руководстве",
+    nothing_found: "В руководстве ничего не нашлось",
+    open: "Открыть справочный центр",
+    on_this_page: "На этой странице",
+    contents: "Содержание",
+    sections: {
+      application: "Работа с DataPlayer",
+      sources: "Источники",
+    },
   },
   speech: {
     listen: "Прослушать",

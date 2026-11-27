@@ -210,6 +210,16 @@ export const onboarding: Messages["onboarding"] = {
     title: "用户指南",
     not_a_page: "该链接未指向用户指南中的页面",
     read_failed: "无法读取用户指南中的此页面",
+    help_center: "帮助中心",
+    search: "搜索用户指南",
+    nothing_found: "用户指南中没有匹配的内容",
+    open: "打开帮助中心",
+    on_this_page: "本页内容",
+    contents: "目录",
+    sections: {
+      application: "使用 DataPlayer",
+      sources: "数据源",
+    },
   },
   speech: {
     listen: "朗读",

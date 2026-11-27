@@ -111,13 +111,15 @@ const PRODUCT = "DataPlayer"
   height: 100%;
   padding: var(--dp-space-5);
 }
+/* The block stands in the middle of the column; what is in it starts on one
+   left edge, the keys under the text rather than hung off its centre. */
 .scene__body {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--dp-space-2);
   max-width: var(--dp-width-popover);
-  text-align: center;
+  text-align: start;
 }
 .scene__title {
   font-size: var(--dp-font-size-page);
@@ -140,20 +142,18 @@ const PRODUCT = "DataPlayer"
 }
 .scene__keys {
   display: grid;
-  grid-template-columns: auto auto;
-  gap: var(--dp-space-half) var(--dp-space-2);
+  /* The keys' column as wide as the widest keys, so every action starts on
+     one line beside them. */
+  grid-template-columns: auto 1fr;
+  gap: var(--dp-space-half) var(--dp-space-3);
   margin: var(--dp-space-2) 0 0;
   font-size: var(--dp-font-size-sm);
   line-height: var(--dp-line-height-sm);
   color: var(--dp-text-muted);
 }
 /* The browser indents a <dd> by 40px, which stood the action that far from
-   its keys. Keys to the right of their column, action to the left: a pair. */
-.scene__keys dt {
-  text-align: end;
-}
+   its keys. */
 .scene__keys dd {
   margin: 0;
-  text-align: start;
 }
 </style>

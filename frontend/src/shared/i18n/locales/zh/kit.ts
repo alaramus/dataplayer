@@ -25,6 +25,7 @@ export const kit: Messages["kit"] = {
     preferences: "偏好设置",
     admin: "管理",
     sign_out: "退出登录",
+    help_center: "帮助中心",
   },
   option: {
     clear: "清除",

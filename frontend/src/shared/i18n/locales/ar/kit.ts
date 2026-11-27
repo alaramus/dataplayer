@@ -25,6 +25,7 @@ export const kit: Messages["kit"] = {
     preferences: "التفضيلات",
     admin: "الإدارة",
     sign_out: "تسجيل الخروج",
+    help_center: "مركز المساعدة",
   },
   option: {
     clear: "مسح",

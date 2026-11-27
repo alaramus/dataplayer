@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/vue-query"
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 
+import { helpCenterKey } from "@/shared/help"
 import ToastHost from "@/shared/notifications/ToastHost.vue"
 import { resetNotices } from "@/shared/notifications/notices"
 import { useCurrentUser } from "@/shared/auth/currentUser"
@@ -30,6 +31,7 @@ const me = useCurrentUser()
 const router = useRouter()
 const queryClient = useQueryClient()
 const windows = inject(windowsApiKey, undefined)
+const help = inject(helpCenterKey, undefined)
 const footer = ref<HTMLElement | null>(null)
 // Measured for the cards as well as for the windows: a screen with no window
 // manager still has a footer, and a card must sit above it there too.
@@ -41,6 +43,9 @@ const userMenuItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = [
     { name: "preferences", label: t("kit.layout.preferences"), icon: appIcons.preferences },
   ]
+  if (help !== undefined) {
+    items.push({ name: "help", label: t("kit.layout.help_center"), icon: appIcons.help, keys: help.keys })
+  }
   if (me.data.value?.is_superuser === true) {
     items.push({ name: "admin", label: t("kit.layout.admin"), icon: appIcons.administration })
   }
@@ -51,6 +56,8 @@ const userMenuItems = computed<MenuItem[]>(() => {
 async function selectUserAction(name: string) {
   if (name === "preferences") {
     await router.push({ name: "preferences" })
+  } else if (name === "help") {
+    help?.open()
   } else if (name === "admin") {
     await router.push({ name: "admin" })
   } else if (name === "logout") {

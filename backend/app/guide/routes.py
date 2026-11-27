@@ -17,11 +17,9 @@ router = APIRouter(
 
 @router.get("/", response_model=list[reader.GuidePageInfo])
 def read_guide_pages() -> Any:
-    """Every page of the user's guide, by key and title."""
-    return [
-        reader.GuidePageInfo(key=one.key, title=one.title)
-        for one in reader.pages_in().values()
-    ]
+    """Every page of the user's guide, by key, title and section, in the order
+    the Help Center lists them."""
+    return reader.contents()
 
 
 @router.get("/{key}", response_model=reader.GuidePage)

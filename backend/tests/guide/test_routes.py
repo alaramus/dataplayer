@@ -14,6 +14,9 @@ async def test_lists_every_page_by_key_and_title(
     titles = {item["key"]: item["title"] for item in response.json()}
     assert titles["connections"] == "Connections"
     assert titles["source-postgres"] == "PostgreSQL"
+    sections = {item["key"]: item["section"] for item in response.json()}
+    assert sections["connections"] == "application"
+    assert sections["source-postgres"] == "sources"
 
 
 async def test_answers_one_page_as_markdown(

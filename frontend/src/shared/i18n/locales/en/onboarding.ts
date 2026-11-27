@@ -209,6 +209,16 @@ export const onboarding = {
     title: "Guide",
     not_a_page: "That link does not lead to a page of the guide",
     read_failed: "This page of the guide could not be read",
+    help_center: "Help Center",
+    search: "Search the guide",
+    nothing_found: "Nothing in the guide matches",
+    open: "Open the Help Center",
+    on_this_page: "On this page",
+    contents: "Contents",
+    sections: {
+      application: "Using DataPlayer",
+      sources: "Sources",
+    },
   },
   speech: {
     listen: "Listen",

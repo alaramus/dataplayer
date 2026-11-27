@@ -25,6 +25,7 @@ export const kit: Messages["kit"] = {
     preferences: "Préférences",
     admin: "Administration",
     sign_out: "Se déconnecter",
+    help_center: "Centre d'aide",
   },
   option: {
     clear: "Effacer",

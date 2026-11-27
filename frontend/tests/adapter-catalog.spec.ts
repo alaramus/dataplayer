@@ -188,18 +188,16 @@ test("opens the guide of a type, walks its links, and stays open beside the form
   await expect(text.getByRole("heading", { level: 1 })).toHaveText("PostgreSQL")
 
   // Another type's Guide turns the open window rather than opening a second.
-  // The guide opened over the catalog, so the catalog is brought forward
-  // first, by the part of it still showing, as a person would.
-  const catalogBox = await page.getByTestId("adapter-catalog").boundingBox()
-  const guideBox = await page.getByTestId("window-guide").boundingBox()
-  if (catalogBox === null || guideBox === null) throw new Error("a window has no box")
-  await page.mouse.click(guideBox.x + guideBox.width + 16, catalogBox.y + 24)
+  // The Help Center opened over the catalog and is wider than it, so the
+  // catalog is brought forward from its tab on the taskbar, as a person would.
+  await page.locator('[data-testid^="window-tab-dialog:adapter-catalog"]').first().click()
   await page.getByTestId("adapter-redis").click()
   await page.getByTestId("adapter-guide").click()
   await expect(page.getByTestId("guide-window")).toHaveCount(1)
   await expect(text.getByRole("heading", { level: 1 })).toHaveText("Redis")
 
   // Read while the connection is filled in: the catalog goes, the guide stays.
+  await page.locator('[data-testid^="window-tab-dialog:adapter-catalog"]').first().click()
   await page.getByTestId("create-from-catalog").click()
   await expect(page.getByTestId("adapter-catalog")).toHaveCount(0)
   await expect(page.getByTestId("connector-name")).toBeVisible()

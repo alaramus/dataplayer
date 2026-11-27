@@ -91,6 +91,13 @@ is what they will be able to see and change, in their words.
   Links between pages are `other-page.md` and turn the same window; a second
   **Guide** turns it too. It is a floating window, so it stays while the
   connection is filled in.
+- The same window is the **Help Center**, opened from the user menu or by F1
+  on the page last read, the overview at first. Its left column lists every
+  page under its section — the application's, then the sources' — in the order
+  `GET /guide/` gives, with the page being read opened onto its `## `
+  headings. Its search asks the search's guide provider on a lane of its own
+  (D197, D200), so it finds what the header's field finds; while it has
+  words, the column lists what was found instead of the contents.
 - Tests hold that every registered type has a page with at least one thing to
   see, that a short item fits one line of the panel, and that every link names
   a page.
@@ -100,8 +107,6 @@ Known deviations:
 - **The guide is written by hand.** A driver that stops doing something keeps
   its bullet until somebody edits the page; the capability list beside it
   cannot drift, and the guide can.
-- **Only connections and source types have pages.** The workspace, dashboards,
-  pipelines and the agent are not described yet.
 - **Translated pages lag behind English.** Russian, German, French, Chinese, Hindi,
   Spanish and Arabic pages exist (D227); a page a language lacks, or a new one, is shown in
   English.

@@ -31,6 +31,8 @@ export interface MenuItem {
    * takes the pointer back for the hover alone.
    */
   hint?: string
+  /** The keys that do the same from anywhere, as a person reads them: "F1". */
+  keys?: string
   /** An optional removal action beside a saved entry; also its accessible label. */
   removeLabel?: string
   /** Lines of a submenu opened from this one, which then selects nothing itself. */
@@ -137,6 +139,15 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
             </span>
           </q-item-section>
           <q-item-section
+            v-if="item.keys"
+            side
+          >
+            <kbd
+              class="app-menu__keys"
+              aria-hidden="true"
+            >{{ item.keys }}</kbd>
+          </q-item-section>
+          <q-item-section
             v-if="item.removeLabel"
             side
           >
@@ -176,4 +187,14 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
 /* The whole width of the line, so a reason told beside it starts past the
    menu's edge rather than after the last letter of the label. */
 .app-menu__label { display: block; }
+/* Drawn as the search field draws Ctrl + K. */
+.app-menu__keys {
+  padding: 0 var(--dp-space-1);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius-control);
+  color: var(--dp-text-muted);
+  font-family: inherit;
+  font-size: var(--dp-font-size-xs);
+  line-height: var(--dp-line-height-sm);
+}
 </style>

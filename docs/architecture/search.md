@@ -305,6 +305,8 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
   inside an element marked `data-owns-keys` (a terminal, D148) or while an
   `[aria-modal="true"]` is open. The empty scene lists registered shortcuts.
   A person reads them as "Ctrl + K" or "⌘ + K", spelled once by `keysOf`.
+  A function key is registered by its name and pressed alone: F1 opens the
+  Help Center (D183).
 - **`AppCombobox`**, on `AppPopup` with `no-focus`, `no-refocus`,
   `no-parent-event`, `fit`: focus stays in the input, `aria-activedescendant`,
   no row active until an arrow, Enter opens the active row or the Search tab,

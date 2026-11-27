@@ -4244,7 +4244,8 @@ export class GuideService {
   /**
    * Read Guide Pages
    *
-   * Every page of the user's guide, by key and title.
+   * Every page of the user's guide, by key, title and section, in the order
+   * the Help Center lists them.
    */
   public static readGuidePages<ThrowOnError extends boolean = true>(
     options?: Options<guideReadGuidePagesData, ThrowOnError>

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
   isModKey,
+  isShortcutKey,
   keysOf,
   keyshortcutsOf,
   mayTake,
@@ -74,6 +75,30 @@ describe("Mod+K", () => {
   })
 })
 
+describe("a function key", () => {
+  it("is pressed alone, on every platform", () => {
+    expect(isShortcutKey(press({ key: "F1", code: "F1" }), "F1", false)).toBe(true)
+    expect(isShortcutKey(press({ key: "F1", code: "F1" }), "F1", true)).toBe(true)
+  })
+
+  it("is not the same key with a modifier, nor another function key", () => {
+    expect(isShortcutKey(press({ key: "F1", code: "F1", ctrlKey: true }), "F1", false)).toBe(false)
+    expect(isShortcutKey(press({ key: "F1", code: "F1", shiftKey: true }), "F1", false)).toBe(false)
+    expect(isShortcutKey(press({ key: "F2", code: "F2" }), "F1", false)).toBe(false)
+  })
+
+  it("leaves a letter to Mod", () => {
+    expect(isShortcutKey(press({ ctrlKey: true }), "k", false)).toBe(true)
+    expect(isShortcutKey(press({}), "k", false)).toBe(false)
+  })
+
+  it("is written as itself", () => {
+    expect(keysOf("F1", false)).toBe("F1")
+    expect(keysOf("F1", true)).toBe("F1")
+    expect(keyshortcutsOf("F1", true)).toBe("F1")
+  })
+})
+
 describe("where a shortcut may be taken", () => {
   it("is anywhere but a terminal and behind a modal dialog", () => {
     expect(mayTake({ ownsKeys: false, dialogOpen: false })).toBe(true)
@@ -95,6 +120,12 @@ describe("the registry", () => {
     expect(shortcutList.value).toEqual([{ keys: "Ctrl + K", action: "Search everything" }])
     unregister()
     expect(shortcutList.value).toEqual([])
+  })
+
+  it("lists Mod and a letter before a function key, whoever registered first", () => {
+    cleanups.push(registerShortcut({ id: "help", key: "F1", action: "Help", run: vi.fn() }))
+    cleanups.push(registerShortcut({ id: "search", key: "k", action: "Search", run: vi.fn() }))
+    expect(shortcutList.value.map((one) => one.keys)).toEqual(["Ctrl + K", "F1"])
   })
 
   it("runs on Ctrl+K anywhere and keeps the browser's own Mod+K from it", () => {

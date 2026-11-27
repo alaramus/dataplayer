@@ -23,6 +23,7 @@ export const kit = {
     preferences: "Preferences",
     admin: "Admin",
     sign_out: "Sign out",
+    help_center: "Help Center",
   },
   option: {
     clear: "Clear",

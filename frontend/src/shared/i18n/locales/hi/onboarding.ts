@@ -210,6 +210,16 @@ export const onboarding: Messages["onboarding"] = {
     title: "उपयोगकर्ता गाइड",
     not_a_page: "यह लिंक गाइड के किसी पृष्ठ पर नहीं ले जाता",
     read_failed: "गाइड का यह पृष्ठ पढ़ा नहीं जा सका",
+    help_center: "सहायता केंद्र",
+    search: "गाइड में खोजें",
+    nothing_found: "गाइड में कुछ नहीं मिला",
+    open: "सहायता केंद्र खोलें",
+    on_this_page: "इस पृष्ठ पर",
+    contents: "विषय-सूची",
+    sections: {
+      application: "DataPlayer का उपयोग",
+      sources: "स्रोत",
+    },
   },
   speech: {
     listen: "सुनें",

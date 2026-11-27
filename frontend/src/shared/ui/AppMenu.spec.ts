@@ -40,6 +40,14 @@ describe("a menu line", () => {
     host = null
   })
 
+  it("shows the keys that do the same beside its label", async () => {
+    await open([{ name: "help", label: "Help Center", keys: "F1" }])
+
+    const keys = document.body.querySelector('[data-testid="menu-item-help"] kbd')
+    expect(keys?.textContent).toBe("F1")
+    expect(keys?.getAttribute("aria-hidden")).toBe("true")
+  })
+
   it("carries the reason it cannot be used, without saying it out loud", async () => {
     await open([
       { name: "delete", label: "Delete", disable: true, hint: "Tick a row to use this" },

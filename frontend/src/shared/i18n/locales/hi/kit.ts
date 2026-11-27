@@ -25,6 +25,7 @@ export const kit: Messages["kit"] = {
     preferences: "प्राथमिकताएँ",
     admin: "एडमिन",
     sign_out: "साइन आउट करें",
+    help_center: "सहायता केंद्र",
   },
   option: {
     clear: "साफ़ करें",

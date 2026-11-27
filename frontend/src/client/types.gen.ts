@@ -6993,6 +6993,10 @@ export type GuidePage = {
    */
   title: string
   /**
+   * Section
+   */
+  section: "application" | "sources"
+  /**
    * Markdown
    */
   markdown: string
@@ -7010,6 +7014,10 @@ export type GuidePageInfo = {
    * Title
    */
   title: string
+  /**
+   * Section
+   */
+  section: "application" | "sources"
 }
 
 /**
@@ -14896,7 +14904,7 @@ export type SearchRequest = {
   /**
    * Lane
    */
-  lane?: "field" | "tab" | "follow" | "types"
+  lane?: "field" | "tab" | "follow" | "types" | "guide"
   /**
    * Context
    */

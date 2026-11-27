@@ -211,6 +211,16 @@ export const onboarding: Messages["onboarding"] = {
     title: "الدليل",
     not_a_page: "هذا الرابط لا يؤدي إلى صفحة في الدليل",
     read_failed: "تعذّرت قراءة هذه الصفحة من الدليل",
+    help_center: "مركز المساعدة",
+    search: "ابحث في الدليل",
+    nothing_found: "لا شيء في الدليل يطابق البحث",
+    open: "فتح مركز المساعدة",
+    on_this_page: "في هذه الصفحة",
+    contents: "المحتويات",
+    sections: {
+      application: "استخدام DataPlayer",
+      sources: "المصادر",
+    },
   },
   speech: {
     listen: "استماع",

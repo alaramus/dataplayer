@@ -6,19 +6,22 @@ import { askWhole } from "@/features/search/stream"
 import { DEBOUNCE_MS, MIN_CHARACTERS } from "@/features/search/words"
 
 type ProviderKey = Extract<NonNullable<SearchRequest["only"]>[number], { kind: "objects" }>["provider"]
+type Lane = NonNullable<SearchRequest["lane"]>
 
 /**
  * What one provider finds for the words typed into a window of its own.
  *
  * The type catalog asks the search's source-type provider rather than
- * matching types itself (D197). Debounced and aborted like the field: a newer
+ * matching types itself (D197), and the Help Center its guide provider. Each
+ * asks on a lane of its own, so one open beside the other ends neither. Debounced and aborted like the field: a newer
  * word ends the older ask, here and on the server. `null` while there is
  * nothing to ask yet; the last answer is kept while the next is on its way, so
  * a list does not empty between two keys.
  */
 export function useProviderHits(
   words: Ref<string>,
-  provider: ProviderKey
+  provider: ProviderKey,
+  lane: Lane = "types"
 ): { hits: Ref<Hit[] | null> } {
   const hits = ref<Hit[] | null>(null)
   let controller: AbortController | null = null
@@ -39,7 +42,7 @@ export function useProviderHits(
         {
           words: typed,
           mode: "typing",
-          lane: "types",
+          lane,
           only: [{ kind: "objects", provider }],
         },
         own.signal

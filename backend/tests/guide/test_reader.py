@@ -111,3 +111,19 @@ def test_a_file_whose_name_is_not_a_key_is_refused(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="not a key"):
         reader.read(tmp_path)
+
+
+def test_the_contents_open_with_the_overview_and_end_with_the_sources() -> None:
+    listed = reader.contents("en")
+    sections = [one.section for one in listed]
+
+    assert listed[0].key == reader.FIRST_PAGE
+    assert sections == sorted(sections, key=lambda one: one != "application")
+    assert {one.key for one in listed} == set(reader.pages())
+    assert all(
+        one.section == "sources"
+        for one in listed
+        if one.key.startswith(reader.SOURCE_PREFIX)
+    )
+    sources = [one.title.casefold() for one in listed if one.section == "sources"]
+    assert sources == sorted(sources)

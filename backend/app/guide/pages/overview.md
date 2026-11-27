@@ -26,8 +26,10 @@ Switching spaces keeps what was open: coming back to Data finds the same tabs.
 - **The header** holds the search field, which finds connections, tables,
   files, saved queries, pipelines, dashboards, chats and pages of this guide.
   Ctrl+K (⌘K on a Mac) puts the cursor in it. See [Search](search.md).
-- **The user menu**, at the top right, opens **Preferences**, **Admin** for an
-  administrator, and **Sign out**. See [Preferences and your account](preferences.md).
+- **The user menu**, at the top right, opens **Preferences**, the
+  **Help Center** — this guide, with its contents and a search over every
+  page; F1 opens it from anywhere — **Admin** for an administrator, and
+  **Sign out**. See [Preferences and your account](preferences.md).
 - **The rails** on both sides hold tools as icons: the space switch and
   **Quick chat** at the top left; **Services**, **Terminals**, **Queries** and
   **Search index** at the bottom left; saving and opening tab groups at the top

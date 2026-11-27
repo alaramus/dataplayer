@@ -3,6 +3,7 @@
 import re
 from functools import cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -20,25 +21,46 @@ CAN_SEE = N_("What you can see")
 CAN_CHANGE = N_("What you can change")
 
 
+# Where a page stands in the Help Center's contents: a page about the
+# application, or one about a source type. The client names the two.
+GuideSection = Literal["application", "sources"]
+
+# The page the contents open with; the rest of a section goes by title.
+FIRST_PAGE = "overview"
+
+
 class GuidePageInfo(BaseModel):
     key: str
     title: str
+    section: GuideSection
 
 
 class GuidePage(GuidePageInfo):
     markdown: str
 
 
+SOURCE_PREFIX = "source-"
+
+
 def source_page_key(adapter_type: str) -> str:
     """The page about one source type."""
-    return f"source-{adapter_type}"
+    return f"{SOURCE_PREFIX}{adapter_type}"
+
+
+def section_of(key: str) -> GuideSection:
+    return "sources" if key.startswith(SOURCE_PREFIX) else "application"
 
 
 def parse(key: str, markdown: str) -> GuidePage:
     """One page, refused when it has no `# ` title to be listed by."""
     for line in markdown.splitlines():
         if line.startswith("# "):
-            return GuidePage(key=key, title=line[2:].strip(), markdown=markdown)
+            return GuidePage(
+                key=key,
+                title=line[2:].strip(),
+                section=section_of(key),
+                markdown=markdown,
+            )
     raise ValueError(f"Guide page {key} has no title")
 
 
@@ -79,6 +101,24 @@ def pages_in(language: Language | None = None) -> dict[str, GuidePage]:
     translation, in English's order."""
     own = translated(language or current_language.get())
     return {key: own.get(key, english) for key, english in pages().items()}
+
+
+def contents(language: Language | None = None) -> list[GuidePageInfo]:
+    """Every page in the order the Help Center lists them: the application's
+    pages, the overview first, then the sources; by title within each."""
+    order: dict[GuideSection, int] = {"application": 0, "sources": 1}
+    listed = sorted(
+        pages_in(language).values(),
+        key=lambda one: (
+            order[one.section],
+            one.key != FIRST_PAGE,
+            one.title.casefold(),
+        ),
+    )
+    return [
+        GuidePageInfo(key=one.key, title=one.title, section=one.section)
+        for one in listed
+    ]
 
 
 def page(key: str) -> GuidePage | None:

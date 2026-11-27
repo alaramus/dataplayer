@@ -211,6 +211,16 @@ export const onboarding: Messages["onboarding"] = {
     title: "Anleitung",
     not_a_page: "Dieser Link führt nicht zu einer Seite der Anleitung",
     read_failed: "Diese Seite der Anleitung konnte nicht gelesen werden",
+    help_center: "Hilfe-Center",
+    search: "In der Anleitung suchen",
+    nothing_found: "Nichts in der Anleitung gefunden",
+    open: "Hilfe-Center öffnen",
+    on_this_page: "Auf dieser Seite",
+    contents: "Inhalt",
+    sections: {
+      application: "DataPlayer verwenden",
+      sources: "Quellen",
+    },
   },
   speech: {
     listen: "Anhören",
