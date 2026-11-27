@@ -89,7 +89,7 @@ useReloadable(() => props.panelId, reload)
       >
         {{ t("content.media.playback_failed") }}
       </AppBanner>
-      <div class="media-panel__stage dp-panel-scroll">
+      <div class="media-panel__stage">
         <video
           v-if="representation === 'video'"
           :src="streamUrl"
@@ -149,16 +149,20 @@ useReloadable(() => props.panelId, reload)
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-xs);
 }
+/* Shrunk to fit the panel and never enlarged, as a picture is (ImagePanel),
+   on the panel's own ground. The element's height follows the frame, so the
+   player's controls stay on it. */
 .media-panel__stage {
-  display: grid;
+  display: flex;
   flex: 1;
+  align-items: center;
+  justify-content: center;
   min-height: 0;
-  place-items: center;
-  overflow: auto;
-  padding: var(--dp-space-4);
-  background: var(--dp-hover);
+  overflow: hidden;
+  padding-top: var(--dp-space-2);
 }
 .media-panel__video {
+  display: block;
   max-width: 100%;
   max-height: 100%;
 }

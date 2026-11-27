@@ -91,7 +91,7 @@ useReloadable(() => props.panelId, reload)
     </AppBanner>
     <div
       v-else
-      class="image-panel__stage dp-panel-scroll"
+      class="image-panel__stage"
     >
       <img
         :src="previewUrl"
@@ -133,14 +133,16 @@ useReloadable(() => props.panelId, reload)
   align-items: center;
   gap: var(--dp-space-half);
 }
+/* Shrunk to fit the panel and never enlarged: an icon stays its own size.
+   On the panel's own ground, with no backdrop. */
 .image-panel__stage {
-  display: grid;
+  display: flex;
   flex: 1;
+  align-items: center;
+  justify-content: center;
   min-height: 0;
-  place-items: center;
-  overflow: auto;
-  padding: var(--dp-space-4);
-  background: var(--dp-hover);
+  overflow: hidden;
+  padding-top: var(--dp-space-2);
 }
 .image-panel__image {
   display: block;
