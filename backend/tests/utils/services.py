@@ -95,6 +95,7 @@ _PROTOCOLS = {
     "imap": _Protocol(143, b"", (b"*",)),
     # A Docker daemon with TLS answers plain HTTP with a 400 of its own.
     "docker": _Protocol(2376, b"GET /_ping HTTP/1.0\r\n\r\n", (b"H",)),
+    "vault": _Protocol(8200, b"GET /v1/sys/health HTTP/1.0\r\n\r\n", (b"H",)),
 }
 
 _required = False
@@ -373,6 +374,15 @@ MAIL = Server(
 
 # The development S3 store (`rustfs` in compose.override.yml), with the access
 # key and secret in the address and plain HTTP (D382).
+# Vault in dev mode (`vault` in compose.override.yml, D454): the root token is
+# the URL's user. It reaches PostgreSQL as `db` in both compose and CI.
+VAULT = Server(
+    name="the Vault dev server",
+    variable="TEST_VAULT_URL",
+    start="docker compose up -d vault",
+    read=lambda: os.environ.get("TEST_VAULT_URL", "vault://dataplayer@127.0.0.1:8210"),
+)
+
 S3 = Server(
     name="the S3 store",
     variable="TEST_S3_URL",
@@ -474,6 +484,7 @@ SERVERS = (
     SCYLLA,
     MAIL,
     S3,
+    VAULT,
     VALKEY,
     KEYDB,
     REDPANDA,

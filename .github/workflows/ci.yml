@@ -193,6 +193,16 @@ jobs:
           RUSTFS_SECRET_KEY: dataplayer-secret
         ports:
           - 9010:9000
+      # Vault in dev mode for the cloud accounts' secret stores (D454); it is
+      # configured by its environment alone, so a service container runs it.
+      vault:
+        image: hashicorp/vault:1.20
+        env:
+          VAULT_DEV_ROOT_TOKEN_ID: dataplayer
+          VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+          SKIP_SETCAP: "true"
+        ports:
+          - 8210:8200
     env:
       PROJECT_NAME: DataPlayer
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app

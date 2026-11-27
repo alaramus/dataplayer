@@ -70,6 +70,15 @@ class EntraToken(SecretRequest):
 
 
 @dataclass(frozen=True)
+class VaultDatabaseCredentials(SecretRequest):
+    """A user and password Vault's database secrets engine makes for this
+    asking, under a role; its lease is their life (D454)."""
+
+    mount: str
+    role: str
+
+
+@dataclass(frozen=True)
 class CloudCredentials(SecretRequest):
     """The account's own credentials as a driver signs with them: AWS's access
     key in `user`, its secret in `value`, its session token in `session_token`."""

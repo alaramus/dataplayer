@@ -25,6 +25,7 @@ from app.adapters.kafka.options import (
     MECHANISMS,
     KafkaAwsMskIam,
     KafkaNoAuth,
+    KafkaOauthOidc,
     KafkaOptions,
 )
 from app.adapters.protocol import (
@@ -200,6 +201,14 @@ class KafkaSession:
                 raise AdapterError("config", say("MSK's token was not asked for before connecting"))
             config["sasl.mechanism"] = "OAUTHBEARER"
             config["oauth_cb"] = self._renewing(token)
+        elif isinstance(options, KafkaOauthOidc):
+            config["sasl.mechanism"] = "OAUTHBEARER"
+            config["sasl.oauthbearer.method"] = "oidc"
+            config["sasl.oauthbearer.token.endpoint.url"] = options.token_endpoint
+            config["sasl.oauthbearer.client.id"] = options.client_id
+            config["sasl.oauthbearer.client.secret"] = options.client_secret.get_secret_value()
+            if options.scope:
+                config["sasl.oauthbearer.scope"] = options.scope
         elif not isinstance(options, KafkaNoAuth):
             config["sasl.mechanism"] = MECHANISMS[options.auth_method]
             config["sasl.username"] = options.user

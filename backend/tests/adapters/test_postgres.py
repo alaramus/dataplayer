@@ -12,6 +12,7 @@ from app.adapters.postgres.options import (
     PostgresOptions,
     PostgresSecretStore,
     PostgresUserPassword,
+    PostgresVaultDynamic,
 )
 from app.adapters.postgres.session import CHECK_TIMEOUT_SECONDS, PostgresSession
 from tests.utils.database import working_postgres_options
@@ -274,6 +275,7 @@ def test_the_options_schema_offers_both_ways_of_connecting() -> None:
         PostgresAwsIam,
         PostgresGcpIam,
         PostgresAzureEntra,
+        PostgresVaultDynamic,
         PostgresSecretStore,
     ]
 

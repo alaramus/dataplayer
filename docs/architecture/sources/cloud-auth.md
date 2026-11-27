@@ -4,7 +4,7 @@ For changing how a server source encrypts its connection, which certificate it
 trusts or offers, a person's cloud accounts, and how a password is issued by a
 cloud or fetched from a secret store for every new connection.
 
-Decisions here: D446, D447, D448, D449, D450, D451, D452, D453, D454, D455.
+Decisions here: D446, D447, D448, D449, D450, D451, D452, D453, D454, D455, D456.
 
 ## D446. One TLS block, every server source
 
@@ -162,11 +162,10 @@ keeps none.
 
 Known deviations:
 
-- **AWS's, Google's and Azure's providers are installed.** Vault's arrives
-  with its slice; until then such an account can be kept and named, its
-  test answers 501 and the form hides Test, and a connection naming it is
-  refused at open with "This installation cannot sign in with accounts of
-  {kind}".
+- **Every kind's provider is installed** — AWS, Google, Azure and Vault. A
+  kind without one would be kept and named, its test answering 501 and the
+  form hiding Test, and a connection naming it would be refused at open with
+  "This installation cannot sign in with accounts of {kind}".
 - **Two contexts are built without it**: the source an SSH tunnel goes through
   (`connectors/tunnels.py`) and the readiness probe of a service started here
   (`services/readiness.py`). Neither signs in with a cloud account.
@@ -343,8 +342,30 @@ AWS Secrets Manager and Google Secret Manager answer it now — Google's named
 project, the latest version when none is named — and Azure Key Vault, named
 `VAULT/NAME[/VERSION]` or by the identifier the portal shows. A Key Vault
 token is sent only to Key Vault's own domains (`.vault.azure.net`, `.cn`,
-`.usgovcloudapi.net`), never to an address somebody typed. Vault KV comes with
-its slice, and `vault_dynamic` with Vault's.
+`.usgovcloudapi.net`), never to an address somebody typed. Vault answers it
+from a KV mount, version 1 or 2 as Vault says the mount is, named
+`MOUNT/PATH`.
+
+`vault_dynamic` (PostgreSQL and MySQL) names a Vault account, the database
+secrets engine's mount (`database`) and a role. Vault makes a user and
+password for the asking; its lease is their life, so the cache of issued
+secrets hands the same pair to every new connection until a minute before
+the lease ends, and then asks for a new one. The form has no user: Vault
+names it with every lease, and the address shown names none.
+
+Vault's provider (`adapters/cloud/vault/`) speaks Vault's HTTP API with
+`requests`, so no client library is installed: a token, or an AppRole login
+for one; a namespace when named; the account's CA, when given, written to a
+private file for the call (D447). Its address follows D452's rule.
+
+Known deviations:
+
+- **Leases are not revoked.** Vault's credentials lapse with their lease; one
+  made for a connection that closed early stays until then.
+- **Proven against Vault's dev server** (`vault` in the `tools` profile and in
+  CI): KV 1 and 2, AppRole, a token without the policy, and dynamic
+  credentials whose role Vault made in the suite's own PostgreSQL, a
+  connection signing in as it.
 
 Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
 
@@ -384,5 +405,36 @@ Known deviations:
   and Secret Manager endpoints answer through `responses` in the test
   process, with a key file signing its assertion for real; no Cloud SQL
   instance was reached.
+
+Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
+
+## D456. Methods particular to one engine
+
+- **Redis ACL users** (slice 1, D446): the password variant names a user,
+  `default` when empty, signed in inside `HELLO`; `redis-cli` is given
+  `--user`. Proven against `redis-tls`, whose default user is switched off.
+- **Kafka mutual TLS**: no SASL, a client certificate and key in the TLS
+  block, handed to librdkafka inline (D446).
+- **Kafka OAUTHBEARER over OIDC** (`oauthbearer_oidc`): a token endpoint, a
+  client ID and secret, an optional scope; librdkafka asks the endpoint for
+  the token itself and renews it (`sasl.oauthbearer.method=oidc`).
+- **MongoDB X.509** (`x509`): the TLS block's client certificate is who signs
+  in, `MONGODB-X509` in `$external`, no password; the subject may be named or
+  left to the server to read from the certificate. TLS and a certificate are
+  required.
+
+Known deviations:
+
+- **Kafka's tools in a terminal refuse OIDC**, as they refuse MSK's IAM: the
+  Java client's login handler for OIDC moved between Kafka's releases, and
+  which one the image carries was not checked.
+- **No Kerberos.** The confluent-kafka wheel in the backend image has no
+  GSSAPI provider ("No provider for SASL mechanism GSSAPI", checked in the
+  image). Its libpq does have GSSAPI, but Kerberos keeps its credential cache
+  and client keytab per process, so every connection of every owner would
+  share one identity; PostgreSQL's Kerberos is left out rather than offered
+  shared.
+- **Proven by what the drivers are handed** for OIDC and X.509: no OIDC
+  provider and no MongoDB with client certificates run here.
 
 Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)

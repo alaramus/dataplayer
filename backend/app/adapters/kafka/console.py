@@ -13,6 +13,7 @@ from app.adapters.kafka.options import (
     MECHANISMS,
     KafkaAwsMskIam,
     KafkaNoAuth,
+    KafkaOauthOidc,
     KafkaOptions,
 )
 from app.adapters.kafka.session import KafkaSession
@@ -90,6 +91,10 @@ def client_properties(options: KafkaOptions) -> str:
         # Kafka's tools sign in to MSK with AWS's own plugin, a jar the image
         # does not carry (D453).
         raise AdapterError("config", say("Kafka's tools in a terminal cannot sign in with AWS IAM yet"))
+    if isinstance(options, KafkaOauthOidc):
+        # The Java client's OIDC login handler moved between Kafka's releases;
+        # which one the image carries is not checked here (D456).
+        raise AdapterError("config", say("Kafka's tools in a terminal cannot sign in with OIDC yet"))
     config = KafkaSession(options).config()
     lines = [
         _property("security.protocol", str(config["security.protocol"])),

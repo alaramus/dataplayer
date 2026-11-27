@@ -258,6 +258,21 @@ services:
     ports:
       - "127.0.0.1:9010:9000"
 
+  # HashiCorp Vault in dev mode for the backend suite's cloud accounts (D454):
+  # unsealed, held in memory, root token `dataplayer`. It reaches PostgreSQL as
+  # `db`, which is what its database secrets engine is pointed at.
+  # http://127.0.0.1:8210 from this machine. Behind the `tools` profile.
+  vault:
+    image: hashicorp/vault:1.20
+    profiles: ["tools"]
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: dataplayer
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      # Dev mode keeps nothing on disk worth locking in memory.
+      SKIP_SETCAP: "true"
+    ports:
+      - "127.0.0.1:8210:8200"
+
   # A mail server for the backend suite and for a person to point a mail
   # connection at (D368): IMAP on 3143 and SMTP on 3025, no TLS, mailboxes
   # `alice@`, `bob@` and `dave@example.com`, password `dataplayer`. Held in

@@ -24,7 +24,7 @@ from app.adapters import (  # noqa: F401
 )
 
 # Providers of cloud accounts' secrets register the same way (D449).
-from app.adapters.cloud import aws, azure, gcp  # noqa: F401
+from app.adapters.cloud import aws, azure, gcp, vault  # noqa: F401
 from app.adapters.locales.ar import MESSAGES as AR
 from app.adapters.locales.de import MESSAGES as DE
 from app.adapters.locales.es import MESSAGES as ES

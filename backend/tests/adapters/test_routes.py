@@ -19,7 +19,7 @@ async def test_lists_postgres_with_json_schema(
     # A type whose fields depend on the way it is connected to answers with a
     # union: the variants in $defs, the choice in the discriminator.
     assert schema["discriminator"]["propertyName"] == "auth_method"
-    assert set(schema["discriminator"]["mapping"]) == {"user_password", "no_auth", "aws_iam", "gcp_iam", "azure_entra", "secret_store"}
+    assert set(schema["discriminator"]["mapping"]) == {"user_password", "no_auth", "aws_iam", "gcp_iam", "azure_entra", "vault_dynamic", "secret_store"}
     properties = schema["$defs"]["PostgresUserPassword"]["properties"]
     assert properties["host"]["title"] == "Host"
     # Defaults the form starts from: the commonest address there is, rather

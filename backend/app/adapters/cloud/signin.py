@@ -27,6 +27,7 @@ from app.adapters.cloud.requests import (
     MskToken,
     RdsAuthToken,
     StoredSecret,
+    VaultDatabaseCredentials,
 )
 from app.adapters.layout import layout
 from app.adapters.protocol import AdapterError
@@ -62,6 +63,40 @@ def gcp_account_field() -> Any:
 
 def azure_account_field() -> Any:
     return account_field("azure", title=N_("Azure account"), description=N_("One of your cloud accounts"))
+
+
+def vault_account_field() -> Any:
+    return account_field("vault", title=N_("Vault account"), description=N_("One of your cloud accounts"))
+
+
+def vault_user_field() -> Any:
+    """Empty and hidden: Vault names the user with every lease, and an address
+    shown or a program's arguments name none until it does."""
+    extra = layout()
+    extra["x-ui-hidden"] = True
+    return Field(default="", max_length=0, title=N_("User"), json_schema_extra=extra)
+
+
+def vault_mount_field() -> Any:
+    return Field(
+        default="database",
+        min_length=1,
+        max_length=255,
+        pattern=r"^[\w-]+(/[\w-]+)*$",
+        title=N_("Mount"),
+        description=N_("Where Vault's database secrets engine is enabled"),
+        json_schema_extra=layout(row="vault role"),
+    )
+
+
+def vault_role_field() -> Any:
+    return Field(
+        min_length=1,
+        max_length=255,
+        pattern=r"^[\w.-]+$",
+        title=N_("Role"),
+        json_schema_extra=layout(row="vault role"),
+    )
 
 
 def region_field() -> Any:
@@ -176,6 +211,15 @@ async def aws_credentials(cloud: CloudAccess | None, account: str, region: str) 
     """The account's own keys, for a driver that signs with them itself:
     the access key in `user`, its secret in `value`, a session token beside."""
     return await issue(cloud, account, ("aws",), CloudCredentials(region))
+
+
+async def vault_dynamic_sign_in(cloud: CloudAccess | None, account: str, mount: str, role: str) -> SignIn:
+    """A user and password Vault made for this server under the role; the
+    same pair serves every connection until a minute before its lease ends."""
+    secret = await issue(cloud, account, ("vault",), VaultDatabaseCredentials(mount, role))
+    if not secret.user:
+        raise AdapterError("config", say("This Vault role does not make database credentials"))
+    return SignIn(user=secret.user, password=secret.value)
 
 
 async def stored_sign_in(

@@ -44,6 +44,11 @@ from app.adapters.cloud.signin import (
     stored_sign_in,
     stored_user_field,
     user_key_field,
+    vault_account_field,
+    vault_dynamic_sign_in,
+    vault_mount_field,
+    vault_role_field,
+    vault_user_field,
 )
 from app.adapters.layout import layout
 from app.adapters.tls import TlsOptionsWithFallback
@@ -196,6 +201,23 @@ class PostgresAzureEntra(_PostgresBase):
         return await entra_sign_in(cloud, self.account, self.user, AZURE_DATABASE_SCOPE)
 
 
+class PostgresVaultDynamic(_PostgresBase):
+    """Credentials Vault's database secrets engine makes under a role; the
+    user and password are Vault's, renewed with the lease (D454)."""
+
+    model_config = ConfigDict(title=N_("Vault dynamic credentials"))
+
+    auth_method: Literal["vault_dynamic"] = _auth_method_field("vault_dynamic")
+    database: str = _database_field()
+    account: str = vault_account_field()
+    mount: str = vault_mount_field()
+    role: str = vault_role_field()
+    user: str = vault_user_field()
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await vault_dynamic_sign_in(cloud, self.account, self.mount, self.role)
+
+
 class PostgresSecretStore(_PostgresBase):
     """A password kept in a secret store, read at every new connection (D454)."""
 
@@ -221,6 +243,7 @@ PostgresOptions = Annotated[
     | PostgresAwsIam
     | PostgresGcpIam
     | PostgresAzureEntra
+    | PostgresVaultDynamic
     | PostgresSecretStore,
     Field(discriminator="auth_method"),
 ]

@@ -23,9 +23,10 @@ which an import-linter contract holds.
 Options are the brokers (`host:port`, comma-separated; the first that answers
 tells the client of the rest), the shared TLS block ([D446](cloud-auth.md)) with a client
 certificate for mutual TLS, and
-one of five ways in: none, SASL PLAIN, SCRAM-SHA-256 or SCRAM-SHA-512 with a
-user and password, or MSK's IAM over OAUTHBEARER with one of the owner's AWS
-accounts ([D453](cloud-auth.md)). The check describes the cluster.
+one of six ways in: none, SASL PLAIN, SCRAM-SHA-256 or SCRAM-SHA-512 with a
+user and password, MSK's IAM over OAUTHBEARER with one of the owner's AWS
+accounts ([D453](cloud-auth.md)), or OAUTHBEARER over OIDC with a client's ID
+and secret ([D456](cloud-auth.md)). The check describes the cluster.
 
 A failure is reduced by librdkafka's error codes, never by its text, and the
 errors librdkafka reported through its callback while the operation ran are

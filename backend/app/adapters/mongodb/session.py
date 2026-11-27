@@ -33,6 +33,7 @@ from app.adapters.mongodb.options import (
     MongodbSecretStore,
     MongodbSignIn,
     MongodbUserPassword,
+    MongodbX509,
 )
 from app.adapters.protocol import (
     AdapterError,
@@ -251,11 +252,12 @@ def make_client(
     """
     credentials: dict[str, Any] = {}
     if signed.user:
-        credentials = {
-            "username": signed.user,
-            "password": signed.password,
-            "authSource": signed.auth_source,
-        }
+        credentials["username"] = signed.user
+    # X.509 sends no password: the certificate is the proof.
+    if signed.password:
+        credentials["password"] = signed.password
+    if signed.user or signed.mechanism:
+        credentials["authSource"] = signed.auth_source
     if signed.mechanism:
         credentials["authMechanism"] = signed.mechanism
     if signed.session_token:
@@ -363,11 +365,11 @@ class MongodbSession:
     def connection_string(self) -> str:
         """The address for a person to copy, with the user the form names."""
         options = self._options
-        user = options.user if isinstance(options, MongodbUserPassword | MongodbSecretStore) else ""
+        user = options.user if isinstance(options, MongodbUserPassword | MongodbSecretStore | MongodbX509) else ""
         auth_source = (
             options.auth_source
             if isinstance(options, MongodbUserPassword | MongodbSecretStore)
-            else "$external" if isinstance(options, MongodbAwsIam) else ""
+            else "$external" if isinstance(options, MongodbAwsIam | MongodbX509) else ""
         )
         return compose_url(
             host=options.host,

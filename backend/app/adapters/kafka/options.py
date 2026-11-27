@@ -6,6 +6,7 @@ mechanism is a choice of its own rather than a field beside the password.
 """
 
 from typing import Annotated, Any, Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import ConfigDict, Field, SecretStr, field_validator, model_validator
 
@@ -113,10 +114,55 @@ class KafkaAwsMskIam(_KafkaBase):
         return await msk_token(cloud, self.account, self.region)
 
 
+class KafkaOauthOidc(_KafkaBase):
+    """SASL/OAUTHBEARER with OIDC's client credentials: librdkafka asks the
+    token endpoint itself and renews the token before it expires (D456)."""
+
+    model_config = ConfigDict(title=N_("SASL OAUTHBEARER (OIDC)"))
+
+    auth_method: Literal["oauthbearer_oidc"] = _auth_method_field("oauthbearer_oidc")
+    token_endpoint: str = Field(
+        min_length=1,
+        max_length=2048,
+        title=N_("Token endpoint"),
+        examples=["https://login.example.com/oauth2/token"],
+        json_schema_extra=layout(),
+    )
+    client_id: str = Field(min_length=1, max_length=512, title=N_("Client ID"), json_schema_extra=layout())
+    client_secret: SecretStr = Field(
+        min_length=1, max_length=4096, title=N_("Client secret"), json_schema_extra=layout()
+    )
+    scope: str = Field(
+        default="",
+        max_length=1024,
+        title=N_("Scope"),
+        description=N_("Empty asks for the client's default scope"),
+        json_schema_extra=layout(),
+    )
+
+    @field_validator("token_endpoint")
+    @classmethod
+    def _an_endpoint(cls, value: str) -> str:
+        value = value.strip()
+        try:
+            parts = urlsplit(value)
+        except ValueError:
+            parts = None
+        if (
+            parts is None
+            or parts.scheme not in ("http", "https")
+            or not parts.hostname
+            or parts.username is not None
+            or parts.password is not None
+        ):
+            raise ValueError(say("The token endpoint must be an http or https address"))
+        return value
+
+
 KafkaSasl = KafkaPlain | KafkaScram256 | KafkaScram512
 
 KafkaOptions = Annotated[
-    KafkaNoAuth | KafkaPlain | KafkaScram256 | KafkaScram512 | KafkaAwsMskIam,
+    KafkaNoAuth | KafkaPlain | KafkaScram256 | KafkaScram512 | KafkaAwsMskIam | KafkaOauthOidc,
     Field(discriminator="auth_method"),
 ]
 

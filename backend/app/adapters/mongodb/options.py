@@ -7,9 +7,9 @@ database its user may see.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr, model_validator
 
 from app.adapters.cloud import CloudAccess
 from app.adapters.cloud.signin import (
@@ -26,7 +26,7 @@ from app.adapters.cloud.signin import (
 from app.adapters.layout import layout
 from app.adapters.tls import TlsOptionsRds
 from app.adapters.tunnels import ssh_tunnel_field
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 
 def _database_field() -> Any:
@@ -136,6 +136,31 @@ class MongodbAwsIam(_MongodbBase):
         )
 
 
+class MongodbX509(_MongodbBase):
+    """The client certificate on the TLS page is who signs in (D456)."""
+
+    model_config = ConfigDict(title=N_("X.509 certificate"))
+
+    auth_method: Literal["x509"] = _auth_method_field("x509")
+    database: str = _database_field()
+    user: str = Field(
+        default="",
+        max_length=1024,
+        title=N_("User"),
+        description=N_("The certificate's subject; empty lets the server read it from the certificate"),
+        json_schema_extra=layout(),
+    )
+
+    @model_validator(mode="after")
+    def _certified(self) -> Self:
+        if self.tls_mode == "disabled" or not self.tls_client_certificate:
+            raise ValueError(say("X.509 sign-in needs TLS and a client certificate on the TLS page"))
+        return self
+
+    async def sign_in(self, cloud: CloudAccess | None) -> MongodbSignIn:
+        return MongodbSignIn(user=self.user, auth_source="$external", mechanism="MONGODB-X509")
+
+
 class MongodbSecretStore(_MongodbBase):
     """A password kept in a secret store, read at every new client (D454)."""
 
@@ -158,7 +183,7 @@ class MongodbSecretStore(_MongodbBase):
 
 
 MongodbOptions = Annotated[
-    MongodbUserPassword | MongodbNoPassword | MongodbAwsIam | MongodbSecretStore,
+    MongodbUserPassword | MongodbNoPassword | MongodbAwsIam | MongodbX509 | MongodbSecretStore,
     Field(discriminator="auth_method"),
 ]
 

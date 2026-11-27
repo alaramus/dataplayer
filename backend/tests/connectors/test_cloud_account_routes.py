@@ -260,8 +260,11 @@ async def test_the_server_s_own_identity_is_refused_while_the_installation_does_
 
 
 async def test_without_a_provider_an_account_cannot_be_tested_yet(
-    client: AsyncClient, person: dict[str, str]
+    client: AsyncClient, person: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Every kind has its provider now; one taken away stands for a kind
+    # whose provider is not installed.
+    monkeypatch.delitem(cloud._issuers, "vault")
     made = await _make(client, person, VAULT)
 
     refused = await client.post(f"{BASE}/{made['id']}/test", headers=person)
