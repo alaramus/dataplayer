@@ -157,6 +157,7 @@ def shape_of(facts: RelationFacts) -> RowShape:
                 insertable=insertable,
                 insert_required=insertable and not column.nullable and not has_default,
                 has_default=has_default,
+                assigned_on_insert=column.auto_increment,
             )
         )
     # A table with no key is named by its whole row (D242).

@@ -114,7 +114,7 @@ import {
   withPageSize,
 } from "./queryState"
 import { withSort } from "./queryState"
-import { planPaste, planRowPaste } from "./paste"
+import { planPaste, planRowClone, planRowPaste } from "./paste"
 import type { PasteColumn } from "./paste"
 import TabularGrid from "./TabularGrid.vue"
 import { tabularColumns } from "./tabular"
@@ -706,6 +706,36 @@ async function saveInsert(values: { column: string; value: string | null }[]) {
     toast.success(t("grid.insert.done"))
   } catch (error) {
     insertError.value = messageOf(error, t("grid.insert.failed"))
+  }
+}
+
+function cloneReason(selected: readonly number[]): Unavailable {
+  const stopped = insertReason.value
+  if (stopped !== null) return stopped
+  return selected.length === 1 ? null : NOT_YET.oneRowPicked
+}
+
+/** The ticked row read into the row being inserted, for its owner to change and save (D458). */
+async function cloneRow(selected: readonly number[]) {
+  const [index] = selected
+  const row = index === undefined ? undefined : result.value?.rows[index]
+  if (cloneReason(selected) !== null || row === undefined) return
+  const plan = planRowClone(
+    (result.value?.columns ?? []).map((column) => ({
+      name: column.name,
+      insertable: column.insertable === true,
+      assigned: column.assigned_on_insert === true,
+    })),
+    row
+  )
+  if (!plan.ok) {
+    toast.info(plan.reason)
+    return
+  }
+  await openInsert()
+  insertForm.value?.fill(plan.fill.values)
+  if (plan.fill.skipped.length > 0) {
+    toast.info(t("grid.insert.left_to_source", { columns: plan.fill.skipped.join(", ") }))
   }
 }
 
@@ -1487,6 +1517,13 @@ defineExpose({
           @click="openInsert"
         />
       </span>
+      <AppIconButton
+        :icon="GRID_COMMANDS.clone.icon"
+        :tooltip="tipOf(GRID_COMMANDS.clone.label, cloneReason(selectedRowIndexes))"
+        :disable="cloneReason(selectedRowIndexes) !== null"
+        data-testid="grid-clone"
+        @click="cloneRow(selectedRowIndexes)"
+      />
       <!-- Over the rows picked here, reviewed in the action's own window on
            the node the source says they belong to (D209). -->
       <span

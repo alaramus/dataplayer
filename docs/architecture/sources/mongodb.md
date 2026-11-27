@@ -11,7 +11,7 @@ contract every source type follows is in [contract.md](contract.md); reading a
 relation in general is in [relations.md](relations.md). Read this before
 changing the `mongodb` adapter.
 
-Decisions here: D283, D284, D285, D287, D288, D289, D290, D291, D292, D293, D294, D296.
+Decisions here: D283, D284, D285, D287, D288, D289, D290, D291, D292, D293, D294, D296, D457.
 
 ## D283. A MongoDB source speaks to one server through pymongo
 
@@ -34,6 +34,7 @@ accounts, X.509 with the TLS block's client certificate
 [D454](cloud-auth.md)). An optional database says where the catalog
 opens. `mongodb://` addresses with one host are parsed; without `authSource`
 the user is looked for in the database the address names, as the driver does.
+A `mongodb+srv://` address is a DNS seed list (D457).
 The check reads `buildInfo` and lists the databases the user may see, so a
 server with access control refuses a connection without a password there
 rather than at the first page.
@@ -60,8 +61,8 @@ MongoDB 5.0 and later; the check refuses an older one with its version named.
 
 Known deviations:
 
-- No replica set is discovered: a `mongodb+srv://` address and a seed list are
-  refused, and a write to a secondary is refused by the server.
+- Without a DNS seed list (D457) no replica set is discovered: a list of hosts
+  is refused, and a write to a secondary is refused by the server.
 - A user without `collStats` sees collections without counts.
 
 Spec: [A MongoDB source](../../decisions/2026-10-31-mongodb-source-design.md)
@@ -330,3 +331,37 @@ Known deviations:
 - **`use` lasts one run.** A console's next run starts in its context again.
 
 Spec: [MongoDB queries in the query console](../../decisions/2026-10-31-mongodb-query-console-design.md)
+
+## D457. A DNS seed list reaches a replica set, as Atlas gives it
+
+The form's "DNS seed list (mongodb+srv)" makes the host a name whose DNS
+records list the members of a replica set — MongoDB Atlas's address. The
+client is made from `mongodb+srv://host/` without `directConnection` and the
+port; the driver resolves the list as it first connects, finds the members
+and writes to the primary. A seed list is not reached through an SSH tunnel,
+and the form refuses both. A pasted `mongodb+srv://` address turns the switch
+on, fills Verify full unless it says `tls=false`, and fills `admin` as the
+authentication database unless it names another, as Atlas's own record does.
+Every address composed from the form — for a person, the console, a backup —
+is a seed list's too, with `tls=false` written when TLS is off, since a seed
+list implies it; the server Copy tables names is the seed list's name.
+
+Atlas refuses under one code of its own, 8000 (`AtlasError`), told apart by
+the opening of its text alone: `bad auth` is a failed sign-in, a command
+needing a user is a missing password, and anything else is said as Atlas not
+allowing it on this cluster. The text is not shown.
+
+The suite runs against Atlas when `TEST_MONGODB_URL` is its address; a seed
+list counts as answering, since there is no one server to knock on, and the
+tests needing what Atlas refuses are skipped there.
+
+Known deviations:
+
+- Atlas's shared tiers refuse users and roles (the Users and Roles reports),
+  others' operations, the server's own collections, server-side JavaScript
+  and a collection moved into another database; each answers with Atlas's
+  refusal.
+- A seed list's members are reached directly: a cluster behind a private
+  endpoint needs a route from this server.
+
+Spec: [MongoDB Atlas, and documents cloned, added and deleted](../../decisions/2026-11-27-mongodb-atlas-and-documents-design.md)

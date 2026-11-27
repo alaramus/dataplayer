@@ -182,6 +182,22 @@ async def test_a_document_is_read_whole_and_changed_through_the_routes(
     )
     assert stale.status_code == 409, stale.text
 
+    # A clone is the document without its `_id`, added as a new one (D459).
+    clone = {key: value for key, value in json.loads(item["text"]).items() if key != "_id"}
+    added = await client.post(
+        f"{BASE}/{connector}/documents/new",
+        headers=headers,
+        json={"node_id": numbers, "text": json.dumps(clone)},
+    )
+    assert added.status_code == 200, added.text
+    assert json.loads(added.json()["item"]["text"])["label"] == clone["label"]
+    refused = await client.post(
+        f"{BASE}/{connector}/documents/new",
+        headers=headers,
+        json={"node_id": numbers, "text": "[1]"},
+    )
+    assert refused.status_code == 422, refused.text
+
 
 async def _ran(client: AsyncClient, headers: dict[str, str], connector: str, text: str) -> Any:
     queries = f"{settings.API_V1_STR}/queries"

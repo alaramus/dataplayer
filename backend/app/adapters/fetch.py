@@ -107,6 +107,10 @@ class FetchColumn(BaseModel):
     insertable: bool = False
     insert_required: bool = False
     has_default: bool = False
+    # A new row gets a value the source makes itself — a serial, an
+    # auto-increment, a rowid, MongoDB's `_id` — so a cloned row leaves it out
+    # rather than repeating the key it was cloned from (D458).
+    assigned_on_insert: bool = False
 
 
 class FetchReference(BaseModel):

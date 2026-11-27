@@ -165,7 +165,8 @@ class MongodbUpdate:
         """New documents of the values given; a value left empty is no field.
 
         Nothing given at all is a document of its `_id` alone, which the
-        driver makes.
+        driver makes; so is an empty `_id`, which the insert row sends once
+        its field has been focused.
         """
         named = [self._column(columns, name, editing=False) for name in names]
         documents: list[dict[str, Any]] = []
@@ -173,7 +174,7 @@ class MongodbUpdate:
         for index, row in enumerate(rows):
             document: dict[str, Any] = {}
             for column, text in zip(named, row, strict=True):
-                if text is None:
+                if text is None or (text == "" and column.name == "_id"):
                     continue
                 try:
                     document[column.name] = written_value(text, tags[column.name])

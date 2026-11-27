@@ -249,6 +249,9 @@ import type {
   connectorsImportRowsData,
   connectorsImportRowsErrors,
   connectorsImportRowsResponses,
+  connectorsInsertDocumentData,
+  connectorsInsertDocumentErrors,
+  connectorsInsertDocumentResponses,
   connectorsInsertRowData,
   connectorsInsertRowErrors,
   connectorsInsertRowResponses,
@@ -2077,6 +2080,30 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/documents",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Insert Document
+   *
+   * Add one document written as text, a cloned one included (D459).
+   */
+  public static insertDocument<ThrowOnError extends boolean = true>(
+    options: Options<connectorsInsertDocumentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsInsertDocumentResponses,
+      connectorsInsertDocumentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/documents/new",
       ...options,
       headers: {
         "Content-Type": "application/json",

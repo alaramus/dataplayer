@@ -91,6 +91,8 @@ class MongodbTableCopy:
         """The server, by the address it is reached at."""
         options = self._session.options
         through = f"ssh:{options.ssh_tunnel}/" if options.ssh_tunnel else ""
+        if options.srv:
+            return f"mongodb+srv://{options.host.lower()}"
         return f"mongodb://{through}{options.host.lower()}:{options.port}"
 
     # The source's half.

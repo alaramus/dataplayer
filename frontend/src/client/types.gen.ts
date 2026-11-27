@@ -5113,6 +5113,29 @@ export type DocumentChanged = {
 }
 
 /**
+ * DocumentInsertRequest
+ *
+ * A new document as text, a cloned one included (D459).
+ */
+export type DocumentInsertRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * DocumentInserted
+ */
+export type DocumentInserted = {
+  item: DocumentItem
+}
+
+/**
  * DocumentItem
  */
 export type DocumentItem = {
@@ -5221,6 +5244,14 @@ export type DocumentsPage = {
    * Change Reason
    */
   change_reason?: string | null
+  /**
+   * Insert Supported
+   */
+  insert_supported?: boolean
+  /**
+   * Insert Reason
+   */
+  insert_reason?: string | null
 }
 
 /**
@@ -6093,6 +6124,10 @@ export type FetchColumn = {
    * Has Default
    */
   has_default?: boolean
+  /**
+   * Assigned On Insert
+   */
+  assigned_on_insert?: boolean
 }
 
 /**
@@ -19974,6 +20009,38 @@ export type connectorsReadDocumentsResponses = {
 
 export type connectorsReadDocumentsResponse =
   connectorsReadDocumentsResponses[keyof connectorsReadDocumentsResponses]
+
+export type connectorsInsertDocumentData = {
+  body: DocumentInsertRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/documents/new"
+}
+
+export type connectorsInsertDocumentErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsInsertDocumentError =
+  connectorsInsertDocumentErrors[keyof connectorsInsertDocumentErrors]
+
+export type connectorsInsertDocumentResponses = {
+  /**
+   * Successful Response
+   */
+  200: DocumentInserted
+}
+
+export type connectorsInsertDocumentResponse =
+  connectorsInsertDocumentResponses[keyof connectorsInsertDocumentResponses]
 
 export type connectorsUpdateCellData = {
   body: UpdateCellRequest

@@ -132,6 +132,12 @@ export const GRID_COMMANDS = {
       return t("grid.toolbar.commands.insert")
     },
   },
+  clone: {
+    icon: appIcons.clone,
+    get label() {
+      return t("grid.toolbar.commands.clone")
+    },
+  },
   remove: {
     icon: appIcons.remove,
     get label() {
@@ -278,6 +284,9 @@ export const NOT_YET = {
   },
   get noRowsPicked() {
     return t("grid.toolbar.not_yet.no_rows_picked")
+  },
+  get oneRowPicked() {
+    return t("grid.toolbar.not_yet.one_row_picked")
   },
   get noClipboard() {
     return t("grid.toolbar.not_yet.no_clipboard")

@@ -152,3 +152,35 @@ export function planRowPaste(
   }
   return { ok: true, fill: { values, skipped } }
 }
+
+export interface CloneColumn {
+  name: string
+  insertable: boolean
+  /** The source gives a new row its own value here: a serial, MongoDB's `_id`. */
+  assigned: boolean
+}
+
+/**
+ * One row of the page read into the fields of a row being inserted (D458).
+ *
+ * By name rather than position: the row is the page's, every column of it,
+ * hidden ones included. What the source assigns to a new row is left out, so
+ * the clone is a new row rather than a second claim on the first one's key.
+ * An empty cell is left out too: on MongoDB it is a field the document lacks,
+ * and writing null into each would give the clone fields its source never had.
+ */
+export function planRowClone(
+  columns: readonly CloneColumn[],
+  row: readonly (string | null)[]
+): RowPastePlan {
+  const values: { column: string; value: string | null }[] = []
+  const skipped: string[] = []
+  columns.forEach((column, index) => {
+    const value = row[index] ?? null
+    if (value === null) return
+    if (column.insertable && !column.assigned) values.push({ column: column.name, value })
+    else skipped.push(column.name)
+  })
+  if (values.length === 0) return { ok: false, reason: t("grid.paste.all_generated") }
+  return { ok: true, fill: { values, skipped } }
+}

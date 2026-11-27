@@ -25,6 +25,8 @@ from app.adapters.content import json_tree
 from app.adapters.documents import (
     DocumentChanged,
     DocumentChangeRequest,
+    DocumentInserted,
+    DocumentInsertRequest,
     DocumentItem,
     DocumentsPage,
     DocumentsRequest,
@@ -36,6 +38,7 @@ from app.adapters.mongodb.rows import (
     digest,
     editing_reason,
     handle_of,
+    inserting_reason,
     read_handle,
     unchanged,
 )
@@ -162,13 +165,34 @@ class MongodbDocuments:
                     .to_list()
                 )
         refused = editing_reason(facts)
+        not_taken = inserting_reason(facts)
         return DocumentsPage(
             items=[document_item(document) for document in documents[: request.limit]],
             has_more=len(documents) > request.limit,
             offset=request.offset,
             change_supported=refused is None,
             change_reason=refused,
+            insert_supported=not_taken is None,
+            insert_reason=not_taken,
         )
+
+    async def insert_document(self, request: DocumentInsertRequest) -> DocumentInserted:
+        """One `insertOne` of the text as written; without an `_id` the driver
+        makes one, so a clone is its source without its `_id` (D459)."""
+        facts = await self._relation.facts(request.node_id, structure=False)
+        refused = inserting_reason(facts)
+        if refused is not None:
+            raise ValueError(refused)
+        document = parsed(request.text)
+        if not isinstance(document, Mapping):
+            raise ValueError(say("A document is a JSON object"))
+        async with self._session.client() as client:
+            collection = client[facts.database][facts.name]
+            with self._session.failures(_REFUSALS):
+                answer = await collection.insert_one(dict(document))
+                stored = await collection.find_one({"_id": answer.inserted_id})
+        # A time series names its documents by no `_id` a read can find.
+        return DocumentInserted(item=document_item(stored if stored is not None else document))
 
     async def change_document(self, request: DocumentChangeRequest) -> DocumentChanged:
         facts = await self._relation.facts(request.node_id, structure=False)

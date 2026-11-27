@@ -4,7 +4,7 @@ How a page of rows is drawn, kept, re-read, written out and charted. The
 screens around it are in [frontend.md](frontend.md); what a source says about
 its rows is in [sources/relations.md](sources/relations.md).
 
-Decisions here: D24, D67, D28, D35, D111, D116.
+Decisions here: D24, D67, D28, D35, D111, D116, D458.
 
 ## D24. The tabular surface is controlled state around a headless engine, and source operations stay server-side
 
@@ -453,3 +453,23 @@ Consequences:
   wrong group; the fix then is for the declaration to say which it is.
 
 Spec: [The row of commands above a table](../decisions/2026-09-06-grid-toolbar-design.md)
+
+## D458. A ticked row is cloned into the row being inserted
+
+Clone sits beside Insert and is on with one row ticked: the insert row opens
+filled from that row, read by column name from the page, hidden columns
+included, and nothing is written until it is saved. A column whose
+`FetchColumn.assigned_on_insert` says the source gives a new row its own value
+— PostgreSQL's identity and `nextval(…)` defaults, MySQL's auto-increment,
+SQLite's rowid alias, DuckDB's `nextval(…)` defaults, MongoDB's `_id` — is left
+out, as is one that is not insertable, and both are named the way a paste into
+the insert row names them. An empty cell is left out too, so a clone of a
+MongoDB document gains no null fields its source lacked.
+
+Known deviations:
+
+- A column with a default that is not a key (a status, a time made by `now()`)
+  is copied; one the source cannot say is a key — a natural key, Cassandra's
+  primary key — is copied too, and the owner changes it before saving.
+
+Spec: [MongoDB Atlas, and documents cloned, added and deleted](../decisions/2026-11-27-mongodb-atlas-and-documents-design.md)

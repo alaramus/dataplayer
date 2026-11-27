@@ -18,6 +18,8 @@ from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.documents import (
     DocumentChanged,
     DocumentChangeRequest,
+    DocumentInserted,
+    DocumentInsertRequest,
     DocumentsPage,
     DocumentsRequest,
 )
@@ -141,6 +143,7 @@ def _address(options: Mapping[str, Any]) -> dict[str, Any] | None:
         "database": _as_text(options.get("database")),
         "auth_source": _as_text(options.get("auth_source")) if named else "",
         "tls": options.get("tls_mode", "disabled") != "disabled",
+        "srv": options.get("srv") is True,
     }
 
 
@@ -359,6 +362,9 @@ class MongodbAdapter:
 
     async def read_documents(self, request: DocumentsRequest) -> DocumentsPage:
         return await self._documents.read_documents(request)
+
+    async def insert_document(self, request: DocumentInsertRequest) -> DocumentInserted:
+        return await self._documents.insert_document(request)
 
     async def change_document(self, request: DocumentChangeRequest) -> DocumentChanged:
         """The fields that differ, if the document is still the one read (D295)."""

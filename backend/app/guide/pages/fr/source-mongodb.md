@@ -47,8 +47,14 @@ Une chaîne de connexion comme `mongodb://ann@db.example.com:27017/shop` collée
 dans **URL** remplit ces champs ; `?authSource=` et `?tls=true` sont lus aussi.
 
 Le serveur nommé est celui auquel on parle. Un membre d'un replica set est lu
-tel quel ; pour modifier des données, nommez le primaire. Une adresse
-`mongodb+srv://` et une liste de serveurs ne sont pas prises en charge.
+tel quel ; pour modifier des données, nommez le primaire. Une liste de
+serveurs n'est pas prise en charge. **MongoDB Atlas** donne une adresse
+`mongodb+srv://` : collez-la dans **URL**, ou activez **Liste de serveurs DNS (mongodb+srv)** et mettez le nom du cluster dans **Hôte**. Les serveurs sont
+alors trouvés par DNS, les modifications vont au primaire, TLS est actif et
+l'utilisateur est cherché dans `admin`. Une telle connexion ne passe pas par
+un tunnel SSH. Les clusters gratuits et partagés d'Atlas refusent certaines
+choses qu'un serveur à vous permet — utilisateurs et rôles, opérations des
+autres, déplacer une collection vers une autre base — et vous le dit.
 MongoDB 5.0 et plus récent est pris en charge.
 
 ## Catalogue
@@ -84,6 +90,10 @@ MongoDB 5.0 et plus récent est pris en charge.
 - Un bloc collé est vérifié en entier, puis écrit document par document ; un
   bloc de nouveaux documents entre en entier ou pas du tout.
 - **Voir sous forme de documents** montre chaque document entier.
+- Chaque document a **Cloner**, qui ouvre un nouveau document rempli de son
+  contenu sans `_id`, à modifier puis **Insérer**, et **Supprimer**, qui
+  demande d'abord. **Nouveau document** au-dessus de la liste en ouvre un
+  vide. Le nombre de documents par page se choisit à côté des flèches.
 
 ## Structure
 

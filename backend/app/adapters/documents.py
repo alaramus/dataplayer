@@ -43,6 +43,9 @@ class DocumentsPage(BaseModel):
     offset: int = Field(ge=0)
     change_supported: bool = False
     change_reason: str | None = None
+    # A time series takes new documents and changes none (D287).
+    insert_supported: bool = False
+    insert_reason: str | None = None
 
 
 class FieldChange(BaseModel):
@@ -87,6 +90,21 @@ class DocumentChangeRequest(BaseModel):
     change: DocumentChange
 
 
+class DocumentInsertRequest(BaseModel):
+    """A new document as text, a cloned one included (D459)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    text: str = Field(min_length=1, max_length=MAX_DOCUMENT_TEXT)
+
+
+class DocumentInserted(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item: DocumentItem
+
+
 class DocumentChanged(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -107,4 +125,9 @@ class SupportsDocuments(Protocol):
         Raises `RowConflict` when it is not, `ValueError` for text or a change
         the source cannot take, `AdapterError` for the source's failures.
         """
+        ...
+
+    async def insert_document(self, request: DocumentInsertRequest) -> DocumentInserted:
+        """Add one document as written. Raises what `change_document` raises,
+        `RowConflict` aside."""
         ...

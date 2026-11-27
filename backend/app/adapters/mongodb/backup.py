@@ -120,6 +120,7 @@ class MongodbBackup:
             tls=options.tls().enabled,
             tls_query=[*program_tls(options.tls()), *auth_query(signed)],
             password=signed.password,
+            srv=options.srv,
         )
         argv, files = with_program_files(
             ("sh", "-c", _SCRIPTS[what], "sh", options.database, path), options.tls()

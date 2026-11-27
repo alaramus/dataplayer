@@ -143,6 +143,7 @@ def shape_of(facts: RelationFacts) -> RowShape:
                 insertable=insertable,
                 insert_required=insertable and not column.nullable and not has_default,
                 has_default=has_default,
+                assigned_on_insert=column.rowid_alias,
             )
         )
     return RowShape(

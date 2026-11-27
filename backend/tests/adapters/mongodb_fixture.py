@@ -8,6 +8,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+import pytest
 from bson import Decimal128, Int64, ObjectId
 from pydantic import TypeAdapter
 from pymongo import AsyncMongoClient
@@ -16,6 +17,13 @@ from app.adapters.mongodb.adapter import MongodbAdapter
 from app.adapters.mongodb.options import MongodbOptions, MongodbUserPassword
 from app.adapters.mongodb.session import options_from_url
 from tests.utils.services import MONGODB
+
+# Atlas, reached by a DNS seed list, refuses on its shared tiers what a
+# server of one's own allows: users, server-side JavaScript, the server's own
+# collections, a rename across databases (D457).
+on_atlas_refused = pytest.mark.skipif(
+    MONGODB.url().startswith("mongodb+srv://"), reason="MongoDB Atlas refuses this (D457)"
+)
 
 DATABASE = "dp_test_mongodb"
 # A collection's name may hold dots, and a node id must survive them.

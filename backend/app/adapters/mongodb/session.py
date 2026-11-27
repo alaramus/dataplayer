@@ -21,6 +21,7 @@ from pymongo.errors import (
     ConnectionFailure,
     ExecutionTimeout,
     NetworkTimeout,
+    NotPrimaryError,
     OperationFailure,
     ServerSelectionTimeoutError,
     WTimeoutError,
@@ -73,6 +74,8 @@ NAMESPACE_NOT_FOUND = 26
 MAX_TIME_EXPIRED = 50
 DUPLICATE_KEY = 11000
 DOCUMENT_VALIDATION_FAILURE = 121
+# Atlas's proxy answers every refusal of its own under this one code (D457).
+ATLAS_ERROR = 8000
 
 
 class ServerProfile:
@@ -95,12 +98,28 @@ def read_profile(version: str) -> ServerProfile:
     return ServerProfile(tuple(int(part) for part in text.split(".")), text)
 
 
+def _atlas_refusal(exc: OperationFailure) -> tuple[ErrorKind, str]:
+    """Atlas's one code told apart by the opening of its text (D457).
+
+    The text is read here and never shown: it names no user, only what was
+    refused.
+    """
+    said = str((exc.details or {}).get("errmsg", "")).lower()
+    if said.startswith("bad auth"):
+        return "auth", say("Authentication failed")
+    if "requires authentication" in said or "unauthorized" in said:
+        return "auth", say("The server asks for a user and a password")
+    return "config", say("MongoDB Atlas does not allow this on this cluster")
+
+
 def classify(
     exc: BaseException, *, fallback_message: str = N_("Connection failed")
 ) -> tuple[ErrorKind, str]:
     """Reduce a failure to a safe (kind, message) pair (D184)."""
     if isinstance(exc, ExecutionTimeout | NetworkTimeout | WTimeoutError | TimeoutError):
         return "timeout", say("The server did not answer in time")
+    if isinstance(exc, OperationFailure) and exc.code == ATLAS_ERROR:
+        return _atlas_refusal(exc)
     if isinstance(exc, OperationFailure):
         if exc.code == AUTHENTICATION_FAILED:
             return "auth", say("Authentication failed")
@@ -108,6 +127,12 @@ def classify(
             return "auth", say("The server does not let this user do that")
         if exc.code == MAX_TIME_EXPIRED:
             return "timeout", say("The server did not answer in time")
+    if isinstance(exc, NotPrimaryError):
+        # A subclass of ConnectionFailure, but the server answered: it is a
+        # secondary, named directly (D283), and takes no changes.
+        return "config", say(
+            "This server is a secondary and takes no changes; name the primary or the cluster's DNS seed list"
+        )
     if isinstance(exc, ServerSelectionTimeoutError | ConnectionFailure | OSError):
         return "network", say("Could not reach the database server")
     if isinstance(exc, ConfigurationError):
@@ -139,18 +164,19 @@ def compose_url(
     auth_source: str = "",
     tls: bool = False,
     tls_query: Sequence[tuple[str, str]] = (),
+    srv: bool = False,
 ) -> str:
     """A MongoDB address, every part quoted, as `mongosh` accepts it.
 
     `tls_query` is what a program needs beyond `tls=true`: its files and how
-    much it checks (`program_tls`).
+    much it checks (`program_tls`). A DNS seed list has no port (D457).
     """
     authority = f"[{host}]" if ":" in host else quote(host, safe="")
     if user != "":
         authority = f"{quote(user, safe='')}@{authority}"
-    if port is not None:
+    if port is not None and not srv:
         authority += f":{port}"
-    url = f"mongodb://{authority}/"
+    url = f"mongodb{'+srv' if srv else ''}://{authority}/"
     if database != "":
         url += quote(database, safe="")
     query: list[str] = []
@@ -159,6 +185,9 @@ def compose_url(
     if tls:
         query.append("tls=true")
         query += [f"{name}={quote(value, safe='/')}" for name, value in tls_query]
+    elif srv:
+        # A seed list means TLS unless the address says otherwise.
+        query.append("tls=false")
     return url + ("?" + "&".join(query) if query else "")
 
 
@@ -172,6 +201,7 @@ def compose_url_with_password(
     tls: bool = False,
     tls_query: Sequence[tuple[str, str]] = (),
     password: str = "",
+    srv: bool = False,
 ) -> str:
     """The same address with the password in it, for somebody to paste (D89)."""
     plain = compose_url(
@@ -182,6 +212,7 @@ def compose_url_with_password(
         auth_source=auth_source,
         tls=tls,
         tls_query=tls_query,
+        srv=srv,
     )
     if password == "" or user == "":
         return plain
@@ -195,15 +226,12 @@ _TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
 def options_from_url(url: str) -> dict[str, Any]:
     """A connection string taken apart into the fields of the form.
 
-    `mongodb://` with one host. A seed list and `mongodb+srv://` name a
-    replica set to discover, which this source does not do (D283).
+    `mongodb://` with one host, or `mongodb+srv://` with the name of a DNS
+    seed list (D457). A list of hosts is not read.
     """
     text = url.strip()
-    if text.lower().startswith("mongodb+srv://"):
-        raise ValueError(
-            say("A mongodb+srv address is not supported; name one server with mongodb://")
-        )
-    if not text.lower().startswith("mongodb://"):
+    srv = text.lower().startswith("mongodb+srv://")
+    if not srv and not text.lower().startswith("mongodb://"):
         raise ValueError(say("That is not a MongoDB connection string"))
     if "," in text.split("/", 3)[2]:
         raise ValueError(say("Name one server; a list of servers is not supported"))
@@ -214,14 +242,22 @@ def options_from_url(url: str) -> dict[str, Any]:
         raise ValueError(say("The connection string names no usable port")) from None
     if not parts.hostname:
         raise ValueError(say("The connection string names no host"))
+    if srv and port is not None:
+        raise ValueError(say("A mongodb+srv address names no port"))
     query = parse_qs(parts.query)
-    tls = any(
-        value.lower() in _TRUE_WORDS for value in query.get("tls", []) + query.get("ssl", [])
+    said = query.get("tls", []) + query.get("ssl", [])
+    # A seed list is TLS unless the address turns it off, as the driver reads it.
+    tls = (
+        any(value.lower() in _TRUE_WORDS for value in said)
+        if said
+        else srv
     )
     options: dict[str, Any] = {
         "host": unquote(parts.hostname),
         "tls_mode": "verify_full" if tls else "disabled",
     }
+    if srv:
+        options["srv"] = True
     if port is not None:
         options["port"] = port
     database = unquote(parts.path.lstrip("/"))
@@ -231,7 +267,12 @@ def options_from_url(url: str) -> dict[str, Any]:
         options["auth_method"] = "user_password"
         options["user"] = unquote(parts.username)
         options["password"] = unquote(parts.password or "")
-        options["auth_source"] = next(iter(query.get("authSource", [])), "") or database or "admin"
+        # Atlas keeps its users in admin, which its DNS record names too.
+        options["auth_source"] = (
+            next(iter(query.get("authSource", [])), "")
+            or ("admin" if srv else database)
+            or "admin"
+        )
     else:
         options["auth_method"] = "no_password"
     return options
@@ -243,12 +284,14 @@ type Client = AsyncMongoClient[dict[str, Any]]
 def make_client(
     host: str, port: int, options: MongodbOptions, signed: MongodbSignIn, *, pool_size: int
 ) -> Client:
-    """A client of one server, as it is (D283).
+    """A client of one server, as it is (D283), or of a DNS seed list (D457).
 
     `directConnection`: the server named is the server spoken to, whether it
     is alone or one member of a replica set, so a tunnel's end is not traded
-    for the names the set calls its members by. Moments come back aware and in
-    UTC, and a UUID is the standard binary subtype.
+    for the names the set calls its members by. A seed list is the opposite:
+    the driver reads the members from DNS and writes to the primary, which
+    is how Atlas is reached. Moments come back aware and in UTC, and a UUID
+    is the standard binary subtype.
     """
     credentials: dict[str, Any] = {}
     if signed.user:
@@ -262,12 +305,16 @@ def make_client(
         credentials["authMechanism"] = signed.mechanism
     if signed.session_token:
         credentials["authMechanismProperties"] = {"AWS_SESSION_TOKEN": signed.session_token}
+    # The seed list is resolved by the client as it first connects, not here.
+    address: dict[str, Any] = (
+        {"host": f"mongodb+srv://{quote(host, safe='')}/"}
+        if options.srv
+        else {"host": host, "port": port, "directConnection": True}
+    )
     # pymongo reads its files once, while the client is made (D447).
     with TlsFiles(options.tls()) as files:
         return AsyncMongoClient(
-            host=host,
-            port=port,
-            directConnection=True,
+            **address,
             serverSelectionTimeoutMS=SELECT_MILLISECONDS,
             connectTimeoutMS=SELECT_MILLISECONDS,
             tz_aware=True,
@@ -378,6 +425,7 @@ class MongodbSession:
             database=options.database,
             auth_source=auth_source,
             tls=options.tls().enabled,
+            srv=options.srv,
         )
 
     def database(self) -> str:
@@ -405,7 +453,7 @@ class MongodbSession:
             # made with, so the client is keyed by them: a role's keys,
             # renewed, make a new client, and the old one goes when idle.
             fingerprint = hashlib.sha256(
-                f"{host}:{port}:{self._options.tls().fingerprint()}:{signed.user}:"
+                f"{host}:{port}:{self._options.srv}:{self._options.tls().fingerprint()}:{signed.user}:"
                 f"{signed.password}:{signed.auth_source}:{signed.mechanism}:"
                 f"{signed.session_token}".encode()
             ).hexdigest()[:16]

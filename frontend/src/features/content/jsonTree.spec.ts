@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { childrenOf, closedSummary, documentId, scalarOf, typedScalar } from "./jsonTree"
+import { childrenOf, cloneText, closedSummary, documentId, jsonText, scalarOf, typedScalar } from "./jsonTree"
 import type { JsonValue } from "./jsonTree"
 
 const text = (value: string): JsonValue => ({ kind: "string", value })
@@ -56,5 +56,42 @@ describe("a value of a JSON tree", () => {
     expect(documentId(object({ _id: object({ $oid: text("65aa") }), name: text("Ann") }))).toBe("65aa")
     expect(documentId(object({ _id: number("7") }))).toBe("7")
     expect(documentId(object({ name: text("no id") }))).toBe("")
+  })
+})
+
+describe("a document written back as text", () => {
+  const document = object({
+    _id: object({ $oid: text("65aa") }),
+    name: text('Ann "A"'),
+    big: number("9007199254740993"),
+    tags: { kind: "array", items: [text("a"), { kind: "boolean", value: "true" }, { kind: "null", value: null }] },
+    empty: object({}),
+  })
+
+  it("keeps every number as the server wrote its digits", () => {
+    expect(jsonText(document)).toBe(
+      [
+        "{",
+        '  "_id": {',
+        '    "$oid": "65aa"',
+        "  },",
+        '  "name": "Ann \\"A\\"",',
+        '  "big": 9007199254740993,',
+        '  "tags": [',
+        '    "a",',
+        "    true,",
+        "    null",
+        "  ],",
+        '  "empty": {}',
+        "}",
+      ].join("\n")
+    )
+  })
+
+  it("leaves the _id out of a clone", () => {
+    const clone = cloneText(document)
+    expect(clone).not.toContain("_id")
+    expect(clone).toContain('"big": 9007199254740993')
+    expect(clone.startsWith('{\n  "name"')).toBe(true)
   })
 })

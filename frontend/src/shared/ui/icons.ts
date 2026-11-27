@@ -38,6 +38,7 @@ export const appIcons = {
   chevronLeft: "chevron_left",
   chevronRight: "chevron_right",
   clearAll: "clear_all",
+  clone: "control_point_duplicate",
   close: "close",
   closeFullscreen: "close_fullscreen",
   code: "code",

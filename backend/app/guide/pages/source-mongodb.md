@@ -50,8 +50,15 @@ A password in the pasted string goes into the password field and leaves the
 string.
 
 The server named is the server spoken to. A member of a replica set is read
-as it is; to change data, name the primary. A `mongodb+srv://` address and a
-list of servers are not supported.
+as it is; to change data, name the primary. A list of servers is not supported.
+
+**MongoDB Atlas** gives a `mongodb+srv://` address: paste it into **URL**, or
+turn on **DNS seed list (mongodb+srv)** and put the cluster's name in **Host**.
+The servers are then found through DNS, changes go to the primary, TLS is on
+and the user is looked for in `admin`. Such a connection does not go through
+an SSH tunnel. Atlas's free and shared clusters refuse some things a server
+of your own allows — users and roles, other people's operations, moving a
+collection to another database — and you are told so.
 
 MongoDB 5.0 and later is supported. An older server is refused when the
 connection is checked, with its version named.
@@ -104,6 +111,10 @@ connection is checked, with its version named.
   filters and order, each as a tree you open level by level, with every
   value's BSON type. **Edit as JSON** opens one as text; saving writes only the
   fields you changed, so values you did not touch keep their type.
+- Each document has **Clone**, which opens a new document filled with it,
+  without its `_id`, to change and **Insert**, and **Delete**, which asks
+  first. **New document** above the list opens an empty one. How many
+  documents a page holds is chosen beside the page arrows.
 - The documents tab also opens the collection's definition: its options,
   validator and indexes.
 

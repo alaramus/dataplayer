@@ -10,6 +10,7 @@ from app.adapters.content import ContentRequest, JsonContent, JsonObject
 from app.adapters.database_ids import relation_id
 from app.adapters.documents import (
     DocumentChangeRequest,
+    DocumentInsertRequest,
     DocumentsRequest,
     DocumentText,
     FieldChange,
@@ -99,6 +100,55 @@ async def test_a_page_is_the_grid_s_query_read_as_documents() -> None:
     view = await adapter().read_documents(DocumentsRequest(node_id=relation_id(DATABASE, "adults")))
     assert not view.change_supported
     assert view.change_reason is not None
+
+
+# --- Adding ------------------------------------------------------------------------
+
+
+@pytest.mark.usefixtures("server")
+async def test_a_clone_is_its_document_without_its_id() -> None:
+    _, text = await _ann()
+    clone = json.loads(text)
+    del clone["_id"]
+    clone["name"] = "Ann again"
+
+    answer = await adapter().insert_document(
+        DocumentInsertRequest(node_id=PEOPLE, text=json.dumps(clone))
+    )
+
+    assert answer.item.row_handle is not None
+    stored = json.loads(answer.item.text)
+    assert stored["_id"]["$oid"] != "650000000000000000000001"
+    client = raw_client()
+    try:
+        found = await client[DATABASE]["people"].find_one({"name": "Ann again"})
+    finally:
+        await client.close()
+    assert found is not None
+    # Every value arrives as its BSON type, a 64-bit integer and a decimal included.
+    assert isinstance(found["big"], Int64)
+    assert found["price"] == Decimal128("1.10")
+
+
+@pytest.mark.usefixtures("server")
+async def test_a_new_document_is_refused_as_an_edit_is() -> None:
+    source = adapter()
+
+    async def insert(text: str, node_id: str = PEOPLE) -> None:
+        await source.insert_document(DocumentInsertRequest(node_id=node_id, text=text))
+
+    with pytest.raises(ValueError, match="not valid JSON"):
+        await insert("{ not json")
+    with pytest.raises(ValueError, match="object"):
+        await insert("[1]")
+    with pytest.raises(ValueError, match="unique index"):
+        await insert(json.dumps({"name": "Bob"}))
+    with pytest.raises(ValueError, match="pipeline"):
+        await insert(json.dumps({"name": "Dee"}), relation_id(DATABASE, "adults"))
+    page = await source.read_documents(DocumentsRequest(node_id=relation_id(DATABASE, "adults")))
+    assert not page.insert_supported
+    assert page.insert_reason is not None
+    assert (await source.read_documents(DocumentsRequest(node_id=PEOPLE))).insert_supported
 
 
 # --- Changing ----------------------------------------------------------------------

@@ -114,3 +114,33 @@ export function documentId(value: JsonValue | null | undefined): string {
   const scalar = scalarOf(id)
   return scalar === null ? closedSummary(id) : scalar.text
 }
+
+/** A tree written back as JSON text, indented as the server writes a document. */
+export function jsonText(value: JsonValue, indent = ""): string {
+  const inner = `${indent}  `
+  if (value.kind === "array") {
+    if (value.items.length === 0) return "[]"
+    return `[\n${value.items.map((item) => inner + jsonText(item, inner)).join(",\n")}\n${indent}]`
+  }
+  if (value.kind === "object") {
+    if (value.entries.length === 0) return "{}"
+    const lines = value.entries.map(
+      (entry) => `${inner}${JSON.stringify(entry.name)}: ${jsonText(entry.value, inner)}`
+    )
+    return `{\n${lines.join(",\n")}\n${indent}}`
+  }
+  if (value.kind === "string") return JSON.stringify(value.value ?? "")
+  // A number keeps its own digits: parsing it would round a 64-bit one.
+  return value.value ?? "null"
+}
+
+/**
+ * A document's text without its `_id`, for a clone the source names anew.
+ *
+ * Written from the tree rather than parsed from the text, because the tree
+ * keeps every number as the digits the server wrote (D23).
+ */
+export function cloneText(value: JsonValue): string {
+  if (value.kind !== "object") return jsonText(value)
+  return jsonText({ ...value, entries: value.entries.filter((entry) => entry.name !== "_id") })
+}

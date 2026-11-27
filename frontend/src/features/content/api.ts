@@ -5,7 +5,9 @@ import type { Ref } from "vue"
 import { ConnectorsService } from "@/client"
 import type {
   ContentRequest,
+  DeleteRowsRequest,
   DocumentChangeRequest,
+  DocumentInsertRequest,
   DocumentsRequest,
   EditorContentRequest,
   UpdateContentRequest,
@@ -109,16 +111,19 @@ export function useDocuments(connectorId: Ref<string>, request: Readonly<Ref<Doc
 }
 
 export function useChangeDocument(connectorId: Ref<string>) {
+  return useDocumentsMutation(connectorId, async (id, body: DocumentChangeRequest) =>
+    (await ConnectorsService.changeDocument({ path: { connector_id: id }, body })).data
+  )
+}
+
+/** What changes the documents changes the grid over the same collection too. */
+function useDocumentsMutation<Body, Answer>(
+  connectorId: Ref<string>,
+  run: (connectorId: string, body: Body) => Promise<Answer>
+) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: DocumentChangeRequest) =>
-      (
-        await ConnectorsService.changeDocument({
-          path: { connector_id: connectorId.value },
-          body,
-        })
-      ).data,
-    // A changed document is a changed row of the grid over the same collection.
+    mutationFn: (body: Body) => run(connectorId.value, body),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["documents", connectorId.value] }),
@@ -126,4 +131,18 @@ export function useChangeDocument(connectorId: Ref<string>) {
       ])
     },
   })
+}
+
+/** A new document written as text, a clone included (D459). */
+export function useInsertDocument(connectorId: Ref<string>) {
+  return useDocumentsMutation(connectorId, async (id, body: DocumentInsertRequest) =>
+    (await ConnectorsService.insertDocument({ path: { connector_id: id }, body })).data
+  )
+}
+
+/** Documents deleted by their handles, as the grid deletes rows (D287). */
+export function useDeleteDocuments(connectorId: Ref<string>) {
+  return useDocumentsMutation(connectorId, async (id, body: DeleteRowsRequest) =>
+    (await ConnectorsService.deleteRows({ path: { connector_id: id }, body })).data
+  )
 }

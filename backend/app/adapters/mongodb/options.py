@@ -85,8 +85,25 @@ class _MongodbBase(TlsOptionsRds):
         le=65535,
         json_schema_extra=layout(row="address"),
     )
+    # A DNS name listing a replica set's members, as Atlas gives (D457).
+    srv: bool = Field(
+        default=False,
+        title=N_("DNS seed list (mongodb+srv)"),
+        description=N_(
+            "The host is a name whose DNS records list the servers, as MongoDB Atlas gives it; the port is not used"
+        ),
+        json_schema_extra=layout(),
+    )
     # The SSH connection this server is reached through, if any (D282).
     ssh_tunnel: str = ssh_tunnel_field()
+
+    @model_validator(mode="after")
+    def _srv_not_tunnelled(self) -> Self:
+        if self.srv and self.ssh_tunnel:
+            raise ValueError(
+                say("A DNS seed list names servers a tunnel cannot reach; name one server instead")
+            )
+        return self
 
 
 class MongodbUserPassword(_MongodbBase):

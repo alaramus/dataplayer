@@ -93,6 +93,8 @@ from app.adapters.credentials import PinsServerKey, ServerKey
 from app.adapters.documents import (
     DocumentChanged,
     DocumentChangeRequest,
+    DocumentInserted,
+    DocumentInsertRequest,
     DocumentsPage,
     DocumentsRequest,
     SupportsDocuments,
@@ -1670,13 +1672,47 @@ async def read_documents(
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from exc
     if not at_least(access, "write"):
+        read_only = say("You have read-only access to this connection")
         return page.model_copy(
             update={
                 "change_supported": False,
-                "change_reason": say("You have read-only access to this connection"),
+                "change_reason": read_only,
+                "insert_supported": False,
+                "insert_reason": read_only,
             }
         )
     return page
+
+
+@router.post("/{connector_id}/documents/new", response_model=DocumentInserted)
+async def insert_document(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: DocumentInsertRequest,
+) -> Any:
+    """Add one document written as text, a cloned one included (D459)."""
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="write"
+    )
+    if not isinstance(adapter, SupportsDocuments):
+        raise Problem(501, "connectors.no_row_editing", error_kind="config")
+    try:
+        return await _invalidate_after(
+            lambda: adapter.insert_document(request), data_cache, connector_id
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
 
 
 @router.patch("/{connector_id}/documents", response_model=DocumentChanged)

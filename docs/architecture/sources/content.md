@@ -4,7 +4,7 @@ For adding a way to open a node that is not a page of rows — a document, an
 image, a recording, a container walked into. Rows are
 [relations.md](relations.md).
 
-Decisions here: D47, D48, D52, D51, D53, D71, D57, D295.
+Decisions here: D47, D48, D52, D51, D53, D71, D57, D295, D459.
 
 ## D47. A node declares its ordered representations
 
@@ -461,3 +461,22 @@ Known deviations:
 - **A paste of many documents is not offered here;** the grid's paste is.
 
 Spec: [MongoDB documents as documents](../../decisions/2026-10-31-mongodb-document-viewer-design.md)
+
+## D459. The document view chooses its page, adds, clones and deletes
+
+A page of the `documents` view (D295) holds 10, 20, 50 or 100 documents, 20
+unless chosen, one choice for every collection as the grid keeps its own;
+not the grid's sizes, since a document is the height of many rows.
+
+A document is deleted from beside Copy and Edit, after a question, through the
+grid's `DELETE /rows` with its handle, under the same conflict check (D287). A
+new document and a clone are written in one editor above the list: Clone fills
+it with the document without its top-level `_id`, written from the page's tree
+rather than parsed from its text, because the tree keeps a number's digits
+(D23). Insert sends the text to `POST /connectors/{id}/documents/new`, answered
+by `SupportsDocuments.insert_document`; the source writes it as written and
+makes what is left out of it. A page says `insert_supported` apart from
+`change_supported`, since a time series takes new documents and changes none.
+A document too large to draw (D295) is not cloned.
+
+Spec: [MongoDB Atlas, and documents cloned, added and deleted](../../decisions/2026-11-27-mongodb-atlas-and-documents-design.md)

@@ -119,6 +119,8 @@ async def test_a_table_with_a_key_offers_every_change(target: Target) -> None:
     assert all(handle is not None for handle in page.row_handles)
     assert columns["label"].editable and columns["label"].insert_required
     assert columns["id"].insertable and not columns["id"].insert_required
+    # A clone leaves the auto-increment to the server (D458).
+    assert columns["id"].assigned_on_insert and not columns["label"].assigned_on_insert
     # A generated column is the server's to compute.
     assert not columns["doubled"].editable and not columns["doubled"].insertable
     assert [reference.name for reference in page.references] == ["things_parent"]

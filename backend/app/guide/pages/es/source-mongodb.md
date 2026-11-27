@@ -47,8 +47,14 @@ Una cadena de conexión como `mongodb://ann@db.example.com:27017/shop` pegada
 en **URL** rellena estos campos; también se leen `?authSource=` y `?tls=true`.
 
 El servidor indicado es con el que se habla. Un miembro de un replica set se
-lee tal cual; para cambiar datos, indica el primario. No se admiten una
-dirección `mongodb+srv://` ni una lista de servidores. Se admite MongoDB 5.0 y
+lee tal cual; para cambiar datos, indica el primario. No se admite una
+lista de servidores. **MongoDB Atlas** da una dirección `mongodb+srv://`:
+pégala en **URL**, o activa **Lista de semillas DNS (mongodb+srv)** y pon el nombre del
+clúster en **Host**. Los servidores se encuentran entonces por DNS, los cambios
+van al primario, TLS está activo y el usuario se busca en `admin`. Esa conexión
+no pasa por un túnel SSH. Los clústeres gratuitos y compartidos de Atlas
+rechazan cosas que un servidor propio permite — usuarios y roles, operaciones
+ajenas, mover una colección a otra base — y se te dice. Se admite MongoDB 5.0 y
 posteriores.
 
 ## Catálogo
@@ -83,6 +89,10 @@ posteriores.
 - Un bloque pegado se comprueba entero y luego se escribe documento a
   documento; un bloque de documentos nuevos entra entero o no entra.
 - **Ver como documentos** muestra cada documento entero.
+- Cada documento tiene **Clonar**, que abre un documento nuevo con su
+  contenido sin `_id` para cambiarlo e **Insertar**, y **Eliminar**, que
+  pregunta antes. **Documento nuevo** sobre la lista abre uno vacío. Cuántos
+  documentos tiene una página se elige junto a las flechas de página.
 
 ## Estructura
 

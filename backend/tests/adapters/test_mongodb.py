@@ -7,7 +7,8 @@ from datetime import UTC, datetime
 import pytest
 from bson import Decimal128, Int64, ObjectId
 from bson.binary import Binary
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
+from pymongo.errors import NotPrimaryError, OperationFailure
 
 from app.adapters import registry
 from app.adapters.catalog import TableNode, ViewNode
@@ -17,6 +18,7 @@ from app.adapters.fetch import FetchRequest, InFilter, NullFilter, ScalarFilter,
 from app.adapters.mongodb.adapter import MongodbAdapter
 from app.adapters.mongodb.options import MongodbNoPassword, MongodbUserPassword
 from app.adapters.mongodb.session import (
+    classify,
     compose_url_with_password,
     options_from_url,
     read_profile,
@@ -50,6 +52,7 @@ from tests.adapters.mongodb_fixture import (
     UID,
     adapter,
     build,
+    on_atlas_refused,
     options,
     raw_client,
     tear_down,
@@ -139,7 +142,7 @@ def test_a_connection_string_fills_the_form() -> None:
     "url",
     [
         "postgres://h/db",
-        "mongodb+srv://cluster0.example.net/",
+        "mongodb+srv://cluster0.example.net:27017/",
         "mongodb://a:27017,b:27017/?replicaSet=rs0",
         "mongodb://h:notaport/",
     ],
@@ -147,6 +150,66 @@ def test_a_connection_string_fills_the_form() -> None:
 def test_what_this_source_cannot_reach_is_refused(url: str) -> None:
     with pytest.raises(ValueError):
         options_from_url(url)
+
+
+def test_a_dns_seed_list_fills_the_form_with_tls_on() -> None:
+    # Atlas's address: no port, users in admin, TLS implied (D457).
+    assert options_from_url(
+        "mongodb+srv://ann:p%2Fw@cluster0.abc.mongodb.net/shop?retryWrites=true&w=majority"
+    ) == {
+        "host": "cluster0.abc.mongodb.net",
+        "tls_mode": "verify_full",
+        "srv": True,
+        "database": "shop",
+        "auth_method": "user_password",
+        "user": "ann",
+        "password": "p/w",
+        "auth_source": "admin",
+    }
+    assert options_from_url("mongodb+srv://c.example.net/?tls=false")["tls_mode"] == "disabled"
+    assert options_from_url("mongodb+srv://u:x@c.example.net/?authSource=ops")["auth_source"] == "ops"
+
+
+def test_a_dns_seed_list_is_composed_without_a_port() -> None:
+    source = MongodbAdapter(
+        MongodbUserPassword(
+            host="cluster0.abc.mongodb.net",
+            srv=True,
+            user="ann",
+            password=SecretStr("secret"),
+            tls_mode="verify_full",
+        )
+    )
+    assert (
+        source.connection_string()
+        == "mongodb+srv://ann@cluster0.abc.mongodb.net/?authSource=admin&tls=true"
+    )
+    # A seed list means TLS, so turning it off has to be said.
+    assert MongodbAdapter.draft_connection_string(
+        {"host": "c.example.net", "port": 27017, "srv": True, "auth_method": "no_password"}
+    ) == "mongodb+srv://c.example.net/?tls=false"
+
+
+def test_atlas_s_own_refusals_are_told_apart() -> None:
+    def atlas(said: str) -> OperationFailure:
+        return OperationFailure(said, 8000, {"ok": 0, "errmsg": said, "code": 8000, "codeName": "AtlasError"})
+
+    assert classify(atlas("bad auth : authentication failed"))[0] == "auth"
+    assert classify(atlas("command listDatabases requires authentication"))[0] == "auth"
+    kind, message = classify(atlas("CMD_NOT_ALLOWED: createUser"))
+    assert kind == "config" and "Atlas" in message and "createUser" not in message
+
+
+def test_a_change_sent_to_a_secondary_says_so() -> None:
+    kind, message = classify(NotPrimaryError("not primary"))
+    assert kind == "config" and "secondary" in message
+
+
+def test_a_dns_seed_list_is_not_reached_through_a_tunnel() -> None:
+    with pytest.raises(ValidationError):
+        MongodbNoPassword(
+            host="c.example.net", srv=True, ssh_tunnel="12345678-1234-1234-1234-123456789abc"
+        )
 
 
 def test_the_address_is_composed_without_the_password() -> None:
@@ -275,12 +338,15 @@ async def test_a_wrong_password_is_an_authentication_failure() -> None:
 async def test_no_password_on_a_server_that_asks_for_one_is_said() -> None:
     chosen = options()
     result = await MongodbAdapter(
-        MongodbNoPassword(host=chosen.host, port=chosen.port)
+        MongodbNoPassword(
+            host=chosen.host, port=chosen.port, srv=chosen.srv, tls_mode=chosen.tls_mode
+        )
     ).check_connection()
 
     assert (result.ok, result.error_kind) == (False, "auth")
 
 
+@on_atlas_refused
 @pytest.mark.usefixtures("server")
 async def test_a_password_outside_latin1_signs_in() -> None:
     user = f"dp_{uuid.uuid4().hex[:8]}"

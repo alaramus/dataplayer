@@ -36,6 +36,7 @@ from tests.adapters.mongodb_fixture import (
     PEOPLE_IDS,
     adapter,
     build,
+    on_atlas_refused,
     raw_client,
     tear_down,
 )
@@ -387,6 +388,7 @@ async def test_an_option_the_call_does_not_take_is_refused() -> None:
     assert finished.diagnostic is not None and "nonsense" in finished.diagnostic.message
 
 
+@on_atlas_refused
 @pytest.mark.usefixtures("server")
 async def test_a_statement_is_stopped_by_its_time_and_by_stop() -> None:
     source = adapter()

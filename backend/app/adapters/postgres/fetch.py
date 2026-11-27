@@ -551,6 +551,8 @@ class PostgresFetch:
                    a.attgenerated AS generated,
                    a.attidentity AS identity,
                    (ad.adbin IS NOT NULL OR a.attidentity <> '') AS has_default,
+                   (a.attidentity <> ''
+                    OR left(pg_get_expr(ad.adbin, ad.adrelid), 8) = 'nextval(') AS assigned,
                    NOT a.attnotnull AS nullable,
                    (SELECT array_agg(pa.attname ORDER BY key.ord)
                       FROM pg_index i
@@ -642,6 +644,7 @@ class PostgresFetch:
                         and not bool(row["has_default"])
                     ),
                     has_default=bool(row["has_default"]),
+                    assigned_on_insert=bool(row["assigned"]),
                 )
             )
         return RelationFetchInfo(

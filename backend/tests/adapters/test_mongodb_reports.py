@@ -18,6 +18,7 @@ from tests.adapters.mongodb_fixture import (
     DATABASE,
     adapter,
     build,
+    on_atlas_refused,
     raw_client,
     tear_down,
 )
@@ -54,6 +55,7 @@ async def test_the_reports_sit_after_the_databases() -> None:
     assert [node.name for node in await adapter().path_to(OPERATIONS_REPORT_ID)] == ["Server", "Operations"]
 
 
+@on_atlas_refused
 @pytest.mark.usefixtures("server")
 async def test_the_users_report_is_filtered_and_ordered_by_the_server() -> None:
     page = await adapter().fetch(
@@ -73,6 +75,7 @@ async def test_the_users_report_is_filtered_and_ordered_by_the_server() -> None:
     assert "create_relation" not in page.page_commands
 
 
+@on_atlas_refused
 @pytest.mark.usefixtures("server")
 async def test_a_running_operation_is_listed_and_stopped() -> None:
     client = raw_client()
@@ -189,6 +192,7 @@ async def test_a_database_is_made_with_its_first_collection_and_dropped() -> Non
     assert SCRATCH not in [node.name for node in await source.list_children(None)]
 
 
+@on_atlas_refused
 @pytest.mark.usefixtures("server")
 async def test_a_collection_is_renamed_moved_and_dropped() -> None:
     source = adapter()
@@ -235,6 +239,7 @@ async def test_the_model_is_written_out() -> None:
     assert download.metadata.filename == "numbers.dbml"
 
 
+@on_atlas_refused
 @pytest.mark.usefixtures("server")
 async def test_the_server_s_own_offer_only_their_model() -> None:
     offered = await adapter().available(relation_id("admin", "system.version"))

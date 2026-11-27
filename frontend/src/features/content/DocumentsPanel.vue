@@ -5,8 +5,14 @@ import type { ComponentPublicInstance } from "vue"
 import type { DocumentItem, DocumentsRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import JsonTreeNode from "@/features/content/JsonTreeNode.vue"
-import { useChangeDocument, useDocuments } from "@/features/content/api"
-import { documentId } from "@/features/content/jsonTree"
+import { useChangeDocument, useDeleteDocuments, useDocuments, useInsertDocument } from "@/features/content/api"
+import {
+  DOCUMENT_PAGE_SIZES,
+  isDocumentPageSize,
+  loadDocumentPageSize,
+  saveDocumentPageSize,
+} from "@/features/content/documentsPageSize"
+import { cloneText, documentId } from "@/features/content/jsonTree"
 import { loadGridState } from "@/features/grid/persist"
 import DictateButton from "@/features/speech/DictateButton.vue"
 import { useDictation } from "@/features/speech/dictation"
@@ -18,7 +24,16 @@ import { useWorkspaceActions } from "@/features/workspace/state"
 import { copyText } from "@/shared/clipboard"
 import { errorKindOf, messageOf, statusOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
-import { AppBanner, AppButton, AppIconButton, AppSpinner, appIcons, useConfirm, useToast } from "@/shared/ui"
+import {
+  AppBanner,
+  AppButton,
+  AppIconButton,
+  AppSelect,
+  AppSpinner,
+  appIcons,
+  useConfirm,
+  useToast,
+} from "@/shared/ui"
 
 /**
  * A collection's documents whole, a page at a time, each edited as JSON (D295).
@@ -27,7 +42,8 @@ import { AppBanner, AppButton, AppIconButton, AppSpinner, appIcons, useConfirm, 
  * same collection was left with, read when this opens and on every reload, so
  * switching between the two shows the same documents. An edit is sent as the
  * whole text and written by the server field by field, so a value nobody
- * touched keeps its type.
+ * touched keeps its type. A new document, a clone included, is written in the
+ * same editor above the list and added as written (D459).
  */
 const props = defineProps<{
   panelId: string
@@ -37,8 +53,6 @@ const props = defineProps<{
   connectorName: string
   adapterType: string
 }>()
-
-const PAGE_SIZE = 20
 
 const toast = useToast()
 const workspace = useWorkspaceActions()
@@ -52,15 +66,19 @@ function gridQuery(): Pick<DocumentsRequest, "filters" | "sort"> {
 
 const query = ref(gridQuery())
 const offset = ref(0)
+const pageSize = ref(loadDocumentPageSize())
+const pageSizeOptions = DOCUMENT_PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 const request = computed<DocumentsRequest>(() => ({
   node_id: props.nodeId,
-  limit: PAGE_SIZE,
+  limit: pageSize.value,
   offset: offset.value,
   filters: query.value.filters,
   sort: query.value.sort,
 }))
 const documents = useDocuments(connectorId, request)
 const changeDocument = useChangeDocument(connectorId)
+const insertDocument = useInsertDocument(connectorId)
+const deleteDocuments = useDeleteDocuments(connectorId)
 const errorKind = computed(() => errorKindOf(documents.error.value))
 const error = computed(() =>
   documents.isError.value ? messageOf(documents.error.value, t("content.documents.could_not_open")) : ""
@@ -80,6 +98,14 @@ const saveError = ref("")
 const conflict = ref(false)
 const dirty = computed(() => editing.value !== null && draft.value !== original.value)
 
+// A document being written anew, in its own editor above the list.
+const adding = ref(false)
+const addingTitle = ref("")
+const addDraft = ref("")
+const addOriginal = ref("")
+const addError = ref("")
+const addDirty = computed(() => adding.value && addDraft.value !== addOriginal.value)
+
 /** The editor of the document being edited, which is where words spoken go (D138). */
 const documentEditor = ref<InstanceType<typeof CodeEditor> | null>(null)
 /** A string ref inside the document list would resolve to an array (Vue's v-for ref rule). */
@@ -95,8 +121,17 @@ function canEdit(item: DocumentItem): boolean {
   return page.value?.change_supported === true && !item.truncated && item.row_handle != null
 }
 
+function canDelete(item: DocumentItem): boolean {
+  return page.value?.change_supported === true && item.row_handle != null
+}
+
+/** Written from the tree, so a document too large to draw is not cloned. */
+function canClone(item: DocumentItem): boolean {
+  return page.value?.insert_supported === true && item.value != null
+}
+
 async function leaveEdit(): Promise<boolean> {
-  if (!dirty.value) return true
+  if (!dirty.value && !addDirty.value) return true
   return await confirm({
     title: t("content.documents.discard_title"),
     message: t("content.documents.discard_message"),
@@ -107,6 +142,7 @@ async function leaveEdit(): Promise<boolean> {
 
 async function startEdit(item: DocumentItem) {
   if (item.row_handle == null || !(await leaveEdit())) return
+  stopAdd()
   editing.value = item.row_handle
   draft.value = item.text
   original.value = item.text
@@ -142,6 +178,54 @@ async function save(item: DocumentItem) {
   }
 }
 
+async function startAdd(from?: DocumentItem) {
+  if (!(await leaveEdit())) return
+  stopEdit()
+  const text = from?.value == null ? "{\n  \n}" : cloneText(from.value)
+  addingTitle.value =
+    from?.value == null
+      ? t("content.documents.new_title")
+      : t("content.documents.clone_title", { id: documentId(from.value) })
+  addDraft.value = text
+  addOriginal.value = text
+  addError.value = ""
+  adding.value = true
+}
+
+function stopAdd() {
+  adding.value = false
+  addError.value = ""
+}
+
+async function add() {
+  addError.value = ""
+  try {
+    await insertDocument.mutateAsync({ node_id: props.nodeId, text: addDraft.value })
+    toast.success(t("content.documents.inserted"))
+    stopAdd()
+  } catch (cause) {
+    addError.value = messageOf(cause, t("content.documents.could_not_insert"))
+  }
+}
+
+async function remove(item: DocumentItem) {
+  if (item.row_handle == null) return
+  const confirmed = await confirm({
+    title: t("content.documents.delete_title"),
+    message: t("content.documents.delete_message", { id: documentId(item.value) }),
+    confirmLabel: t("content.documents.delete_confirm"),
+    danger: true,
+  })
+  if (!confirmed) return
+  try {
+    await deleteDocuments.mutateAsync({ node_id: props.nodeId, row_handles: [item.row_handle] })
+    if (editing.value === item.row_handle) stopEdit()
+    toast.success(t("content.documents.deleted"))
+  } catch (cause) {
+    toast.error(messageOf(cause, t("content.documents.could_not_delete")))
+  }
+}
+
 async function copy(item: DocumentItem) {
   try {
     await copyText(item.text)
@@ -154,12 +238,23 @@ async function copy(item: DocumentItem) {
 async function turn(step: number) {
   if (!(await leaveEdit())) return
   stopEdit()
-  offset.value = Math.max(0, offset.value + step * PAGE_SIZE)
+  stopAdd()
+  offset.value = Math.max(0, offset.value + step * pageSize.value)
+}
+
+async function choosePageSize(value: unknown) {
+  if (!isDocumentPageSize(value) || value === pageSize.value || !(await leaveEdit())) return
+  stopEdit()
+  stopAdd()
+  pageSize.value = value
+  saveDocumentPageSize(value)
+  offset.value = 0
 }
 
 async function reload() {
   if (!(await leaveEdit())) return
   stopEdit()
+  stopAdd()
   query.value = gridQuery()
   await documents.refetch()
 }
@@ -190,10 +285,26 @@ useClosable(props.panelId, leaveEdit)
       </span>
       <div class="documents-panel__commands">
         <AppIconButton
+          v-if="page?.insert_supported === true"
+          :icon="appIcons.add"
+          :tooltip="t('content.documents.new')"
+          data-testid="documents-new"
+          @click="startAdd()"
+        />
+        <AppIconButton
           :icon="appIcons.accountTree"
           :tooltip="t('content.documents.definition')"
           data-testid="documents-definition"
           @click="showDefinition"
+        />
+        <AppSelect
+          :model-value="pageSize"
+          :options="pageSizeOptions"
+          :label="t('content.documents.per_page')"
+          compact
+          class="documents-panel__page-size"
+          data-testid="documents-page-size"
+          @update:model-value="choosePageSize"
         />
         <AppIconButton
           :icon="appIcons.chevronLeft"
@@ -229,6 +340,47 @@ useClosable(props.panelId, leaveEdit)
       v-else-if="page !== null"
       class="documents-panel__list"
     >
+      <section
+        v-if="adding"
+        class="documents-panel__document"
+        data-testid="document-new"
+      >
+        <div class="documents-panel__document-head">
+          <span class="documents-panel__id">{{ addingTitle }}</span>
+        </div>
+        <AppBanner
+          v-if="addError"
+          tone="error"
+          data-testid="document-new-error"
+        >
+          {{ addError }}
+        </AppBanner>
+        <div class="documents-panel__editor">
+          <CodeEditor
+            v-model="addDraft"
+            filename="document.json"
+            validation="json"
+          />
+        </div>
+        <div class="documents-panel__edit-actions">
+          <AppButton
+            variant="quiet"
+            size="sm"
+            :label="t('content.documents.cancel')"
+            data-testid="document-new-cancel"
+            @click="stopAdd"
+          />
+          <AppButton
+            variant="primary"
+            size="sm"
+            :icon="appIcons.add"
+            :label="t('content.documents.insert')"
+            :loading="insertDocument.isPending.value"
+            data-testid="document-new-save"
+            @click="add"
+          />
+        </div>
+      </section>
       <div
         v-if="page.items.length === 0"
         class="documents-panel__empty"
@@ -253,11 +405,27 @@ useClosable(props.panelId, leaveEdit)
               @click="copy(item)"
             />
             <AppIconButton
+              v-if="canClone(item)"
+              :icon="appIcons.clone"
+              :tooltip="t('content.documents.clone')"
+              data-testid="document-clone"
+              @click="startAdd(item)"
+            />
+            <AppIconButton
               v-if="canEdit(item) && editing !== item.row_handle"
               :icon="appIcons.edit"
               :tooltip="t('content.documents.edit')"
               data-testid="document-edit"
               @click="startEdit(item)"
+            />
+            <AppIconButton
+              v-if="canDelete(item)"
+              :icon="appIcons.delete"
+              variant="danger-quiet"
+              :tooltip="t('content.documents.delete')"
+              :disable="deleteDocuments.isPending.value"
+              data-testid="document-delete"
+              @click="remove(item)"
             />
           </div>
         </div>
@@ -396,6 +564,11 @@ useClosable(props.panelId, leaveEdit)
   font-size: var(--dp-font-size-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.documents-panel__page-size {
+  width: max-content;
+  min-width: 140px;
+  flex: none;
 }
 .documents-panel__editor {
   height: 320px;

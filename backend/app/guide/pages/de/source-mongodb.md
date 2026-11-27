@@ -51,8 +51,16 @@ verlässt die Zeichenfolge.
 
 Der genannte Server ist der, mit dem gesprochen wird. Ein Mitglied eines
 Replica Sets wird gelesen, wie es ist; um Daten zu ändern, nennen Sie den
-Primary. Eine `mongodb+srv://`-Adresse und eine Liste von Servern werden nicht
-unterstützt.
+Primary. Eine Liste von Servern wird nicht unterstützt.
+
+**MongoDB Atlas** gibt eine `mongodb+srv://`-Adresse aus: Fügen Sie sie in
+**URL** ein oder schalten Sie **DNS-Seed-Liste (mongodb+srv)** ein und tragen
+Sie den Namen des Clusters als **Host** ein. Die Server werden dann über DNS
+gefunden, Änderungen gehen an den Primary, TLS ist an, und der Benutzer wird in
+`admin` gesucht. Eine solche Verbindung geht nicht durch einen SSH-Tunnel. Die
+freien und geteilten Cluster von Atlas verweigern manches, was ein eigener
+Server erlaubt — Benutzer und Rollen, fremde Operationen, eine Collection in
+eine andere Datenbank verschieben —, und Sie erfahren es.
 
 MongoDB 5.0 und neuer wird unterstützt. Ein älterer Server wird bei der
 Verbindungsprüfung mit Nennung seiner Version abgelehnt.
@@ -105,6 +113,10 @@ Verbindungsprüfung mit Nennung seiner Version abgelehnt.
 - Views, Zeitreihen und die Collections des Servers werden hier nicht
   geändert; eine Zeitreihe nimmt neue Dokumente auf.
 - **Als Dokumente anzeigen** zeigt jedes Dokument vollständig, jede Ebene.
+- Jedes Dokument hat **Klonen**, das ein neues Dokument mit seinem Inhalt
+  ohne `_id` öffnet, zum Ändern und **Einfügen**, und **Löschen**, das
+  vorher fragt. **Neues Dokument** über der Liste öffnet ein leeres. Wie viele
+  Dokumente eine Seite hält, wird neben den Seitenpfeilen gewählt.
 
 ## Struktur
 

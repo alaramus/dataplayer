@@ -198,6 +198,7 @@ class MongodbFetch:
                     "insertable": insert_reason is None and insertable(column),
                     # `_id` is made by the driver when it is not given.
                     "has_default": True,
+                    "assigned_on_insert": column.name == "_id",
                 }
             )
             for column in prepared.columns

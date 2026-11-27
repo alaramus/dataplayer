@@ -99,6 +99,8 @@ async def test_what_cannot_be_changed_says_why(adapter: SqliteAdapter) -> None:
     # A generated column is computed, and the rowid's alias makes its own value.
     assert columns["doubled"].editable is False and columns["doubled"].insertable is False
     assert columns["id"].has_default and not columns["id"].insert_required
+    # A clone leaves the rowid's alias to SQLite (D458).
+    assert columns["id"].assigned_on_insert and not columns["name"].assigned_on_insert
     assert columns["name"].insert_required
 
 

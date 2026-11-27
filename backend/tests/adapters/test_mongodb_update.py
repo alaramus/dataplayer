@@ -114,14 +114,18 @@ async def test_a_collection_s_page_is_editable_and_a_view_s_is_not() -> None:
     assert all(handle is not None for handle in page.row_handles)
     assert not columns["_id"].editable
     assert columns["_id"].insertable
+    # A clone leaves `_id` to the driver (D458).
+    assert columns["_id"].assigned_on_insert and not columns["name"].assigned_on_insert
     assert columns["name"].editable
     assert not columns["odd.field"].editable
 
     view = await adapter().fetch(FetchRequest(node_id=relation_id(DATABASE, "adults")))
     assert not view.update_supported
     assert view.update_reason is not None
-    system = await adapter().fetch(FetchRequest(node_id=relation_id("admin", "system.version")))
-    assert not system.insert_supported
+    if not MONGODB.url().startswith("mongodb+srv://"):
+        # Atlas does not let the server's own collections be read at all (D457).
+        system = await adapter().fetch(FetchRequest(node_id=relation_id("admin", "system.version")))
+        assert not system.insert_supported
 
 
 # --- Changing a cell ----------------------------------------------------------
@@ -255,6 +259,8 @@ async def test_a_document_is_added_with_the_fields_given() -> None:
         InsertRowRequest(
             node_id=PEOPLE,
             values=[
+                # The insert row sends an `_id` left empty once its field was focused.
+                InsertValue(column="_id", value=""),
                 InsertValue(column="name", value="Dee"),
                 InsertValue(column="age", value="40"),
                 InsertValue(column="tags", value=None),

@@ -113,10 +113,10 @@ file; `D247–D262` is every number between, all in that file.
 | [windows](docs/architecture/windows.md) | D14, D92, D93, D132, D155, D167 |
 | [realtime](docs/architecture/realtime.md) | D18, D19 |
 | [sources/relations](docs/architecture/sources/relations.md) | D22, D23, D25, D26, D36, D41, D42, D54, D70, D72, D109, D110, D246 |
-| [grid](docs/architecture/grid.md) | D24, D28, D35, D67, D111, D116 |
+| [grid](docs/architecture/grid.md) | D24, D28, D35, D67, D111, D116, D458 |
 | [sources/ddl](docs/architecture/sources/ddl.md) | D27, D29, D30, D32, D37–D40, D117 |
 | [sources/transfer](docs/architecture/sources/transfer.md) | D43–D45, D161, D163–D166, D168, D169, D171, D182 |
-| [sources/content](docs/architecture/sources/content.md) | D47, D48, D51–D53, D57, D71, D295 |
+| [sources/content](docs/architecture/sources/content.md) | D47, D48, D51–D53, D57, D71, D295, D459 |
 | [sources/downloads](docs/architecture/sources/downloads.md) | D49, D55, D73 |
 | [sharing](docs/architecture/sharing.md) | D58–D61 |
 | [querying](docs/architecture/querying.md) | D62–D66, D160, D206, D383 |
@@ -145,7 +145,7 @@ file; `D247–D262` is every number between, all in that file.
 | [sources/mysql](docs/architecture/sources/mysql.md) | D228–D245 |
 | [sources/sqlite](docs/architecture/sources/sqlite.md) | D247–D263 |
 | [sources/clickhouse](docs/architecture/sources/clickhouse.md) | D267–D280 |
-| [sources/mongodb](docs/architecture/sources/mongodb.md) | D283–D285, D287–D294, D296 |
+| [sources/mongodb](docs/architecture/sources/mongodb.md) | D283–D285, D287–D294, D296, D457 |
 | [sources/zookeeper](docs/architecture/sources/zookeeper.md) | D297–D303 |
 | [sources/kafka](docs/architecture/sources/kafka.md) | D304–D311 |
 | [sources/binance](docs/architecture/sources/binance.md) | D316–D323, D365 |

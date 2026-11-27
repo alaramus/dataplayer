@@ -5,6 +5,7 @@ Every test writes its own file under a temporary home.
 
 from pathlib import Path
 
+import duckdb
 import pytest
 
 from app.adapters.duckdb.adapter import DuckdbAdapter
@@ -74,6 +75,22 @@ async def test_a_table_with_a_key_names_its_rows(adapter: DuckdbAdapter) -> None
     assert page.update_supported and page.insert_supported and page.delete_supported
     assert all(handle is not None for handle in page.row_handles)
     assert [reference.name for reference in page.references] == ["items_label_id_id_fkey"]
+
+
+async def test_a_clone_is_told_a_sequence_s_value_is_duckdb_s(tmp_path: Path) -> None:
+    """A `nextval` default gives a new row its own value (D458)."""
+    path = build(tmp_path)
+    connection = duckdb.connect(str(path))
+    try:
+        connection.execute(
+            "CREATE SEQUENCE counted_id; "
+            "CREATE TABLE counted (id BIGINT DEFAULT nextval('counted_id') PRIMARY KEY, n INT DEFAULT 1)"
+        )
+    finally:
+        connection.close()
+    page = await _page(DuckdbAdapter(DuckdbOptions(path=FILE), tmp_path), "main.counted")
+
+    assert {column.name: column.assigned_on_insert for column in page.columns} == {"id": True, "n": False}
 
 
 async def test_a_table_without_a_key_takes_rows_and_is_otherwise_read_only(

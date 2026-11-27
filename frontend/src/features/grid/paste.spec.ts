@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { planPaste, planRowPaste } from "./paste"
+import { planPaste, planRowClone, planRowPaste } from "./paste"
 import type { PasteColumn } from "./paste"
 import type { GridRow } from "./types"
 
@@ -147,5 +147,26 @@ describe("a copied line read into a row being inserted", () => {
 
     expect(plan.ok).toBe(false)
     expect(plan.ok === false && plan.reason).toContain("4 values")
+  })
+})
+
+describe("a row cloned into the row being inserted", () => {
+  const columns = [
+    { name: "_id", insertable: true, assigned: true },
+    { name: "name", insertable: true, assigned: false },
+    { name: "total", insertable: false, assigned: false },
+    { name: "note", insertable: true, assigned: false },
+  ]
+
+  it("leaves to the source what it gives a new row, and empty cells out", () => {
+    expect(planRowClone(columns, ["65aa", "ann", "7", null])).toEqual({
+      ok: true,
+      fill: { values: [{ column: "name", value: "ann" }], skipped: ["_id", "total"] },
+    })
+  })
+
+  it("says so when nothing is left to fill", () => {
+    const plan = planRowClone(columns, ["65aa", null, null, null])
+    expect(plan.ok).toBe(false)
   })
 })

@@ -537,6 +537,10 @@ def _unverified() -> ssl.SSLContext:
 
 def _answers(url: str) -> bool:
     parts = urlsplit(url)
+    if parts.scheme == "mongodb+srv":
+        # A DNS seed list names no server to knock on (D457): the driver finds
+        # them, and a test against Atlas is asked for by setting the address.
+        return parts.hostname is not None
     protocol = _protocol(parts.scheme)
     if parts.hostname is None:
         return False
