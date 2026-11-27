@@ -17,6 +17,7 @@ from app.adapters.mongodb.console import IMAGE
 from app.adapters.mongodb.options import MongodbOptions
 from app.adapters.mongodb.session import (
     MongodbSession,
+    auth_query,
     compose_url_with_password,
     program_tls,
 )
@@ -109,16 +110,16 @@ class MongodbBackup:
         offer = await self.backup_availability()
         if not offer.available:
             raise ValueError(offer.reason)
-        user, password, auth_source = self._session.credentials()
+        signed = await self._session.credentials()
         options = self._options
         address = compose_url_with_password(
             host=options.host,
             port=options.port,
-            user=user,
-            auth_source=auth_source,
+            user=signed.user,
+            auth_source=signed.auth_source,
             tls=options.tls().enabled,
-            tls_query=program_tls(options.tls()),
-            password=password,
+            tls_query=[*program_tls(options.tls()), *auth_query(signed)],
+            password=signed.password,
         )
         argv, files = with_program_files(
             ("sh", "-c", _SCRIPTS[what], "sh", options.database, path), options.tls()

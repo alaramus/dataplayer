@@ -13,11 +13,16 @@ import hashlib
 import json
 import logging
 import threading
+import time
 from collections import OrderedDict
+from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import boto3
+import botocore.session
 from botocore.config import Config
+from botocore.credentials import DeferredRefreshableCredentials
 from botocore.exceptions import (
     BotoCoreError,
     ClientError,
@@ -26,10 +31,12 @@ from botocore.exceptions import (
     ReadTimeoutError,
     SSLError,
 )
+from pydantic import SecretStr
 
+from app.adapters.cloud import IssuedSecret
 from app.adapters.errors import ErrorKind
 from app.adapters.protocol import AdapterError
-from app.adapters.s3.options import S3Options
+from app.adapters.s3.options import S3AccessKey, S3Options
 from app.core.logs import record_failure, with_ref
 from app.core.translation import N_, say
 
@@ -46,37 +53,44 @@ _clients: OrderedDict[str, S3Client] = OrderedDict()
 _lock = threading.Lock()
 
 
+# The keys an account signs with now, asked from a worker thread (D453).
+type Keys = Callable[[], IssuedSecret]
+
+# botocore asks for an account's keys this long before they expire; the cache
+# of issued secrets renews a minute before, so the keys it answers are new.
+_RENEW_SECONDS = 50
+
+
 def identity_of(options: S3Options) -> str:
-    """One string for a store, a key and where browsing stands.
+    """One string for a store, a key or an account, and where browsing stands.
 
     Hashed because it holds the secret. Two keys may read different objects,
-    so the copies of their files are kept apart by it (D152).
+    so the copies of their files are kept apart by it (D152). An account is
+    named by its id, never by keys it was issued: those change every hour.
     """
-    dumped = json.dumps(
-        {
-            **options.model_dump(mode="json"),
-            "secret_access_key": options.secret_access_key.get_secret_value(),
-        },
-        sort_keys=True,
-    )
+    revealed = {
+        name: value.get_secret_value() if isinstance(value, SecretStr) else value
+        for name, value in options
+    }
+    dumped = json.dumps(revealed, sort_keys=True, default=str)
     return hashlib.sha256(dumped.encode()).hexdigest()
 
 
-def client_for(options: S3Options) -> S3Client:
+def client_for(options: S3Options, keys: Keys | None = None) -> S3Client:
     key = identity_of(options)
     with _lock:
         found = _clients.get(key)
         if found is not None:
             _clients.move_to_end(key)
             return found
-        made = _made(options)
+        made = _made(options, keys)
         _clients[key] = made
         while len(_clients) > _KEPT:
             _clients.popitem(last=False)
         return made
 
 
-def _made(options: S3Options) -> S3Client:
+def _made(options: S3Options, keys: Keys | None) -> S3Client:
     config = Config(
         region_name=options.region_name,
         s3={"addressing_style": "path" if options.path_style else "virtual"},
@@ -88,17 +102,54 @@ def _made(options: S3Options) -> S3Client:
         read_timeout=60,
         retries={"max_attempts": 3, "mode": "standard"},
     )
-    session = boto3.session.Session(
-        aws_access_key_id=options.access_key_id,
-        aws_secret_access_key=options.secret_access_key.get_secret_value(),
-        region_name=options.region_name,
-    )
+    session = _session(options, keys)
     return session.client(
         "s3",
         endpoint_url=options.endpoint or None,
         verify=options.verify_tls,
         config=config,
     )
+
+
+def _session(options: S3Options, keys: Keys | None) -> boto3.session.Session:
+    if isinstance(options, S3AccessKey):
+        return boto3.session.Session(
+            aws_access_key_id=options.access_key_id,
+            aws_secret_access_key=options.secret_access_key.get_secret_value(),
+            region_name=options.region_name,
+        )
+    if keys is None:
+        raise AdapterError(
+            "config", say("This connection signs in with a cloud account, and none is at hand")
+        )
+    asked = keys
+
+    def refresh() -> dict[str, str | None]:
+        found = asked()
+        expires = found.expires_at if found.expires_at is not None else time.time() + 3600
+        return {
+            "access_key": found.user,
+            "secret_key": found.value,
+            "token": found.session_token,
+            "expiry_time": datetime.fromtimestamp(expires, UTC).isoformat(),
+        }
+
+    # Asked at the first request, which runs in a worker thread, and again
+    # before the keys expire: a role's session lasts an hour, the client longer.
+    credentials = _AccountKeys(refresh_using=refresh, method="dataplayer-account")
+    core = botocore.session.get_session()
+    # boto3 takes credentials only as values; refreshing ones go on the core
+    # session, which is where botocore's own providers put theirs.
+    core._credentials = credentials  # type: ignore[attr-defined]  # botocore's own slot, undeclared in its stubs
+    return boto3.session.Session(botocore_session=core, region_name=options.region_name)
+
+
+class _AccountKeys(DeferredRefreshableCredentials):
+    """Asked again just before they expire rather than ten minutes before:
+    the issued secrets' cache keeps them until a minute before (D449)."""
+
+    _advisory_refresh_timeout = _RENEW_SECONDS
+    _mandatory_refresh_timeout = _RENEW_SECONDS
 
 
 def error_code(failure: ClientError) -> str:

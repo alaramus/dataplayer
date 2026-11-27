@@ -22,7 +22,7 @@ from app.adapters.protocol import NodeNotFound
 from app.adapters.query import QueryLimits, QueryRequest, StatementFinished
 from app.adapters.registry import AdapterContext
 from app.adapters.s3.adapter import S3Adapter
-from app.adapters.s3.options import S3Options
+from app.adapters.s3.options import S3AccessKey
 from app.adapters.s3.storage import S3Storage
 from tests.utils import services
 
@@ -53,9 +53,9 @@ def _parquet() -> bytes:
 
 
 @pytest.fixture
-def server() -> S3Options:
+def server() -> S3AccessKey:
     parts = urlsplit(services.S3.require())
-    return S3Options.model_validate(
+    return S3AccessKey.model_validate(
         {
             "endpoint": f"http://{parts.hostname}:{parts.port}",
             "access_key_id": parts.username,
@@ -65,7 +65,7 @@ def server() -> S3Options:
 
 
 @pytest.fixture
-def bucket(server: S3Options) -> Iterator[str]:
+def bucket(server: S3AccessKey) -> Iterator[str]:
     client = boto3.client(
         "s3",
         endpoint_url=server.endpoint,
@@ -95,16 +95,16 @@ def bucket(server: S3Options) -> Iterator[str]:
         client.delete_bucket(Bucket=name)
 
 
-def _adapter(options: S3Options) -> S3Adapter:
+def _adapter(options: S3AccessKey) -> S3Adapter:
     return S3Adapter(options, AdapterContext(home_dir=Path(".")))
 
 
 @pytest.fixture
-def options(server: S3Options, bucket: str) -> S3Options:
+def options(server: S3AccessKey, bucket: str) -> S3AccessKey:
     return server.model_copy(update={"bucket": bucket})
 
 
-async def test_a_bucket_lists_its_folders_and_objects(options: S3Options) -> None:
+async def test_a_bucket_lists_its_folders_and_objects(options: S3AccessKey) -> None:
     children = await _adapter(options).list_children(None)
 
     assert sorted(node.name for node in children) == [
@@ -116,7 +116,7 @@ async def test_a_bucket_lists_its_folders_and_objects(options: S3Options) -> Non
     ]
 
 
-async def test_a_key_no_id_could_name_again_is_left_out(options: S3Options) -> None:
+async def test_a_key_no_id_could_name_again_is_left_out(options: S3AccessKey) -> None:
     names = {node.name for node in await _adapter(options).list_children(None)}
 
     assert names.isdisjoint({"C:evil.txt", "back\\slash.txt", "D:", "inside.txt"})
@@ -127,7 +127,7 @@ async def test_a_key_no_id_could_name_again_is_left_out(options: S3Options) -> N
     ["../up.txt", "a/../../up.txt", "/etc/passwd", "C:evil.txt", "back\\slash.txt"],
 )
 async def test_an_id_out_of_the_root_is_refused(
-    options: S3Options, node_id: str
+    options: S3AccessKey, node_id: str
 ) -> None:
     storage = S3Storage(options)
 
@@ -137,7 +137,7 @@ async def test_an_id_out_of_the_root_is_refused(
         await _adapter(options).list_children(node_id)
 
 
-async def test_a_folder_is_a_marker_or_a_prefix(options: S3Options) -> None:
+async def test_a_folder_is_a_marker_or_a_prefix(options: S3AccessKey) -> None:
     storage = S3Storage(options)
 
     def look(node_id: str) -> object:
@@ -157,7 +157,7 @@ async def test_a_folder_is_a_marker_or_a_prefix(options: S3Options) -> None:
         await _adapter(options).list_children("nowhere")
 
 
-async def test_an_object_is_read_at_any_offset(options: S3Options) -> None:
+async def test_an_object_is_read_at_any_offset(options: S3AccessKey) -> None:
     storage = S3Storage(options)
 
     def read() -> tuple[bytes, bytes]:
@@ -174,7 +174,7 @@ async def test_an_object_is_read_at_any_offset(options: S3Options) -> None:
     assert tail == b"a bucket\n"
 
 
-async def test_a_csv_in_a_bucket_is_rows(options: S3Options) -> None:
+async def test_a_csv_in_a_bucket_is_rows(options: S3AccessKey) -> None:
     page = await _adapter(options).fetch(FetchRequest(node_id="reports/2026/q1.csv"))
 
     assert page.rows == [["north", "1"]] or page.rows == [["north", 1]]
@@ -188,7 +188,7 @@ async def test_a_csv_in_a_bucket_is_rows(options: S3Options) -> None:
     ],
 )
 async def test_sql_reads_a_csv_and_a_parquet_file_in_the_bucket(
-    options: S3Options, statement: str, expected: int
+    options: S3AccessKey, statement: str, expected: int
 ) -> None:
     events = [
         event
@@ -205,7 +205,7 @@ async def test_sql_reads_a_csv_and_a_parquet_file_in_the_bucket(
     ]
 
 
-async def test_a_prefix_is_where_browsing_starts(options: S3Options) -> None:
+async def test_a_prefix_is_where_browsing_starts(options: S3AccessKey) -> None:
     inside = options.model_copy(update={"prefix": "reports"})
 
     children = await _adapter(inside).list_children(None)
@@ -217,7 +217,7 @@ async def test_a_prefix_is_where_browsing_starts(options: S3Options) -> None:
 
 
 async def test_without_a_bucket_the_root_lists_buckets(
-    server: S3Options, bucket: str
+    server: S3AccessKey, bucket: str
 ) -> None:
     adapter = _adapter(server)
 
@@ -228,7 +228,7 @@ async def test_without_a_bucket_the_root_lists_buckets(
     assert inside == {"2026"}
 
 
-async def test_a_folder_downloads_as_a_tree(options: S3Options) -> None:
+async def test_a_folder_downloads_as_a_tree(options: S3AccessKey) -> None:
     storage = S3Storage(options)
 
     def fetched() -> list[str]:
@@ -239,7 +239,7 @@ async def test_a_folder_downloads_as_a_tree(options: S3Options) -> None:
 
 
 async def test_a_wrong_secret_is_refused_in_words_that_name_nothing(
-    options: S3Options,
+    options: S3AccessKey,
 ) -> None:
     wrong = options.model_copy(
         update={
@@ -258,7 +258,7 @@ async def test_a_wrong_secret_is_refused_in_words_that_name_nothing(
 
 
 async def test_an_unreachable_store_is_a_network_failure_that_names_no_address(
-    server: S3Options,
+    server: S3AccessKey,
 ) -> None:
     gone = server.model_copy(update={"endpoint": "http://127.0.0.1:1"})
 
@@ -269,7 +269,7 @@ async def test_an_unreachable_store_is_a_network_failure_that_names_no_address(
     assert "127.0.0.1" not in result.message
 
 
-async def test_a_bucket_that_is_not_there_is_said_so(server: S3Options) -> None:
+async def test_a_bucket_that_is_not_there_is_said_so(server: S3AccessKey) -> None:
     result = await _adapter(
         server.model_copy(update={"bucket": f"missing-{uuid.uuid4().hex[:8]}"})
     ).check_connection()

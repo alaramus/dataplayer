@@ -7,8 +7,9 @@ conversation rather than a result. `redis-cli` reads the password from
 `REDISCLI_AUTH` itself, so it is never an argument.
 """
 
+from app.adapters.cloud.signin import SignIn
 from app.adapters.protocol import AdapterError
-from app.adapters.redis.options import RedisOptions, RedisPassword
+from app.adapters.redis.options import RedisOptions
 from app.adapters.terminal import ConsoleProgram
 from app.adapters.tls import program_paths, with_program_files
 from app.adapters.tunnels import tunnel_of
@@ -21,18 +22,16 @@ IMAGE = "redis:8"
 PASSWORD_VARIABLE = "REDISCLI_AUTH"
 
 
-def console_program(options: RedisOptions) -> ConsoleProgram:
+async def console_program(options: RedisOptions, signed: SignIn) -> ConsoleProgram:
     if tunnel_of(options.ssh_tunnel) is not None:
         # The container cannot reach a port on this process's loopback.
         raise AdapterError("config", say("A console does not go through an SSH tunnel yet"))
-    environment = (
-        {PASSWORD_VARIABLE: options.password.get_secret_value()}
-        if isinstance(options, RedisPassword)
-        else {}
-    )
+    # Signed in as the program starts; an issued token is good for fifteen
+    # minutes, the connection it opens for longer (D449).
+    environment = {} if signed.password is None else {PASSWORD_VARIABLE: signed.password}
     argv = ["redis-cli", "-h", options.host, "-p", str(options.port), "-n", str(options.database)]
-    if isinstance(options, RedisPassword) and options.user:
-        argv += ["--user", options.user]
+    if signed.password is not None and signed.user:
+        argv += ["--user", signed.user]
     settings = options.tls()
     if settings.enabled:
         # redis-cli verifies the server's certificate or nothing at all (D446).

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import time
 import uuid
@@ -13,9 +14,12 @@ from psycopg import errors as e
 from psycopg import sql
 from psycopg.rows import dict_row
 from psycopg_pool import PoolTimeout
+from pydantic import SecretStr
 
+from app.adapters.cloud import CloudAccess
+from app.adapters.cloud.signin import SignIn
 from app.adapters.postgres.inspection import InspectionReader
-from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
+from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.pool import pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
@@ -364,8 +368,12 @@ class PostgresSession:
         options: PostgresOptions,
         pooling: Pooling | None = None,
         tunnels: TunnelAccess | None = None,
+        cloud: CloudAccess | None = None,
     ) -> None:
         self._options = options
+        # The owner's cloud accounts, asked at every new connection by a
+        # variant whose password is issued or kept in a store (D449).
+        self._cloud = cloud
         # Absent for a draft being checked, and for a session a test builds by
         # hand: then every query connects on its own, as everything did before
         # sub-project 4b.
@@ -377,13 +385,26 @@ class PostgresSession:
         options = self._options
         return await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
 
+    async def sign_in(self) -> SignIn:
+        """Who to sign in as and with what, asked at every new connection:
+        an RDS token lives fifteen minutes, a pool far longer (D450)."""
+        return await self._options.sign_in(self._cloud)
+
+    async def credentials(self) -> dict[str, Any]:
+        """What psycopg is given beside the conninfo; it overrides the user
+        there. A server configured with `trust` is sent no password at all."""
+        found = await self.sign_in()
+        password = {} if found.password is None else {"password": found.password}
+        return {"user": found.user, **password}
+
     async def _connect_directly(self) -> psycopg.AsyncConnection[Any]:
         """One connection of its own; its key files go once it is open (D447)."""
         address = await self._address()
+        credentials = await self.credentials()
         files = await asyncio.to_thread(TlsFiles, self._options.tls())
         try:
             return await asyncio.wait_for(
-                psycopg.AsyncConnection.connect(self.conninfo(address, files)),
+                psycopg.AsyncConnection.connect(self.conninfo(address, files), **credentials),
                 CHECK_TIMEOUT_SECONDS,
             )
         finally:
@@ -392,7 +413,8 @@ class PostgresSession:
     def conninfo(
         self, address: tuple[str, int] | None = None, files: TlsFiles | None = None
     ) -> str:
-        """What psycopg dials.
+        """What psycopg dials, without the password: that is asked for at
+        every new connection and handed over beside it (D450).
 
         Without `files` the TLS block's PEMs are named by their digest rather
         than by where they are, which is what a pool is keyed by.
@@ -423,14 +445,19 @@ class PostgresSession:
             parts.update(_tls_parts(settings, digest, digest, digest))
         else:
             parts.update(_tls_parts(settings, files.ca, files.certificate, files.key))
-        # The one place in the driver that knows there are variants at all. A
-        # server configured with `trust` is not sent an empty password; it is
-        # sent no password, which is a different conninfo.
-        if isinstance(options, PostgresUserPassword):
-            parts["password"] = options.password.get_secret_value()
         return psycopg.conninfo.make_conninfo(**parts)
 
-    def conninfo_without_password(self) -> str:
+    def pool_identity(self, address: tuple[str, int]) -> str:
+        """What a pool is kept by: the conninfo and every option, secrets by
+        value, so an edited password or account makes a new pool by itself.
+        Never an issued token, which would make one every fifteen minutes."""
+        revealed = {
+            name: value.get_secret_value() if isinstance(value, SecretStr) else value
+            for name, value in self._options
+        }
+        return self.conninfo(address) + json.dumps(revealed, sort_keys=True, default=str)
+
+    def conninfo_without_password(self, user: str | None = None) -> str:
         """Where this connects, for a program that is given the password apart.
 
         `pg_dump` takes a connection string as an argument and its password
@@ -446,7 +473,7 @@ class PostgresSession:
             host=options.host,
             port=options.port,
             dbname=options.database,
-            user=options.user,
+            user=options.user if user is None else user,
             application_name=APPLICATION_NAME,
             **_tls_parts(settings, paths.ca, paths.certificate, paths.key),
         )
@@ -501,9 +528,10 @@ class PostgresSession:
             address = await self._address()
             pool = await pool_for(
                 self._pooling,
-                self.conninfo(address),
+                self.pool_identity(address),
                 self._options.tls(),
                 lambda files: self.conninfo(address, files),
+                self.credentials,
             )
         if pool is None:
             connection = await self._connect_directly()

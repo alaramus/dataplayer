@@ -6,7 +6,7 @@ typing by hand here — `\\d`, `\\watch`, `LISTEN` — is a conversation rather 
 a result. The password is in `PGPASSWORD`, as for a backup, never an argument.
 """
 
-from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
+from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError
 from app.adapters.terminal import ConsoleProgram
@@ -20,14 +20,15 @@ from app.core.translation import say
 IMAGE = "postgres:18"
 
 
-def console_program(session: PostgresSession, options: PostgresOptions) -> ConsoleProgram:
+async def console_program(session: PostgresSession, options: PostgresOptions) -> ConsoleProgram:
     if tunnel_of(options.ssh_tunnel) is not None:
         # The container cannot reach a port on this process's loopback.
         raise AdapterError("config", say("A console does not go through an SSH tunnel yet"))
-    environment = (
-        {"PGPASSWORD": options.password.get_secret_value()}
-        if isinstance(options, PostgresUserPassword)
-        else {}
+    # Asked as the program starts: an issued token is good for fifteen
+    # minutes, the session it opens for as long as it lasts (D449).
+    signed = await session.sign_in()
+    environment = {} if signed.password is None else {"PGPASSWORD": signed.password}
+    argv, files = with_program_files(
+        ("psql", session.conninfo_without_password(signed.user)), options.tls()
     )
-    argv, files = with_program_files(("psql", session.conninfo_without_password()), options.tls())
     return ConsoleProgram(image=IMAGE, argv=argv, environment={**environment, **files})

@@ -19,7 +19,7 @@ from app.adapters import registry
 from app.adapters.cassandra.console import cqlshrc
 from app.adapters.kafka.options import KafkaNoAuth
 from app.adapters.kafka.session import KafkaSession
-from app.adapters.mongodb.options import MongodbNoPassword
+from app.adapters.mongodb.options import MongodbNoPassword, MongodbSignIn
 from app.adapters.mongodb.session import make_client, program_tls
 from app.adapters.mysql.options import MysqlUserPassword
 from app.adapters.postgres.options import PostgresUserPassword
@@ -340,7 +340,7 @@ def test_a_pool_s_key_names_the_pems_not_where_they_are(pair: tuple[str, str, st
 
 async def test_mongodb_is_told_how_much_to_check() -> None:
     client = make_client(
-        "db", 27017, MongodbNoPassword(host="db", tls_mode="verify_ca"), pool_size=1
+        "db", 27017, MongodbNoPassword(host="db", tls_mode="verify_ca"), MongodbSignIn(), pool_size=1
     )
     try:
         context = client.options.pool_options._ssl_context  # noqa: SLF001 - what pymongo built
@@ -369,10 +369,10 @@ def test_kafka_takes_every_pem_inline(pair: tuple[str, str, str]) -> None:
     assert config["ssl.ca.pem"] == certificate and config["ssl.key.pem"] == key
 
 
-def test_redis_cli_is_given_the_user_and_tls() -> None:
+async def test_redis_cli_is_given_the_user_and_tls() -> None:
     options = RedisPassword(host="cache", user="reader", password=SecretStr("p"), tls_mode="required")
 
-    program = redis_console(options)
+    program = await redis_console(options, await options.sign_in(None))
 
     assert "--tls" in program.argv and "--insecure" in program.argv
     assert program.argv[program.argv.index("--user") + 1] == "reader"

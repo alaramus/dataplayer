@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.adapters.cloud.signin import SignIn
 from app.adapters.postgres.backup import PostgresBackup
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.postgres.session import PostgresSession
@@ -40,13 +41,14 @@ async def test_unreadable_extensions_do_not_authorize_backup() -> None:
 async def test_plain_postgres_keeps_its_program_and_rechecks_extension_changes() -> None:
     session = AsyncMock(spec=PostgresSession)
     session.conninfo_without_password.return_value = "host=localhost user=test dbname=test"
+    session.sign_in.return_value = SignIn(user="test", password="secret")
     session.query.side_effect = [[], [{"server_version_num": "170000"}], [{"extname": "timescaledb"}]]
     backup = _backup(session)
     program = await backup.backup_program(into="/data/test.dump")
     assert program.image == "postgres:17"
     assert program.argv[0] == "pg_dump"
     assert program.argv[-1] == "host=localhost user=test dbname=test"
-    session.conninfo_without_password.assert_called_once_with()
+    session.conninfo_without_password.assert_called_once_with("test")
     assert program.environment["PGPASSWORD"] == "secret"
     with pytest.raises(ValueError, match="TimescaleDB"):
         await backup.restore_program(from_file="/data/test.dump")

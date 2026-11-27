@@ -1170,7 +1170,7 @@ async function parseTyped(text: string) {
       />
       <CloudAccountDialog
         v-model="makingAccount"
-        :kind="activeAccountField?.accountKind ?? null"
+        :kinds="activeAccountField?.accountKinds ?? null"
         @created="takeAccount"
       />
     </template>

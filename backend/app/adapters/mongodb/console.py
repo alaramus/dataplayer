@@ -8,6 +8,7 @@ environment, which it then forgets, so the password is never an argument.
 
 from app.adapters.mongodb.session import (
     MongodbSession,
+    auth_query,
     compose_url_with_password,
     program_tls,
 )
@@ -28,21 +29,22 @@ _CONNECT = (
 )
 
 
-def console_program(session: MongodbSession) -> ConsoleProgram:
+async def console_program(session: MongodbSession) -> ConsoleProgram:
     options = session.options
     if tunnel_of(options.ssh_tunnel) is not None:
         # The container cannot reach a port on this process's loopback.
         raise AdapterError("config", say("A console does not go through an SSH tunnel yet"))
-    user, password, auth_source = session.credentials()
+    # Signed in as the program starts; a role's keys last an hour (D449).
+    signed = await session.credentials()
     address = compose_url_with_password(
         host=options.host,
         port=options.port,
-        user=user,
+        user=signed.user,
         database=options.database,
-        auth_source=auth_source,
+        auth_source=signed.auth_source,
         tls=options.tls().enabled,
-        tls_query=program_tls(options.tls()),
-        password=password,
+        tls_query=[*program_tls(options.tls()), *auth_query(signed)],
+        password=signed.password,
     )
     argv, files = with_program_files(
         ("mongosh", "--nodb", "--norc", "--quiet", "--shell", "--eval", _CONNECT), options.tls()

@@ -811,7 +811,7 @@ forbidden_modules =
     ftplib
 
 [importlinter:contract:s3-sdk-is-contained]
-name = boto3, botocore and s3transfer are imported only by the s3 adapter
+name = boto3, botocore and s3transfer are imported only by the s3 adapter and the AWS provider
 type = forbidden
 allow_indirect_imports = True
 source_modules =
@@ -860,6 +860,10 @@ source_modules =
     app.adapters.coinbase
     app.adapters.mail
     app.adapters.ftp
+    app.adapters.cloud.accounts
+    app.adapters.cloud.cache
+    app.adapters.cloud.requests
+    app.adapters.cloud.signin
 forbidden_modules =
     boto3
     botocore

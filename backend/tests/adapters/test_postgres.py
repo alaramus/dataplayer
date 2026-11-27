@@ -5,8 +5,10 @@ from pydantic import SecretStr
 from app.adapters import registry
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import (
+    PostgresAwsIam,
     PostgresNoAuth,
     PostgresOptions,
+    PostgresSecretStore,
     PostgresUserPassword,
 )
 from app.adapters.postgres.session import CHECK_TIMEOUT_SECONDS, PostgresSession
@@ -211,19 +213,23 @@ def test_a_file_source_has_no_connection_string() -> None:
     assert issubclass(PostgresAdapter, SupportsConnectionString)
 
 
-def test_the_variant_that_carries_a_password_sends_it() -> None:
+async def test_the_variant_that_carries_a_password_sends_it_beside_the_conninfo() -> None:
+    """Never in the conninfo: that keys a pool, and an issued token would
+    make a new one every fifteen minutes (D450)."""
     options = PostgresUserPassword(
         host="db.example", database="app", user="ann", password=SecretStr("s3cret")
     )
+    session = PostgresSession(options)
 
-    assert "password=s3cret" in PostgresSession(options).conninfo()
+    assert await session.credentials() == {"user": "ann", "password": "s3cret"}
+    assert "s3cret" not in session.conninfo()
 
 
-def test_the_variant_without_a_password_sends_none() -> None:
+async def test_the_variant_without_a_password_sends_none() -> None:
     """`trust` and `peer` are real: a password is then not merely empty."""
     options = PostgresNoAuth(host="db.example", database="app", user="ann")
 
-    assert "password" not in PostgresSession(options).conninfo()
+    assert await PostgresSession(options).credentials() == {"user": "ann"}
 
 
 def test_the_variant_without_a_password_still_has_an_address() -> None:
@@ -263,6 +269,8 @@ def test_the_options_schema_offers_both_ways_of_connecting() -> None:
     assert options_module.variants(PostgresOptions) == [
         PostgresUserPassword,
         PostgresNoAuth,
+        PostgresAwsIam,
+        PostgresSecretStore,
     ]
 
 

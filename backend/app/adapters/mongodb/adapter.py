@@ -5,6 +5,7 @@ from typing import Any
 from app.adapters.actions import Action, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
+from app.adapters.cloud import CloudAccess
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
@@ -155,8 +156,9 @@ class MongodbAdapter:
         options: MongodbOptions,
         pooling: Pooling | None = None,
         tunnels: TunnelAccess | None = None,
+        cloud: CloudAccess | None = None,
     ) -> None:
-        self._session = MongodbSession(options, pooling, tunnels)
+        self._session = MongodbSession(options, pooling, tunnels, cloud)
         self._catalog = MongodbCatalog(self._session)
         self._relation = MongodbRelation(self._session)
         self._fetch = MongodbFetch(self._session, self._relation)
@@ -400,7 +402,7 @@ class MongodbAdapter:
 
     async def console_program(self) -> ConsoleProgram:
         """mongosh, signed in as this connection, in a container (D286)."""
-        return console_program(self._session)
+        return await console_program(self._session)
 
 
 @register(
@@ -418,4 +420,4 @@ class MongodbAdapter:
     images=(ContainerImage(("mongo",), 27017, container_options),),
 )
 def _build(options: MongodbOptions, context: AdapterContext) -> MongodbAdapter:
-    return MongodbAdapter(options, context.pooling, context.tunnels)
+    return MongodbAdapter(options, context.pooling, context.tunnels, context.cloud)

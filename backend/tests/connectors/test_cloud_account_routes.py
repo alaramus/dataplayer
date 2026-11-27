@@ -347,9 +347,9 @@ async def test_a_secret_is_issued_from_the_owner_s_account_and_reused(
     access = OwnerCloud(await _owner(client, person))
     account = uuid.UUID(made["id"])
 
-    first = await access.issue(account, "aws", Token("db.example.com"))
-    again = await access.issue(account, "aws", Token("db.example.com"))
-    other = await access.issue(account, "aws", Token("other.example.com"))
+    first = await access.issue(account, ("aws",), Token("db.example.com"))
+    again = await access.issue(account, ("aws",), Token("db.example.com"))
+    other = await access.issue(account, ("aws",), Token("other.example.com"))
 
     assert first.value == f"{SECRET}-1"
     assert again.value == first.value
@@ -367,11 +367,11 @@ async def test_a_changed_account_is_never_answered_with_what_the_old_one_issued(
     access = OwnerCloud(await _owner(client, person))
     account = uuid.UUID(made["id"])
 
-    before = await access.issue(account, "aws", Token("db"))
+    before = await access.issue(account, ("aws",), Token("db"))
     await client.patch(
         f"{BASE}/{made['id']}", headers=person, json={"settings": KEY | {"secret_access_key": "rotated-key"}}
     )
-    after = await access.issue(account, "aws", Token("db"))
+    after = await access.issue(account, ("aws",), Token("db"))
 
     assert before.value.startswith(SECRET)
     assert after.value.startswith("rotated-key")
@@ -389,12 +389,12 @@ async def test_issuing_refuses_a_wrong_kind_a_stranger_and_a_deleted_account(
     owner = OwnerCloud(await _owner(client, person))
 
     with pytest.raises(AdapterError) as wrong_kind:
-        await owner.issue(account, "gcp", Token("db"))
+        await owner.issue(account, ("gcp",), Token("db"))
     with pytest.raises(AdapterError) as not_theirs:
-        await stranger.issue(account, "aws", Token("db"))
+        await stranger.issue(account, ("aws",), Token("db"))
     await client.delete(f"{BASE}/{made['id']}", headers=person)
     with pytest.raises(AdapterError) as gone:
-        await OwnerCloud(await _owner(client, person)).issue(account, "aws", Token("db"))
+        await OwnerCloud(await _owner(client, person)).issue(account, ("aws",), Token("db"))
 
     assert wrong_kind.value.error_kind == "config"
     assert not_theirs.value.message == gone.value.message
@@ -408,7 +408,7 @@ async def test_an_sdk_failure_is_said_without_its_text(
     issuer.fails = RuntimeError(f"SignatureDoesNotMatch for {SECRET}")
 
     with pytest.raises(AdapterError) as failed:
-        await OwnerCloud(await _owner(client, person)).issue(uuid.UUID(made["id"]), "aws", Token("db"))
+        await OwnerCloud(await _owner(client, person)).issue(uuid.UUID(made["id"]), ("aws",), Token("db"))
 
     assert SECRET not in failed.value.message
     assert "SignatureDoesNotMatch" not in failed.value.message
@@ -430,7 +430,7 @@ async def test_the_server_s_own_identity_stops_when_the_installation_withdraws_i
     monkeypatch.setattr(settings, "CLOUD_AMBIENT_CREDENTIALS", False)
 
     with pytest.raises(AdapterError) as withdrawn:
-        await OwnerCloud(superuser.id).issue(uuid.UUID(made["id"]), "aws", Token("db"))
+        await OwnerCloud(superuser.id).issue(uuid.UUID(made["id"]), ("aws",), Token("db"))
 
     assert "no longer allowed" in withdrawn.value.message
     assert issuer.calls == 0

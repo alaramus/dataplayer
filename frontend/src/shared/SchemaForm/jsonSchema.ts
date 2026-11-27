@@ -44,8 +44,8 @@ export interface JsonSchemaProperty {
    * `ssh-key` takes one of the owner's SSH keys (D146), and `ssh-host-key`
    * the server key a person confirmed (D145). `ssh-connection` takes one of
    * the owner's SSH connections, for a database reached through it (D282).
-   * `cloud-account` takes one of the owner's cloud accounts of the kind
-   * `x-ui-account-kind` names (D451).
+   * `cloud-account` takes one of the owner's cloud accounts of a kind
+   * `x-ui-account-kind` lists (D451): one, or four for a secret store (D454).
    */
   "x-ui-purpose"?:
     | "clipboard-mode"
@@ -58,8 +58,8 @@ export interface JsonSchemaProperty {
     | "ssh-host-key"
     | "ssh-connection"
     | "cloud-account"
-  /** The kind of cloud account a `cloud-account` field takes (D451). */
-  "x-ui-account-kind"?: string
+  /** The kinds of cloud account a `cloud-account` field takes (D451). */
+  "x-ui-account-kind"?: string[]
   // Where the field goes, put here by `layout()` on the server. A statement
   // about the fields, so it is made where the fields are declared — the form
   // would otherwise have to infer that a port is narrow from its being a
@@ -135,8 +135,8 @@ export interface FieldSpec {
   minimum?: number
   maximum?: number
   purpose?: JsonSchemaProperty["x-ui-purpose"]
-  /** The kind of cloud account the field takes, when it takes one. */
-  accountKind?: string
+  /** The kinds of cloud account the field takes, when it takes one. */
+  accountKinds?: string[]
   /** The tab this field belongs to. */
   group: string
   /** Fields sharing a row are laid out on one line. */
@@ -250,7 +250,7 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     minimum: property.minimum,
     maximum: property.maximum,
     purpose: property["x-ui-purpose"],
-    accountKind: property["x-ui-account-kind"],
+    accountKinds: property["x-ui-account-kind"],
     group: property.group ?? DEFAULT_GROUP,
     row: property.row,
     }

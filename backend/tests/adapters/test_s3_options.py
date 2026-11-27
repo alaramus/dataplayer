@@ -9,14 +9,14 @@ from app.adapters import registry
 from app.adapters.protocol import AdapterError
 from app.adapters.s3.adapter import S3Adapter
 from app.adapters.s3.client import reduced
-from app.adapters.s3.options import S3Options
+from app.adapters.s3.options import S3AccessKey
 
 SECRET = "wJalrXUtnFEMI-secret-K7MDENG"
 KEY_ID = "AKIAIOSFODNN7EXAMPLE"
 
 
-def _options(**changes: object) -> S3Options:
-    return S3Options.model_validate(
+def _options(**changes: object) -> S3AccessKey:
+    return S3AccessKey.model_validate(
         {"access_key_id": KEY_ID, "secret_access_key": SECRET, **changes}
     )
 

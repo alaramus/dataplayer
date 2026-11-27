@@ -53,7 +53,7 @@ dependencies = [
     "pglast>=8.5,<9",
     "aiomysql>=0.3.2,<0.4",
     # MongoDB's own driver, its asynchronous client (D283).
-    "pymongo>=4.19,<5",
+    "pymongo[aws]>=4.19,<5",
     # ZooKeeper's client, synchronous, called through the thread pool (D297).
     "kazoo>=2.10,<3",
     # Kafka's client on librdkafka, synchronous, called through the thread pool (D304).
@@ -80,6 +80,7 @@ dev = [
     "types-boto3[s3]>=1.44",
     "pyftpdlib>=2.0",
     "pyopenssl>=25",
+    "moto[s3,secretsmanager]>=5",
 ]
 
 [build-system]

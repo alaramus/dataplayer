@@ -5,6 +5,7 @@ from typing import Any
 from app.adapters.actions import Action, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
+from app.adapters.cloud import CloudAccess
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
@@ -164,8 +165,9 @@ class MysqlAdapter:
         options: MysqlOptions,
         pooling: Pooling | None = None,
         tunnels: TunnelAccess | None = None,
+        cloud: CloudAccess | None = None,
     ) -> None:
-        self._session = MysqlSession(options, pooling, tunnels)
+        self._session = MysqlSession(options, pooling, tunnels, cloud)
         self._features = MysqlFeatures(self._session)
         self._catalog = MysqlCatalog(self._session)
         self._relation = MysqlRelation(self._session)
@@ -486,11 +488,12 @@ class MysqlAdapter:
         CatalogFace(
             key="aws-rds-mysql",
             title=N_("Amazon RDS for MySQL"),
-            options={"user": "admin"},
+            # RDS's own authorities, which IAM sign-in needs verified (D453).
+            options={"user": "admin", "tls_mode": "verify_full", "tls_trust": "amazon_rds"},
             note=N_(
-                "Aurora MySQL too. Sign in with a database password; IAM sign-in "
-                "is not supported yet. The instance has to be reachable from "
-                "this server, publicly or through an SSH tunnel."
+                "Aurora MySQL too. Sign in with a database password, or with AWS "
+                "IAM through one of your cloud accounts. The instance has to be "
+                "reachable from this server, publicly or through an SSH tunnel."
             ),
             note_link="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ConnectToInstance.html",
         ),
@@ -518,4 +521,4 @@ class MysqlAdapter:
     ),
 )
 def _build(options: MysqlOptions, context: AdapterContext) -> MysqlAdapter:
-    return MysqlAdapter(options, context.pooling, context.tunnels)
+    return MysqlAdapter(options, context.pooling, context.tunnels, context.cloud)

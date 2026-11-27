@@ -5,6 +5,7 @@ from typing import Any
 from app.adapters.actions import Action, ActionOffers, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
+from app.adapters.cloud import CloudAccess
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
@@ -190,8 +191,9 @@ class PostgresAdapter:
         options: PostgresOptions,
         pooling: Pooling | None = None,
         tunnels: TunnelAccess | None = None,
+        cloud: CloudAccess | None = None,
     ) -> None:
-        self._session = PostgresSession(options, pooling, tunnels)
+        self._session = PostgresSession(options, pooling, tunnels, cloud)
         self._features = PostgresFeatures(self._session)
         self._metrics = PostgresMetrics(self._session)
         self._relation_context = PostgresRelationContext(
@@ -257,7 +259,7 @@ class PostgresAdapter:
 
     async def console_program(self) -> ConsoleProgram:
         """psql, signed in as this connection, in a container (D286)."""
-        return console_program(self._session, self._options)
+        return await console_program(self._session, self._options)
 
     async def restore_program(self, *, from_file: str) -> BackupProgram:
         return await self._backup.restore_program(from_file=from_file)
@@ -599,11 +601,17 @@ class PostgresAdapter:
         CatalogFace(
             key="aws-rds-postgres",
             title=N_("Amazon RDS for PostgreSQL"),
-            options={"database": "postgres", "user": "postgres"},
+            # RDS's own authorities, which no system store holds (D446).
+            options={
+                "database": "postgres",
+                "user": "postgres",
+                "tls_mode": "verify_full",
+                "tls_trust": "amazon_rds",
+            },
             note=N_(
-                "Aurora PostgreSQL too. Sign in with a database password; IAM "
-                "sign-in is not supported yet. The instance has to be reachable "
-                "from this server, publicly or through an SSH tunnel."
+                "Aurora PostgreSQL too. Sign in with a database password, or with "
+                "AWS IAM through one of your cloud accounts. The instance has to be "
+                "reachable from this server, publicly or through an SSH tunnel."
             ),
             note_link="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ConnectToPostgreSQLInstance.html",
         ),
@@ -632,4 +640,4 @@ class PostgresAdapter:
     ),
 )
 def _build(options: PostgresOptions, context: AdapterContext) -> PostgresAdapter:
-    return PostgresAdapter(options, context.pooling, context.tunnels)
+    return PostgresAdapter(options, context.pooling, context.tunnels, context.cloud)

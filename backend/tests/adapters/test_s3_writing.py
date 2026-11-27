@@ -22,7 +22,7 @@ from app.adapters.fetch import FetchRequest
 from app.adapters.registry import AdapterContext
 from app.adapters.s3 import storage as s3_storage
 from app.adapters.s3.adapter import S3Adapter
-from app.adapters.s3.options import S3Options
+from app.adapters.s3.options import S3AccessKey
 from app.adapters.s3.storage import S3Storage
 from app.adapters.update import UpdateCellRequest
 from tests.utils import services
@@ -38,9 +38,9 @@ class _Payload:
 
 
 @pytest.fixture
-def server() -> S3Options:
+def server() -> S3AccessKey:
     parts = urlsplit(services.S3.require())
-    return S3Options.model_validate(
+    return S3AccessKey.model_validate(
         {
             "endpoint": f"http://{parts.hostname}:{parts.port}",
             "access_key_id": parts.username,
@@ -49,7 +49,7 @@ def server() -> S3Options:
     )
 
 
-def _client(server: S3Options) -> Any:
+def _client(server: S3AccessKey) -> Any:
     return boto3.client(
         "s3",
         endpoint_url=server.endpoint,
@@ -71,7 +71,7 @@ def _emptied(client: Any, bucket: str) -> None:
 
 
 @pytest.fixture
-def bucket(server: S3Options) -> Iterator[str]:
+def bucket(server: S3AccessKey) -> Iterator[str]:
     client = _client(server)
     name = f"test-{uuid.uuid4().hex[:12]}"
     client.create_bucket(Bucket=name)
@@ -82,15 +82,15 @@ def bucket(server: S3Options) -> Iterator[str]:
 
 
 @pytest.fixture
-def options(server: S3Options, bucket: str) -> S3Options:
+def options(server: S3AccessKey, bucket: str) -> S3AccessKey:
     return server.model_copy(update={"bucket": bucket})
 
 
-def _adapter(options: S3Options) -> S3Adapter:
+def _adapter(options: S3AccessKey) -> S3Adapter:
     return S3Adapter(options, AdapterContext(home_dir=Path(".")))
 
 
-def _keys(server: S3Options, bucket: str) -> list[str]:
+def _keys(server: S3AccessKey, bucket: str) -> list[str]:
     listed = _client(server).list_objects_v2(Bucket=bucket)
     return sorted(item["Key"] for item in listed.get("Contents", []))
 
@@ -103,7 +103,7 @@ async def _upload(
     )
 
 
-async def test_an_upload_lands_and_a_taken_name_is_refused(options: S3Options) -> None:
+async def test_an_upload_lands_and_a_taken_name_is_refused(options: S3AccessKey) -> None:
     adapter = _adapter(options)
     await _upload(adapter, "sales.csv", b"id,region\n1,north\n")
 
@@ -114,7 +114,7 @@ async def test_an_upload_lands_and_a_taken_name_is_refused(options: S3Options) -
     assert [row[1] for row in page.rows] == ["north"]
 
 
-async def test_a_cell_is_written_back_as_a_whole_object(options: S3Options) -> None:
+async def test_a_cell_is_written_back_as_a_whole_object(options: S3AccessKey) -> None:
     adapter = _adapter(options)
     await _upload(adapter, "sales.csv", b"id,region\n1,north\n2,south\n")
     page = await adapter.fetch(FetchRequest(node_id="sales.csv"))
@@ -132,7 +132,7 @@ async def test_a_cell_is_written_back_as_a_whole_object(options: S3Options) -> N
 
 
 async def test_a_version_changed_under_an_edit_is_refused(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     storage = S3Storage(options)
     _client(server).put_object(Bucket=bucket, Key="notes.txt", Body=b"first")
@@ -152,7 +152,7 @@ async def test_a_version_changed_under_an_edit_is_refused(
 
 
 async def test_an_incoming_file_is_sent_in_parts(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     storage = S3Storage(options)
     piece = bytes(range(256)) * 4096  # 1 MB
@@ -174,7 +174,7 @@ async def test_an_incoming_file_is_sent_in_parts(
 
 
 async def test_an_incoming_file_not_published_leaves_no_parts(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     storage = S3Storage(options)
 
@@ -191,7 +191,7 @@ async def test_an_incoming_file_not_published_leaves_no_parts(
 
 
 async def test_an_incoming_file_does_not_take_a_name_that_is_taken(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     storage = S3Storage(options)
     _client(server).put_object(Bucket=bucket, Key="taken.txt", Body=b"there")
@@ -207,7 +207,7 @@ async def test_an_incoming_file_does_not_take_a_name_that_is_taken(
 
 
 async def test_a_new_folder_is_a_marker_and_a_taken_name_is_not_made_again(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     adapter = _adapter(options)
 
@@ -226,7 +226,7 @@ async def test_a_new_folder_is_a_marker_and_a_taken_name_is_not_made_again(
 
 
 async def test_a_folder_is_renamed_key_by_key(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     client = _client(server)
     for key in ("old/a.txt", "old/sub/b.txt", "old/empty/"):
@@ -238,7 +238,7 @@ async def test_a_folder_is_renamed_key_by_key(
 
 
 async def test_a_file_is_copied_on_the_server(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     _client(server).put_object(Bucket=bucket, Key="a.txt", Body=b"body")
     storage = S3Storage(options)
@@ -254,7 +254,7 @@ async def test_a_file_is_copied_on_the_server(
 
 
 async def test_moving_more_objects_than_the_ceiling_is_refused(
-    server: S3Options, options: S3Options, bucket: str, monkeypatch: pytest.MonkeyPatch
+    server: S3AccessKey, options: S3AccessKey, bucket: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     for number in range(3):
         _client(server).put_object(Bucket=bucket, Key=f"many/{number}.txt", Body=b"x")
@@ -268,7 +268,7 @@ async def test_moving_more_objects_than_the_ceiling_is_refused(
 
 
 async def test_a_folder_is_deleted_with_everything_in_it(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     client = _client(server)
     for key in ("gone/a.txt", "gone/sub/b.txt", "kept.txt"):
@@ -280,7 +280,7 @@ async def test_a_folder_is_deleted_with_everything_in_it(
 
 
 async def test_an_empty_folder_is_removed_only_while_empty(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     client = _client(server)
     client.put_object(Bucket=bucket, Key="box/", Body=b"")
@@ -299,7 +299,7 @@ async def test_an_empty_folder_is_removed_only_while_empty(
 
 
 async def test_an_archive_unpacks_into_the_bucket(
-    server: S3Options, options: S3Options, bucket: str
+    server: S3AccessKey, options: S3AccessKey, bucket: str
 ) -> None:
     packed = io.BytesIO()
     with zipfile.ZipFile(packed, "w") as archive:
@@ -327,14 +327,14 @@ async def test_an_archive_unpacks_into_the_bucket(
     ["ab", "Upper-case", "under_score", "-start", "end.", "two..dots", "192.168.1.1"],
 )
 async def test_a_bucket_name_the_rules_refuse_is_refused_before_a_request(
-    server: S3Options, name: str
+    server: S3AccessKey, name: str
 ) -> None:
     with pytest.raises(ActionRefused):
         await _adapter(server).action("create_bucket").perform(None, {"name": name})
 
 
 async def test_a_bucket_is_made_and_deleted_with_what_it_holds(
-    server: S3Options,
+    server: S3AccessKey,
 ) -> None:
     adapter = _adapter(server)
     name = f"made-{uuid.uuid4().hex[:12]}"
@@ -353,7 +353,7 @@ async def test_a_bucket_is_made_and_deleted_with_what_it_holds(
 
 
 async def test_a_bucket_is_not_renamed_and_holds_no_file_at_the_root(
-    server: S3Options, bucket: str
+    server: S3AccessKey, bucket: str
 ) -> None:
     adapter = _adapter(server)
 
@@ -364,7 +364,7 @@ async def test_a_bucket_is_not_renamed_and_holds_no_file_at_the_root(
 
 
 async def test_where_buckets_live_only_what_a_bucket_takes_is_offered(
-    server: S3Options, bucket: str
+    server: S3AccessKey, bucket: str
 ) -> None:
     adapter = _adapter(server)
     await _upload(adapter, "a.txt", b"a", into=bucket)
@@ -387,7 +387,7 @@ async def test_where_buckets_live_only_what_a_bucket_takes_is_offered(
     assert {"rename", "delete"} <= inside
 
 
-async def test_one_bucket_offers_its_root_as_any_folder(options: S3Options) -> None:
+async def test_one_bucket_offers_its_root_as_any_folder(options: S3AccessKey) -> None:
     adapter = _adapter(options)
     offered = {action.name for action in await adapter.available(None)}
     known = {action.name for action in await adapter.all_actions()}
@@ -397,7 +397,7 @@ async def test_one_bucket_offers_its_root_as_any_folder(options: S3Options) -> N
 
 
 async def test_a_bucket_is_named_a_bucket_and_its_folders_folders(
-    server: S3Options, bucket: str
+    server: S3AccessKey, bucket: str
 ) -> None:
     adapter = _adapter(server)
     await _upload(adapter, "a.txt", b"a", into=bucket)
@@ -413,7 +413,7 @@ async def test_a_bucket_is_named_a_bucket_and_its_folders_folders(
 
 
 async def test_a_bucket_name_already_taken_is_refused_not_numbered(
-    server: S3Options, bucket: str
+    server: S3AccessKey, bucket: str
 ) -> None:
     with pytest.raises(ActionRefused) as refused:
         await _adapter(server).action("create_bucket").perform(None, {"name": bucket})
@@ -422,7 +422,7 @@ async def test_a_bucket_name_already_taken_is_refused_not_numbered(
 
 
 async def test_a_bucket_is_copied_into_a_folder_of_its_name(
-    server: S3Options, bucket: str
+    server: S3AccessKey, bucket: str
 ) -> None:
     client = _client(server)
     source = f"src-{uuid.uuid4().hex[:12]}"
@@ -443,7 +443,7 @@ async def test_a_bucket_is_copied_into_a_folder_of_its_name(
 
 
 async def test_a_bucket_moved_into_a_folder_is_emptied_and_deleted(
-    server: S3Options, bucket: str
+    server: S3AccessKey, bucket: str
 ) -> None:
     client = _client(server)
     source = f"src-{uuid.uuid4().hex[:12]}"

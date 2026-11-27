@@ -5,10 +5,12 @@ authentication and a SASL user are different sets of fields, and each SASL
 mechanism is a choice of its own rather than a field beside the password.
 """
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import ConfigDict, Field, SecretStr, field_validator
+from pydantic import ConfigDict, Field, SecretStr, field_validator, model_validator
 
+from app.adapters.cloud import CloudAccess, IssuedSecret
+from app.adapters.cloud.signin import aws_account_field, msk_token, region_field
 from app.adapters.layout import layout
 from app.adapters.tls import TlsOptions
 from app.core.translation import N_, say
@@ -90,10 +92,31 @@ class KafkaScram512(_KafkaSasl):
     auth_method: Literal["scram-sha-512"] = _auth_method_field("scram-sha-512")
 
 
+class KafkaAwsMskIam(_KafkaBase):
+    """Amazon MSK with IAM: SASL/OAUTHBEARER with a token signed by the
+    account, issued per run and renewed by the client (D453). TLS only, as
+    MSK's IAM listener is."""
+
+    model_config = ConfigDict(title=N_("AWS IAM (MSK)"))
+
+    auth_method: Literal["aws_msk_iam"] = _auth_method_field("aws_msk_iam")
+    account: str = aws_account_field()
+    region: str = region_field()
+
+    @model_validator(mode="after")
+    def _encrypted(self) -> Self:
+        if self.tls_mode == "disabled":
+            raise ValueError(say("IAM sign-in needs TLS; choose a mode on the TLS page"))
+        return self
+
+    async def token(self, cloud: CloudAccess | None) -> IssuedSecret:
+        return await msk_token(cloud, self.account, self.region)
+
+
 KafkaSasl = KafkaPlain | KafkaScram256 | KafkaScram512
 
 KafkaOptions = Annotated[
-    KafkaNoAuth | KafkaPlain | KafkaScram256 | KafkaScram512,
+    KafkaNoAuth | KafkaPlain | KafkaScram256 | KafkaScram512 | KafkaAwsMskIam,
     Field(discriminator="auth_method"),
 ]
 

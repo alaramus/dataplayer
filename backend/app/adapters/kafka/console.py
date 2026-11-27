@@ -9,7 +9,12 @@ through its environment and is written with `printf '%s'`, so none is ever
 read as shell syntax.
 """
 
-from app.adapters.kafka.options import MECHANISMS, KafkaNoAuth, KafkaOptions
+from app.adapters.kafka.options import (
+    MECHANISMS,
+    KafkaAwsMskIam,
+    KafkaNoAuth,
+    KafkaOptions,
+)
 from app.adapters.kafka.session import KafkaSession
 from app.adapters.protocol import AdapterError
 from app.adapters.terminal import ConsoleProgram
@@ -81,6 +86,10 @@ def _property(key: str, value: str) -> str:
 
 def client_properties(options: KafkaOptions) -> str:
     """The settings Kafka's Java tools read, the same ones the adapter uses."""
+    if isinstance(options, KafkaAwsMskIam):
+        # Kafka's tools sign in to MSK with AWS's own plugin, a jar the image
+        # does not carry (D453).
+        raise AdapterError("config", say("Kafka's tools in a terminal cannot sign in with AWS IAM yet"))
     config = KafkaSession(options).config()
     lines = [
         _property("security.protocol", str(config["security.protocol"])),

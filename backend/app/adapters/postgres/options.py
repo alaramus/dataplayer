@@ -23,14 +23,27 @@ worded by the route that hands the schema out (D226).
 """
 
 from collections.abc import Mapping
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr, model_validator
 
+from app.adapters.cloud import CloudAccess
+from app.adapters.cloud.signin import (
+    SignIn,
+    aws_account_field,
+    password_key_field,
+    rds_sign_in,
+    region_field,
+    secret_name_field,
+    store_account_field,
+    stored_sign_in,
+    stored_user_field,
+    user_key_field,
+)
 from app.adapters.layout import layout
 from app.adapters.tls import TlsOptionsWithFallback
 from app.adapters.tunnels import ssh_tunnel_field
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 
 def _database_field() -> Any:
@@ -81,6 +94,9 @@ class PostgresUserPassword(_PostgresBase):
     user: str = _user_field()
     password: SecretStr = Field(title=N_("Password"), json_schema_extra=layout())
 
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return SignIn(user=self.user, password=self.password.get_secret_value())
+
 
 class PostgresNoAuth(_PostgresBase):
     """A server that asks for no password: `trust` or `peer` in pg_hba.conf.
@@ -96,9 +112,54 @@ class PostgresNoAuth(_PostgresBase):
     database: str = _database_field()
     user: str = _user_field()
 
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return SignIn(user=self.user, password=None)
+
+
+class PostgresAwsIam(_PostgresBase):
+    """RDS or Aurora IAM: the password is a token issued for every new
+    connection, valid fifteen minutes, and TLS is required (D453)."""
+
+    model_config = ConfigDict(title=N_("AWS IAM (RDS)"))
+
+    auth_method: Literal["aws_iam"] = _auth_method_field("aws_iam")
+    database: str = _database_field()
+    user: str = _user_field()
+    account: str = aws_account_field()
+    region: str = region_field()
+
+    @model_validator(mode="after")
+    def _encrypted(self) -> Self:
+        # RDS refuses an IAM token without TLS; `preferred` asks for it first.
+        if self.tls_mode == "disabled":
+            raise ValueError(say("IAM sign-in needs TLS; choose a mode on the TLS page"))
+        return self
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await rds_sign_in(cloud, self.account, self.region, self.host, self.port, self.user)
+
+
+class PostgresSecretStore(_PostgresBase):
+    """A password kept in a secret store, read at every new connection (D454)."""
+
+    model_config = ConfigDict(title=N_("Secret store"))
+
+    auth_method: Literal["secret_store"] = _auth_method_field("secret_store")
+    database: str = _database_field()
+    account: str = store_account_field()
+    secret_name: str = secret_name_field()
+    password_key: str = password_key_field()
+    user_key: str = user_key_field()
+    user: str = stored_user_field()
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await stored_sign_in(
+            cloud, self.account, self.secret_name, self.password_key, self.user_key, self.user
+        )
+
 
 PostgresOptions = Annotated[
-    PostgresUserPassword | PostgresNoAuth,
+    PostgresUserPassword | PostgresNoAuth | PostgresAwsIam | PostgresSecretStore,
     Field(discriminator="auth_method"),
 ]
 

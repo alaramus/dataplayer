@@ -8,14 +8,21 @@ D4's schema split would not recognise as a secret at all.
 """
 
 from collections.abc import Mapping
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr, model_validator
 
+from app.adapters.cloud import CloudAccess
+from app.adapters.cloud.signin import (
+    SignIn,
+    aws_account_field,
+    elasticache_sign_in,
+    region_field,
+)
 from app.adapters.layout import layout
 from app.adapters.tls import TlsOptions
 from app.adapters.tunnels import ssh_tunnel_field
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 
 def _auth_method_field(value: str) -> Any:
@@ -66,6 +73,9 @@ class RedisPassword(_RedisBase):
     )
     password: SecretStr = Field(title=N_("Password"), json_schema_extra=layout())
 
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return SignIn(user=self.user, password=self.password.get_secret_value())
+
 
 class RedisNoAuth(_RedisBase):
     """A server that asks for nothing, which is the default configuration."""
@@ -74,9 +84,66 @@ class RedisNoAuth(_RedisBase):
 
     auth_method: Literal["no_auth"] = _auth_method_field("no_auth")
 
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return SignIn(user="", password=None)
+
+
+class RedisAwsIam(_RedisBase):
+    """ElastiCache or MemoryDB with IAM: a token issued for every connection,
+    signed for the cache and a user made with IAM authentication (D453)."""
+
+    model_config = ConfigDict(title=N_("AWS IAM (ElastiCache, MemoryDB)"))
+
+    auth_method: Literal["aws_iam"] = _auth_method_field("aws_iam")
+    user: str = Field(
+        min_length=1,
+        max_length=255,
+        title=N_("User"),
+        description=N_("A user made with IAM authentication; its name is its ID"),
+        json_schema_extra=layout(),
+    )
+    cache_name: str = Field(
+        min_length=1,
+        max_length=255,
+        pattern=r"^[a-zA-Z0-9-]+$",
+        title=N_("Cache"),
+        description=N_("The replication group, serverless cache or cluster name, not its address"),
+        json_schema_extra=layout(),
+    )
+    service: Literal["elasticache", "memorydb"] = Field(
+        default="elasticache",
+        title=N_("Service"),
+        json_schema_extra=layout(row="service"),
+    )
+    serverless: bool = Field(
+        default=False,
+        title=N_("Serverless cache"),
+        json_schema_extra=layout(row="service"),
+    )
+    account: str = aws_account_field()
+    region: str = region_field()
+
+    @model_validator(mode="after")
+    def _encrypted(self) -> Self:
+        # ElastiCache takes IAM sign-in only with encryption in transit.
+        if self.tls_mode == "disabled":
+            raise ValueError(say("IAM sign-in needs TLS; choose a mode on the TLS page"))
+        return self
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await elasticache_sign_in(
+            cloud,
+            self.account,
+            self.region,
+            self.cache_name,
+            self.user,
+            self.serverless,
+            self.service,
+        )
+
 
 RedisOptions = Annotated[
-    RedisPassword | RedisNoAuth, Field(discriminator="auth_method")
+    RedisPassword | RedisNoAuth | RedisAwsIam, Field(discriminator="auth_method")
 ]
 
 

@@ -9,7 +9,7 @@ export function accountChoiceLabel(account: Pick<CloudAccountPublic, "name" | "m
 
 /**
  * A field that holds one of the owner's cloud accounts, offered as a choice
- * of those of the kind it takes (D451). An id the connection holds and the
+ * of those of the kinds it takes (D451). An id the connection holds and the
  * list no longer has stays as it is, so opening the form changes nothing.
  */
 export function withAccountChoices(
@@ -22,7 +22,7 @@ export function withAccountChoices(
           ...field,
           kind: "select",
           choices: accounts
-            .filter((account) => account.kind === field.accountKind)
+            .filter((account) => field.accountKinds?.includes(account.kind) ?? false)
             .map((account) => ({ value: account.id, label: accountChoiceLabel(account) })),
         }
       : field

@@ -21,6 +21,7 @@ from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.cloud import CloudAccess
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
@@ -36,7 +37,12 @@ from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key
 from app.adapters.redis.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.redis.metrics import RedisMetrics
 from app.adapters.redis.model import RedisModel
-from app.adapters.redis.options import RedisOptions, RedisPassword, container_options
+from app.adapters.redis.options import (
+    RedisAwsIam,
+    RedisOptions,
+    RedisPassword,
+    container_options,
+)
 from app.adapters.redis.reports import (
     REPORTS as SYSTEM_REPORTS,
 )
@@ -104,9 +110,11 @@ class RedisAdapter:
     module composed here rather than another hundred lines in this class.
     """
 
-    def __init__(self, options: Any, tunnels: TunnelAccess | None = None) -> None:
+    def __init__(
+        self, options: Any, tunnels: TunnelAccess | None = None, cloud: CloudAccess | None = None
+    ) -> None:
         self._options = options
-        self._session = RedisSession(options, tunnels)
+        self._session = RedisSession(options, tunnels, cloud)
         self._keyspace = RedisKeyspace(self._session)
         self._search = RedisSearch(self._session, self._keyspace)
         self._fetch = RedisFetch(self._session, self._keyspace)
@@ -130,7 +138,7 @@ class RedisAdapter:
             host=options.host,
             port=options.port,
             database=options.database,
-            user=options.user if isinstance(options, RedisPassword) else "",
+            user=options.user if isinstance(options, RedisPassword | RedisAwsIam) else "",
             tls=options.tls().enabled,
         )
 
@@ -311,7 +319,7 @@ class RedisAdapter:
 
     async def console_program(self) -> ConsoleProgram:
         """redis-cli, signed in as this connection, in a container (D286)."""
-        return console_program(self._options)
+        return await console_program(self._options, await self._session.sign_in())
 
 
 @register(
@@ -346,7 +354,7 @@ class RedisAdapter:
 def _build(options: Any, context: AdapterContext) -> RedisAdapter:
     # No home directory and no pooling: everything this source does is a
     # handful of round trips against a server that answers in microseconds.
-    return RedisAdapter(options, context.tunnels)
+    return RedisAdapter(options, context.tunnels, context.cloud)
 
 
 def _as_number(value: Any) -> int | None:

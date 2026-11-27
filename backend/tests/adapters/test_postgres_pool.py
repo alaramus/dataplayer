@@ -165,7 +165,8 @@ async def test_closing_a_pool_does_not_cut_a_query_already_running() -> None:
     If that cut the request holding it, the cap on the number of pools would
     turn into random failures under load.
     """
-    pool = PooledConnections(PostgresSession(_options()).conninfo())
+    session = PostgresSession(_options())
+    pool = PooledConnections(session.conninfo(), credentials=session.credentials)
     await pool.open()
 
     async with pool.connection() as connection:

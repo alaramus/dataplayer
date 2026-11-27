@@ -27,8 +27,10 @@ spoken to, alone or as one member of a replica set, and a tunnel's end
 back aware and in UTC, and a UUID is the standard binary subtype.
 
 Options are host, port (27017), the shared TLS block ([D446](cloud-auth.md)), and either a user, a password
-and an authentication database (`admin` unless named), or no password for a
-server without access control. An optional database says where the catalog
+and an authentication database (`admin` unless named), no password for a
+server without access control, `MONGODB-AWS` with one of the owner's AWS
+accounts, or a password from a secret store ([D453](cloud-auth.md),
+[D454](cloud-auth.md)). An optional database says where the catalog
 opens. `mongodb://` addresses with one host are parsed; without `authSource`
 the user is looked for in the database the address names, as the driver does.
 The check reads `buildInfo` and lists the databases the user may see, so a

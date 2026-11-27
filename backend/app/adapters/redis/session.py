@@ -30,8 +30,10 @@ from redis.exceptions import (
     TimeoutError as RedisTimeoutError,
 )
 
+from app.adapters.cloud import CloudAccess
+from app.adapters.cloud.signin import SignIn
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
-from app.adapters.redis.options import RedisOptions, RedisPassword
+from app.adapters.redis.options import RedisOptions
 from app.adapters.tls import ssl_context
 from app.adapters.tunnels import TunnelAccess, reach
 from app.core.logs import record_failure, with_ref
@@ -85,9 +87,16 @@ class _TlsConnection(redis.Connection):
 class RedisSession:
     """A way to reach one Redis server, opened per operation."""
 
-    def __init__(self, options: RedisOptions, tunnels: TunnelAccess | None = None) -> None:
+    def __init__(
+        self,
+        options: RedisOptions,
+        tunnels: TunnelAccess | None = None,
+        cloud: CloudAccess | None = None,
+    ) -> None:
         self._options = options
         self._tunnels = tunnels
+        # Asked at every new connection by a variant whose token is issued (D449).
+        self._cloud = cloud
         self._tls: ssl.SSLContext | None = None
 
     async def _address(self) -> tuple[str, int]:
@@ -99,7 +108,16 @@ class RedisSession:
     def database(self) -> int:
         return self._options.database
 
-    def _client(self, address: tuple[str, int], database: int | None = None) -> redis.Redis:
+    async def sign_in(self) -> SignIn:
+        return await self._options.sign_in(self._cloud)
+
+    async def _open(self, database: int | None = None) -> redis.Redis:
+        """A client signed in now: an issued token is good for fifteen minutes."""
+        return self._client(await self._address(), await self.sign_in(), database)
+
+    def _client(
+        self, address: tuple[str, int], signed: SignIn, database: int | None = None
+    ) -> redis.Redis:
         """A client on one of the server's key spaces.
 
         Which one is asked for per call rather than fixed at construction: the
@@ -108,13 +126,9 @@ class RedisSession:
         server's range is refused by the server on connect, which is the only
         party that knows how many it was started with.
         """
-        password = (
-            self._options.password.get_secret_value()
-            if isinstance(self._options, RedisPassword)
-            else None
-        )
+        password = signed.password
         host, port = address
-        user = self._options.user if isinstance(self._options, RedisPassword) else ""
+        user = signed.user
         arguments: dict[str, Any] = {
             "host": host,
             "port": port,
@@ -158,7 +172,7 @@ class RedisSession:
         lifetime to manage for no gain, and `check_connection` deliberately
         opens its own anyway.
         """
-        client = self._client(await self._address(), database)
+        client = await self._open(database)
         try:
             yield client
         except RedisError as failure:
@@ -175,7 +189,7 @@ class RedisSession:
         works is what the caller asked, and this is a line beside the answer.
         """
         try:
-            client = self._client(await self._address())
+            client = await self._open()
         except AdapterError:
             return None
         try:
@@ -189,7 +203,7 @@ class RedisSession:
     async def check(self) -> ConnectionCheckResult:
         """Say hello, and say what happened in words that name no address."""
         try:
-            client = self._client(await self._address())
+            client = await self._open()
         except AdapterError as failure:
             return _refused(failure.error_kind, failure.message)
         started = time.perf_counter()

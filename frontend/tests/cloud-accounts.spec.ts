@@ -5,9 +5,9 @@ import { login } from "./utils/login"
 /**
  * A person's cloud accounts on the Preferences page (D451, D452).
  *
- * No provider is installed yet, so nothing here reaches a cloud: the account
- * is kept, refused where it is wrong, changed without retyping its secret and
- * deleted. Values are AWS's documented examples, not credentials.
+ * Nothing here reaches a cloud: the account is kept, refused where it is
+ * wrong, changed without retyping its secret and deleted. Values are AWS's
+ * documented examples, not credentials.
  */
 
 const SECRET = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
@@ -34,8 +34,9 @@ test("an account is kept, refused in words, changed and deleted, its secret neve
   const row = page.getByTestId(`cloud-account-${name}`)
   await expect(row).toContainText("Amazon Web Services · Access key")
   await expect(row).toContainText("No connection uses it")
-  // Nothing installed can test it yet, so nothing offers to.
-  await expect(page.getByTestId(`cloud-account-test-${name}`)).toHaveCount(0)
+  // AWS's provider is installed, so the account offers its test; not pressed,
+  // which would send these example keys to AWS itself.
+  await expect(page.getByTestId(`cloud-account-test-${name}`)).toHaveCount(1)
   await expect(page.getByTestId("cloud-accounts")).not.toContainText(SECRET)
 
   // Changed without retyping the secret: it stays stored on the server.

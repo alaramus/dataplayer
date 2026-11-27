@@ -15,7 +15,8 @@ Nothing here runs anything. It says what to run; a job runs it.
 import re
 from collections.abc import Sequence
 
-from app.adapters.mysql.options import MysqlOptions, MysqlUserPassword
+from app.adapters.cloud.signin import SignIn
+from app.adapters.mysql.options import MysqlOptions
 from app.adapters.mysql.session import MysqlSession, ServerProfile
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
 from app.adapters.tls import program_paths, with_program_files
@@ -90,10 +91,11 @@ class MysqlBackup:
         which a restore into a server with its own replication would refuse.
         """
         profile = await self._profile()
+        signed = await self._session.sign_in()
         program = "mariadb-dump" if profile.mariadb else "mysqldump"
         argv = [
             program,
-            *self._reach(profile),
+            *self._reach(profile, signed.user),
             "--single-transaction",
             "--routines",
             "--triggers",
@@ -104,7 +106,7 @@ class MysqlBackup:
         if not profile.mariadb:
             argv.append("--set-gtid-purged=OFF")
         argv += [f"--result-file={into}", self._database()]
-        return self._program(_image(profile), tuple(argv))
+        return self._program(_image(profile), tuple(argv), signed)
 
     async def restore_program(self, *, from_file: str) -> BackupProgram:
         """The client, reading the dump into the connection's database.
@@ -115,15 +117,17 @@ class MysqlBackup:
         stops at the first statement the server refuses.
         """
         profile = await self._profile()
+        signed = await self._session.sign_in()
         program = "mariadb" if profile.mariadb else "mysql"
         return self._program(
             _image(profile),
             (
                 program,
-                *self._reach(profile),
+                *self._reach(profile, signed.user),
                 f"--database={self._database()}",
                 f"--execute=source {from_file}",
             ),
+            signed,
         )
 
     async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
@@ -171,12 +175,19 @@ class MysqlBackup:
         self._flavour = profile.flavour
         return profile
 
-    def _program(self, image: str, argv: tuple[str, ...]) -> BackupProgram:
-        """The client, with the TLS files written before it starts (D447)."""
-        wrapped, files = with_program_files(argv, self._options.tls())
-        return BackupProgram(image=image, argv=wrapped, environment={**self._environment(), **files})
+    def _program(self, image: str, argv: tuple[str, ...], signed: SignIn) -> BackupProgram:
+        """The client, signed in as it starts, its TLS files written (D447).
 
-    def _reach(self, profile: ServerProfile) -> list[str]:
+        The password goes in the variable both clients read for it: an
+        argument is visible to anything that can list processes. An issued
+        token is fresh when the program starts; the connection it opens
+        outlives it (D449).
+        """
+        wrapped, files = with_program_files(argv, self._options.tls())
+        environment = {} if signed.password is None else {"MYSQL_PWD": signed.password}
+        return BackupProgram(image=image, argv=wrapped, environment={**environment, **files})
+
+    def _reach(self, profile: ServerProfile, user: str) -> list[str]:
         """Where to connect, with no password: that goes in the environment.
 
         TLS as the connection has it (D446). MySQL's client names the modes as
@@ -187,9 +198,13 @@ class MysqlBackup:
         reach = [
             f"--host={options.host}",
             f"--port={options.port}",
-            f"--user={options.user}",
+            f"--user={user}",
             "--default-character-set=utf8mb4",
         ]
+        # An RDS token goes over TLS in the clear, which MySQL's client does
+        # only when told; MariaDB's offers the plugin by itself (D453).
+        if options.cleartext and not profile.mariadb:
+            reach.append("--enable-cleartext-plugin")
         settings = options.tls()
         if profile.mariadb:
             reach += _MARIADB_TLS[settings.mode]
@@ -205,15 +220,6 @@ class MysqlBackup:
     def _database(self) -> str:
         return self._options.database or ""
 
-    def _environment(self) -> dict[str, str]:
-        """The password in the variable both clients read for it.
-
-        An argument is visible to anything on the machine that can list
-        processes.
-        """
-        if isinstance(self._options, MysqlUserPassword):
-            return {"MYSQL_PWD": self._options.password.get_secret_value()}
-        return {}
 
 
 def _image(profile: ServerProfile) -> str:

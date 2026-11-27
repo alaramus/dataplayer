@@ -4,7 +4,7 @@ For changing how a server source encrypts its connection, which certificate it
 trusts or offers, a person's cloud accounts, and how a password is issued by a
 cloud or fetched from a secret store for every new connection.
 
-Decisions here: D446, D447, D448, D449, D451, D452.
+Decisions here: D446, D447, D448, D449, D450, D451, D452, D453, D454.
 
 ## D446. One TLS block, every server source
 
@@ -162,13 +162,49 @@ keeps none.
 
 Known deviations:
 
-- **No provider is installed yet.** The issuers arrive with their slices; until
-  then an account can be kept and named, its test answers 501 and the form
-  hides Test, and a connection naming it is refused at open with "This
-  installation cannot sign in with accounts of {kind}".
+- **Only AWS's provider is installed.** Google's, Azure's and Vault's arrive
+  with their slices; until then such an account can be kept and named, its
+  test answers 501 and the form hides Test, and a connection naming it is
+  refused at open with "This installation cannot sign in with accounts of
+  {kind}".
 - **Two contexts are built without it**: the source an SSH tunnel goes through
   (`connectors/tunnels.py`) and the readiness probe of a service started here
   (`services/readiness.py`). Neither signs in with a cloud account.
+
+Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
+
+## D450. A pool never keys on a token
+
+A source asks its options' variant for `sign_in(cloud)` — user and password,
+issued, read from a store or simply stored — at every physical connection,
+and keeps none of it in the address a pool is kept by.
+
+- PostgreSQL: `conninfo()` holds no password. The pool is keyed by
+  `pool_identity`, the conninfo with every option, secrets by value, so an
+  edited password still makes a new pool, and psycopg_pool's `kwargs` is the
+  session's `credentials`, an async callable psycopg_pool resolves before
+  every connection it opens.
+- MySQL: aiomysql takes no callable, so the pool's connect arguments
+  (`Pool._conn_kwargs`) are given the next user and password before every
+  checkout; a connection opened during that checkout signs in with them.
+- MongoDB: pymongo signs every connection of a client with what the client
+  was made with, so the kept client is keyed by the issued keys; a role's
+  keys, renewed hourly, make a new client and the old one goes when idle.
+- Kafka and Redis open their clients per operation and sign in each time;
+  S3's kept client holds refreshing credentials (D453).
+- Programs (`psql`, `pg_dump`, the MySQL clients, `redis-cli`, `mongosh`,
+  `mongodump`) and consoles ask when they start.
+
+Proven against `pg-tls` with the IAM variant and a stand-in account: the
+role's password is changed while a connection is open, a second connection
+signs in with the new one, the pool is the same object, and the first
+connection still answers. The same for MySQL's secret-store variant against
+`mysql`. Neither is a real RDS: no AWS account is at hand.
+
+Known deviation:
+
+- **The MySQL pool's arguments are a private attribute** of aiomysql's pool,
+  pinned by the test above rather than by aiomysql's documentation.
 
 Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
 
@@ -193,9 +229,10 @@ each), `schema`, create, change, delete, test.
 - Secrets are write-only: the answer names which are stored, never their
   values, and an edit keeps a secret left empty when the method stays the
   same. An account keeps its kind (`cloud_accounts.kind_fixed`).
-- A connection's field says `x-ui-purpose: cloud-account` and
-  `x-ui-account-kind` (`cloud.account_field(kind)`). The account is checked to
-  be the owner's and of that kind when the connection is saved — a 422 on the
+- A connection's field says `x-ui-purpose: cloud-account` and lists the kinds
+  it takes in `x-ui-account-kind` (`cloud.account_field(*kinds)`): one, or all
+  four for a secret store (D454). The account is checked to be the owner's and
+  of one of them when the connection is saved — a 422 on the
   field — and again when it opens. A grantee's reads use the owner's account
   without seeing it (D33).
 - An account a connection names is not deleted; the refusal names the
@@ -232,5 +269,67 @@ follows: S3's endpoint and Vault's address go through one helper,
 any host, a private one included, as a database's host or an SSH server may be.
 The agent's outside MCP servers are the one place that refuses private
 addresses (D360), because there the address is the agent's to follow.
+
+Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
+
+## D453. Cloud variants per source
+
+Each is a variant of the source's flat union (D16), its fields declared by
+`adapters/cloud/signin.py`'s factories where they belong, each answering
+`sign_in`. AWS's provider is `adapters/cloud/aws/`, the one package besides
+S3's that imports boto3.
+
+| Source | Variant | What it does |
+| --- | --- | --- |
+| PostgreSQL, TimescaleDB | `aws_iam` | an RDS token for the form's host, port and user, signed locally; TLS not `disabled` |
+| MySQL, MariaDB | `aws_iam` | the same token, sent by aiomysql's `mysql_clear_password` plugin, so only over Verify CA or Verify full; MySQL's own client is given `--enable-cleartext-plugin` |
+| Redis | `aws_iam` | ElastiCache or MemoryDB: a signed `connect` for the cache's name and an IAM user; TLS required |
+| MongoDB | `aws_iam` | `MONGODB-AWS` with the account's keys and session token, `$external`; needs `pymongo[aws]` |
+| Kafka | `aws_msk_iam` | SASL/OAUTHBEARER with MSK's token; issued before a run, renewed by librdkafka's callback, which asks the event loop from its own thread and never from the loop's |
+| S3 | `aws_account` | the account's keys as botocore's refreshing credentials, asked from the worker thread a request runs in a minute before they expire |
+
+The token is signed for the host the form names, also through an SSH tunnel:
+RDS and ElastiCache check the name they were signed for, which is the
+server's. The cards "Amazon RDS for PostgreSQL" and "… for MySQL" start at
+Verify full against Amazon RDS's authorities.
+
+AWS's provider words every refusal from botocore's error code — a bad key,
+expired credentials, denied, a role that cannot be assumed, a missing secret
+or KMS key — never from its message. boto3 reads `AWS_ENDPOINT_URL` from the
+environment; nothing a person types can point it elsewhere.
+
+Known deviations:
+
+- **S3 has one variant instead of four.** `session_token`, `assume_role` and
+  `default_chain` are ways an AWS account signs in (D451), so S3 names an
+  account rather than repeating them. Old S3 connections were given
+  `auth_method = access_key` by `f2a9d4c7e1b3`, its statement tested
+  against an old row.
+- **Kafka's tools in a terminal refuse MSK IAM.** They need Amazon's plugin
+  jar, which the image does not carry.
+- **A 15-minute token can expire during a long dump.** The connection it
+  opened stays valid; a program that reconnects would be refused.
+- **What is proven where.** STS, an assumed role and Secrets Manager answer
+  through moto in the test process; RDS, ElastiCache and MSK tokens are
+  checked by their shape, signed here; S3 with an account's keys reads RustFS,
+  Redis signs in to `redis-tls` with a token standing for its ACL user's
+  password, PostgreSQL to `pg-tls` as above. No real RDS, ElastiCache, MSK or
+  MongoDB Atlas was reached, and MySQL's cleartext sign-in has no server here.
+- **DocumentDB does not take `MONGODB-AWS`;** the variant is for Atlas and
+  servers that do.
+
+Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)
+
+## D454. Secret stores and Vault's dynamic credentials
+
+`secret_store` names an account of any of the four kinds, a secret, the JSON
+key of the password (`password`) and of the user (`username`), and a user
+that, left empty, is taken from the secret; PostgreSQL, MySQL and MongoDB
+have it. It is read at every new connection, kept by the issued secrets'
+cache for five minutes, so a password rotated in the store is followed
+within minutes. A secret that is not JSON is the password whole.
+
+AWS Secrets Manager answers it now; Google Secret Manager, Azure Key Vault and
+Vault KV with their slices, and `vault_dynamic` with Vault's.
 
 Spec: [More ways to sign in to a connection](../../decisions/2026-11-22-connection-auth-design.md)

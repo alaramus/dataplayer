@@ -139,16 +139,21 @@ CLOUD_ACCOUNT_REFERENCE = "cloud-account"
 CLOUD_ACCOUNT_KIND = "x-ui-account-kind"
 
 
-def cloud_account_names(schema: OptionsSchema) -> dict[str, str]:
-    """Names of fields that name a cloud account, each with the kind it takes."""
+def cloud_account_names(schema: OptionsSchema) -> dict[str, tuple[str, ...]]:
+    """Names of fields that name a cloud account, each with the kinds it takes,
+    a list as `cloud.account_field` writes it."""
     return {
-        name: str(field.json_schema_extra[CLOUD_ACCOUNT_KIND])
+        name: tuple(str(kind) for kind in _listed(field.json_schema_extra[CLOUD_ACCOUNT_KIND]))
         for variant in variants(schema)
         for name, field in variant.model_fields.items()
         if isinstance(field.json_schema_extra, dict)
         and field.json_schema_extra.get("x-ui-purpose") == CLOUD_ACCOUNT_REFERENCE
         and CLOUD_ACCOUNT_KIND in field.json_schema_extra
     }
+
+
+def _listed(value: object) -> list[object]:
+    return list(value) if isinstance(value, list) else [value]
 
 
 def _named_for(schema: OptionsSchema, purpose: str) -> set[str]:

@@ -895,7 +895,8 @@ async def test_a_search_over_25_connections_closes_no_pool_another_person_uses(
     opened = await client.get(f"{CONNECTORS}/{theirs}/catalog", headers=other)
     assert opened.status_code == 200, opened.text
     store: ResourceStore = app.state.resources
-    conninfo = PostgresSession(PostgresUserPassword(**working_postgres_options())).conninfo()
+    options = PostgresUserPassword(**working_postgres_options())
+    conninfo = PostgresSession(options).pool_identity((options.host, options.port))
     pool = await store.existing(key_for(uuid.UUID(theirs), conninfo), PooledConnections)
     assert pool is not None
     mine = [await _postgres(client, person) for _ in range(25)]

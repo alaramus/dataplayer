@@ -9,6 +9,7 @@ from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.cloud import CloudAccess
 from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
@@ -78,8 +79,8 @@ from app.core.translation import N_, say
 class KafkaAdapter:
     """Facade over a session and the capabilities built on it (D2b)."""
 
-    def __init__(self, options: KafkaOptions) -> None:
-        self._session = KafkaSession(options)
+    def __init__(self, options: KafkaOptions, cloud: CloudAccess | None = None) -> None:
+        self._session = KafkaSession(options, cloud)
         self._messages = KafkaMessages(self._session)
         self._groups = KafkaGroups(self._session)
         self._topics = KafkaTopics(self._session)
@@ -305,5 +306,4 @@ class KafkaAdapter:
     ),
 )
 def _build(options: KafkaOptions, context: AdapterContext) -> KafkaAdapter:
-    del context
-    return KafkaAdapter(options)
+    return KafkaAdapter(options, context.cloud)

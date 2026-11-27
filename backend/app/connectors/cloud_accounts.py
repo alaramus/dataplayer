@@ -304,9 +304,9 @@ async def check_references(
     config: Mapping[str, Any],
 ) -> None:
     """Refuse a connection naming an account that is not its owner's or not of
-    the kind its field takes (D451). Asked again when it opens."""
+    a kind its field takes (D451). Asked again when it opens."""
     problems = []
-    for name, kind in options_schema.cloud_account_names(adapter_type.options_schema).items():
+    for name, kinds in options_schema.cloud_account_names(adapter_type.options_schema).items():
         if name not in config:
             continue
         try:
@@ -316,17 +316,20 @@ async def check_references(
         row = await get_own(session, account_id, owner_id)
         if row is None:
             message = say("Choose one of your cloud accounts")
-        elif row.kind != kind:
+        elif row.kind not in kinds:
             message = say(
-                "{name} is not an account of {kind}",
-                name=row.name,
-                kind=KIND_TITLES[cast(AccountKind, kind)],
+                "{name} is not an account of {kind}", name=row.name, kind=kinds_title(kinds)
             )
         else:
             continue
         problems.append({"loc": ["body", "options", name], "msg": message, "type": "value_error"})
     if problems:
         raise HTTPException(status_code=422, detail=problems)
+
+
+def kinds_title(kinds: tuple[str, ...]) -> str:
+    """The products a field takes, as one name or a list of them."""
+    return ", ".join(KIND_TITLES[cast(AccountKind, kind)] for kind in kinds)
 
 
 def public_of(row: CloudAccount, used_by: list[SshKeyUse]) -> CloudAccountPublic:
@@ -415,17 +418,18 @@ class OwnerCloud:
         self._read: dict[uuid.UUID, _Read] = {}
 
     async def issue(
-        self, account_id: uuid.UUID, kind: AccountKind, request: SecretRequest
+        self, account_id: uuid.UUID, kinds: tuple[AccountKind, ...], request: SecretRequest
     ) -> IssuedSecret:
         read = self._read.get(account_id)
         if read is None or time.monotonic() - read.read_at > KEPT_SECONDS:
             read = await self._from_database(account_id)
             self._read[account_id] = read
-        if read.kind != kind:
+        if read.kind not in kinds:
             raise AdapterError(
                 "config",
-                say("{name} is not an account of {kind}", name=read.name, kind=KIND_TITLES[kind]),
+                say("{name} is not an account of {kind}", name=read.name, kind=kinds_title(kinds)),
             )
+        kind: AccountKind = read.kind
         _gate(read)
         issuer = issuer_for(kind)
         if issuer is None:

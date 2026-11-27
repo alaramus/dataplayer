@@ -30,8 +30,8 @@ const props = defineProps<{
   modelValue: boolean
   /** The account being changed; null makes a new one. */
   account?: CloudAccountPublic | null
-  /** The kind a new account must be, when a connection's field asked for it. */
-  kind?: string | null
+  /** The kinds a new account may be, when a connection's field asked for one. */
+  kinds?: string[] | null
 }>()
 const emit = defineEmits<{
   "update:modelValue": [open: boolean]
@@ -50,10 +50,14 @@ const chosenKind = ref("aws")
 const error = ref("")
 
 const editing = computed(() => props.account ?? null)
-const kinds = computed(() => schemas.data.value?.kinds ?? [])
-const kindOptions = computed(() => kinds.value.map((one) => ({ label: one.title, value: one.kind })))
+const kindSchemas = computed(() => schemas.data.value?.kinds ?? [])
+const kindOptions = computed(() =>
+  kindSchemas.value
+    .filter((one) => !props.kinds?.length || props.kinds.includes(one.kind))
+    .map((one) => ({ label: one.title, value: one.kind }))
+)
 const schema = computed<JsonSchema | null>(
-  () => (kinds.value.find((one) => one.kind === chosenKind.value)?.json_schema as JsonSchema | undefined) ?? null
+  () => (kindSchemas.value.find((one) => one.kind === chosenKind.value)?.json_schema as JsonSchema | undefined) ?? null
 )
 const fields = computed(() =>
   schema.value === null ? [] : accountFields(schema.value, form.values.value.method)
@@ -63,7 +67,7 @@ const busy = computed(() => create.isPending.value || update.isPending.value)
 function start() {
   const account = editing.value
   name.value = account?.name ?? ""
-  chosenKind.value = account?.kind ?? props.kind ?? "aws"
+  chosenKind.value = account?.kind ?? props.kinds?.[0] ?? "aws"
   error.value = ""
   form.reset(fields.value, account ? { ...account.settings, method: account.method } : {})
 }
@@ -139,7 +143,7 @@ async function save() {
         :model-value="chosenKind"
         :options="kindOptions"
         :label="t('cloud_accounts.dialog.kind')"
-        :disable="editing !== null || Boolean(kind)"
+        :disable="editing !== null || kindOptions.length < 2"
         data-testid="cloud-account-kind"
         @update:model-value="chosenKind = String($event)"
       />

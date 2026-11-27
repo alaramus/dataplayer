@@ -9,9 +9,9 @@ pins (D87).
 Nothing here runs anything. It says what to run; a job runs it.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
-from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
+from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.restore_inventory import validate_inventory
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
@@ -61,15 +61,15 @@ class PostgresBackup:
         here is a role of *that* server, and a restore elsewhere would fail on
         a role that does not exist.
         """
-        return self._program(
+        return await self._program(
             await self._image(),
-            (
+            lambda dbname: (
                 "pg_dump",
                 "--format=custom",
                 "--no-owner",
                 "--no-privileges",
                 f"--file={into}",
-                self._connection_argument(),
+                dbname,
             ),
         )
 
@@ -81,9 +81,9 @@ class PostgresBackup:
         is the destructive part, and it is why the route that asks for this
         insists on being told so in as many words.
         """
-        return self._program(
+        return await self._program(
             await self._image(),
-            (
+            lambda dbname: (
                 "pg_restore",
                 "--format=custom",
                 "--exit-on-error",
@@ -91,7 +91,7 @@ class PostgresBackup:
                 "--if-exists",
                 "--no-owner",
                 "--no-privileges",
-                f"--dbname={self._connection_argument()}",
+                f"--dbname={dbname}",
                 from_file,
             ),
         )
@@ -131,21 +131,21 @@ class PostgresBackup:
             )
         return f"postgres:{major}"
 
-    def _program(self, image: str, argv: tuple[str, ...]) -> BackupProgram:
-        """The program, with the TLS files written before it starts (D447)."""
-        wrapped, files = with_program_files(argv, self._options.tls())
-        return BackupProgram(image=image, argv=wrapped, environment={**self._environment(), **files})
+    async def _program(
+        self, image: str, argv: Callable[[str], tuple[str, ...]]
+    ) -> BackupProgram:
+        """The program, signed in as it starts, its TLS files written (D447).
 
-    def _connection_argument(self) -> str:
-        """Where to connect, as one string, with no password in it.
-
-        The password goes in the environment: an argument is visible to
-        anything on the machine that can list processes, and libpq documents
-        `PGPASSWORD` for exactly this.
+        `argv` is given where to connect, as one string with no password in
+        it: the password goes in the environment, since an argument is visible
+        to anything that can list processes, and libpq documents `PGPASSWORD`
+        for exactly this. An issued token is fresh when the program starts
+        and may expire during a long dump; the connection it opened stays
+        valid (D449).
         """
-        return self._session.conninfo_without_password()
-
-    def _environment(self) -> dict[str, str]:
-        if isinstance(self._options, PostgresUserPassword):
-            return {"PGPASSWORD": self._options.password.get_secret_value()}
-        return {}
+        signed = await self._session.sign_in()
+        environment = {} if signed.password is None else {"PGPASSWORD": signed.password}
+        wrapped, files = with_program_files(
+            argv(self._session.conninfo_without_password(signed.user)), self._options.tls()
+        )
+        return BackupProgram(image=image, argv=wrapped, environment={**environment, **files})

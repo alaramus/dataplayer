@@ -29,7 +29,7 @@ const accountField: FieldSpec = {
   kind: "text",
   required: true,
   purpose: "cloud-account",
-  accountKind: "aws",
+  accountKinds: ["aws"],
   group: "general",
 }
 
@@ -47,8 +47,17 @@ describe("withAccountChoices", () => {
     ])
   })
 
+  it("offers every kind a secret store may be in", () => {
+    const [field] = withAccountChoices(
+      [{ ...accountField, accountKinds: ["aws", "vault"] }],
+      [account("1", "aws", "prod"), account("2", "vault", "vault"), account("3", "gcp", "g")]
+    )
+
+    expect(field?.choices?.map((choice) => choice.value)).toEqual(["1", "2"])
+  })
+
   it("leaves every other field as it is", () => {
-    const other: FieldSpec = { ...accountField, name: "host", purpose: undefined, accountKind: undefined }
+    const other: FieldSpec = { ...accountField, name: "host", purpose: undefined, accountKinds: undefined }
 
     expect(withAccountChoices([other], [account("1", "aws", "prod")])).toEqual([other])
   })

@@ -8,7 +8,7 @@ below asks for a pool without knowing where it is kept.
 import asyncio
 import hashlib
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from typing import Any
 
@@ -28,12 +28,21 @@ ACQUIRE_TIMEOUT_SECONDS = 5.0
 class PooledConnections:
     """A psycopg pool, configured the way this application wants one."""
 
-    def __init__(self, conninfo: str, files: TlsFiles | None = None) -> None:
+    def __init__(
+        self,
+        conninfo: str,
+        files: TlsFiles | None = None,
+        credentials: Credentials | None = None,
+    ) -> None:
         # libpq reads its key files at every connect, so they live as long as
         # the pool and go when it closes (D447).
         self._files = files
         self._pool: AsyncConnectionPool[AsyncConnection[Any]] = AsyncConnectionPool(
             conninfo,
+            # Asked by psycopg_pool before every physical connection it opens,
+            # so a token issued for fifteen minutes is never one the pool kept
+            # since it was made (D450).
+            kwargs=credentials,
             # Nothing is held for a connector nobody is looking at; the first
             # request pays for the connection, every later one does not.
             min_size=0,
@@ -62,6 +71,10 @@ class PooledConnections:
                 self._files.close()
 
 
+# The user and password of the next connection, asked as it is opened.
+type Credentials = Callable[[], Awaitable[dict[str, Any]]]
+
+
 def key_for(connector_id: uuid.UUID, conninfo: str) -> str:
     """Where the pool of this connector, with these options, is kept.
 
@@ -82,6 +95,7 @@ async def pool_for(
     conninfo: str,
     tls: TlsSettings,
     dial: Callable[[TlsFiles], str],
+    credentials: Credentials | None = None,
 ) -> PooledConnections | None:
     """The connector's pool, or None where the store makes none to keep.
 
@@ -91,8 +105,9 @@ async def pool_for(
     as the metrics collector does (D127).
 
     `conninfo` is the key: the TLS files named by a digest of their PEMs, not
-    by where a pool happens to write them. `dial` is what the pool connects
-    with once its files are written.
+    by where a pool happens to write them, and never a password that is
+    issued. `dial` is what the pool connects with once its files are
+    written, and `credentials` what it signs in with at every connection.
     """
     key = key_for(pooling.connector_id, conninfo)
     if not pooling.store.keeps:
@@ -100,7 +115,7 @@ async def pool_for(
 
     async def create() -> PooledConnections:
         files = await asyncio.to_thread(TlsFiles, tls)
-        pool = PooledConnections(dial(files), files)
+        pool = PooledConnections(dial(files), files, credentials)
         try:
             await pool.open()
         except BaseException:

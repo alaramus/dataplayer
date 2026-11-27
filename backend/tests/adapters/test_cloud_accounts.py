@@ -126,8 +126,8 @@ class _Password(_Base):
 def test_a_connection_s_account_fields_are_found_with_their_kind() -> None:
     schema = Annotated[_Iam | _Password, Field(discriminator="auth_method")]
 
-    assert options_schema.cloud_account_names(schema) == {"account": "aws"}
+    assert options_schema.cloud_account_names(schema) == {"account": ("aws",)}
     assert options_schema.cloud_account_names(_Password) == {}
     rendered = options_schema.json_schema(schema)["$defs"]["_Iam"]["properties"]["account"]
     assert rendered["x-ui-purpose"] == "cloud-account"
-    assert rendered["x-ui-account-kind"] == "aws"
+    assert rendered["x-ui-account-kind"] == ["aws"]

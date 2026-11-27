@@ -159,7 +159,7 @@ follow (checked in slice 2 against S3's endpoint and SSH hosts).
 | Redis | `password` gains an ACL user; `aws_iam` (ElastiCache, MemoryDB), `azure_entra` |
 | MongoDB | `x509`, `aws_iam` (`MONGODB-AWS`), `secret_store` |
 | Kafka | `oauthbearer_oidc`, `aws_msk_iam`, mTLS through D446 |
-| S3 | `access_key` (today's), `session_token`, `assume_role`, `default_chain` |
+| S3 | `access_key` (today's) and `aws_account`: a session token, a role and the default chain are an account's ways of signing in (D451), so S3 names an account instead of four variants (changed in slice 3) |
 | ClickHouse, RabbitMQ, Cassandra | D446; certificate sign-in where the client makes it simple |
 
 LDAP, PAM, RADIUS and Active Directory simple bind look like a password to the
@@ -197,8 +197,10 @@ One commit per slice on `connection-auth`, each stopping for review.
 2. D449, D451, D452: accounts, migration, routes, ambient gate, issuer and
    cache, `AdapterContext.cloud` everywhere, Preferences, the form's purpose.
 3. AWS: RDS IAM for PostgreSQL, MySQL, MariaDB with D450's proof; Secrets
-   Manager; ElastiCache; S3 roles; MSK; MongoDB-AWS. LocalStack in the `tools`
-   profile for STS, Secrets Manager and S3.
+   Manager; ElastiCache; S3 roles; MSK; MongoDB-AWS. moto in the test process
+   for STS and Secrets Manager rather than LocalStack in the `tools` profile:
+   nothing to start, and the provider's calls are checked where they run;
+   S3 is proven against RustFS (changed in slice 3).
 4. Google: D455, Secret Manager.
 5. Azure: Entra for PostgreSQL, MySQL, Redis; Key Vault.
 6. Vault (a dev server in `tools`): static and dynamic; Kafka OIDC and mTLS;

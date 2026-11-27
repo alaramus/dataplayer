@@ -8,7 +8,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from app.adapters.explorer.storage import VersionChanged
-from app.adapters.s3.options import S3Options
+from app.adapters.s3.options import S3AccessKey
 from app.adapters.s3.storage import S3Storage
 
 
@@ -46,7 +46,7 @@ class _OldStore:
 @pytest.fixture
 def storage() -> tuple[S3Storage, _OldStore]:
     made = S3Storage(
-        S3Options.model_validate(
+        S3AccessKey.model_validate(
             {
                 "endpoint": "http://127.0.0.1:1",
                 "access_key_id": "key",

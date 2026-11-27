@@ -26,7 +26,14 @@ from pymongo.errors import (
     WTimeoutError,
 )
 
-from app.adapters.mongodb.options import MongodbOptions, MongodbUserPassword
+from app.adapters.cloud import CloudAccess
+from app.adapters.mongodb.options import (
+    MongodbAwsIam,
+    MongodbOptions,
+    MongodbSecretStore,
+    MongodbSignIn,
+    MongodbUserPassword,
+)
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
@@ -233,7 +240,7 @@ type Client = AsyncMongoClient[dict[str, Any]]
 
 
 def make_client(
-    host: str, port: int, options: MongodbOptions, *, pool_size: int
+    host: str, port: int, options: MongodbOptions, signed: MongodbSignIn, *, pool_size: int
 ) -> Client:
     """A client of one server, as it is (D283).
 
@@ -243,12 +250,16 @@ def make_client(
     UTC, and a UUID is the standard binary subtype.
     """
     credentials: dict[str, Any] = {}
-    if isinstance(options, MongodbUserPassword):
+    if signed.user:
         credentials = {
-            "username": options.user,
-            "password": options.password.get_secret_value(),
-            "authSource": options.auth_source,
+            "username": signed.user,
+            "password": signed.password,
+            "authSource": signed.auth_source,
         }
+    if signed.mechanism:
+        credentials["authMechanism"] = signed.mechanism
+    if signed.session_token:
+        credentials["authMechanismProperties"] = {"AWS_SESSION_TOKEN": signed.session_token}
     # pymongo reads its files once, while the client is made (D447).
     with TlsFiles(options.tls()) as files:
         return AsyncMongoClient(
@@ -280,6 +291,16 @@ def _tls_arguments(settings: TlsSettings, files: TlsFiles) -> dict[str, Any]:
         found["tlsCAFile"] = str(files.ca)
     if files.pair is not None:
         found["tlsCertificateKeyFile"] = str(files.pair)
+    return found
+
+
+def auth_query(signed: MongodbSignIn) -> list[tuple[str, str]]:
+    """The mechanism in a program's address, MONGODB-AWS's session token too."""
+    found: list[tuple[str, str]] = []
+    if signed.mechanism:
+        found.append(("authMechanism", signed.mechanism))
+    if signed.session_token:
+        found.append(("authMechanismProperties", f"AWS_SESSION_TOKEN:{signed.session_token}"))
     return found
 
 
@@ -321,26 +342,33 @@ class MongodbSession:
         options: MongodbOptions,
         pooling: Pooling | None = None,
         tunnels: TunnelAccess | None = None,
+        cloud: CloudAccess | None = None,
     ) -> None:
         self._options = options
         self._pooling = pooling
         self._tunnels = tunnels
+        # Asked as a client is made, by a variant whose keys are issued (D449).
+        self._cloud = cloud
         self._profile: ServerProfile | None = None
 
     @property
     def options(self) -> MongodbOptions:
         return self._options
 
-    def credentials(self) -> tuple[str, str, str]:
-        """The user, the password and the authentication database, or blanks."""
-        options = self._options
-        if isinstance(options, MongodbUserPassword):
-            return options.user, options.password.get_secret_value(), options.auth_source
-        return "", "", ""
+    async def credentials(self) -> MongodbSignIn:
+        """Who signs in, asked as a client is made: AWS's keys may be a
+        role's, good for an hour (D449)."""
+        return await self._options.sign_in(self._cloud)
 
     def connection_string(self) -> str:
+        """The address for a person to copy, with the user the form names."""
         options = self._options
-        user, _, auth_source = self.credentials()
+        user = options.user if isinstance(options, MongodbUserPassword | MongodbSecretStore) else ""
+        auth_source = (
+            options.auth_source
+            if isinstance(options, MongodbUserPassword | MongodbSecretStore)
+            else "$external" if isinstance(options, MongodbAwsIam) else ""
+        )
         return compose_url(
             host=options.host,
             port=options.port,
@@ -368,11 +396,16 @@ class MongodbSession:
         the address is part of the key, and a moved tunnel is a new client.
         """
         host, port = await self._address()
+        signed = await self.credentials()
         if self._pooling is not None:
             store = self._pooling.store
-            user, password, auth_source = self.credentials()
+            # pymongo signs every connection of a client with what it was
+            # made with, so the client is keyed by them: a role's keys,
+            # renewed, make a new client, and the old one goes when idle.
             fingerprint = hashlib.sha256(
-                f"{host}:{port}:{self._options.tls().fingerprint()}:{user}:{password}:{auth_source}".encode()
+                f"{host}:{port}:{self._options.tls().fingerprint()}:{signed.user}:"
+                f"{signed.password}:{signed.auth_source}:{signed.mechanism}:"
+                f"{signed.session_token}".encode()
             ).hexdigest()[:16]
             key = f"mongodb:{self._pooling.connector_id}:{fingerprint}"
             kept: KeptClient | None
@@ -380,7 +413,9 @@ class MongodbSession:
 
                 async def create() -> KeptClient:
                     return KeptClient(
-                        make_client(host, port, self._options, pool_size=settings.POOL_MAX_SIZE)
+                        make_client(
+                            host, port, self._options, signed, pool_size=settings.POOL_MAX_SIZE
+                        )
                     )
 
                 kept = await store.get_or_create(key, KeptClient, create)
@@ -389,7 +424,7 @@ class MongodbSession:
             if kept is not None:
                 yield kept.client
                 return
-        client = make_client(host, port, self._options, pool_size=2)
+        client = make_client(host, port, self._options, signed, pool_size=2)
         try:
             yield client
         finally:
@@ -417,7 +452,7 @@ class MongodbSession:
         started = time.perf_counter()
         try:
             host, port = await self._address()
-            client = make_client(host, port, self._options, pool_size=1)
+            client = make_client(host, port, self._options, await self.credentials(), pool_size=1)
             try:
                 build = await client.admin.command("buildInfo")
                 # Authenticated as well as reachable: a server with access

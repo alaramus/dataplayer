@@ -33,6 +33,7 @@ from app.adapters.explorer.storage import (
 )
 from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.s3.client import (
+    Keys,
     client_for,
     error_code,
     identity_of,
@@ -65,9 +66,9 @@ LARGEST_SINGLE_COPY = 5 * 1024 * 1024 * 1024
 class S3Storage(PathPlaces):
     search_limits = REMOTE_SEARCH
 
-    def __init__(self, options: S3Options) -> None:
+    def __init__(self, options: S3Options, keys: Keys | None = None) -> None:
         self._options = options
-        self._client = client_for(options)
+        self._client = client_for(options, keys)
         # Whose copies these are: the store, the key and where it stands.
         self._owner = f"s3:{identity_of(options)}"
 

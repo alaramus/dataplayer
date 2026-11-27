@@ -9,6 +9,7 @@ librdkafka's messages name the brokers they failed on, so none of them cross
 this boundary.
 """
 
+import asyncio
 import logging
 import os
 import time
@@ -19,7 +20,13 @@ from confluent_kafka import Consumer, KafkaError, KafkaException, Producer
 from confluent_kafka.admin import AdminClient
 from starlette.concurrency import run_in_threadpool
 
-from app.adapters.kafka.options import MECHANISMS, KafkaNoAuth, KafkaOptions
+from app.adapters.cloud import CloudAccess, IssuedSecret
+from app.adapters.kafka.options import (
+    MECHANISMS,
+    KafkaAwsMskIam,
+    KafkaNoAuth,
+    KafkaOptions,
+)
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
@@ -130,17 +137,33 @@ class KafkaClients:
         self._producer = None
 
 
+# A token is asked again this long before it expires.
+RENEW_SECONDS = 120.0
+
+
+def _on(loop: asyncio.AbstractEventLoop) -> bool:
+    """Whether this thread is running `loop`."""
+    try:
+        return asyncio.get_running_loop() is loop
+    except RuntimeError:
+        return False
+
+
 class KafkaSession:
     """A way to reach one Kafka cluster, opened per operation."""
 
-    def __init__(self, options: KafkaOptions) -> None:
+    def __init__(self, options: KafkaOptions, cloud: CloudAccess | None = None) -> None:
         self._options = options
+        # Asked for MSK's token before a run, and again by a client that
+        # outlives it (D449).
+        self._cloud = cloud
 
     @property
     def options(self) -> KafkaOptions:
         return self._options
 
-    def config(self) -> dict[str, Any]:
+    def config(self, token: IssuedSecret | None = None) -> dict[str, Any]:
+        """librdkafka's settings; `token` is MSK's, issued by `run` beforehand."""
         options = self._options
         settings = options.tls()
         sasl = not isinstance(options, KafkaNoAuth)
@@ -172,18 +195,53 @@ class KafkaSession:
             if settings.client_certificate is not None and settings.client_key is not None:
                 config["ssl.certificate.pem"] = settings.client_certificate
                 config["ssl.key.pem"] = settings.client_key
-        if not isinstance(options, KafkaNoAuth):
+        if isinstance(options, KafkaAwsMskIam):
+            if token is None:
+                raise AdapterError("config", say("MSK's token was not asked for before connecting"))
+            config["sasl.mechanism"] = "OAUTHBEARER"
+            config["oauth_cb"] = self._renewing(token)
+        elif not isinstance(options, KafkaNoAuth):
             config["sasl.mechanism"] = MECHANISMS[options.auth_method]
             config["sasl.username"] = options.user
             config["sasl.password"] = options.password.get_secret_value()
         return config
 
+    def _renewing(self, first: IssuedSecret) -> Callable[[str], tuple[str, float]]:
+        """librdkafka's token callback, called again before the token expires.
+
+        Called on librdkafka's thread inside a poll, which runs in the thread
+        pool: a token about to expire is asked of the event loop from there.
+        Never on the loop's own thread, which would wait for itself.
+        """
+        options = self._options
+        assert isinstance(options, KafkaAwsMskIam)
+        loop = asyncio.get_running_loop()
+        current = [first]
+
+        def token(_config: str) -> tuple[str, float]:
+            found = current[0]
+            expires = found.expires_at if found.expires_at is not None else time.time() + 900
+            if expires - time.time() < RENEW_SECONDS and not _on(loop):
+                found = asyncio.run_coroutine_threadsafe(
+                    options.token(self._cloud), loop
+                ).result(TIMEOUT_SECONDS)
+                current[0] = found
+                expires = found.expires_at if found.expires_at is not None else time.time() + 900
+            return found.value, expires
+
+        return token
+
+    async def _token(self) -> IssuedSecret | None:
+        options = self._options
+        return await options.token(self._cloud) if isinstance(options, KafkaAwsMskIam) else None
+
     async def run[T](self, work: Callable[[KafkaClients], T], node_id: str = "") -> T:
         """`work` with clients of its own, in the thread pool, failures reduced."""
-        return await run_in_threadpool(self._run, work, node_id)
+        config = self.config(await self._token())
+        return await run_in_threadpool(self._run, work, node_id, config)
 
-    def _run[T](self, work: Callable[[KafkaClients], T], node_id: str) -> T:
-        clients = KafkaClients(self.config())
+    def _run[T](self, work: Callable[[KafkaClients], T], node_id: str, config: dict[str, Any]) -> T:
+        clients = KafkaClients(config)
         try:
             return work(clients)
         except NodeNotFound, AdapterError, ValueError:

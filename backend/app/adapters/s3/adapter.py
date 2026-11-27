@@ -5,10 +5,13 @@ here is the store: how it is reached, which actions it offers, its address
 and the cards it shows (D382).
 """
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any, ClassVar
 from urllib.parse import unquote, urlsplit
 
+from app.adapters.cloud import CloudAccess, IssuedSecret
+from app.adapters.cloud.signin import aws_credentials
 from app.adapters.explorer.actions import (
     EXPLORER_ACTION_TYPES,
     ConnectFolder,
@@ -17,13 +20,17 @@ from app.adapters.explorer.actions import (
     ExplorerActionType,
 )
 from app.adapters.explorer.explorer import Explorer
+from app.adapters.protocol import AdapterError
 from app.adapters.registry import AdapterContext, CatalogFace, register
-from app.adapters.s3.options import S3Options
+from app.adapters.s3.client import Keys
+from app.adapters.s3.options import S3CloudAccount, S3Options
 from app.adapters.s3.storage import S3Storage
 from app.core.translation import N_, say
 
 # `bucket.s3.region.amazonaws.com`, `bucket.s3.amazonaws.com`, and the same
 # with a dash before the region, which older regions still answer to.
+# How long a worker thread waits for an account's keys.
+ASK_SECONDS = 30.0
 _AWS_SUFFIX = ".amazonaws.com"
 
 
@@ -46,7 +53,7 @@ class S3Adapter(Explorer):
 
     def __init__(self, options: S3Options, context: AdapterContext) -> None:
         self._options = options
-        super().__init__(S3Storage(options))
+        super().__init__(S3Storage(options, _keys(options, context.cloud)))
 
     def connection_string(self) -> str:
         value = self.draft_connection_string(self._options.model_dump(mode="python"))
@@ -91,6 +98,37 @@ class S3Adapter(Explorer):
             return {"endpoint": "", "region": _aws_region(host)}
         origin = f"{parts.scheme}://{host}" + (f":{port}" if port is not None else "")
         return {"endpoint": origin}
+
+
+def _keys(options: S3Options, cloud: CloudAccess | None) -> Keys | None:
+    """How the client asks for an account's keys, from the worker thread a
+    request runs in, of the event loop the source was made on (D453)."""
+    if not isinstance(options, S3CloudAccount):
+        return None
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+    account = options.account
+    region = options.region
+
+    def asked() -> IssuedSecret:
+        if _runs(loop):
+            # A request is never made on the loop's own thread; one that
+            # were would wait for itself.
+            raise AdapterError("unknown", say("The store could not do that"))
+        return asyncio.run_coroutine_threadsafe(
+            aws_credentials(cloud, account, region), loop
+        ).result(ASK_SECONDS)
+
+    return asked
+
+
+def _runs(loop: asyncio.AbstractEventLoop) -> bool:
+    try:
+        return asyncio.get_running_loop() is loop
+    except RuntimeError:
+        return False
 
 
 def _aws_region(host: str) -> str:

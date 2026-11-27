@@ -5,6 +5,7 @@ the caller wants; the catalog, the rows and everything after are built on it.
 """
 
 import asyncio
+import json
 import logging
 import re
 import ssl
@@ -17,8 +18,11 @@ from urllib.parse import quote, unquote, urlsplit
 
 import aiomysql
 import pymysql
+from pydantic import SecretStr
 
-from app.adapters.mysql.options import MysqlOptions, MysqlUserPassword
+from app.adapters.cloud import CloudAccess
+from app.adapters.cloud.signin import SignIn
+from app.adapters.mysql.options import MysqlOptions
 from app.adapters.mysql.pool import PoolExhausted, pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
@@ -376,10 +380,14 @@ class MysqlSession:
         options: MysqlOptions,
         pooling: Pooling | None = None,
         tunnels: TunnelAccess | None = None,
+        cloud: CloudAccess | None = None,
     ) -> None:
         self._options = options
         self._pooling = pooling
         self._tunnels = tunnels
+        # Asked at every new connection by a variant whose password is issued
+        # or kept in a store (D449).
+        self._cloud = cloud
         self._profile: ServerProfile | None = None
         self._tls: ssl.SSLContext | None = None
 
@@ -387,13 +395,26 @@ class MysqlSession:
     def options(self) -> MysqlOptions:
         return self._options
 
-    def _password(self) -> str:
-        if not isinstance(self._options, MysqlUserPassword):
-            return ""
-        # aiomysql encodes the password as Latin-1, which cannot hold most of
-        # the world's letters; the server compares the UTF-8 bytes. Handing it
-        # those bytes spelt as Latin-1 makes its encoding produce them back.
-        return self._options.password.get_secret_value().encode().decode("latin-1")
+    async def sign_in(self) -> SignIn:
+        """Who to sign in as and with what, asked at every new connection."""
+        return await self._options.sign_in(self._cloud)
+
+    async def _credentials(self) -> dict[str, Any]:
+        """The user and password of the next connection, as aiomysql takes them.
+
+        aiomysql encodes the password as Latin-1, which cannot hold most of the
+        world's letters; the server compares the UTF-8 bytes. Handing it those
+        bytes spelt as Latin-1 makes its encoding produce them back.
+        """
+        found = await self.sign_in()
+        password = "" if found.password is None else found.password
+        credentials: dict[str, Any] = {
+            "user": found.user,
+            "password": password.encode().decode("latin-1"),
+        }
+        if self._options.cleartext:
+            credentials["auth_plugin"] = "mysql_clear_password"
+        return credentials
 
     async def _address(self) -> tuple[str, int]:
         """Where to dial now: through the tunnel when there is one (D282)."""
@@ -401,13 +422,12 @@ class MysqlSession:
         return await reach(self._tunnels, options.ssh_tunnel, options.host, options.port)
 
     def _connect_arguments(self, address: tuple[str, int]) -> dict[str, Any]:
+        """Everything but who signs in, which `_credentials` adds."""
         host, port = address
         options = self._options
         return {
             "host": host,
             "port": port,
-            "user": options.user,
-            "password": self._password(),
             "db": options.database or None,
             "charset": "utf8mb4",
             "autocommit": True,
@@ -455,7 +475,7 @@ class MysqlSession:
         return self._options.database
 
     async def _direct(self) -> aiomysql.Connection:
-        arguments = self._connect_arguments(await self._address())
+        arguments = self._connect_arguments(await self._address()) | await self._credentials()
         return self._encrypted(
             await asyncio.wait_for(aiomysql.connect(**arguments), CHECK_TIMEOUT_SECONDS)
         )
@@ -468,13 +488,19 @@ class MysqlSession:
             options = self._options
             address = await self._address()
             # What makes two pools different, and nothing about the request:
-            # the tunnel's port among it, so a port opened again is a new pool.
+            # the tunnel's port among it, so a port opened again is a new pool,
+            # and every option with its secrets, but never an issued token (D450).
+            revealed = {
+                name: value.get_secret_value() if isinstance(value, SecretStr) else value
+                for name, value in options
+            }
             fingerprint = (
-                f"{options.host}:{options.port}:{options.user}:{options.database}:"
-                f"{options.ssh_tunnel}:{address}:{self._password()}:"
+                f"{address}:{json.dumps(revealed, sort_keys=True, default=str)}:"
                 f"{options.tls().fingerprint()}"
             )
-            pool = await pool_for(self._pooling, fingerprint, self._connect_arguments(address))
+            pool = await pool_for(
+                self._pooling, fingerprint, self._connect_arguments(address), self._credentials
+            )
         if pool is None:
             connection = await self._direct()
             try:

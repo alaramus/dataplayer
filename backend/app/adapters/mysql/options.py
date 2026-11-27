@@ -10,14 +10,27 @@ says where the catalog opens rather than what it is confined to.
 """
 
 from collections.abc import Mapping
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, ClassVar, Literal, Self
 
-from pydantic import ConfigDict, Field, SecretStr
+from pydantic import ConfigDict, Field, SecretStr, model_validator
 
+from app.adapters.cloud import CloudAccess
+from app.adapters.cloud.signin import (
+    SignIn,
+    aws_account_field,
+    password_key_field,
+    rds_sign_in,
+    region_field,
+    secret_name_field,
+    store_account_field,
+    stored_sign_in,
+    stored_user_field,
+    user_key_field,
+)
 from app.adapters.layout import layout
 from app.adapters.tls import TlsOptionsWithFallback
 from app.adapters.tunnels import ssh_tunnel_field
-from app.core.translation import N_
+from app.core.translation import N_, say
 
 
 def _database_field() -> Any:
@@ -65,6 +78,12 @@ class MysqlUserPassword(_MysqlBase):
     user: str = _user_field()
     password: SecretStr = Field(title=N_("Password"), json_schema_extra=layout())
 
+    # Whether the password travels in the clear, as RDS IAM wants it (D453).
+    cleartext: ClassVar[bool] = False
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return SignIn(user=self.user, password=self.password.get_secret_value())
+
 
 class MysqlNoPassword(_MysqlBase):
     """A user created without a password, as a fresh container's root can be."""
@@ -75,9 +94,61 @@ class MysqlNoPassword(_MysqlBase):
     database: str = _database_field()
     user: str = _user_field()
 
+    cleartext: ClassVar[bool] = False
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return SignIn(user=self.user, password=None)
+
+
+class MysqlAwsIam(_MysqlBase):
+    """RDS or Aurora IAM: a token issued for every new connection, sent with
+    the cleartext plugin, which is why TLS that verifies is required (D453)."""
+
+    model_config = ConfigDict(title=N_("AWS IAM (RDS)"))
+
+    auth_method: Literal["aws_iam"] = _auth_method_field("aws_iam")
+    database: str = _database_field()
+    user: str = _user_field()
+    account: str = aws_account_field()
+    region: str = region_field()
+
+    cleartext: ClassVar[bool] = True
+
+    @model_validator(mode="after")
+    def _verified(self) -> Self:
+        if self.tls_mode not in ("verify_ca", "verify_full"):
+            raise ValueError(
+                say("The token is sent in the clear; choose Verify CA or Verify full on the TLS page")
+            )
+        return self
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await rds_sign_in(cloud, self.account, self.region, self.host, self.port, self.user)
+
+
+class MysqlSecretStore(_MysqlBase):
+    """A password kept in a secret store, read at every new connection (D454)."""
+
+    model_config = ConfigDict(title=N_("Secret store"))
+
+    auth_method: Literal["secret_store"] = _auth_method_field("secret_store")
+    database: str = _database_field()
+    account: str = store_account_field()
+    secret_name: str = secret_name_field()
+    password_key: str = password_key_field()
+    user_key: str = user_key_field()
+    user: str = stored_user_field()
+
+    cleartext: ClassVar[bool] = False
+
+    async def sign_in(self, cloud: CloudAccess | None) -> SignIn:
+        return await stored_sign_in(
+            cloud, self.account, self.secret_name, self.password_key, self.user_key, self.user
+        )
+
 
 MysqlOptions = Annotated[
-    MysqlUserPassword | MysqlNoPassword,
+    MysqlUserPassword | MysqlNoPassword | MysqlAwsIam | MysqlSecretStore,
     Field(discriminator="auth_method"),
 ]
 
