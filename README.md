@@ -77,6 +77,13 @@ are encrypted at rest and never leave the backend.
   networks of a daemon on another machine, reached through one of your SSH connections — a container's logs,
   processes and inspect, its start, stop, restart, pause and kill, a terminal inside it, and the daemon's own
   reports.
+- <img src="frontend/public/icons/services/kubernetes.svg" height="20" alt=""> **Kubernetes** and
+  <img src="frontend/public/icons/services/gke.svg" height="20" alt=""> **Google Kubernetes Engine**: a cluster
+  signed in to with a kubeconfig, a token, a client certificate or a Google Cloud account — namespaces and every
+  kind it serves as the cluster's own tables, an object's overview, YAML, events, pods and live logs; scaling,
+  restarting, cordoning, draining and deleting rehearsed by the cluster first, YAML edited and applied, a
+  terminal in a pod's container, a database in the cluster opened as a connection through a port forward,
+  CPU and memory from metrics-server, and menus that offer only what the cluster's RBAC allows.
 - <img src="frontend/public/icons/services/aws.svg" height="20" alt=""> **Amazon S3** and the stores that speak its API —
   <img src="frontend/public/icons/services/minio.svg" height="20" alt=""> **MinIO**,
   <img src="frontend/public/icons/services/rustfs.svg" height="20" alt=""> **RustFS**,
@@ -212,7 +219,7 @@ panel with examples — the bundled PostgreSQL under several names, file storage
 and Redis — run `bun run seed:connectors` from the repository root. Adminer,
 Mailcatcher and the servers the tests and examples point at — Redis, SSH,
 MySQL, MariaDB, ClickHouse, MongoDB, Greenmail, ZooKeeper, Kafka, RabbitMQ,
-Cassandra, ScyllaDB, the RustFS S3 store, the two Docker daemons and the other products of those types: Valkey, KeyDB,
+Cassandra, ScyllaDB, the RustFS S3 store, the two Docker daemons, a k3s Kubernetes cluster and the other products of those types: Valkey, KeyDB,
 Dragonfly, Redpanda, Percona Server, Citus, ParadeDB and TiDB — start on
 request: `docker compose --profile tools up -d`.
 
