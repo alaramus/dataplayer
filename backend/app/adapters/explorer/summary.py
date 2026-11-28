@@ -257,7 +257,7 @@ def _read_contents(storage: Storage, entry: Entry) -> NodeContents | None:
         case "pdf":
             with opened() as handle:
                 return PdfContents(version=media.pdf_facts(name, handle).version)
-        case "database" | "opaque":
+        case "database" | "document" | "opaque":
             # A database says what it holds through its viewer (D262). A font, an executable, a legacy document: the facts every file
             # has are the whole answer, and inventing more would need a
             # decoder this source does not have.

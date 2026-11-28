@@ -73,6 +73,8 @@ open it, the others are offered above it.
 - **Markdown** opens as a document, with a table of contents, code, maths,
   charts and diagrams. **Export** saves it as an HTML page or prints it.
 - **Text and code** open in the editor with highlighting.
+- **Word documents** (`.docx`) open as a document too: headings, lists,
+  tables, emphasis and links, read only and without pictures.
 - **Images**, **PDF**, **audio** and **video** open in their own viewers. A PDF
   can be searched.
 - A **zip archive** is walked into like a folder, and the files inside open

@@ -79,6 +79,8 @@ abrirlo, las demás se ofrecen encima.
   matemáticas, gráficos y diagramas. **Exportar** lo guarda como una página HTML
   o lo imprime.
 - **Texto y código** se abren en el editor con resaltado.
+- Los **documentos de Word** (`.docx`) también se abren como documento:
+  títulos, listas, tablas, énfasis y enlaces, solo lectura y sin imágenes.
 - **Imágenes**, **PDF**, **audio** y **vídeo** se abren en sus propios visores.
   Un PDF se puede buscar.
 - Se entra en un **archivo comprimido ZIP** como en una carpeta, y los archivos

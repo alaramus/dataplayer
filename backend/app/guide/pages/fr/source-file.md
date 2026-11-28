@@ -80,6 +80,9 @@ façon de l'ouvrir, les autres sont proposées au-dessus.
   des formules, des graphiques et des diagrammes. **Exporter** l'enregistre comme
   page HTML ou l'imprime.
 - **Texte et code** s'ouvrent dans l'éditeur avec coloration.
+- Les **documents Word** (`.docx`) s'ouvrent aussi comme un document :
+  titres, listes, tableaux, mises en valeur et liens, en lecture seule et
+  sans images.
 - **Images**, **PDF**, **audio** et **vidéo** s'ouvrent dans leurs propres
   visionneuses. Un PDF peut être recherché.
 - Une **archive zip** s'ouvre comme un dossier, et les fichiers qu'elle contient

@@ -24,6 +24,9 @@ VIDEO_EXTENSIONS: frozenset[str] = frozenset(
     {".m4v", ".mov", ".mp4", ".ogv", ".webm"}
 )
 PDF_EXTENSIONS: frozenset[str] = frozenset({".pdf"})
+# Word's own format alone: `.doc` is a different, binary container and
+# `.odt` another program's, so both stay opaque and downloadable (D462).
+DOCX_EXTENSIONS: frozenset[str] = frozenset({".docx"})
 # The names SQLite and DuckDB files are given, by the engine that reads them. A
 # file by one of them that is something else is found out by its header when
 # it is opened (D262, D403).
@@ -56,7 +59,6 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset(
         ".class",
         ".dll",
         ".doc",
-        ".docx",
         # What `pg_dump --format=custom` writes, which is what this
         # application's own backups are. Named here rather than left to the
         # byte sniff: the sniff runs when a file is opened, so without this
@@ -102,6 +104,7 @@ FileFormat = Literal[
     "audio",
     "video",
     "pdf",
+    "document",
     "database",
     "archive",
     "opaque",
@@ -149,6 +152,8 @@ def format_of(name: str) -> FileFormat:
         return "video"
     if suffix in PDF_EXTENSIONS:
         return "pdf"
+    if suffix in DOCX_EXTENSIONS:
+        return "document"
     if suffix in DATABASE_EXTENSIONS:
         return "database"
     if suffix in ARCHIVE_EXTENSIONS:
@@ -207,6 +212,10 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             return [VIDEO]
         case "pdf":
             return [PDF]
+        case "document":
+            # Read here into the Markdown the document viewer renders, and
+            # only that: the Markdown is a rendering, not the file (D462).
+            return [MARKDOWN]
         case "database":
             # Its tables, read from the file: what a person opens a database
             # to see. Rows belong to a connection to it (D262).
@@ -236,6 +245,9 @@ def offers_source(name: str) -> bool:
     added: a log's first representation is text, and opening it answered
     "this file does not offer source editing" while its table worked.
     """
+    if format_of(name) == "document":
+        # Its Markdown is made here from XML; there is no text of its own.
+        return False
     return any(item.kind in SOURCE_KINDS for item in representations_of(name))
 
 

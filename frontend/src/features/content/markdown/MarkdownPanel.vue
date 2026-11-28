@@ -610,7 +610,10 @@ onBeforeUnmount(() => {
               @select="chooseExport"
             />
           </AppButton>
+          <!-- A Word document is rendered from Markdown made on the server,
+               which is not its source, so it offers none (D462). -->
           <AppButton
+            v-if="sourceTitle !== undefined"
             variant="quiet"
             size="sm"
             :icon="appIcons.code"

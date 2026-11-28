@@ -45,7 +45,7 @@ from app.adapters.content import (
     database_reader,
     json_tree,
 )
-from app.adapters.explorer import archive
+from app.adapters.explorer import archive, docx
 from app.adapters.explorer.binary import bytes_look_binary
 from app.adapters.explorer.formats import (
     database_engine,
@@ -87,6 +87,9 @@ MAX_IMAGE_BYTES = 20 * 1024 * 1024
 # Between the text preview and the editor: a rendered document is parsed,
 # tokenised and turned into DOM in the browser, which neither of those is.
 MAX_MARKDOWN_BYTES = 1024 * 1024
+# A Word document is read whole, because a ZIP's index is at its end; its
+# pictures are most of that and are not shown (D462).
+MAX_DOCX_BYTES = 64 * 1024 * 1024
 MAX_IMAGE_PIXELS = 40_000_000
 
 # What a ranged read hands over at a time. A stream has no size ceiling — it is
@@ -274,6 +277,8 @@ class ExplorerContent:
             case "jsonl":
                 return _read_json_lines(source, request.limit, request.offset)
             case "markdown":
+                if format_of(source.name) == "document":
+                    return _read_docx(source)
                 return _read_markdown(source)
             case "image":
                 return _image_content(source)
@@ -547,6 +552,35 @@ def _read_markdown(source: _Source) -> MarkdownContent:
     _refuse_binary(raw, N_("This file contains binary data and is not a document"))
     text, notice = _decoded(raw)
     return MarkdownContent(text=text, truncated=truncated, notice=notice)
+
+
+def _read_docx(source: _Source) -> MarkdownContent:
+    if source.size_bytes > MAX_DOCX_BYTES:
+        raise ValueError(
+            say(
+                "This document is larger than {megabytes} MB",
+                megabytes=MAX_DOCX_BYTES // (1024 * 1024),
+            )
+        )
+    with source.opened() as handle:
+        raw = handle.read(MAX_DOCX_BYTES + 1)
+    if len(raw) > MAX_DOCX_BYTES:
+        raise ValueError(
+            say(
+                "This document is larger than {megabytes} MB",
+                megabytes=MAX_DOCX_BYTES // (1024 * 1024),
+            )
+        )
+    try:
+        read = docx.read_docx(io.BytesIO(raw), MAX_MARKDOWN_BYTES)
+    except docx.NotADocument:
+        raise ValueError(say("This file is not a Word document")) from None
+    notice = (
+        say("Pictures not shown: {count}", count=read.pictures)
+        if read.pictures
+        else None
+    )
+    return MarkdownContent(text=read.markdown, truncated=read.truncated, notice=notice)
 
 
 def _refuse_binary(raw: bytes, refusal: str) -> None:

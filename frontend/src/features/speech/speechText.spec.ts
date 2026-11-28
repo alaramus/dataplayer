@@ -8,6 +8,10 @@ describe("speech text", () => {
       .toBe("Hello there")
   })
 
+  it("reads an escaped mark and a hard break without their backslashes", () => {
+    expect(plainSpeechText("Costs \\$5 \\& more\\\nnext \\[1\\]")).toBe("Costs $5 & more next [1]")
+  })
+
   it("strips code marks too, so plain sources must not go through it", () => {
     expect(plainSpeechText("SELECT * FROM orders")).toBe("SELECT FROM orders")
   })

@@ -81,6 +81,9 @@ Möglichkeit gibt, sie zu öffnen, werden die anderen über ihr angeboten.
   Diagrammen und Grafiken. **Exportieren** speichert es als HTML-Seite oder
   druckt es.
 - **Text und Code** öffnen sich im Editor mit Hervorhebung.
+- **Word-Dokumente** (`.docx`) öffnen sich ebenfalls als Dokument:
+  Überschriften, Listen, Tabellen, Hervorhebungen und Links, nur lesend
+  und ohne Bilder.
 - **Bilder**, **PDF**, **Audio** und **Video** öffnen sich in ihren eigenen
   Viewern. Ein PDF kann durchsucht werden.
 - In ein **zip-Archiv** wird wie in einen Ordner hineingegangen, und die Dateien

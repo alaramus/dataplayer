@@ -4,7 +4,7 @@ For adding a way to open a node that is not a page of rows — a document, an
 image, a recording, a container walked into. Rows are
 [relations.md](relations.md).
 
-Decisions here: D47, D48, D52, D51, D53, D71, D57, D295, D459.
+Decisions here: D47, D48, D52, D462, D51, D53, D71, D57, D295, D459.
 
 ## D47. A node declares its ordered representations
 
@@ -179,6 +179,35 @@ Known deviations:
   format.
 
 Spec: [Playing media, and reading a PDF](../../decisions/2026-08-31-media-and-pdf-viewers-design.md)
+
+## D462. A Word document is read as Markdown
+
+A `.docx` offers one representation, `markdown`, answered with Markdown the
+server makes from the document's XML (`explorer/docx.py`, standard library
+only), so the document viewer of [D50](../frontend.md) draws it unchanged.
+HTML from the server was rejected for D50's reason; a converter library for a
+ZIP of XML read by name.
+
+- Headings come from the style's name (`heading N`, `Title`) through what it is
+  based on, or from an outline level; never from the style id. Lists from
+  numbering, bulleted or not as its level says; tables with the first row as
+  header; bold, italic, strike; links only to `http`, `https` and `mailto`.
+- Text is escaped only where Markdown or the renderer would read it (`$`, `|`,
+  a leading `#`), since reading aloud reads the same text.
+- The file is read whole up to 64 MB; an XML part is refused above 32 MB
+  unpacked or with a document type declaration. The Markdown stops at 1 MB on
+  a whole block.
+- **It has no source.** It offers no `text` and no editor text, and the panel
+  offers no View as text.
+
+Known deviations:
+
+- **Pictures are not shown,** only counted in the notice.
+- **Footnotes, comments, headers, footers and text boxes are not read.**
+- **Search inside files does not read it;** a `.docx` is a ZIP to it.
+- `.doc`, `.odt` and `.rtf` stay opaque.
+
+Spec: [Reading a Word document](../../decisions/2026-11-28-word-documents-design.md)
 
 ## D51. A file that states its schema is a dataset
 

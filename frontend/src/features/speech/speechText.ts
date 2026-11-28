@@ -12,6 +12,8 @@ export function plainSpeechText(markdown: string): string {
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/[*_~`>#-]/g, " ")
+    // An escape and a hard break are a backslash before punctuation or a line end.
+    .replace(/\\(?=[!-/:-@[-`{-~\n])/g, "")
     .replace(/\s+/g, " ")
     .trim()
 }

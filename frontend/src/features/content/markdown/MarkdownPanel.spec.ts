@@ -269,6 +269,16 @@ describe("the rendered document panel", () => {
     )
   })
 
+  it("offers no source for a document whose Markdown was made from it", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(document())
+
+    const wrapper = mountPanel({ nodeId: "report.docx", title: "report.docx", sourceTitle: undefined })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="markdown-document"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="markdown-view-source"]').exists()).toBe(false)
+  })
+
   it("opens a relative link from the source-issued catalog node", async () => {
     const current = {
       kind: "file",
