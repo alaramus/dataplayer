@@ -19,6 +19,15 @@ funktionieren, steht auf der Seite [Verbindungen](connections.md).
 - Die Logs eines Containers, neueste zuerst
 - Der Cluster: Version, Knoten, Pods nach Phase, Ereignisse, API-Ressourcen
 
+## Was Sie ändern können
+
+- Deployments, StatefulSets und ReplicaSets skalieren
+- Deployments, StatefulSets und DaemonSets neu starten wie rollout restart
+- Knoten absperren, freigeben und leeren, das Leeren als Job
+- CronJobs aussetzen, fortsetzen und jetzt ausführen
+- Jedes Objekt löschen, zuerst im Probelauf des Clusters
+- Das YAML eines Objekts dort bearbeiten, wo es sich öffnet; neue aus YAML
+
 ## Verbinden
 
 **Anmelden mit** legt fest, wie sich DataPlayer am Cluster anmeldet:
@@ -109,9 +118,42 @@ Netz erreichbar ist. Der Cluster muss Kubernetes 1.27 oder neuer ausführen.
   heißt dann **Der Cluster erlaubt dieser Verbindung** mit dem, was gefragt
   wurde, etwa `list secrets`; der Rest des Clusters bleibt lesbar.
 
+## Ändern
+
+Das Menü über einem Objekt und die Symbole im Kopf seiner Übersicht bieten
+nur an, was der Cluster Ihrem Konto erlaubt: eine Aktion, die seine
+Zugriffsregeln ablehnen würden, fehlt. Skalieren, Neustarten, Absperren und
+Aussetzen brauchen Schreibzugriff auf die Verbindung; Löschen, Leeren und neue
+Objekte brauchen Strukturzugriff.
+
+- **Skalieren** fragt nach der Zahl der Replikate, die aktuelle schon
+  eingetragen, und nennt die Änderung, bevor sie geschieht.
+- **Neu starten** ersetzt die Pods eines Workloads einzeln, wie
+  `kubectl rollout restart`.
+- **Absperren** und **Freigeben** verhindern oder erlauben, dass neue Pods auf
+  einem Knoten landen. **Leeren** sperrt den Knoten ab und verdrängt seine
+  Pods einzeln als Job in **Aktivität**; Pods von DaemonSets und statische
+  Pods bleiben, ein Pod mit `emptyDir`-Daten wartet auf das Häkchen, dass diese
+  Daten verloren gehen, und auf ein Disruption Budget wird so viele Sekunden
+  gewartet, wie Sie angeben.
+- **Aussetzen**, **Fortsetzen** und **Jetzt ausführen** wirken auf einen
+  CronJob; Jetzt ausführen startet einen Job aus seiner Vorlage, wie
+  `kubectl create job --from`.
+- **Löschen** lässt den Cluster das Löschen zuerst durchspielen und nennt, was
+  das Objekt besitzt und es neu erstellt; wählen Sie, was mit dem geschieht,
+  was ihm gehört.
+- **Als YAML** öffnet ein Objekt zum Bearbeiten. Beim Speichern wird es nur
+  zurückgeschickt, wenn es seit dem Öffnen niemand geändert hat; sonst neu
+  laden und erneut bearbeiten. Art, Name und Namespace bleiben, wie sie waren.
+  Ein Secret wird hier nicht bearbeitet.
+- **Neu aus YAML** auf einem Namespace oder einer Art nimmt ein oder mehrere
+  Objekte. Der Cluster spielt jedes zuerst durch, und das Formular zeigt, was
+  erstellt oder geändert würde oder warum eines abgelehnt wird; danach werden
+  sie der Reihe nach angewendet.
+
 ## Was Kubernetes hier noch nicht hat
 
-- Objekte ändern: skalieren, neu starten, löschen, als YAML bearbeiten
-- Einen Knoten leeren, ein Terminal im Container, mitlaufende Logs
+- Ein Terminal im Container, mitlaufende Logs
 - Metriken auf einem Dashboard, Suche, eine Datenbank im Cluster öffnen
 - Anmeldung an Google Kubernetes Engine mit einem Google-Cloud-Konto
+- Die Werte eines Secrets auf Anfrage

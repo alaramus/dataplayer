@@ -18,6 +18,15 @@ connections work in general is on the [Connections](connections.md) page.
 - A container's logs, newest first
 - The cluster: version, nodes, pods by phase, events and its API resources
 
+## What you can change
+
+- Deployments, stateful sets and replica sets scaled
+- Deployments, stateful sets and daemon sets restarted, as rollout restart
+- Nodes cordoned, uncordoned and drained, the drain as a job
+- Cron jobs suspended, resumed and run now
+- Any object deleted, the cluster's own dry run first
+- An object's YAML edited where it opens, and new objects from YAML
+
 ## Connecting
 
 **Sign in with** chooses how DataPlayer signs in to the cluster:
@@ -101,9 +110,38 @@ from inside another network. The cluster must run Kubernetes 1.27 or newer.
   **The cluster does not let this connection** with what was asked, such as
   `list secrets`; the rest of the cluster stays readable.
 
+## Changing things
+
+The menu over an object, and the icons in the head of its overview, offer
+only what the cluster lets your account do: an action its access rules would
+refuse is left out. Scaling, restarting, cordoning and suspending need write
+access to the connection; deleting, draining and new objects need structure
+access.
+
+- **Scale** asks for the number of replicas, the current one filled in, and
+  says the change before it is made.
+- **Restart** replaces a workload's pods one by one, as
+  `kubectl rollout restart` does.
+- **Cordon** and **Uncordon** stop and start new pods landing on a node.
+  **Drain** cordons the node and evicts its pods one at a time as a job in
+  **Activity**; DaemonSets' and static pods stay, a pod with `emptyDir` data
+  waits for the box that says that data is lost, and a disruption budget is
+  waited for up to the seconds you give.
+- **Suspend**, **Resume** and **Run now** act on a cron job; Run now starts a
+  job from its template, as `kubectl create job --from` does.
+- **Delete** lets the cluster rehearse the deletion first and says what owns
+  the object and will make it again; choose what happens to what it owns.
+- **As YAML** opens an object for editing. Saving sends it back only if
+  nobody changed it since you opened it; otherwise reload and edit again.
+  Its kind, name and namespace stay as they were. A secret is not edited
+  here.
+- **New from YAML**, on a namespace or a kind, takes one or more objects. The
+  cluster rehearses each first and the form shows what would be created or
+  changed, or why one is refused; they are then applied in order.
+
 ## What Kubernetes does not have here yet
 
-- Changing objects: scaling, restarting, deleting, editing as YAML
-- Draining a node, a terminal inside a container, logs that keep up
+- A terminal inside a container, logs that keep up
 - Metrics on a dashboard, search, and a database in the cluster opened
 - Signing in to Google Kubernetes Engine with a Google Cloud account
+- A secret's values, shown on request

@@ -275,18 +275,26 @@ class KubernetesSession:
         node_id: str = "",
         accept: str = "application/json",
         body: Any | None = None,
+        content_type: str = "application/json",
         expected: tuple[int, ...] = (200,),
         seconds: float = TIMEOUT_SECONDS,
     ) -> httpx.Response:
-        """An answer whose status is among `expected`, or a reduced failure."""
+        """An answer whose status is among `expected`, or a reduced failure.
+
+        `content_type` names a patch's kind (merge, strategic, apply); the
+        body is JSON whichever it is, which an apply takes as YAML.
+        """
         client = await self.client()
+        headers = {"Accept": accept}
+        if body is not None:
+            headers["Content-Type"] = content_type
         try:
             answer = await client.request(
                 method,
                 path,
                 params=params,
-                json=body,
-                headers={"Accept": accept},
+                content=None if body is None else json.dumps(body).encode(),
+                headers=headers,
                 timeout=seconds,
             )
         except httpx.HTTPError as failure:

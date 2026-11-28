@@ -19,6 +19,15 @@ en general está en la página [Conexiones](connections.md).
 - Los registros de un contenedor, lo más reciente primero
 - El clúster: versión, nodos, pods por fase, eventos y recursos de API
 
+## Qué puedes cambiar
+
+- Escalar deployments, stateful sets y replica sets
+- Reiniciar deployments, stateful sets y daemon sets, como rollout restart
+- Acordonar, desacordonar y vaciar nodos, el vaciado como job
+- Suspender, reanudar y ejecutar ahora cron jobs
+- Eliminar cualquier objeto, con el ensayo del propio clúster primero
+- Editar el YAML de un objeto donde se abre, y objetos nuevos desde YAML
+
 ## Conexión
 
 **Iniciar sesión con** elige cómo DataPlayer inicia sesión en el clúster:
@@ -107,9 +116,38 @@ red. El clúster debe ejecutar Kubernetes 1.27 o posterior.
   Se dice como **El clúster no permite a esta conexión** con lo que se pidió,
   como `list secrets`; el resto del clúster sigue legible.
 
+## Cambiar
+
+El menú sobre un objeto y los iconos de la cabecera de su resumen solo ofrecen
+lo que el clúster permite a tu cuenta: una acción que sus reglas de acceso
+rechazarían no aparece. Escalar, reiniciar, acordonar y suspender necesitan
+acceso de escritura a la conexión; eliminar, vaciar y crear objetos necesitan
+acceso a la estructura.
+
+- **Escalar** pide el número de réplicas, con el actual ya escrito, y dice el
+  cambio antes de hacerlo.
+- **Reiniciar** reemplaza los pods de una carga uno a uno, como
+  `kubectl rollout restart`.
+- **Acordonar** y **Desacordonar** impiden o permiten que lleguen pods nuevos a
+  un nodo. **Vaciar** acordona el nodo y desaloja sus pods uno a uno como job
+  en **Actividad**; los pods de DaemonSet y los estáticos se quedan, un pod con
+  datos en `emptyDir` espera la casilla que dice que esos datos se pierden, y
+  se espera a un presupuesto de interrupciones los segundos que indiques.
+- **Suspender**, **Reanudar** y **Ejecutar ahora** actúan sobre un cron job;
+  Ejecutar ahora inicia un job desde su plantilla, como
+  `kubectl create job --from`.
+- **Eliminar** deja primero que el clúster ensaye la eliminación y dice quién
+  posee el objeto y lo volverá a crear; elige qué pasa con lo que posee.
+- **Como YAML** abre un objeto para editarlo. Al guardar solo se envía si nadie
+  lo cambió desde que lo abriste; si no, vuelve a leerlo y edítalo de nuevo. Su
+  tipo, nombre y espacio de nombres no cambian. Un secreto no se edita aquí.
+- **Nuevo desde YAML**, en un espacio de nombres o un tipo, toma uno o más
+  objetos. El clúster ensaya cada uno primero y el formulario muestra qué se
+  crearía o cambiaría, o por qué se rechaza uno; después se aplican en orden.
+
 ## Lo que Kubernetes aún no tiene aquí
 
-- Cambiar objetos: escalar, reiniciar, eliminar, editar como YAML
-- Vaciar un nodo, una terminal en un contenedor, registros al día
+- Una terminal en un contenedor, registros al día
 - Métricas en un panel, búsqueda, una base de datos del clúster abierta
 - Iniciar sesión en Google Kubernetes Engine con una cuenta de Google Cloud
+- Los valores de un secreto, mostrados a petición

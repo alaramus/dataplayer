@@ -443,3 +443,35 @@ def object_view(resource: Resource, body: dict[str, Any]) -> DocumentView:
     subtitle = text(resource.kind if not namespace else f"{resource.kind} · {namespace}")
     header = ViewHeader(title=name or resource.kind, subtitle=subtitle, state=state_of(resource, body))
     return DocumentView(header=header, blocks=blocks)
+
+
+def editable_yaml(body: dict[str, Any]) -> str:
+    """An object as `kubectl edit` opens it, `managedFields` and `status` left
+    out: the cluster keeps the first itself and ignores the second on a write."""
+    shown = copy.deepcopy(body)
+    as_dict(shown.get("metadata")).pop("managedFields", None)
+    shown.pop("status", None)
+    return str(yaml.safe_dump(shown, sort_keys=False, allow_unicode=True, width=120))
+
+
+def edited_object(text: str, resource: Resource, named: Any) -> dict[str, Any]:
+    """The edited YAML read back, refused when it is no longer the same object."""
+    try:
+        edited = yaml.safe_load(text)
+    except yaml.YAMLError:
+        raise ValueError(say("This is not YAML the cluster could read")) from None
+    if not isinstance(edited, dict) or not isinstance(edited.get("metadata"), dict):
+        raise ValueError(say("Every object has apiVersion, kind and metadata"))
+    group, _, _ = str(edited.get("apiVersion") or "").rpartition("/")
+    metadata = edited["metadata"]
+    same = (
+        group == resource.group
+        and edited.get("kind") == resource.kind
+        and metadata.get("name") == named.name
+        and (metadata.get("namespace") or None) == named.namespace
+    )
+    if not same:
+        raise ValueError(
+            say("Its kind, name and namespace stay as they were; New from YAML makes another object")
+        )
+    return edited

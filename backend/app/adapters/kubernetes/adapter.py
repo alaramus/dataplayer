@@ -13,20 +13,35 @@ from typing import Any, ClassVar
 import httpx
 
 from app.adapters import jsontext
+from app.adapters.actions import Action, ActionRefused, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.content import (
+    ContentConflict,
     ContentRequest,
     ContentResult,
+    ContentUpdated,
+    EditorContent,
+    EditorContentRequest,
     JsonContent,
     TextContent,
+    UpdateContentRequest,
     json_tree,
 )
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.kubernetes.actions import (
+    OBJECT_ACTIONS,
+    Apply,
+    Kube,
+    ObjectAction,
+    target_of,
+)
 from app.adapters.kubernetes.card import (
     as_dict,
     as_list,
     as_yaml,
+    editable_yaml,
+    edited_object,
     object_view,
     redacted,
 )
@@ -46,6 +61,7 @@ from app.adapters.kubernetes.catalog import (
     view_pages,
 )
 from app.adapters.kubernetes.discovery import SECTIONS, Discovery, Resource, Section
+from app.adapters.kubernetes.jobs import Drain
 from app.adapters.kubernetes.options import KubernetesConnection, KubernetesOptions
 from app.adapters.kubernetes.reports import (
     REPORTS,
@@ -54,6 +70,7 @@ from app.adapters.kubernetes.reports import (
     report_for,
     report_node,
 )
+from app.adapters.kubernetes.reviews import Reviews
 from app.adapters.kubernetes.session import Forbidden, KubernetesSession, segment
 from app.adapters.kubernetes.tables import (
     EVENT_COLUMNS,
@@ -92,6 +109,12 @@ class KubernetesAdapter:
         self._session = KubernetesSession(options, tunnels, transport)
         self._discovery = Discovery(self._session)
         self._namespace = options.namespace or None
+        self._kube = Kube(self._session, self._discovery, Reviews(self._session))
+        self._object_actions: list[ObjectAction[Any] | Drain] = [
+            *(kind(self._kube) for kind in OBJECT_ACTIONS),
+            Drain(self._kube),
+        ]
+        self._actions = ActionSet([*self._object_actions, Apply(self._kube)])
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
@@ -326,6 +349,92 @@ class KubernetesAdapter:
         rows = log_rows(answer.text)
         notice = say("Only the last {count} lines are read", count=LOG_DEPTH) if depth >= LOG_DEPTH else None
         return page(request, LOG_COLUMNS, rows, narrowed=False, notice=notice, refresh_seconds=5)
+
+    # --- what may be changed (D467–D471) ------------------------------------------
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return (*OBJECT_ACTIONS, Drain, Apply)
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.get(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return list(self._actions)
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        """What a node admits and the cluster's RBAC allows (D467): an action
+        the cluster would refuse is not offered."""
+        if node_id is None:
+            return []
+        try:
+            named = parse(node_id)
+        except ValueError:
+            return []
+        if named.top in ("cluster", "namespaces") or named.view is not None:
+            return []
+        if named.name is None:
+            return [self._actions.get(Apply.name)]
+        try:
+            target = await target_of(self._kube, node_id)
+        except (ActionRefused, NodeNotFound):
+            return []
+        fitting = [action for action in self._object_actions if action.fits(target.resource)]
+        allowed = await self._kube.reviews.all_allow([action.asked(target) for action in fitting])
+        return [action for action, yes in zip(fitting, allowed, strict=True) if yes]
+
+    # --- an object's YAML, edited where it is (D470) --------------------------------
+
+    async def read_editor_content(self, request: EditorContentRequest) -> EditorContent:
+        named = parse(request.node_id)
+        if named.name is None or named.view is not None:
+            raise ValueError(say("This opens as a table"))
+        resource, body = await self._object(named, request.node_id)
+        metadata = as_dict(body.get("metadata"))
+        if resource.key == "/secrets":
+            return EditorContent(
+                text=as_yaml(resource, body),
+                filename=f"{named.name}.yaml",
+                language_hint="yaml",
+                version=str(metadata.get("resourceVersion") or ""),
+                writable=False,
+                reason=say("A secret's values are not shown here, so it is not edited here"),
+            )
+        return EditorContent(
+            text=editable_yaml(body),
+            filename=f"{named.name}.yaml",
+            language_hint="yaml",
+            version=str(metadata.get("resourceVersion") or ""),
+            writable="update" in resource.verbs,
+            reason=None if "update" in resource.verbs else say("The cluster does not change a {kind} in place", kind=resource.kind),
+        )
+
+    async def update_content(self, request: UpdateContentRequest) -> ContentUpdated:
+        """The whole object, if nobody changed it since it was read: the
+        version is its `resourceVersion`, and the cluster answers 409 otherwise."""
+        named = parse(request.node_id)
+        if named.name is None or named.view is not None:
+            raise ValueError(say("This opens as a table"))
+        resource = await self._resource(named, request.node_id)
+        if resource.key == "/secrets":
+            raise ValueError(say("A secret's values are not shown here, so it is not edited here"))
+        edited = edited_object(request.text, resource, named)
+        edited["metadata"]["resourceVersion"] = request.version
+        try:
+            answer = await self._session.request(
+                "PUT",
+                resource.path(named.namespace, named.name),
+                body=edited,
+                asked=resource.asked("update"),
+                node_id=request.node_id,
+                expected=(200, 201, 409),
+            )
+        except AdapterError as refusal:
+            raise ValueError(refusal.message) from None
+        if answer.status_code == 409:
+            raise ContentConflict()
+        saved = answer.json() or {}
+        return ContentUpdated(version=str((saved.get("metadata") or {}).get("resourceVersion") or ""))
 
     # --- what the cluster says about one object (D466) -------------------------
 

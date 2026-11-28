@@ -19,6 +19,15 @@ décrit à la page [Connexions](connections.md).
 - Les journaux d'un conteneur, du plus récent au plus ancien
 - Le cluster : version, nœuds, pods par phase, événements, ressources d'API
 
+## Ce que vous pouvez modifier
+
+- Deployments, stateful sets et replica sets mis à l'échelle
+- Deployments, stateful sets et daemon sets redémarrés, comme rollout restart
+- Nœuds isolés, réintégrés et vidés, le vidage en job
+- Cron jobs suspendus, repris et lancés maintenant
+- Tout objet supprimé, après la simulation du cluster lui-même
+- Le YAML d'un objet modifié là où il s'ouvre, et nouveaux objets en YAML
+
 ## Connexion
 
 **Se connecter avec** choisit comment DataPlayer se connecte au cluster :
@@ -113,9 +122,41 @@ récent.
   par **Le cluster ne permet pas à cette connexion** avec ce qui était
   demandé, par exemple `list secrets` ; le reste du cluster reste lisible.
 
+## Modifier
+
+Le menu au-dessus d'un objet et les icônes de l'en-tête de son aperçu
+n'offrent que ce que le cluster permet à votre compte : une action que ses
+règles d'accès refuseraient n'est pas proposée. Mettre à l'échelle,
+redémarrer, isoler et suspendre demandent l'accès en écriture à la connexion ;
+supprimer, vider et créer des objets demandent l'accès à la structure.
+
+- **Mettre à l'échelle** demande le nombre de réplicas, l'actuel déjà rempli,
+  et décrit le changement avant de le faire.
+- **Redémarrer** remplace les pods d'une charge un par un, comme
+  `kubectl rollout restart`.
+- **Isoler** et **Réintégrer** empêchent ou permettent l'arrivée de nouveaux
+  pods sur un nœud. **Vider** isole le nœud et évince ses pods un par un dans
+  un job de l'**Activité** ; les pods de DaemonSet et statiques restent, un pod
+  avec des données `emptyDir` attend la case qui dit que ces données sont
+  perdues, et un budget de perturbation est attendu le nombre de secondes
+  indiqué.
+- **Suspendre**, **Reprendre** et **Lancer maintenant** agissent sur un cron
+  job ; Lancer maintenant crée un job depuis son modèle, comme
+  `kubectl create job --from`.
+- **Supprimer** laisse d'abord le cluster simuler la suppression et dit ce qui
+  possède l'objet et le recréera ; choisissez ce que devient ce qu'il possède.
+- **En YAML** ouvre un objet pour le modifier. L'enregistrement ne le renvoie
+  que si personne ne l'a modifié depuis son ouverture ; sinon relisez-le et
+  modifiez-le de nouveau. Son type, son nom et son espace de noms restent
+  inchangés. Un secret n'est pas modifié ici.
+- **Nouveau depuis YAML**, sur un espace de noms ou un type, prend un ou
+  plusieurs objets. Le cluster simule d'abord chacun et le formulaire montre ce
+  qui serait créé ou modifié, ou pourquoi un objet est refusé ; ils sont
+  ensuite appliqués dans l'ordre.
+
 ## Ce que Kubernetes n'a pas encore ici
 
-- Modifier les objets : mise à l'échelle, redémarrage, suppression, YAML
-- Vider un nœud, un terminal dans un conteneur, des journaux à jour
+- Un terminal dans un conteneur, des journaux à jour
 - Les métriques sur un tableau de bord, la recherche, une base du cluster
 - La connexion à Google Kubernetes Engine avec un compte Google Cloud
+- Les valeurs d'un secret, montrées sur demande

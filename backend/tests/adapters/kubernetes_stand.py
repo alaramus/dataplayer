@@ -73,16 +73,29 @@ async def prepare() -> None:
         documents = [one for one in yaml.safe_load_all(_MANIFEST.read_text()) if one]
         for document in [*documents, *_READER]:
             await _apply(session, document)
-        client = await session.client()
         deadline = time.monotonic() + 180
         while time.monotonic() < deadline:
-            status = (await client.get(f"/apis/apps/v1/namespaces/{NAMESPACE}/deployments/web")).json()["status"]
-            if status.get("readyReplicas") == 2:
+            if await _settled(session):
                 return
             await asyncio.sleep(2)
-        raise AssertionError("The stand's deployment did not become ready")
+        raise AssertionError("The stand's deployment did not settle at two running pods")
     finally:
         await session.close()
+
+
+async def _settled(session: KubernetesSession) -> bool:
+    """Two pods of `web`, each running and ready, none on its way out: a test
+    that scaled, restarted or drained leaves old pods terminating a while."""
+    client = await session.client()
+    pods = (await client.get(f"/api/v1/namespaces/{NAMESPACE}/pods")).json()["items"]
+    settled = [
+        pod
+        for pod in pods
+        if not pod["metadata"].get("deletionTimestamp")
+        and pod["status"].get("phase") == "Running"
+        and all(one.get("ready") for one in pod["status"].get("containerStatuses") or [{}])
+    ]
+    return len(pods) == 2 and len(settled) == 2
 
 
 async def reader_options() -> TokenOptions:

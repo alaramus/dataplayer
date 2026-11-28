@@ -4,13 +4,15 @@ What a Kubernetes source is: one type for every cluster, a managed one being a
 way in and a card rather than a type (D463), how its API server is reached and
 signed in to (D464), what its catalog shows, built from the cluster's own
 discovery and tables (D465), what an object opens as and how a Secret's values
-are kept back (D466), and who may do what and how a refusal is said (D467).
+are kept back (D466), who may do what and how a refusal is said (D467),
+scaling, restarting, cordoning and suspending (D468), deleting (D469), YAML
+edited and applied (D470), and draining a node as a job (D471).
 The contract every source type follows is in [contract.md](contract.md); the
 SSH tunnel it may ride is D282 in [ssh.md](ssh.md), and the TLS helpers it
 builds its context with are D446–D448 in [cloud-auth.md](cloud-auth.md). Read
 this before changing the `kubernetes` adapter.
 
-Decisions here: D463, D464, D465, D466, D467.
+Decisions here: D463, D464, D465, D466, D467, D468, D469, D470, D471.
 
 ## D463. One type, with a managed cluster as a way in
 
@@ -100,7 +102,8 @@ Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubern
 ## D466. What an object opens as, and a Secret kept back
 
 An object opens as **Overview** (a view, D419, built by `card.py`), **As
-YAML** (`text`) and **As JSON** (`tree`); its pages (D423) are **Events**
+YAML** (`text`, which the client opens in its editor through the content-edit
+contract, D470) and **As JSON** (`tree`); its pages (D423) are **Events**
 (`involvedObject` field selector), **Pods** for the kinds whose selector picks
 them (a workload's `LabelSelector` or a Service's map, written as the API's
 query reads it), and a pod's **Logs**, one page per container, newest first,
@@ -108,7 +111,7 @@ read as `tailLines` deep as the page reaches, at most 10,000 lines, 16 MB and
 16 KB a line.
 
 `managedFields` are left out of every representation. **A Secret's values
-never leave the adapter in this slice**: its overview lists keys and sizes,
+never leave the adapter**: its overview lists keys and sizes,
 its YAML and JSON carry `<n bytes, hidden>` in place of each value of `data`
 and `stringData`, and `kubectl.kubernetes.io/last-applied-configuration`,
 which holds a copy, is removed. Known deviation from the spec: a value shown
@@ -124,7 +127,73 @@ as "The cluster does not let this connection {verb} {resource}" with the verb
 and resource the adapter itself asked (`Forbidden`), never the `Status`
 message, which names the identity and its groups. A 422 is said with the
 field paths of `details.causes`; 409, 404 and 429 have sentences of their
-own; anything else is logged by status alone. In this slice every action is
-`read`; filtering a menu through access reviews comes with the first action.
+own; anything else is logged by status alone.
+
+A menu is filtered by the cluster's RBAC: each object action names the verb,
+resource and subresource it needs (`asked`), and `reviews.py` asks a
+`SelfSubjectAccessReview` for it, kept a minute; a review the cluster will not
+answer counts as allowed, so the route's refusal still speaks. Grants: `write`
+for scale, restart, cordon, uncordon, suspend, resume and run now; `structure`
+for delete, drain and New from YAML. Known deviation: editing YAML takes
+`write`, the level the shared content-edit route asks of every source, where
+the spec said `structure`.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D468. Scale, restart, cordon, suspend, run now
+
+Object actions in `actions.py`, each on the kinds it names by `group/resource`,
+each rehearsed with `dryRun=All` before its preview answers: **Scale** patches
+the `scale` subresource (merge patch, 0 to 1,000, the current count offered as
+the form's value), **Restart** sets the pod template's
+`kubectl.kubernetes.io/restartedAt` (strategic merge), **Cordon**/**Uncordon**
+a node's `spec.unschedulable`, **Suspend**/**Resume** a CronJob's
+`spec.suspend`, and **Run now** posts a Job from a CronJob's template, named
+`<cronjob>-manual-<time>`, owned by it and annotated as kubectl annotates one.
+Both of a pair are offered whatever the state; the preview says when it is
+already so (D9).
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D469. Deleting is rehearsed by the cluster
+
+**Delete** is offered on any object whose kind answers `delete`, on a set of
+them (D68), with a propagation (Background, Foreground, Orphan) and, for a
+pod, a grace period. Its preview is the cluster's own `dryRun=All` delete,
+which runs admission, and names the controller that owns the object and will
+make it again; a namespace's says everything in it goes too. Known deviation:
+the preview does not count what the object owns by kind.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D470. YAML edited at its resourceVersion, and applied rehearsed
+
+**As YAML** is the shared editable content (`SupportsContentEdit`): the text
+is the object without `managedFields` and `status`, the version its
+`resourceVersion`, and saving is a `PUT` at that version, the cluster's 409
+answered as the editor's conflict. The edited text must keep its group, kind,
+name and namespace. A Secret's editor is read only (D466). Known deviation:
+saving is not dry-run first; the cluster's validation on the `PUT` is what
+refuses, with the field paths of D467.
+
+**New from YAML** is a level action of a namespace or a kind (`acts_on`
+level): up to 100 documents, each kind found in discovery by group and kind,
+a namespaced one placed in the level's namespace when it names none, each
+server-side applied (`fieldManager=dataplayer`, `force`) as a dry run in the
+preview — 201 "will be created", 200 "will be changed", or the refusal — and
+then for real in order, stopping at the first refused with what was applied.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D471. Draining a node is a job
+
+**Drain** (`jobs.py`, D123) cordons the node when the job is admitted, then
+evicts one pod a unit through `pods/{name}/eviction`; DaemonSets' pods, mirror
+pods and finished pods stay, as `kubectl drain` leaves them. A pod with an
+`emptyDir` volume blocks the plan until the form's box accepts losing it. A
+429 from a disruption budget is asked again every five seconds up to the
+form's timeout, then refused for that pod. Reading back finds an evicted pod
+gone; a node with nothing to evict is one unit, the cordon. A pod whose name
+is longer than a job's target (63) blocks the preview.
 
 Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
