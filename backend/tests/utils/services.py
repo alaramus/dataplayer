@@ -96,6 +96,8 @@ _PROTOCOLS = {
     # A Docker daemon with TLS answers plain HTTP with a 400 of its own.
     "docker": _Protocol(2376, b"GET /_ping HTTP/1.0\r\n\r\n", (b"H",)),
     "vault": _Protocol(8200, b"GET /v1/sys/health HTTP/1.0\r\n\r\n", (b"H",)),
+    # A Kubernetes API server answers `/version` over TLS before anybody signs in.
+    "kubernetes": _Protocol(6443, b"GET /version HTTP/1.0\r\n\r\n", (b"H",), tls=True),
 }
 
 _required = False
@@ -229,6 +231,26 @@ DOCKER_TLS = Server(
     start="docker compose up -d docker-tls",
     read=lambda: os.environ.get("TEST_DOCKER_TLS_URL", "docker://127.0.0.1:2376"),
 )
+
+
+# A one-node k3s (`k3s` in compose.override.yml), which writes an
+# administrator's kubeconfig into deploy/k3s on first start (D463).
+K3S = Server(
+    name="the k3s Kubernetes cluster",
+    variable="TEST_K3S_URL",
+    start="docker compose up -d k3s",
+    read=lambda: os.environ.get("TEST_K3S_URL", "kubernetes://127.0.0.1:6443"),
+)
+
+
+def k3s_kubeconfig() -> Path:
+    """Where k3s left its administrator's kubeconfig."""
+    return Path(
+        os.environ.get(
+            "TEST_K3S_KUBECONFIG",
+            str(Path(__file__).resolve().parents[3] / "deploy/k3s/kubeconfig"),
+        )
+    )
 
 
 def docker_tls_certificates() -> Path:
@@ -471,6 +493,7 @@ SERVERS = (
     SSH,
     DOCKER_REMOTE,
     DOCKER_TLS,
+    K3S,
     PG_TLS,
     REDIS_TLS,
     MYSQL,

@@ -1115,3 +1115,52 @@ source_modules =
     app.adapters.mailbox
 forbidden_modules =
     imaplib
+
+# The Kubernetes source speaks the API with httpx and reads YAML with PyYAML
+# (D464). PyYAML stays in its package by the rule every source's library
+# follows, and the package reaches no other source's driver or package.
+[importlinter:contract:kubernetes-is-contained]
+name = yaml is imported only by the kubernetes adapter, which imports no other source
+type = forbidden
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.pipelines
+    app.transfers
+    app.search
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.fetch
+    app.adapters.routes
+    app.adapters.actions
+    app.adapters.docker
+    app.adapters.docker_api
+forbidden_modules =
+    yaml
+
+[importlinter:contract:other-drivers-stay-out-of-kubernetes]
+name = the kubernetes adapter imports no other source's driver or package
+type = forbidden
+source_modules =
+    app.adapters.kubernetes
+forbidden_modules =
+    psycopg
+    asyncssh
+    docker
+    kubernetes
+    google
+    app.adapters.docker
+    app.adapters.docker_api
+    app.adapters.ssh
+    app.adapters.cloud.gcp

@@ -36,6 +36,7 @@ const ICONS: Record<string, string> = {
   docker: "img:/icons/services/docker.svg",
   // A card of the `docker` type (D405).
   podman: "img:/icons/services/podman.svg",
+  kubernetes: "img:/icons/services/kubernetes.svg",
   mail: "img:/icons/services/mail.svg",
   // A card of the `mail` type (D373).
   gmail: "img:/icons/services/gmail.svg",

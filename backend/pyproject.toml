@@ -65,6 +65,8 @@ dependencies = [
     "boto3>=1.44.5,<2",
     "google-auth[requests]>=2.40,<3",
     "azure-identity>=1.19,<2",
+    # A kubeconfig and an object's YAML (D464, D466), read with safe_load only.
+    "pyyaml>=6.0.2,<7",
 ]
 
 [dependency-groups]
@@ -80,6 +82,7 @@ dev = [
     "types-openpyxl>=3.1",
     "types-pymysql>=1.1",
     "types-boto3[s3]>=1.44",
+    "types-pyyaml>=6.0",
     "pyftpdlib>=2.0",
     "pyopenssl>=25",
     "moto[s3,secretsmanager]>=5",

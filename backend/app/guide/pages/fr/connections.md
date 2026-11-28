@@ -7,7 +7,7 @@ pipelines et les tableaux de bord passent tous par des connexions.
 
 Chaque type de source a sa propre page : [Fichiers](source-file.md),
 [PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [DuckDB](source-duckdb.md), [ClickHouse](source-clickhouse.md),
-[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) et [S3](source-s3.md).
+[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md), [Kubernetes](source-kubernetes.md) et [S3](source-s3.md).
 
 ## La liste des connexions
 

@@ -87,6 +87,7 @@ function numberValue(name: string): number | null {
  * stand-in is plain text however the field is normally drawn.
  */
 function inputType(field: FieldSpec): "text" | "password" | "textarea" {
+  if (field.kind === "password" && field.multiline === true) return "textarea"
   if (field.kind === "password") {
     return isHidden(field) || visiblePasswords.value.has(field.name) ? "text" : "password"
   }
@@ -106,6 +107,16 @@ const hidden = computed(() => t("schema_form.hidden"))
 
 const touched = ref<Set<string>>(new Set())
 const visiblePasswords = ref<Set<string>>(new Set())
+
+/** A secret box of several lines, drawn as dots until its eye is pressed. */
+function isMasked(field: FieldSpec): boolean {
+  return (
+    field.kind === "password" &&
+    field.multiline === true &&
+    !isHidden(field) &&
+    !visiblePasswords.value.has(field.name)
+  )
+}
 
 function isHidden(field: FieldSpec): boolean {
   return (
@@ -387,6 +398,7 @@ function dropped(field: FieldSpec, event: DragEvent) {
           :hint="hintOf(field, row)"
           :placeholder="field.example"
           :type="inputType(field)"
+          :masked="isMasked(field)"
           :error="errorOf(field)"
           :disable="disable"
           @focus="field.kind === 'password' ? reveal(field.name) : undefined"

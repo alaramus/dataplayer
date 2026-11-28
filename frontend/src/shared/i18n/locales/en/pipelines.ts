@@ -99,6 +99,7 @@ export const pipelines = {
       image: "image",
       volume: "volume",
       network: "network",
+      k8s_object: "Kubernetes object",
     },
   },
   card_picker: {

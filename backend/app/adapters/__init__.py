@@ -10,6 +10,7 @@ from app.adapters import (  # noqa: F401
     file,
     ftp,
     kafka,
+    kubernetes,
     mail,
     mongodb,
     mysql,

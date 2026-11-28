@@ -34,3 +34,4 @@ backend/htmlcov/
 
 # k6 step summaries
 loadtest/results/
+/deploy/k3s/kubeconfig

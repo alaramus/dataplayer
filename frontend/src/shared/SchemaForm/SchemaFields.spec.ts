@@ -134,6 +134,35 @@ describe("SchemaFields", () => {
     )
   })
 
+  it("keeps a secret of several lines in a box, masked until its eye is pressed", async () => {
+    // A kubeconfig is YAML: a one-line password field would drop its line breaks.
+    const wrapper = mount(SchemaFields, {
+      global: { plugins: [Quasar] },
+      props: {
+        fields: schemaToFields({
+          type: "object",
+          properties: {
+            kubeconfig: {
+              type: "string",
+              title: "Kubeconfig",
+              format: "password",
+              "x-ui-multiline": true,
+            },
+          },
+        }),
+        modelValue: { kubeconfig: "apiVersion: v1\nkind: Config" },
+        errors: {},
+      },
+    })
+
+    const box = wrapper.get("[data-testid='field-kubeconfig']")
+    expect(box.element.tagName).toBe("TEXTAREA")
+    expect((box.element as HTMLTextAreaElement).value).toBe("apiVersion: v1\nkind: Config")
+    expect(wrapper.find(".app-input--masked").exists()).toBe(true)
+    await wrapper.get("[data-testid='field-kubeconfig-visibility']").trigger("click")
+    expect(wrapper.find(".app-input--masked").exists()).toBe(false)
+  })
+
   it("draws a value written on several lines as a box, with its example in it", () => {
     // What the user sees of a source's own instruction: the shape of a filled
     // field, inside the empty one, gone as soon as anything is typed.

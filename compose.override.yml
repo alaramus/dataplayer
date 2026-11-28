@@ -113,6 +113,28 @@ services:
     ports:
       - "127.0.0.1:2223:22"
 
+  # A one-node Kubernetes (k3s) for the Kubernetes source: the API server on
+  # port 6443, from the backend `k3s:6443`, from this machine 127.0.0.1:6443.
+  # It writes an administrator's kubeconfig to deploy/k3s/kubeconfig, which git
+  # ignores, naming 127.0.0.1. Privileged, as k3s in a container is; behind
+  # the `tools` profile, published on the loopback only.
+  k3s:
+    image: rancher/k3s:v1.33.6-k3s1
+    profiles: ["tools"]
+    privileged: true
+    hostname: k3s
+    command: ["server", "--disable=traefik", "--tls-san=k3s", "--tls-san=127.0.0.1", "--tls-san=localhost"]
+    environment:
+      K3S_KUBECONFIG_OUTPUT: /output/kubeconfig
+      K3S_KUBECONFIG_MODE: "644"
+    tmpfs:
+      - /run
+      - /var/run
+    volumes:
+      - ./deploy/k3s:/output
+    ports:
+      - "127.0.0.1:6443:6443"
+
   # A Docker daemon on TCP with mutual TLS for the Docker source (D418): port
   # 2376, from this machine 127.0.0.1:2376, from the backend and from
   # docker-remote's SSH server `docker-tls:2376`. The image makes its own CA,

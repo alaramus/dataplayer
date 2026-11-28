@@ -25,6 +25,7 @@ file holds which decision.
 | [duckdb.md](duckdb.md) | change how a DuckDB file is opened, how the engine is locked to the owner's storage, what its catalog shows, how its values and pages are read, its rows and structure changed and its tables designed, its reports, search, export and catalog actions, copying its tables, backing it up, its lab, a DuckDB file in a file source or one made here, or its console |
 | [clickhouse.md](clickhouse.md) | change how a ClickHouse server is reached over HTTP, what its catalog shows, how its values and pages are read and changed, how its structure is changed and a table designed, its reports, search and catalog actions, or its console |
 | [docker.md](docker.md) | change how a Docker daemon is reached through an SSH connection, the Engine API client shared with services, what its catalog shows of containers, images, volumes and networks, what a node opens as, how a refusal is said, its metrics and search, how a database's container becomes a connection, a daemon on TCP with TLS, or the overview of a container, image, volume or network |
+| [kubernetes.md](kubernetes.md) | change how a Kubernetes cluster is reached and signed in to, what a kubeconfig may hold, what its catalog shows from discovery and the cluster's own tables, what an object opens as, how a Secret is kept back, or how a refusal is said |
 | [zookeeper.md](zookeeper.md) | change how a ZooKeeper server is reached, what its catalog shows of the znode tree, or how a znode's data, stat, ACL and children are read and its data written |
 | [market.md](market.md) | change what every exchange shares — catalog, feed columns, the rate limit's ceiling, reports, metrics, search, the live socket — or add an exchange |
 | [binance.md](binance.md) | change how Binance is reached and kept under its rate limit, what its catalog shows of markets, quote assets, symbols and feeds, or how tickers, symbols, candles, trades and the order book are read as rows, read on by a link, reported, measured and searched |
@@ -380,6 +381,12 @@ backend/app/adapters/
 │                       metrics.py (stats), search.py, connect.py (a
 │                       container as a connection), card.py and
 │                       cards.py (views, D422), adapter.py
+├── kubernetes/         options.py (the ways in), endpoint.py (a kubeconfig
+│                       read as data), session.py (httpx, the version,
+│                       refusals), discovery.py (kinds and sections),
+│                       catalog.py (ids and nodes), tables.py (the server's
+│                       tables, events, logs), reports.py (Cluster),
+│                       card.py (views, YAML, a Secret kept back), adapter.py
 ├── clickhouse/         session.py (the HTTP interface, its errors, addresses)
 │                       and pool.py (a kept client), sql.py (names and
 │                       parameters), inspection.py (system.tables, once),

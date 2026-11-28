@@ -31,6 +31,7 @@ export const summary: Messages["summary"] = {
     image: "صورة",
     volume: "وحدة تخزين",
     network: "شبكة",
+    k8s_object: "كائن Kubernetes",
   },
   encodings: {
     utf_8: "UTF-8",

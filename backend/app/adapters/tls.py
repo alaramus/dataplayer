@@ -315,15 +315,37 @@ class _NamedContext(ssl.SSLContext):
 
     server_name: str | None = None
 
-    def wrap_socket(self, sock: Any, *args: Any, **kwargs: Any) -> Any:
-        if self.server_name is not None:
-            kwargs["server_hostname"] = self.server_name
-        return super().wrap_socket(sock, *args, **kwargs)
+    # The parameters spelled out: anyio (under httpx) passes `server_hostname`
+    # by position, and a keyword added beside it would be given twice.
+    def wrap_socket(  # type: ignore[override] # the same parameters, named
+        self,
+        sock: Any,
+        server_side: bool = False,
+        do_handshake_on_connect: bool = True,
+        suppress_ragged_eofs: bool = True,
+        server_hostname: str | None = None,
+        session: Any = None,
+    ) -> Any:
+        return super().wrap_socket(
+            sock,
+            server_side,
+            do_handshake_on_connect,
+            suppress_ragged_eofs,
+            self.server_name or server_hostname,
+            session,
+        )
 
-    def wrap_bio(self, incoming: Any, outgoing: Any, *args: Any, **kwargs: Any) -> Any:
-        if self.server_name is not None:
-            kwargs["server_hostname"] = self.server_name
-        return super().wrap_bio(incoming, outgoing, *args, **kwargs)
+    def wrap_bio(  # type: ignore[override] # the same parameters, named
+        self,
+        incoming: Any,
+        outgoing: Any,
+        server_side: bool = False,
+        server_hostname: str | None = None,
+        session: Any = None,
+    ) -> Any:
+        return super().wrap_bio(
+            incoming, outgoing, server_side, self.server_name or server_hostname, session
+        )
 
 
 def ssl_context(settings: TlsSettings, server_name: str | None = None) -> ssl.SSLContext | None:

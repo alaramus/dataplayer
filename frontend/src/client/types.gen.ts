@@ -179,6 +179,7 @@ export type ActionInfo = {
     | "image"
     | "volume"
     | "network"
+    | "k8s_object"
   >
   /**
    * Bulk
@@ -2010,6 +2011,7 @@ export type CardRow = {
     | "image"
     | "volume"
     | "network"
+    | "k8s_object"
     | null
   /**
    * Trail
@@ -8721,6 +8723,62 @@ export type KeyedChoice = {
 }
 
 /**
+ * KubeObjectNode
+ *
+ * One object of a Kubernetes cluster, of any kind it serves (D465).
+ *
+ * One class for every kind, custom ones included: what tells a Pod from a
+ * Deployment is `object_kind`, as the cluster names it, and what the row says
+ * beside the name is the cluster's own table, read as `summary`.
+ */
+export type KubeObjectNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "k8s_object"
+  /**
+   * Object Kind
+   */
+  object_kind: string
+  /**
+   * Namespace
+   */
+  namespace?: string | null
+  /**
+   * Summary
+   */
+  summary?: string | null
+  /**
+   * Created At
+   */
+  created_at?: string | null
+}
+
+/**
  * LastRun
  *
  * The last run, or none before the first: an answer that is an object
@@ -10252,6 +10310,9 @@ export type NodeMatch = {
     | ({
         kind: "network"
       } & NetworkNode)
+    | ({
+        kind: "k8s_object"
+      } & KubeObjectNode)
   /**
    * Parent Id
    */
@@ -10430,6 +10491,7 @@ export type NodeSummary = {
     | "image"
     | "volume"
     | "network"
+    | "k8s_object"
   /**
    * Representations
    */
@@ -10641,6 +10703,9 @@ export type NodeTarget = {
     | ({
         kind: "network"
       } & NetworkNode)
+    | ({
+        kind: "k8s_object"
+      } & KubeObjectNode)
     | null
 }
 
@@ -13353,6 +13418,9 @@ export type ReferencedRows = {
     | ({
         kind: "network"
       } & NetworkNode)
+    | ({
+        kind: "k8s_object"
+      } & KubeObjectNode)
   connector?: ReferenceConnection | null
   /**
    * Filters
@@ -13667,6 +13735,9 @@ export type RelationCreated = {
     | ({
         kind: "network"
       } & NetworkNode)
+    | ({
+        kind: "k8s_object"
+      } & KubeObjectNode)
   /**
    * Inserted
    */
@@ -14177,6 +14248,7 @@ export type ResultRow = {
     | "image"
     | "volume"
     | "network"
+    | "k8s_object"
 }
 
 /**
@@ -20104,6 +20176,9 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "network"
       } & NetworkNode)
+    | ({
+        kind: "k8s_object"
+      } & KubeObjectNode)
   >
 }
 
@@ -21455,6 +21530,9 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "network"
       } & NetworkNode)
+    | ({
+        kind: "k8s_object"
+      } & KubeObjectNode)
   >
 }
 

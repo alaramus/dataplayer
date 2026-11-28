@@ -6,7 +6,7 @@ Redis، أو مجلد من ملفاتك، أو خادم عبر SSH. تعمل ا�
 
 لكل نوع من المصادر صفحته: [الملفات](source-file.md)،
 و[PostgreSQL](source-postgres.md)، و[MySQL](source-mysql.md)، و[SQLite](source-sqlite.md)، و[DuckDB](source-duckdb.md)، و[ClickHouse](source-clickhouse.md)،
-و[MongoDB](source-mongodb.md)، و[Redis](source-redis.md)، و[ZooKeeper](source-zookeeper.md)، و[SSH](source-ssh.md)، و[FTP](source-ftp.md)، و[Docker](source-docker.md)، و[S3](source-s3.md).
+و[MongoDB](source-mongodb.md)، و[Redis](source-redis.md)، و[ZooKeeper](source-zookeeper.md)، و[SSH](source-ssh.md)، و[FTP](source-ftp.md)، و[Docker](source-docker.md)، و[Kubernetes](source-kubernetes.md)، و[S3](source-s3.md).
 
 ## قائمة الاتصالات
 

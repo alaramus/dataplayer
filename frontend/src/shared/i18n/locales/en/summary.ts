@@ -29,6 +29,7 @@ export const summary = {
     image: "Image",
     volume: "Volume",
     network: "Network",
+    k8s_object: "Kubernetes object",
   },
   encodings: {
     utf_8: "UTF-8",

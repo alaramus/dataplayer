@@ -6,7 +6,7 @@ query consoles, pipelines and dashboards all work through connections.
 
 Each kind of source has a page of its own: [Files](source-file.md),
 [PostgreSQL](source-postgres.md), [MySQL](source-mysql.md), [SQLite](source-sqlite.md), [DuckDB](source-duckdb.md), [ClickHouse](source-clickhouse.md),
-[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) and [S3](source-s3.md).
+[MongoDB](source-mongodb.md), [Redis](source-redis.md), [ZooKeeper](source-zookeeper.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md), [Kubernetes](source-kubernetes.md) and [S3](source-s3.md).
 
 ## The list of connections
 

@@ -68,6 +68,11 @@ const props = withDefaults(
     grow?: boolean
     /** A value read character by character: an address, a generated password. */
     monospace?: boolean
+    /**
+     * A secret in a `textarea`, drawn as dots: a box has no `password` type,
+     * and a kubeconfig cannot lose its line breaks to a one-line field.
+     */
+    masked?: boolean
   }>(),
   {
     label: undefined,
@@ -82,6 +87,7 @@ const props = withDefaults(
     prependIcon: undefined,
     grow: false,
     monospace: false,
+    masked: false,
   }
 )
 
@@ -127,6 +133,7 @@ function report(value: string | number | null) {
     :class="{
       'app-form-field': formLayout,
       'app-input--monospace': monospace,
+      'app-input--masked': masked,
       'app-input--compact': toolbar,
       'dp-toolbar-field': toolbar,
     }"
@@ -187,6 +194,9 @@ function report(value: string | number | null) {
 <style scoped>
 .app-input--monospace :deep(.q-field__native) {
   font-family: var(--dp-font-mono);
+}
+.app-input--masked :deep(textarea.q-field__native) {
+  -webkit-text-security: disc;
 }
 /* A toolbar field is a control of the toolbar's height, whatever holds it
    says that height is (--dp-field-height: a card head's strip). Trap: Quasar

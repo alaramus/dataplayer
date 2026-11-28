@@ -83,6 +83,8 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   image: "leaf",
   volume: "leaf",
   network: "leaf",
+  // Any object of a cluster, of whatever kind it serves (D465).
+  k8s_object: "leaf",
 }
 
 export interface ListNode {
@@ -187,6 +189,7 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   image: "layers",
   volume: "hard_drive",
   network: "lan",
+  k8s_object: "widgets",
 }
 
 /** A market's feeds drawn by what they hold (D317). */
@@ -404,6 +407,9 @@ function captionOf(node: CatalogNode): string | undefined {
       return imageCaption(node)
     case "volume":
       return usedCaption(node.driver, node.containers)
+    case "k8s_object":
+      // The first columns of the cluster's own table: "1/1 · Running" (D465).
+      return node.summary ?? undefined
     case "network":
       return usedCaption(
         `${node.driver} · ${t(`catalog.nodes.network_${node.network_kind ?? "user"}`)}`,

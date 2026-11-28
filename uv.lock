@@ -172,6 +172,7 @@ dependencies = [
     { name = "pyjwt" },
     { name = "pymongo", extra = ["aws"] },
     { name = "python-multipart" },
+    { name = "pyyaml" },
     { name = "redis" },
     { name = "scylla-driver" },
     { name = "sqlalchemy", extra = ["asyncio"] },
@@ -198,6 +199,7 @@ dev = [
     { name = "types-boto3", extra = ["s3"] },
     { name = "types-openpyxl" },
     { name = "types-pymysql" },
+    { name = "types-pyyaml" },
 ]
 
 [package.metadata]
@@ -241,6 +243,7 @@ requires-dist = [
     { name = "pyjwt", specifier = ">=2.13.0,<3.0.0" },
     { name = "pymongo", extras = ["aws"], specifier = ">=4.19,<5" },
     { name = "python-multipart", specifier = ">=0.0.27,<1.0.0" },
+    { name = "pyyaml", specifier = ">=6.0.2,<7" },
     { name = "redis", specifier = ">=8.1,<9" },
     { name = "scylla-driver", specifier = ">=3.29.13" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.8,<2.2" },
@@ -267,6 +270,7 @@ dev = [
     { name = "types-boto3", extras = ["s3"], specifier = ">=1.44" },
     { name = "types-openpyxl", specifier = ">=3.1" },
     { name = "types-pymysql", specifier = ">=1.1" },
+    { name = "types-pyyaml", specifier = ">=6.0" },
 ]
 
 [[package]]
@@ -3872,6 +3876,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d2/6e/7b4c4a89106c15db935db34d61a980384914c4c82937228e811ad4b05579/types_pymysql-1.2.4.20261111.tar.gz", hash = "sha256:d1049db232c533a22dbcc11aab2685673cdf52f1051249b88e2fc93840851026", size = 22927, upload-time = "2026-11-11T08:32:39.098Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0b/c9/4c715f733f01bc21afb7439a5ef99c8d3adceec4fcea16068560286efcd7/types_pymysql-1.2.4.20261111-py3-none-any.whl", hash = "sha256:9d5ec6aba675e283a58b9f8144583c8d2ecaf8b372a36a64cb66eb80915eabfa", size = 23392, upload-time = "2026-11-11T08:32:38.273Z" },
+]
+
+[[package]]
+name = "types-pyyaml"
+version = "6.0.12.20261122"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3d/fe/e4d32b089d06f3b5d2f3f1909b1cb450ce2e18ea6e2c1863d2b29ad0090e/types_pyyaml-6.0.12.20261122.tar.gz", hash = "sha256:7fa577c893a1db255cbb02320884ffcb97b7a219fe515bec6c5f15d5d3af41ed", size = 19093, upload-time = "2026-11-22T08:57:28.481Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/71/8dc5553ca25c3a4799ce789f8300d2c3933d427585222c431c77450ed60d/types_pyyaml-6.0.12.20261122-py3-none-any.whl", hash = "sha256:689fbbe883b60471166dede9dba6ac0dbdbcf0ea98062d7ec195430f5bbdb009", size = 21356, upload-time = "2026-11-22T08:57:27.509Z" },
 ]
 
 [[package]]

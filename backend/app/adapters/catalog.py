@@ -428,6 +428,24 @@ class NetworkNode(BaseNode):
     containers: int = 0
 
 
+class KubeObjectNode(BaseNode):
+    """One object of a Kubernetes cluster, of any kind it serves (D465).
+
+    One class for every kind, custom ones included: what tells a Pod from a
+    Deployment is `object_kind`, as the cluster names it, and what the row says
+    beside the name is the cluster's own table, read as `summary`.
+    """
+
+    kind: Literal["k8s_object"] = "k8s_object"
+    has_children: bool = False
+    object_kind: str
+    # None for a cluster-scoped object.
+    namespace: str | None = None
+    # The first columns of the cluster's table after the name: "1/1 · Running".
+    summary: str | None = None
+    created_at: datetime | None = None
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
@@ -453,7 +471,8 @@ CatalogNode = Annotated[
     | ContainerNode
     | ImageNode
     | VolumeNode
-    | NetworkNode,
+    | NetworkNode
+    | KubeObjectNode,
     Field(discriminator="kind"),
 ]
 
@@ -486,6 +505,7 @@ NodeKind = Literal[
     "image",
     "volume",
     "network",
+    "k8s_object",
 ]
 
 

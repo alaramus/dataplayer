@@ -101,6 +101,7 @@ export const pipelines: Messages["pipelines"] = {
       image: "صورة",
       volume: "وحدة تخزين",
       network: "شبكة",
+      k8s_object: "كائن Kubernetes",
     },
   },
   card_picker: {

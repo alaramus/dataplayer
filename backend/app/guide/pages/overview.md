@@ -49,7 +49,7 @@ Switching spaces keeps what was open: coming back to Data finds the same tabs.
   [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md),
   [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md), [Bybit](source-bybit.md), [OKX](source-okx.md),
   [Coinbase Exchange](source-coinbase.md),
-  [Files](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) and [S3](source-s3.md). Reading rows, editing
+  [Files](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md), [Kubernetes](source-kubernetes.md) and [S3](source-s3.md). Reading rows, editing
   them, changing structure, the SQL console and reports are described there,
   for that source;
 - adding, sharing and setting up a connection — [Connections](connections.md);

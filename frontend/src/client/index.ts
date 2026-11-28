@@ -1047,6 +1047,7 @@ export type {
   KeptNow,
   KeyedChoice,
   KeyNode,
+  KubeObjectNode,
   LastRun,
   Link,
   LinkDefaults,

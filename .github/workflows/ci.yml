@@ -281,6 +281,13 @@ jobs:
           docker run -d --privileged --name docker-tls --hostname docker-tls --network docker-stand \
             -e DOCKER_TLS_CERTDIR=/certs -e DOCKER_TLS_SAN=DNS:docker-tls,DNS:localhost,IP:127.0.0.1 \
             -v "$GITHUB_WORKSPACE/deploy/docker-tls/certs:/certs" -p 127.0.0.1:2376:2376 docker:29-dind
+      # A one-node k3s for the Kubernetes source (D463), as compose starts it:
+      # privileged, its administrator's kubeconfig written into the checkout.
+      - run: |
+          docker run -d --privileged --name k3s --hostname k3s --tmpfs /run --tmpfs /var/run \
+            -e K3S_KUBECONFIG_OUTPUT=/output/kubeconfig -e K3S_KUBECONFIG_MODE=644 \
+            -v "$GITHUB_WORKSPACE/deploy/k3s:/output" -p 127.0.0.1:6443:6443 \
+            rancher/k3s:v1.33.6-k3s1 server --disable=traefik --tls-san=k3s --tls-san=127.0.0.1
       # A PostgreSQL and a Redis that speak only TLS (D446), started as compose
       # starts them: pg-tls makes the certificates both use, and the client's,
       # into the checkout for the tests.

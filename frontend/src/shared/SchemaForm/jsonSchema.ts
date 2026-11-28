@@ -156,6 +156,11 @@ export interface FieldSpec {
   accountKinds?: string[]
   /** The field that, filled, makes this one typed rather than chosen. */
   typedWhen?: string
+  /**
+   * A secret written on several lines, a kubeconfig's YAML (D464): drawn as a
+   * box, masked until shown, since a one-line field drops the line breaks.
+   */
+  multiline?: boolean
   /** The tab this field belongs to. */
   group: string
   /** Fields sharing a row are laid out on one line. */
@@ -260,6 +265,8 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     description: property.description,
     example: exampleOf(property),
     kind: kindOf(property, name),
+    multiline:
+      property.format === "password" && property["x-ui-multiline"] === true ? true : undefined,
     required: required.has(name),
     defaultValue: property.default,
     choices:

@@ -31,6 +31,7 @@ export const summary: Messages["summary"] = {
     image: "镜像",
     volume: "卷",
     network: "网络",
+    k8s_object: "Kubernetes 对象",
   },
   encodings: {
     utf_8: "UTF-8",

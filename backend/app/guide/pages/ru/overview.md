@@ -51,7 +51,7 @@ DataPlayer соединяет источники, с которыми вы ра�
   [ZooKeeper](source-zookeeper.md), [Kafka](source-kafka.md),
   [RabbitMQ](source-rabbitmq.md), [Binance](source-binance.md), [Bybit](source-bybit.md), [OKX](source-okx.md),
   [Coinbase Exchange](source-coinbase.md),
-  [Файлы](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md) и [S3](source-s3.md). Чтение строк, их правка,
+  [Файлы](source-file.md), [SSH](source-ssh.md), [FTP](source-ftp.md), [Docker](source-docker.md), [Kubernetes](source-kubernetes.md) и [S3](source-s3.md). Чтение строк, их правка,
   изменение структуры, консоль SQL и отчёты описаны там, для этого источника;
 - добавление, передача и настройка подключения — [Подключения](connections.md);
 - столбцы, вкладки, окна и группы вкладок — [Рабочая область](workspace.md);
