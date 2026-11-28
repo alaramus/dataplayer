@@ -106,6 +106,9 @@ class Drain(Action[DrainParams]):
         return bool(resource.key in self.keys)
 
     def asked(self, target: Target) -> Asked:
+        return self.asked_at(target.resource, target.namespace)
+
+    def asked_at(self, resource: Any, namespace: str | None) -> Asked:
         return Asked(verb="create", group="", resource="pods", subresource="eviction")
 
     async def _pods(self, target: Target) -> tuple[list[dict[str, Any]], list[str]]:

@@ -98,6 +98,20 @@ async def test_a_menu_leaves_out_what_rbac_would_refuse(adapter: KubernetesAdapt
     del adapter
     reader = KubernetesAdapter(await stand.reader_options())
     assert await reader.available(DEPLOYMENT) == []
+    listed = await reader.list_children(f"ns/{stand.NAMESPACE}/k/apps/deployments")
+    assert [getattr(node, "actions", None) for node in listed] == [[]]
+
+
+async def test_a_listed_object_names_what_its_menu_offers(adapter: KubernetesAdapter) -> None:
+    """Every object is one node kind, so the catalog's menu judges a tick by
+    the actions the row names, the same `available` answers for it."""
+    listed = await adapter.list_children(f"ns/{stand.NAMESPACE}/k/apps/deployments")
+    assert [getattr(node, "actions", None) for node in listed] == [
+        [one.name for one in await adapter.available(DEPLOYMENT)]
+    ]
+    nodes = await adapter.list_children("scoped/k/core/nodes")
+    assert "kubernetes_drain" in (getattr(nodes[0], "actions", None) or [])
+    assert "kubernetes_scale" not in (getattr(nodes[0], "actions", None) or [])
 
 
 async def test_scaling_is_rehearsed_then_done(adapter: KubernetesAdapter) -> None:

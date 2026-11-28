@@ -227,6 +227,7 @@ def object_node(
     *,
     summary: str | None,
     created_at: datetime | None,
+    actions: list[str] | None = None,
 ) -> KubeObjectNode:
     return KubeObjectNode(
         id=object_id(namespace, resource.group, resource.resource, name),
@@ -236,6 +237,7 @@ def object_node(
         namespace=namespace,
         summary=summary,
         created_at=created_at,
+        actions=actions,
     )
 
 

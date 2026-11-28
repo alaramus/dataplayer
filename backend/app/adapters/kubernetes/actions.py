@@ -150,11 +150,16 @@ class ObjectAction[P: BaseModel](JsonAction[P]):
         return resource.key in self.keys
 
     def asked(self, target: Target) -> Asked:
+        return self.asked_at(target.resource, target.namespace)
+
+    def asked_at(self, resource: Resource, namespace: str | None) -> Asked:
+        """What RBAC is asked for any object of `resource` in `namespace`: the
+        same for every one of them, so a listing asks once for all its rows."""
         return Asked(
             verb=self.verb,
-            group=target.resource.group,
-            resource=target.resource.resource,
-            namespace=target.namespace,
+            group=resource.group,
+            resource=resource.resource,
+            namespace=namespace,
             subresource=self.subresource,
         )
 
@@ -331,8 +336,8 @@ class RunNow(ObjectAction[NoParams]):
     keys = frozenset({"batch/cronjobs"})
     verb = "create"
 
-    def asked(self, target: Target) -> Asked:
-        return Asked(verb="create", group="batch", resource="jobs", namespace=target.namespace)
+    def asked_at(self, resource: Resource, namespace: str | None) -> Asked:
+        return Asked(verb="create", group="batch", resource="jobs", namespace=namespace)
 
     def _job(self, body: dict[str, Any], target: Target) -> dict[str, Any]:
         template = (body.get("spec") or {}).get("jobTemplate") or {}

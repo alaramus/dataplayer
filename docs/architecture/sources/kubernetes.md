@@ -132,7 +132,10 @@ own; anything else is logged by status alone.
 A menu is filtered by the cluster's RBAC: each object action names the verb,
 resource and subresource it needs (`asked`), and `reviews.py` asks a
 `SelfSubjectAccessReview` for it, kept a minute; a review the cluster will not
-answer counts as allowed, so the route's refusal still speaks. Grants: `write`
+answer counts as allowed, so the route's refusal still speaks. Every object is
+the one node kind `k8s_object`, so a listed object names in `actions` what
+its kind and RBAC admit — asked once per kind and namespace, not per row — and
+the catalog's menu offers a tick nothing else. Grants: `write`
 for scale, restart, cordon, uncordon, suspend, resume and run now; `structure`
 for delete, drain and New from YAML. Known deviation: editing YAML takes
 `write`, the level the shared content-edit route asks of every source, where

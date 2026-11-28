@@ -8776,6 +8776,10 @@ export type KubeObjectNode = {
    * Created At
    */
   created_at?: string | null
+  /**
+   * Actions
+   */
+  actions?: Array<string> | null
 }
 
 /**

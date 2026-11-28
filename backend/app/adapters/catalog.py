@@ -444,6 +444,10 @@ class KubeObjectNode(BaseNode):
     # The first columns of the cluster's table after the name: "1/1 · Running".
     summary: str | None = None
     created_at: datetime | None = None
+    # The actions this object admits by its kind and the cluster's RBAC (D467).
+    # One node kind stands for every kind of the cluster, so the menu cannot
+    # judge a tick by `applies_to` alone; None leaves it to `applies_to`.
+    actions: list[str] | None = None
 
 
 # Adding a kind means adding a class here. The friction is intended: a key can

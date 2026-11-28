@@ -153,6 +153,12 @@ export interface ListNode {
    * the others (D51).
    */
   holdsNodes: boolean
+  /**
+   * The actions this node admits, where its kind alone does not say: every
+   * object of a Kubernetes cluster is one node kind (D467). Absent, the
+   * vocabulary's `applies_to` decides.
+   */
+  actions?: string[]
 }
 
 /**
@@ -661,6 +667,7 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
       // total.
       rowEstimate: node.kind === "table" ? node.row_count_estimate : null,
       ...(group === undefined ? {} : { group }),
+      ...(node.kind === "k8s_object" && node.actions != null ? { actions: node.actions } : {}),
     }
   })
 }

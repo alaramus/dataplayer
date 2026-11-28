@@ -234,8 +234,20 @@ export interface ActionSubject {
 
 export type ActionSubjects = Record<ActionInfo["acts_on"], ActionSubject>
 
+/** A ticked node as the menu judges it: its kind, and what it says it admits. */
+export interface PickedNode {
+  kind: string
+  actions?: string[]
+}
+
+function admits(node: PickedNode, action: ActionInfo): boolean {
+  if (!(action.applies_to as string[]).includes(node.kind)) return false
+  return node.actions === undefined || node.actions.includes(action.name)
+}
+
 /**
- * What the vocabulary says of ticked nodes, by their kinds alone.
+ * What the vocabulary says of ticked nodes, by their kinds and, where a node
+ * names them, the actions it admits.
  *
  * Not asked of the server per tick: on a distant server that answer took
  * seconds a node, and the run asks again anyway, so a refusal arrives as the
@@ -243,12 +255,12 @@ export type ActionSubjects = Record<ActionInfo["acts_on"], ActionSubject>
  * (`action_availability`): every target of a kind the action is for, and one
  * target unless the action takes several.
  */
-export function byKind(vocabulary: ActionInfo[], kinds: string[]): ActionInfo[] {
+export function byKind(vocabulary: ActionInfo[], picked: PickedNode[]): ActionInfo[] {
   return vocabulary.map((action) => {
     let reason: string | null = null
-    if (kinds.length === 0 || !kinds.every((kind) => (action.applies_to as string[]).includes(kind))) {
+    if (picked.length === 0 || !picked.every((node) => admits(node, action))) {
       reason = t("catalog.actions.not_for_targets")
-    } else if (kinds.length > 1 && action.bulk !== true) {
+    } else if (picked.length > 1 && action.bulk !== true) {
       reason = t(action.acts_on === "group" ? "catalog.actions.one_grouping" : "catalog.actions.one_target")
     }
     return { ...action, applicable: reason === null, unavailable_reason: reason }

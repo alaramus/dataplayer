@@ -70,7 +70,7 @@ const props = defineProps<{
   groupings: Grouping[]
   /** The nodes that are ticked. */
   checkedIds: string[]
-  checkedNodes: { label: string; kind: CatalogNode["kind"] }[]
+  checkedNodes: { label: string; kind: CatalogNode["kind"]; actions?: string[] }[]
   placeLabel: string
   checkedLabel: string
   /** Whether the source describes the nodes of this level (D75). */
@@ -135,15 +135,11 @@ const level = useNodeActions(connectorId, levelIds)
 const here = useNodeActions(connectorId, placeIds)
 // Ticks and groupings are judged by kind against the level's vocabulary, with
 // no request per tick (see `byKind`).
-const pickedKinds = computed(() =>
-  props.checkedIds.length > 0
-    ? props.checkedNodes.map((node) => node.kind)
-    : props.selectedGroups.map((group) => group.kind)
+const picked = computed(() =>
+  props.checkedIds.length > 0 ? props.checkedNodes : props.selectedGroups
 )
-const pickedActions = computed(() => byKind(level.data.value ?? [], pickedKinds.value))
-const groupActions = computed(() =>
-  byKind(level.data.value ?? [], props.selectedGroups.map((group) => group.kind))
-)
+const pickedActions = computed(() => byKind(level.data.value ?? [], picked.value))
+const groupActions = computed(() => byKind(level.data.value ?? [], props.selectedGroups))
 const destinations = useNodeActions(connectorId, destinationIds, hasDestinations)
 
 const commands = computed(() =>

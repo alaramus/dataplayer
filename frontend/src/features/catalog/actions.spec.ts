@@ -834,23 +834,35 @@ describe("an action opened over rows picked in a report", () => {
 
 describe("what ticked nodes admit, by kind", () => {
   it("admits every node of a kind the action is for, at once", () => {
-    const [answer] = byKind([{ ...remove, bulk: true }], ["file", "directory", "file"])
+    const [answer] = byKind([{ ...remove, bulk: true }], [{ kind: "file" }, { kind: "directory" }, { kind: "file" }])
 
     expect(answer?.applicable).toBe(true)
   })
 
   it("says why a kind it is not for is not admitted", () => {
-    const [answer] = byKind([remove], ["table"])
+    const [answer] = byKind([remove], [{ kind: "table" }])
 
     expect(answer?.applicable).toBe(false)
     expect(answer?.unavailable_reason).toBeTruthy()
   })
 
   it("asks for one target where the action takes no more", () => {
-    const [answer] = byKind([remove], ["file", "file"])
+    const [answer] = byKind([remove], [{ kind: "file" }, { kind: "file" }])
 
     expect(answer?.applicable).toBe(false)
     expect(answer?.unavailable_reason).toBe("Select one target to use this")
+  })
+
+  it("admits only what a node names, where it names its actions", () => {
+    const scale: ActionInfo = { ...remove, name: "kubernetes_scale", applies_to: ["k8s_object"] }
+    const cordon: ActionInfo = { ...remove, name: "kubernetes_cordon", applies_to: ["k8s_object"] }
+    const deployment = { kind: "k8s_object", actions: ["kubernetes_scale"] }
+
+    const [scaled, cordoned] = byKind([scale, cordon], [deployment])
+
+    expect(scaled?.applicable).toBe(true)
+    expect(cordoned?.applicable).toBe(false)
+    expect(byKind([scale], [{ kind: "k8s_object", actions: [] }])[0]?.applicable).toBe(false)
   })
 
   it("draws a tick box only for what the menu acts on", () => {

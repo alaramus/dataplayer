@@ -190,7 +190,9 @@ class KubernetesAdapter:
             listed = await read_table(
                 self._session, resource, self._namespace_of(named), node_id=node_id
             )
-            return self._object_nodes(resource, listed)
+            namespaces = {namespace if resource.namespaced else None for _, namespace, _ in listed.names}
+            offered = {namespace: await self._offered(resource, namespace) for namespace in namespaces}
+            return self._object_nodes(resource, listed, offered)
         resources = await self._discovery.resources()
         namespaced = named.top == "namespace"
         if named.section is not None:
@@ -212,8 +214,17 @@ class KubernetesAdapter:
         names = sorted(name for name, _, _ in listed.names)
         return [namespace_node(EVERY), *(namespace_node(name) for name in names)]
 
+    async def _offered(self, resource: Resource, namespace: str | None) -> list[str]:
+        """What every object of `resource` in `namespace` admits, as `available`
+        answers for one of them: RBAC does not tell objects of a kind apart."""
+        fitting = [action for action in self._object_actions if action.fits(resource)]
+        allowed = await self._kube.reviews.all_allow([action.asked_at(resource, namespace) for action in fitting])
+        return [action.name for action, yes in zip(fitting, allowed, strict=True) if yes]
+
     @staticmethod
-    def _object_nodes(resource: Resource, listed: Listed) -> list[CatalogNode]:
+    def _object_nodes(
+        resource: Resource, listed: Listed, offered: dict[str | None, list[str]]
+    ) -> list[CatalogNode]:
         nodes: list[CatalogNode] = [
             object_node(
                 namespace if resource.namespaced else None,
@@ -221,6 +232,7 @@ class KubernetesAdapter:
                 name,
                 summary=summary,
                 created_at=instant(created),
+                actions=offered.get(namespace if resource.namespaced else None, []),
             )
             for (name, namespace, created), summary in zip(listed.names, listed.summaries, strict=True)
         ]
