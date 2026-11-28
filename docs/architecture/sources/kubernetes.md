@@ -9,13 +9,14 @@ scaling, restarting, cordoning and suspending (D468), deleting (D469), YAML
 edited and applied (D470), draining a node as a job (D471), a terminal in a
 pod's container (D472), a container's logs told as they grow (D473), and a
 port of the cluster carried for another connection, a database in it opened
-as one (D474).
+as one (D474), metrics from `metrics.k8s.io` and the Top report (D475), and
+search and export (D476).
 The contract every source type follows is in [contract.md](contract.md); the
 SSH tunnel it may ride is D282 in [ssh.md](ssh.md), and the TLS helpers it
 builds its context with are D446–D448 in [cloud-auth.md](cloud-auth.md). Read
 this before changing the `kubernetes` adapter.
 
-Decisions here: D463, D464, D465, D466, D467, D468, D469, D470, D471, D472, D473, D474.
+Decisions here: D463, D464, D465, D466, D467, D468, D469, D470, D471, D472, D473, D474, D475, D476.
 
 ## D463. One type, with a managed cluster as a way in
 
@@ -264,5 +265,48 @@ Services and pods as the host (D479, in [ssh.md](ssh.md)).
 Known deviations: a Kubernetes connection that itself goes through an SSH
 tunnel carries nothing, as a tunnel does not go through another; the
 WebSocket has no half-close, so either side ending ends both.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D475. Measured from metrics.k8s.io, and a Top report
+
+Kubernetes implements `SupportsMetrics` (`metrics.py`). The numbers are
+metrics-server's (`/apis/metrics.k8s.io/v1beta1`): every node's CPU and
+memory, its share of what it offers pods (`allocatable`), and the pods' sums
+over their containers, quantities read as cores and bytes (`894980n`,
+`82m`, `600Ki`). CPU is a percent of one core, as Docker's (D415). A poll
+measures every node and at most 200 pods, the busiest by CPU; `cluster`
+counts the measured and the skipped. A connection held to a namespace
+measures its pods only. The preset is **Kubernetes nodes and pods**.
+
+**Top** in the Cluster section is the same reading as a table, nodes then pods
+busiest first: kind, namespace, name, CPU in millicores, memory in MiB and,
+for a node, both as a share of what it offers. A cluster that serves no
+Metrics API — absent, 404, or 503 while metrics-server starts (*checked*,
+k3s) — polls nothing, and Top says so above an empty table.
+
+Known deviation from the spec: Top is one table of the whole cluster, nodes
+and pods together, filtered by its Namespace column, rather than a report
+per namespace.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D476. Search reads metadata, and a kind's table is exported
+
+`search.py` implements `SupportsNodeSearch` and `EnumeratesNames` over the
+namespaces and the kinds a person looks for most — Pods, Deployments,
+StatefulSets, Services, ConfigMaps, Secrets and Nodes — each list read as
+`PartialObjectMetadataList`, so a Secret is found by its name and nothing of
+its values is read. Each name is placed, and kept, under its kind in its own
+namespace, as the catalog lists it. A search starts at the top, in the
+Namespaces list, in a namespace, a section or a kind; an object or a Cluster
+report is refused. A kind the connection may not list is left out; a list
+past 10,000 says the search stopped short. Names are cheap, nothing else is
+searched.
+
+`export_rows` exports what the grid pages, read once: a kind's table, the
+namespaces, an object's events and pods, filtered and ordered as asked
+(D73). Known deviation: a Cluster report and a container's logs are
+downloaded a page at a time, and an export of them is refused.
 
 Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)

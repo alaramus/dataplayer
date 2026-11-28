@@ -1,4 +1,4 @@
-"""The Cluster section: Overview, Nodes, Events and API resources (D465).
+"""The Cluster section: Overview, Nodes, Top (D475), Events and API resources (D465).
 
 Read like tables (D55). Pods are counted by phase from lists of their
 metadata alone, the namespaces by one item and `remainingItemCount`.
@@ -14,6 +14,7 @@ from app.adapters.content import NodeRepresentation
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.kubernetes.catalog import CLUSTER
 from app.adapters.kubernetes.discovery import Discovery
+from app.adapters.kubernetes.metrics import read_top
 from app.adapters.kubernetes.session import (
     METADATA,
     Forbidden,
@@ -242,6 +243,10 @@ async def _nodes(context: Context, request: FetchRequest) -> FetchResult:
     return page(request, NODE_COLUMNS, rows, refresh_seconds=30)
 
 
+async def _top(context: Context, request: FetchRequest) -> FetchResult:
+    return await read_top(context.session, context.namespace, request)
+
+
 async def _events(context: Context, request: FetchRequest) -> FetchResult:
     rows = await read_events(context.session, context.namespace)
     return page(request, EVENT_COLUMNS, rows, refresh_seconds=10)
@@ -286,6 +291,12 @@ REPORTS: tuple[ClusterReport, ...] = (
         N_("Nodes"),
         N_("Each machine's status, roles, versions, capacity and taints"),
         _nodes,
+    ),
+    ClusterReport(
+        "top",
+        N_("Top"),
+        N_("CPU and memory of each node and pod now, busiest first, from metrics.k8s.io"),
+        _top,
     ),
     ClusterReport(
         "events",

@@ -8,6 +8,8 @@ reports. One type for every cluster: a managed one is a way in and a card
 """
 
 import json
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
 import httpx
@@ -28,8 +30,9 @@ from app.adapters.content import (
     UpdateContentRequest,
     json_tree,
 )
+from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
-from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.kubernetes.actions import (
     OBJECT_ACTIONS,
     Apply,
@@ -65,6 +68,8 @@ from app.adapters.kubernetes.connect import OpenAsConnection, declared_server
 from app.adapters.kubernetes.discovery import SECTIONS, Discovery, Resource, Section
 from app.adapters.kubernetes.forward import FORWARDS, listed_targets
 from app.adapters.kubernetes.jobs import Drain
+from app.adapters.kubernetes.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.kubernetes.metrics import samples as metric_samples
 from app.adapters.kubernetes.options import KubernetesConnection, KubernetesOptions
 from app.adapters.kubernetes.reports import (
     REPORTS,
@@ -74,6 +79,7 @@ from app.adapters.kubernetes.reports import (
     report_node,
 )
 from app.adapters.kubernetes.reviews import Reviews
+from app.adapters.kubernetes.search import KubernetesSearch
 from app.adapters.kubernetes.session import Forbidden, KubernetesSession, segment
 from app.adapters.kubernetes.tables import (
     EVENT_COLUMNS,
@@ -81,6 +87,7 @@ from app.adapters.kubernetes.tables import (
     LOG_COLUMNS,
     LOG_DEPTH,
     Listed,
+    Row,
     cut_notice,
     instant,
     log_rows,
@@ -91,12 +98,32 @@ from app.adapters.kubernetes.tables import (
 )
 from app.adapters.kubernetes.terminal import PodTerminal
 from app.adapters.kubernetes.watch import KubernetesWatch
-from app.adapters.listed import listed_column
+from app.adapters.listed import listed_column, listed_page
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, CatalogFace, register
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.tunnels import TunnelAccess, TunnelTarget
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_, say
+
+
+@dataclass(frozen=True)
+class Table:
+    """A list read whole, before it is paged or exported."""
+
+    columns: list[FetchColumn]
+    rows: list[Row]
+    notice: str | None = None
+    refresh: int | None = None
 
 
 class KubernetesAdapter:
@@ -118,6 +145,7 @@ class KubernetesAdapter:
         self._namespace = options.namespace or None
         self._kube = Kube(self._session, self._discovery, Reviews(self._session))
         self._connect = OpenAsConnection(self._kube, connector_id)
+        self._search = KubernetesSearch(self._session, self._discovery, self._namespace)
         self._object_actions: list[ObjectAction[Any] | Drain | PodTerminal | OpenAsConnection] = [
             *(kind(self._kube) for kind in OBJECT_ACTIONS),
             Drain(self._kube),
@@ -296,40 +324,58 @@ class KubernetesAdapter:
             if named.report is None:
                 raise ValueError(say("Open one of the Cluster reports"))
             return await read_report(self._context(), request)
+        if named.name is not None and named.view is None:
+            raise ValueError(say("This opens as what the cluster says about it"))
+        if named.view == "logs":
+            resource, body = await self._object(named, request.node_id)
+            return await self._logs(request, named, resource, body)
+        table = await self._table(named, request.node_id)
+        return page(request, table.columns, table.rows, notice=table.notice, refresh_seconds=table.refresh)
+
+    async def _table(self, named: Named, node_id: str) -> Table:
+        """A list read whole: the namespaces, a kind's objects, or an object's
+        events or pods. Paged by `fetch` and exported whole (D476)."""
         if named.top == "namespaces":
             found = await self._discovery.find("", "namespaces")
             if found is None:
-                raise NodeNotFound(request.node_id)
-            listed = await read_table(self._session, found, None, node_id=request.node_id)
-            return page(request, listed.columns, listed.rows, notice=cut_notice(listed))
+                raise NodeNotFound(node_id)
+            listed = await read_table(self._session, found, None, node_id=node_id)
+            return Table(listed.columns, listed.rows, cut_notice(listed))
         if named.name is not None:
-            if named.view is None:
-                raise ValueError(say("This opens as what the cluster says about it"))
-            return await self._page(request, named)
-        if named.resource is None:
-            raise ValueError(say("Open one of the kinds inside"))
-        resource = await self._resource(named, request.node_id)
-        listed = await read_table(
-            self._session, resource, self._namespace_of(named), node_id=request.node_id
-        )
-        return page(request, listed.columns, listed.rows, notice=cut_notice(listed))
-
-    async def _page(self, request: FetchRequest, named: Named) -> FetchResult:
-        resource, body = await self._object(named, request.node_id)
-        if named.view == "events":
-            selector = f"involvedObject.name={named.name},involvedObject.kind={resource.kind}"
-            rows = await read_events(self._session, named.namespace, selector)
-            return page(request, EVENT_COLUMNS, rows, refresh_seconds=10)
-        if named.view == "pods":
+            resource, body = await self._object(named, node_id)
+            if named.view == "events":
+                selector = f"involvedObject.name={named.name},involvedObject.kind={resource.kind}"
+                rows = await read_events(self._session, named.namespace, selector)
+                return Table(EVENT_COLUMNS, rows, refresh=10)
             if resource.key not in SELECTS_PODS:
-                raise NodeNotFound(request.node_id)
+                raise NodeNotFound(node_id)
             pods = await self._discovery.find("", "pods")
             picks = pod_selector(body)
             if pods is None or picks is None:
-                return page(request, [listed_column("Name", "string")], [], notice=say("It picks no pods"))
+                return Table([listed_column("Name", "string")], [], say("It picks no pods"))
             listed = await read_table(self._session, pods, named.namespace, selector=picks)
-            return page(request, listed.columns, listed.rows, notice=cut_notice(listed))
-        return await self._logs(request, named, resource, body)
+            return Table(listed.columns, listed.rows, cut_notice(listed))
+        if named.resource is None:
+            raise ValueError(say("Open one of the kinds inside"))
+        resource = await self._resource(named, node_id)
+        listed = await read_table(self._session, resource, self._namespace_of(named), node_id=node_id)
+        return Table(listed.columns, listed.rows, cut_notice(listed))
+
+    async def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        """Every row the page's filters and order would show, read once (D476).
+        A Cluster report and a container's logs are downloaded as a page."""
+        named = parse(request.node_id)
+        if named.top == "cluster" or named.view == "logs" or (named.name is not None and named.view is None):
+            raise ValueError(say("This is downloaded a page at a time, not exported whole"))
+        table = await self._table(named, request.node_id)
+        names = [column.name for column in table.columns]
+        unknown = [column for column in request.columns if column not in names]
+        if unknown:
+            raise ValueError(say("Unknown column: {column}", column=unknown[0]))
+        rows = listed_page(table.columns, table.rows, request.filters, request.sort)
+        picked = [names.index(column) for column in request.columns]
+        for start in range(0, len(rows), EXPORT_BATCH_SIZE):
+            yield ExportBatch(rows=[[row[index] for index in picked] for row in rows[start : start + EXPORT_BATCH_SIZE]])
 
     async def _logs(
         self,
@@ -418,6 +464,31 @@ class KubernetesAdapter:
     async def tunnel_targets(self) -> list[TunnelTarget]:
         """Services and running pods a form offers as the host (D479)."""
         return await listed_targets(self._session, self._namespace, declared_server)
+
+    # --- metrics from metrics.k8s.io (D475) -------------------------------------
+
+    async def metric_samples(self) -> list[MetricSample]:
+        return await metric_samples(self._session, self._namespace)
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    # --- search (D476) -------------------------------------------------------------
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names are a few lists of metadata read whole; nothing else is searched."""
+        del last
+        return "cheap" if field == "names" else "costly"
 
     # --- a container's logs told as they grow (D473) ---------------------------
 
