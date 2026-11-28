@@ -93,8 +93,8 @@ MESSAGES: dict[str, str] = {
     "Reach the server through one of your SSH connections; the host is then as that server sees it": "通过您的某个 SSH 连接访问服务器；此时主机按该 SSH 服务器所见填写",
     "This connection goes through an SSH tunnel, and none is at hand": "此连接需经过 SSH 隧道，但此处无法使用",
     "A backup does not go through an SSH tunnel yet": "备份暂不支持经由 SSH 隧道进行",
-    'Follow changes as they happen': '实时跟踪变化',
-    "Show a node's details": '显示节点详情',
+    "Follow changes as they happen": "实时跟踪变化",
+    "Show a node's details": "显示节点详情",
     "Your personal storage is full: {used} MB of {limit} MB in use": "个人存储空间已满：已使用 {used} MB，共 {limit} MB",
     # A category of sources (D405).
     "Containers": "容器",
@@ -250,4 +250,5 @@ MESSAGES: dict[str, str] = {
     "Where Vault's database secrets engine is enabled": "Vault 数据库密钥引擎的启用位置",
     "X.509 certificate": "X.509 证书",
     "X.509 sign-in needs TLS and a client certificate on the TLS page": "X.509 登录需要 TLS，并在 TLS 页面提供客户端证书",
+    "Carry other connections through it": "让其他连接经由它通过",
 }

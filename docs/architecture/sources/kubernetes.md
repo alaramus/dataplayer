@@ -6,13 +6,16 @@ signed in to (D464), what its catalog shows, built from the cluster's own
 discovery and tables (D465), what an object opens as and how a Secret's values
 are kept back (D466), who may do what and how a refusal is said (D467),
 scaling, restarting, cordoning and suspending (D468), deleting (D469), YAML
-edited and applied (D470), and draining a node as a job (D471).
+edited and applied (D470), draining a node as a job (D471), a terminal in a
+pod's container (D472), a container's logs told as they grow (D473), and a
+port of the cluster carried for another connection, a database in it opened
+as one (D474).
 The contract every source type follows is in [contract.md](contract.md); the
 SSH tunnel it may ride is D282 in [ssh.md](ssh.md), and the TLS helpers it
 builds its context with are D446–D448 in [cloud-auth.md](cloud-auth.md). Read
 this before changing the `kubernetes` adapter.
 
-Decisions here: D463, D464, D465, D466, D467, D468, D469, D470, D471.
+Decisions here: D463, D464, D465, D466, D467, D468, D469, D470, D471, D472, D473, D474.
 
 ## D463. One type, with a managed cluster as a way in
 
@@ -198,5 +201,67 @@ pods and finished pods stay, as `kubectl drain` leaves them. A pod with an
 form's timeout, then refused for that pod. Reading back finds an evicted pod
 gone; a node with nothing to evict is one unit, the cordon. A pod whose name
 is longer than a job's target (63) blocks the preview.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D472. A terminal in a pod's container is its owner's
+
+**Terminal** (`terminal.py`) is an action of a pod that needs `own`, as a
+container's does (D413): its form chooses the container — the pod's own,
+the first by default — and the shell from `/bin/sh`, `/bin/bash`, `/bin/ash`,
+argv only, and it opens a terminal rather than running. It is the pod's
+`exec` subresource over a WebSocket (`KubernetesSession.socket`: the same
+address, TLS and token as every request) with `v5.channel.k8s.io`, `v4`
+accepted: every frame starts with its channel — 0 typed, 1 and 2 printed, 3
+the API server's `Status` when the program ends, 4 a resize. The exit code is
+the `Status`'s (`Success`, or `NonZeroExitCode` with an `ExitCode` cause). A
+shell the image lacks ends at once with a `Status` naming the OCI runtime's
+failure, said as a sentence naming the shell; a pod not running is refused
+before. RBAC is asked `create pods/exec`. *Checked* on k3s 1.33.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D473. A container's logs are told as they grow, over D303
+
+Kubernetes implements `SupportsChangeWatch` (`watch.py`): for each open
+**Logs** page of a pod it reads `log?follow=true&tailLines=0` for that
+container and tells the page to read again, at most once every two seconds;
+a stream that drops is opened again after five seconds, a pod that is gone
+ends it. Known deviations, the same as Docker's (D414): the page is re-read
+rather than appended to, so nothing is dropped and no count of dropped lines
+is kept; a stream is one person's and closed by D303's lease rather than one
+per container shared by everybody.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D474. A port of the cluster is a tunnel, and a database in it a connection
+
+A Kubernetes connection carries other connections the way an SSH connection
+does (D282): it implements `ForwardsPorts`, its type says so with the
+`tunnel` capability, and the form's tunnel choice offers every type that has
+it. Through it a host is `<pod>.<namespace>.pod` or
+`<service>.<namespace>.svc` (`.cluster.local` allowed). `forward.py` keeps one
+listener on loopback per cluster, identity and target, in the process as the
+SSH tunnels are, closed after ten idle minutes; every connection to it is one
+`portforward` WebSocket (`v4.channel.k8s.io`, *checked* on k3s 1.33: each of
+the data and error channels first carries the port as two bytes). A Service
+is followed at every connection to a ready pod its selector finds and its
+port to that pod's, a named `targetPort` by the containers' ports. A missing
+pod or nothing ready is said to whoever asks for the address.
+
+**Open as connection** (`connect.py`) is an action of a pod or a Service that
+needs `own`: the first container whose image a type declares (D417) gives the
+type, its port and the options its literal environment yields — a value from
+a Secret or a ConfigMap is left to the form — and the draft's host is the pod
+or the Service as above, its port the Service's own that leads to the
+server's, its tunnel this connection. A node's menu reads the pod for the
+image; a listed row cannot, so it names the action and the run refuses an
+image no type declares.
+
+Known deviations: a Kubernetes connection that itself goes through an SSH
+tunnel carries nothing, as a tunnel does not go through another; the form
+field keeps its title "SSH tunnel"; Docker's socket field (D405) lists a
+Kubernetes connection too, and choosing it is refused when the daemon is
+reached; the WebSocket has no half-close, so either side ending ends both.
 
 Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)

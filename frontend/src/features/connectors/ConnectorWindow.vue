@@ -395,8 +395,16 @@ const regions = useAwsRegions(
   wantsRegions
 )
 
-// The person's SSH connections, for a database that may go through one (D282).
+// The person's connections a database may go through (D282, D474).
 const connections = useConnectors()
+const carriers = computed(
+  () =>
+    new Set(
+      (adapterTypes.data.value ?? [])
+        .filter((type) => type.capabilities.some((one) => one.code === "tunnel"))
+        .map((type) => type.name)
+    )
+)
 
 const groups = computed(() =>
   fieldGroups(
@@ -412,7 +420,8 @@ const groups = computed(() =>
       ),
       connections.data.value?.data ?? [],
       optionValues.value,
-      { directly: t("connectors.tunnel.directly"), someone_elses: t("connectors.tunnel.someone_elses") }
+      { directly: t("connectors.tunnel.directly"), someone_elses: t("connectors.tunnel.someone_elses") },
+      carriers.value
     )
   )
 )

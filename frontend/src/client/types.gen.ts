@@ -1929,6 +1929,7 @@ export type Capability = {
     | "relationship_graph"
     | "live_changes"
     | "details"
+    | "tunnel"
     | null
 }
 

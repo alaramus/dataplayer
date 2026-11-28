@@ -258,7 +258,7 @@ evicted.
 
 **D472. A terminal inside a container is its owner's** (D148, D149, `own`):
 `exec` over a websocket with the `v5.channel.k8s.io` subprotocol (falling
-back to `v4`, *to check* on 1.27), a program from a closed list —
+back to `v4`; *checked* on k3s 1.33), a program from a closed list —
 `/bin/sh`, `/bin/bash`, `/bin/ash` — as argv, resized on the resize channel.
 A container with no shell says so.
 
@@ -269,8 +269,9 @@ client, lines dropped with a count rather than a stalled stream.
 **D474. A database in the cluster opens as a connection.** A Pod or a Service
 whose image a source type declares (D417) offers **Open as connection**: a
 draft of that type reaching it through a port forward this source keeps (the
-`portforward` websocket, *to check* since which version the server accepts it
-over websockets) on a loopback port, credentials read from the pod's
+`portforward` websocket with `v4.channel.k8s.io`, *checked* on k3s 1.33; the
+connection names this one as its tunnel, host `<pod>.<namespace>.pod` or
+`<service>.<namespace>.svc`) on a loopback port, credentials read from the pod's
 environment by the target's conventions when they are literal values, never
 from a Secret the connection may not read; `own` required.
 

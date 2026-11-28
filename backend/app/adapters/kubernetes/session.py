@@ -21,6 +21,8 @@ from urllib.parse import quote, urlsplit
 
 import httpx
 from anyio import to_thread
+from websockets.asyncio.client import ClientConnection, connect
+from websockets.exceptions import InvalidHandshake, InvalidStatus
 
 from app.adapters.kubernetes.endpoint import Endpoint, endpoint_of
 from app.adapters.kubernetes.options import KubernetesConnection
@@ -330,6 +332,50 @@ class KubernetesSession:
             message=say("Connection successful; Kubernetes {version}", version=self._git_version),
             latency_ms=int((time.perf_counter() - started) * 1000),
         )
+
+    async def socket(
+        self,
+        path: str,
+        params: list[tuple[str, str]],
+        subprotocols: list[str],
+        *,
+        asked: Forbidden | None = None,
+        node_id: str = "",
+    ) -> ClientConnection:
+        """A WebSocket to `path`, as the API server upgrades exec and
+        portforward (D472, D474): the same address, TLS and token as every
+        request, and a refusal said the way a request's is."""
+        await self.client()
+        host, port = await self._address()
+        context = await to_thread.run_sync(self._context)
+        _, _, prefix = self._server_parts()
+        endpoint = self.endpoint()
+        headers = {"User-Agent": "DataPlayer"}
+        if endpoint.token:
+            headers["Authorization"] = f"Bearer {endpoint.token}"
+        shown = f"[{host}]" if ":" in host else host
+        query = "&".join(f"{quote(name, safe='')}={quote(value, safe='')}" for name, value in params)
+        try:
+            opened = await connect(
+                f"wss://{shown}:{port}{prefix}{path}?{query}",
+                ssl=context,
+                additional_headers=headers,
+                subprotocols=subprotocols,  # type: ignore[arg-type] # plain strings, as the server names them
+                open_timeout=TIMEOUT_SECONDS,
+                max_size=2**22,
+                compression=None,
+            )
+        except InvalidStatus as failure:
+            status = failure.response.status_code
+            if status == 404 and node_id:
+                raise NodeNotFound(node_id) from None
+            raise refused(status, asked, None) from None
+        except (InvalidHandshake, OSError, TimeoutError) as failure:
+            raise self._not_reached(failure) from None
+        if opened.subprotocol not in subprotocols:
+            await opened.close()
+            raise AdapterError("config", say("The API server does not speak this stream; it needs Kubernetes 1.30 or newer"))
+        return opened
 
     async def close(self) -> None:
         if self._client is not None:

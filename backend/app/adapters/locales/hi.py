@@ -93,8 +93,8 @@ MESSAGES: dict[str, str] = {
     "Reach the server through one of your SSH connections; the host is then as that server sees it": "अपने किसी SSH कनेक्शन के ज़रिए सर्वर तक पहुँचें; तब होस्ट वैसा लिखें जैसा वह SSH सर्वर उसे देखता है",
     "This connection goes through an SSH tunnel, and none is at hand": "यह कनेक्शन एक SSH टनल से होकर जाता है, जो यहाँ उपलब्ध नहीं है",
     "A backup does not go through an SSH tunnel yet": "बैकअप अभी SSH टनल से होकर नहीं जा सकता",
-    'Follow changes as they happen': 'बदलाव होते ही उन पर नज़र रखें',
-    "Show a node's details": 'किसी नोड का विवरण दिखाएँ',
+    "Follow changes as they happen": "बदलाव होते ही उन पर नज़र रखें",
+    "Show a node's details": "किसी नोड का विवरण दिखाएँ",
     "Your personal storage is full: {used} MB of {limit} MB in use": "आपका निजी संग्रहण भर गया है: {limit} MB में से {used} MB उपयोग में",
     # A category of sources (D405).
     "Containers": "कंटेनर",
@@ -250,4 +250,5 @@ MESSAGES: dict[str, str] = {
     "Where Vault's database secrets engine is enabled": "जहाँ Vault का डेटाबेस सीक्रेट इंजन सक्षम है",
     "X.509 certificate": "X.509 प्रमाणपत्र",
     "X.509 sign-in needs TLS and a client certificate on the TLS page": "X.509 से साइन इन के लिए TLS और TLS पेज पर क्लाइंट प्रमाणपत्र चाहिए",
+    "Carry other connections through it": "दूसरे कनेक्शनों को इसके ज़रिए ले जाना",
 }

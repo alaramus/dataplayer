@@ -38,7 +38,7 @@ from app.adapters.protocol import (
 from app.adapters.reading_on import BookmarkAccess
 from app.adapters.resources import Pooling
 from app.adapters.terminal import SupportsConsoleProgram, SupportsTerminal
-from app.adapters.tunnels import TunnelAccess
+from app.adapters.tunnels import ForwardsPorts, TunnelAccess
 from app.core.translation import N_, say
 
 
@@ -142,6 +142,7 @@ CapabilityCode = Literal[
     "relationship_graph",
     "live_changes",
     "details",
+    "tunnel",
 ]
 
 
@@ -429,6 +430,11 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
     if issubclass(driver, SupportsTerminal) or issubclass(driver, SupportsConsoleProgram):
         found.append(
             Capability(group="manage", title=say("Open a terminal"), code="terminal")
+        )
+    # What another connection's form offers as the way through (D282, D474).
+    if issubclass(driver, ForwardsPorts):
+        found.append(
+            Capability(group="manage", title=say("Carry other connections through it"), code="tunnel")
         )
     # Said by the type, so a catalog offers Details on every level, greyed
     # until something is ticked, rather than only where a level happens to

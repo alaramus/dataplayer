@@ -927,9 +927,10 @@ forbidden_modules =
 
 # A client socket to a market's streams, by the rule every driver follows:
 # the shared layer of market data owns it, and the exchanges reach it only
-# through `app.adapters.market.stream` (D323, D425).
+# through `app.adapters.market.stream` (D323, D425). The Kubernetes session
+# opens exec and portforward with it too (D472, D474).
 [importlinter:contract:websocket-client-is-contained]
-name = the websockets client is imported only by the shared market-data layer
+name = the websockets client is imported only by the shared market-data layer and the kubernetes session
 type = forbidden
 # Direct imports only: an exchange holds a socket through the shared stream.
 allow_indirect_imports = True

@@ -93,8 +93,8 @@ MESSAGES: dict[str, str] = {
     "Reach the server through one of your SSH connections; the host is then as that server sees it": "Подключаться к серверу через одно из ваших SSH-подключений; хост тогда указывается так, как его видит SSH-сервер",
     "This connection goes through an SSH tunnel, and none is at hand": "Это подключение идёт через SSH-туннель, а открыть его здесь нечем",
     "A backup does not go through an SSH tunnel yet": "Резервная копия пока не умеет идти через SSH-туннель",
-    'Follow changes as they happen': 'Следить за изменениями по мере их появления',
-    "Show a node's details": 'Показывать подробности об узле',
+    "Follow changes as they happen": "Следить за изменениями по мере их появления",
+    "Show a node's details": "Показывать подробности об узле",
     "Your personal storage is full: {used} MB of {limit} MB in use": "Личное хранилище заполнено: занято {used} МБ из {limit} МБ",
     # A category of sources (D405).
     "Containers": "Контейнеры",
@@ -250,4 +250,5 @@ MESSAGES: dict[str, str] = {
     "Where Vault's database secrets engine is enabled": "Где в Vault включён механизм секретов баз данных",
     "X.509 certificate": "Сертификат X.509",
     "X.509 sign-in needs TLS and a client certificate on the TLS page": "Для входа по X.509 нужны TLS и клиентский сертификат на странице TLS",
+    "Carry other connections through it": "Пропускать через себя другие подключения",
 }

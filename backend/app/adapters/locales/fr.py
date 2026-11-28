@@ -90,10 +90,10 @@ MESSAGES: dict[str, str] = {
     "Time ran out after {count} files were looked at; there may be more": "Le temps est écoulé après avoir examiné {count} fichiers ; il peut y en avoir d'autres",
     # Reaching a server through an SSH connection (D282).
     "SSH tunnel": "Tunnel SSH",
-    'Reach the server through one of your SSH connections; the host is then as that server sees it': "Atteindre le serveur via l'une de vos connexions SSH ; l'hôte s'indique alors tel que ce serveur le voit",
+    "Reach the server through one of your SSH connections; the host is then as that server sees it": "Atteindre le serveur via l'une de vos connexions SSH ; l'hôte s'indique alors tel que ce serveur le voit",
     "This connection goes through an SSH tunnel, and none is at hand": "Cette connexion passe par un tunnel SSH, indisponible ici",
     "A backup does not go through an SSH tunnel yet": "Une sauvegarde ne passe pas encore par un tunnel SSH",
-    'Follow changes as they happen': "Suivre les changements au fil de l'eau",
+    "Follow changes as they happen": "Suivre les changements au fil de l'eau",
     "Show a node's details": "Afficher les détails d'un nœud",
     "Your personal storage is full: {used} MB of {limit} MB in use": "Votre stockage personnel est plein : {used} Mo sur {limit} Mo utilisés",
     # A category of sources (D405).
@@ -250,4 +250,5 @@ MESSAGES: dict[str, str] = {
     "Where Vault's database secrets engine is enabled": "Où le moteur de secrets de bases de données de Vault est activé",
     "X.509 certificate": "Certificat X.509",
     "X.509 sign-in needs TLS and a client certificate on the TLS page": "La connexion par X.509 exige TLS et un certificat client sur la page TLS",
+    "Carry other connections through it": "Faire passer d'autres connexions par elle",
 }

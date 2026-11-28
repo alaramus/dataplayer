@@ -51,6 +51,18 @@ describe("withTunnelChoices", () => {
     ])
   })
 
+  it("offers every type the server says carries a tunnel", () => {
+    const [field] = withTunnelChoices(
+      [tunnel],
+      [connection({ id: "s1", name: "bastion" }), connection({ id: "k1", name: "cluster", adapter_type: "kubernetes" })],
+      {},
+      WORDS,
+      new Set(["ssh", "kubernetes"])
+    )
+
+    expect(field?.choices?.map((choice) => choice.value)).toEqual(["", "s1", "k1"])
+  })
+
   it("keeps a tunnel this person cannot see, under a name of its own", () => {
     const [field] = withTunnelChoices([tunnel], [], { ssh_tunnel: "theirs" }, WORDS)
 

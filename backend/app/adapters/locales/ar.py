@@ -90,8 +90,8 @@ MESSAGES: dict[str, str] = {
     "Reach the server through one of your SSH connections; the host is then as that server sees it": "الوصول إلى الخادم عبر أحد اتصالات SSH الخاصة بك؛ ويُكتب المضيف حينئذٍ كما يراه ذلك الخادم",
     "This connection goes through an SSH tunnel, and none is at hand": "يمر هذا الاتصال عبر نفق SSH غير متاح هنا",
     "A backup does not go through an SSH tunnel yet": "لا يمكن للنسخة الاحتياطية بعدُ أن تمر عبر نفق SSH",
-    'Follow changes as they happen': 'متابعة التغييرات فور حدوثها',
-    "Show a node's details": 'عرض تفاصيل عقدة',
+    "Follow changes as they happen": "متابعة التغييرات فور حدوثها",
+    "Show a node's details": "عرض تفاصيل عقدة",
     "Your personal storage is full: {used} MB of {limit} MB in use": "مساحة التخزين الشخصية ممتلئة: {used} ميغابايت مستخدمة من {limit} ميغابايت",
     # A category of sources (D405).
     "Containers": "الحاويات",
@@ -247,4 +247,5 @@ MESSAGES: dict[str, str] = {
     "Where Vault's database secrets engine is enabled": "حيث فُعّل محرّك أسرار قواعد البيانات في Vault",
     "X.509 certificate": "شهادة X.509",
     "X.509 sign-in needs TLS and a client certificate on the TLS page": "يحتاج تسجيل الدخول عبر X.509 إلى TLS وشهادة عميل في صفحة TLS",
+    "Carry other connections through it": "تمرير اتصالات أخرى عبره",
 }

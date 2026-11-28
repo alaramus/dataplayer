@@ -50,7 +50,7 @@ MESSAGES: dict[str, str] = {
     "A literal value is required when setting a default": "Beim Festlegen eines Standardwerts ist ein Wert erforderlich",
     "A value cannot be supplied when dropping a default": "Beim Entfernen eines Standardwerts darf kein Wert angegeben werden",
     "A column may appear in a constraint only once": "Eine Spalte darf in einer Bedingung nur einmal vorkommen",
-    "A foreign key names as many columns as it points at": 'Ein Fremdschlüssel nennt so viele Spalten, wie er referenziert',
+    "A foreign key names as many columns as it points at": "Ein Fremdschlüssel nennt so viele Spalten, wie er referenziert",
     "A column may appear in an index only once": "Eine Spalte darf in einem Index nur einmal vorkommen",
     "Export columns must be unique": "Exportspalten müssen eindeutig sein",
     "An expression may nest at most {count} levels deep": "Ein Ausdruck darf höchstens {count} Ebenen tief verschachtelt sein",
@@ -93,8 +93,8 @@ MESSAGES: dict[str, str] = {
     "Reach the server through one of your SSH connections; the host is then as that server sees it": "Den Server über eine Ihrer SSH-Verbindungen erreichen; der Host ist dann so anzugeben, wie dieser Server ihn sieht",
     "This connection goes through an SSH tunnel, and none is at hand": "Diese Verbindung läuft über einen SSH-Tunnel, der hier nicht verfügbar ist",
     "A backup does not go through an SSH tunnel yet": "Eine Sicherung kann noch nicht über einen SSH-Tunnel laufen",
-    'Follow changes as they happen': 'Änderungen verfolgen, sobald sie geschehen',
-    "Show a node's details": 'Details eines Knotens anzeigen',
+    "Follow changes as they happen": "Änderungen verfolgen, sobald sie geschehen",
+    "Show a node's details": "Details eines Knotens anzeigen",
     "Your personal storage is full: {used} MB of {limit} MB in use": "Ihr persönlicher Speicher ist voll: {used} MB von {limit} MB belegt",
     # A category of sources (D405).
     "Containers": "Container",
@@ -250,4 +250,5 @@ MESSAGES: dict[str, str] = {
     "Where Vault's database secrets engine is enabled": "Wo die Datenbank-Secrets-Engine von Vault aktiviert ist",
     "X.509 certificate": "X.509-Zertifikat",
     "X.509 sign-in needs TLS and a client certificate on the TLS page": "Die Anmeldung mit X.509 braucht TLS und ein Client-Zertifikat auf der Seite TLS",
+    "Carry other connections through it": "Andere Verbindungen hindurchführen",
 }

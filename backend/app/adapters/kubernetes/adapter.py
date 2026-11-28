@@ -15,6 +15,7 @@ import httpx
 from app.adapters import jsontext
 from app.adapters.actions import Action, ActionRefused, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.changes import ChangeSink, ChangeWatch
 from app.adapters.content import (
     ContentConflict,
     ContentRequest,
@@ -60,7 +61,9 @@ from app.adapters.kubernetes.catalog import (
     section_node,
     view_pages,
 )
+from app.adapters.kubernetes.connect import OpenAsConnection
 from app.adapters.kubernetes.discovery import SECTIONS, Discovery, Resource, Section
+from app.adapters.kubernetes.forward import FORWARDS
 from app.adapters.kubernetes.jobs import Drain
 from app.adapters.kubernetes.options import KubernetesConnection, KubernetesOptions
 from app.adapters.kubernetes.reports import (
@@ -86,6 +89,8 @@ from app.adapters.kubernetes.tables import (
     read_events,
     read_table,
 )
+from app.adapters.kubernetes.terminal import PodTerminal
+from app.adapters.kubernetes.watch import KubernetesWatch
 from app.adapters.listed import listed_column
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, CatalogFace, register
@@ -105,14 +110,19 @@ class KubernetesAdapter:
         options: KubernetesConnection,
         tunnels: TunnelAccess | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
+        connector_id: str | None = None,
     ) -> None:
         self._session = KubernetesSession(options, tunnels, transport)
+        self._tunnels = tunnels
         self._discovery = Discovery(self._session)
         self._namespace = options.namespace or None
         self._kube = Kube(self._session, self._discovery, Reviews(self._session))
-        self._object_actions: list[ObjectAction[Any] | Drain] = [
+        self._connect = OpenAsConnection(self._kube, connector_id)
+        self._object_actions: list[ObjectAction[Any] | Drain | PodTerminal | OpenAsConnection] = [
             *(kind(self._kube) for kind in OBJECT_ACTIONS),
             Drain(self._kube),
+            PodTerminal(self._kube),
+            self._connect,
         ]
         self._actions = ActionSet([*self._object_actions, Apply(self._kube)])
 
@@ -366,7 +376,7 @@ class KubernetesAdapter:
 
     @classmethod
     def action_types(cls) -> tuple[ActionType, ...]:
-        return (*OBJECT_ACTIONS, Drain, Apply)
+        return (*OBJECT_ACTIONS, Drain, PodTerminal, OpenAsConnection, Apply)
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.get(name)
@@ -393,7 +403,22 @@ class KubernetesAdapter:
             return []
         fitting = [action for action in self._object_actions if action.fits(target.resource)]
         allowed = await self._kube.reviews.all_allow([action.asked(target) for action in fitting])
-        return [action for action, yes in zip(fitting, allowed, strict=True) if yes]
+        offered: list[Action[Any]] = [action for action, yes in zip(fitting, allowed, strict=True) if yes]
+        # Offered only where a type declares the image (D474): one read of the
+        # pod, the menu's own. A listed row cannot tell, so it names it anyway.
+        if self._connect in offered and not await self._connect.offered(node_id):
+            offered.remove(self._connect)
+        return offered
+
+    # --- a port of the cluster carried for another connection (D474) ----------
+
+    async def forward(self, host: str, port: int) -> tuple[str, int]:
+        return await FORWARDS.endpoint(self._session.options, self._tunnels, host, port)
+
+    # --- a container's logs told as they grow (D473) ---------------------------
+
+    async def watch_changes(self, sink: ChangeSink) -> ChangeWatch:
+        return KubernetesWatch(self._session, sink)
 
     # --- an object's YAML, edited where it is (D470) --------------------------------
 
@@ -488,5 +513,6 @@ class KubernetesAdapter:
     faces=(CatalogFace(key="kubernetes", title=N_("Kubernetes")),),
 )
 def _build(options: KubernetesConnection, context: AdapterContext) -> KubernetesAdapter:
-    return KubernetesAdapter(options, context.tunnels)
+    connector_id = None if context.pooling is None else str(context.pooling.connector_id)
+    return KubernetesAdapter(options, context.tunnels, connector_id=connector_id)
 

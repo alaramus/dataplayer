@@ -9,9 +9,11 @@ export interface TunnelWords {
 }
 
 /**
- * A field that names the SSH connection a database goes through (D282),
- * offered as a choice of the person's own SSH connections, and "directly"
- * first unless the field is required.
+ * A field that names the connection a database goes through (D282), offered
+ * as a choice of the person's own connections of a type that carries one —
+ * SSH, and Kubernetes to a pod or a Service (D474) — and "directly" first
+ * unless the field is required. Which types carry one is the server's word
+ * (the `tunnel` capability), not a list here.
  *
  * The schema says what the field is for (`x-ui-purpose: ssh-connection`);
  * only this screen knows which connections there are. One the form holds and
@@ -22,10 +24,11 @@ export function withTunnelChoices(
   fields: FieldSpec[],
   connections: readonly ConnectorPublic[],
   values: Record<string, unknown>,
-  words: TunnelWords
+  words: TunnelWords,
+  carriers: ReadonlySet<string> = new Set(["ssh"])
 ): FieldSpec[] {
   const own = connections.filter(
-    (connection) => connection.adapter_type === "ssh" && connection.access === "own"
+    (connection) => carriers.has(connection.adapter_type) && connection.access === "own"
   )
   return fields.map((field) => {
     if (field.purpose !== "ssh-connection") return field
