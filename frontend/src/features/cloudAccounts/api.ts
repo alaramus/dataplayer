@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
-import { unref } from "vue"
+import { computed, unref } from "vue"
 import type { MaybeRef } from "vue"
 
 import { CloudAccountsService } from "@/client"
@@ -41,6 +41,18 @@ export function useAwsRegions(account: MaybeRef<string | undefined>, enabled: Ma
       (await CloudAccountsService.accountsReadCloudRegions({ query: { account: unref(account) ?? null } })).data,
     enabled,
     staleTime: 60 * 60 * 1000,
+  })
+}
+
+/** The Kubernetes clusters an account may see, for a field naming one (D477). */
+export function useCloudClusters(account: MaybeRef<string | undefined>) {
+  return useQuery({
+    queryKey: [...cloudAccountsKey, "clusters", account],
+    queryFn: async () =>
+      (await CloudAccountsService.accountsReadCloudClusters({ path: { account_id: unref(account) as string } })).data,
+    enabled: computed(() => unref(account) !== undefined),
+    staleTime: 60_000,
+    retry: false,
   })
 }
 

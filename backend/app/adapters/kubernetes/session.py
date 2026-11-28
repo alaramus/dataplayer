@@ -24,8 +24,10 @@ from anyio import to_thread
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import InvalidHandshake, InvalidStatus
 
+from app.adapters.cloud import CloudAccess
 from app.adapters.kubernetes.endpoint import Endpoint, endpoint_of
-from app.adapters.kubernetes.options import KubernetesConnection
+from app.adapters.kubernetes.gke import GkeCluster, read_cluster
+from app.adapters.kubernetes.options import GkeOptions, KubernetesConnection
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.tls import TlsSettings, ssl_context
 from app.adapters.tunnels import TunnelAccess, tunnel_of
@@ -127,9 +129,13 @@ class KubernetesSession:
         options: KubernetesConnection,
         tunnels: TunnelAccess | None,
         transport: httpx.AsyncBaseTransport | None = None,
+        cloud: CloudAccess | None = None,
     ) -> None:
         self._options = options
         self._tunnels = tunnels
+        self._cloud = cloud
+        # A GKE cluster as Google last described it (D477).
+        self._gke: GkeCluster | None = None
         # A test answers with what the stand recorded.
         self._transport = transport
         self._endpoint: Endpoint | None = None
@@ -153,9 +159,29 @@ class KubernetesSession:
         return self._git_version
 
     def endpoint(self) -> Endpoint:
+        """Where the API server is and how to be trusted; a GKE cluster's is
+        known once `client()` has read it (D477)."""
         if self._endpoint is None:
+            if isinstance(self._options, GkeOptions):
+                raise AdapterError("config", say("The cluster has not been read yet"))
             self._endpoint = endpoint_of(self._options)
         return self._endpoint
+
+    @property
+    def gke_cluster(self) -> dict[str, Any] | None:
+        """The Container API's answer for a GKE cluster, as last read (D478)."""
+        return None if self._gke is None else self._gke.cluster
+
+    async def _read_gke(self) -> bool:
+        """A GKE cluster read again when there is none or its token is about to
+        run out; whether the endpoint changed."""
+        if not isinstance(self._options, GkeOptions):
+            return False
+        if self._gke is not None and not self._gke.stale():
+            return False
+        self._gke = await read_cluster(self._cloud, self._options)
+        self._endpoint = self._gke.endpoint
+        return True
 
     def _server_parts(self) -> tuple[str, int, str]:
         parts = urlsplit(self.endpoint().server)
@@ -193,6 +219,16 @@ class KubernetesSession:
     async def client(self) -> httpx.AsyncClient:
         """The client at a checked version; asked before every request, so a
         closed tunnel or a refused certificate is said there."""
+        async with self._lock:
+            before = self._endpoint
+            if await self._read_gke() and self._client is not None and before is not None:
+                after = self.endpoint()
+                if (after.server, after.ca) == (before.server, before.ca) and after.token:
+                    # Only the token was renewed: requests in flight keep the client.
+                    self._client.headers["Authorization"] = f"Bearer {after.token}"
+                else:
+                    await self._client.aclose()
+                    self._client = None
         host, port = await self._address()
         async with self._lock:
             if self._client is None or self._client_port != port:

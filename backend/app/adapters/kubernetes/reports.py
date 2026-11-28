@@ -14,6 +14,7 @@ from app.adapters.content import NodeRepresentation
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.kubernetes.catalog import CLUSTER
 from app.adapters.kubernetes.discovery import Discovery
+from app.adapters.kubernetes.gke import report_rows
 from app.adapters.kubernetes.metrics import read_top
 from app.adapters.kubernetes.session import (
     METADATA,
@@ -243,6 +244,22 @@ async def _nodes(context: Context, request: FetchRequest) -> FetchResult:
     return page(request, NODE_COLUMNS, rows, refresh_seconds=30)
 
 
+async def _gke(context: Context, request: FetchRequest) -> FetchResult:
+    await context.session.client()
+    cluster = context.session.gke_cluster
+    if cluster is None:
+        raise NodeNotFound(request.node_id)
+    return report_page(
+        request,
+        report_rows(cluster),
+        name_column=say(SETTING_COLUMN),
+        value_column=say(VALUE_COLUMN),
+        read_only_reason=say('"{title}" is a report and holds no rows of its own', title="GKE"),
+        refresh_seconds=60,
+        page_commands=["download", "share"],
+    )
+
+
 async def _top(context: Context, request: FetchRequest) -> FetchResult:
     return await read_top(context.session, context.namespace, request)
 
@@ -273,6 +290,8 @@ class ClusterReport:
     title: str
     description: str
     read: Callable[[Context, FetchRequest], Awaitable[FetchResult]]
+    # Listed only for a cluster reached as GKE (D478).
+    gke_only: bool = False
 
     @property
     def node_id(self) -> str:
@@ -291,6 +310,13 @@ REPORTS: tuple[ClusterReport, ...] = (
         N_("Nodes"),
         N_("Each machine's status, roles, versions, capacity and taints"),
         _nodes,
+    ),
+    ClusterReport(
+        "gke",
+        N_("GKE"),
+        N_("Location, release channel, versions, node pools and endpoints, as Google describes the cluster"),
+        _gke,
+        gke_only=True,
     ),
     ClusterReport(
         "top",

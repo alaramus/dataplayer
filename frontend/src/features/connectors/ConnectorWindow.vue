@@ -36,7 +36,8 @@ import {
 import { windowPages } from "@/features/connectors/windowPages"
 import CloudAccountDialog from "@/features/cloudAccounts/CloudAccountDialog.vue"
 import { withAccountChoices } from "@/features/cloudAccounts/accounts"
-import { useAwsRegions, useCloudAccounts } from "@/features/cloudAccounts/api"
+import { useAwsRegions, useCloudAccounts, useCloudClusters } from "@/features/cloudAccounts/api"
+import { clusterAccount, withClusterChoices } from "@/features/cloudAccounts/clusters"
 import { regionAccount, withRegionChoices } from "@/features/cloudAccounts/regions"
 import ServerKeyField from "@/features/sshKeys/ServerKeyField.vue"
 import SshKeyDialog from "@/features/sshKeys/SshKeyDialog.vue"
@@ -397,6 +398,8 @@ function takeAccount(id: string) {
 // Amazon's regions, asked only by a form with a field naming one (D461): the
 // account's own once the form names an AWS account.
 const wantsRegions = computed(() => activeFields.value.some((field) => field.purpose === "aws-region"))
+// The clusters the form's Google Cloud account may see (D477).
+const clusters = useCloudClusters(computed(() => clusterAccount(activeFields.value, optionValues.value)))
 const regions = useAwsRegions(
   computed(() => regionAccount(activeFields.value, optionValues.value)),
   wantsRegions
@@ -427,6 +430,7 @@ const groups = computed(() =>
   fieldGroups(
     withTunnelHost(
       withTunnelChoices(
+        withClusterChoices(
         withRegionChoices(
           withAccountChoices(
             withKeyChoices(activeFields.value, sshKeys.data.value ?? []),
@@ -435,6 +439,9 @@ const groups = computed(() =>
           regions.data.value ?? [],
           optionValues.value,
           t("connectors.region_default")
+        ),
+          clusters.data.value ?? [],
+          optionValues.value
         ),
         connections.data.value?.data ?? [],
         optionValues.value,

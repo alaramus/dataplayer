@@ -2535,6 +2535,22 @@ export type CloudAccountUpdate = {
 }
 
 /**
+ * CloudCluster
+ *
+ * A Kubernetes cluster an account may see, as a field naming one offers it (D477).
+ */
+export type CloudCluster = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Title
+   */
+  title: string
+}
+
+/**
  * CloudRegion
  *
  * A region the field offers: its name, and what the provider calls it.
@@ -12264,6 +12280,7 @@ export type ProblemDetail = {
     | "cloud_accounts.ambient_off"
     | "cloud_accounts.ambient_superuser"
     | "cloud_accounts.untestable"
+    | "cloud_accounts.no_clusters"
     | "paste.same_connection"
     | "connectors.no_content_previews"
     | "connectors.no_content_stream"
@@ -22973,6 +22990,40 @@ export type cloudAccountsReadCloudRegionsResponses = {
 
 export type cloudAccountsReadCloudRegionsResponse =
   cloudAccountsReadCloudRegionsResponses[keyof cloudAccountsReadCloudRegionsResponses]
+
+export type cloudAccountsReadCloudClustersData = {
+  body?: never
+  path: {
+    /**
+     * Account Id
+     */
+    account_id: string
+  }
+  query?: never
+  url: "/api/v1/cloud-accounts/{account_id}/clusters"
+}
+
+export type cloudAccountsReadCloudClustersErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type cloudAccountsReadCloudClustersError =
+  cloudAccountsReadCloudClustersErrors[keyof cloudAccountsReadCloudClustersErrors]
+
+export type cloudAccountsReadCloudClustersResponses = {
+  /**
+   * Response Cloud-Accounts-Read Cloud Clusters
+   *
+   * Successful Response
+   */
+  200: Array<CloudCluster>
+}
+
+export type cloudAccountsReadCloudClustersResponse =
+  cloudAccountsReadCloudClustersResponses[keyof cloudAccountsReadCloudClustersResponses]
 
 export type cloudAccountsDeleteCloudAccountData = {
   body?: never

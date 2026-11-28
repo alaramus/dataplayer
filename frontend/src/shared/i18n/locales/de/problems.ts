@@ -61,6 +61,7 @@ export const problems: Record<ProblemCode, string> = {
   "cloud_accounts.ambient_off": "Diese Installation verleiht ihre eigene Cloud-Identität nicht",
   "cloud_accounts.ambient_superuser": "Nur ein Superuser darf ein Konto anlegen, das sich als dieser Server anmeldet",
   "cloud_accounts.untestable": "Konten dieser Art können noch nicht getestet werden",
+  "cloud_accounts.no_clusters": "Konten dieser Art betreiben hier keine Kubernetes-Cluster",
   "paste.same_connection": "Wählen Sie zwei verschiedene Verbindungen",
   "connectors.no_content_previews": "Die Quelle unterstützt keine Inhaltsvorschau",
   "connectors.no_content_stream": "Die Quelle überträgt Inhalte nicht als Stream",

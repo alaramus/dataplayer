@@ -61,6 +61,7 @@ export const problems: Record<ProblemCode, string> = {
   "cloud_accounts.ambient_off": "此安装不出借其自身的云身份",
   "cloud_accounts.ambient_superuser": "只有超级用户可以创建以本服务器身份登录的账号",
   "cloud_accounts.untestable": "此类账号暂时无法测试",
+  "cloud_accounts.no_clusters": "此类账号在这里不运行 Kubernetes 集群",
   "paste.same_connection": "请选择两个不同的连接",
   "connectors.no_content_previews": "此数据源不支持内容预览",
   "connectors.no_content_stream": "此数据源不以流的方式传输内容",

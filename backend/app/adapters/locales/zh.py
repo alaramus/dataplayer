@@ -255,4 +255,6 @@ MESSAGES: dict[str, str] = {
     "Directly, or through one of your connections that carries others: an SSH server or a Kubernetes cluster": "直接连接，或经由您的某个可承载其他连接的连接：SSH 服务器或 Kubernetes 集群",
     "Reach a Unix socket on its machine": "访问其所在机器上的 Unix 套接字",
     "Say where it leads": "说明它通向何处",
+    "Google denied listing clusters; the account needs a Kubernetes Engine role": "Google 拒绝列出集群；该账号需要 Kubernetes Engine 角色",
+    "This account names no project to look in": "此账号未指明要查找的项目",
 }

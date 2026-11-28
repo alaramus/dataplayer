@@ -54,6 +54,7 @@ export interface JsonSchemaProperty {
    * `cloud-account` takes one of the owner's cloud accounts of a kind
    * `x-ui-account-kind` lists (D451): one, or four for a secret store (D454).
    * `aws-region` names an AWS region, offered from Amazon's list (D461).
+   * `gke-cluster` names a GKE cluster the form's account may see (D477).
    */
   "x-ui-purpose"?:
     | "clipboard-mode"
@@ -67,6 +68,7 @@ export interface JsonSchemaProperty {
     | "ssh-connection"
     | "cloud-account"
     | "aws-region"
+    | "gke-cluster"
   /** The kinds of cloud account a `cloud-account` field takes (D451). */
   "x-ui-account-kind"?: string[]
   /**

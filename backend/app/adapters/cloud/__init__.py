@@ -86,6 +86,24 @@ class Region:
     title: str
 
 
+@dataclass(frozen=True)
+class ManagedCluster:
+    """A Kubernetes cluster a provider runs, by the name its API gives it
+    (`projects/P/locations/L/clusters/N`), and how a person recognises it."""
+
+    name: str
+    title: str
+
+
+@runtime_checkable
+class ClusterLister(Protocol):
+    """A provider that can say which Kubernetes clusters an account may see,
+    for the field that names one (D477). Raises `AdapterError` worded for a
+    person; synchronous, as an issuer is."""
+
+    def clusters(self, account: BaseModel) -> list[ManagedCluster]: ...
+
+
 @runtime_checkable
 class RegionLister(Protocol):
     """A provider that can say its regions, for the field that names one (D461).

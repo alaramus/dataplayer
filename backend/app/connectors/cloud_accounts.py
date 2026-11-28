@@ -142,6 +142,13 @@ class CloudAccountTest(BaseModel):
     message: str
 
 
+class CloudCluster(BaseModel):
+    """A Kubernetes cluster an account may see, as a field naming one offers it (D477)."""
+
+    name: str
+    title: str
+
+
 class CloudRegion(BaseModel):
     """A region the field offers: its name, and what the provider calls it."""
 

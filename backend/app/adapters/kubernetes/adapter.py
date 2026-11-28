@@ -18,6 +18,7 @@ from app.adapters import jsontext
 from app.adapters.actions import Action, ActionRefused, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.changes import ChangeSink, ChangeWatch
+from app.adapters.cloud import CloudAccess
 from app.adapters.content import (
     ContentConflict,
     ContentRequest,
@@ -70,7 +71,11 @@ from app.adapters.kubernetes.forward import FORWARDS, listed_targets
 from app.adapters.kubernetes.jobs import Drain
 from app.adapters.kubernetes.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.kubernetes.metrics import samples as metric_samples
-from app.adapters.kubernetes.options import KubernetesConnection, KubernetesOptions
+from app.adapters.kubernetes.options import (
+    GkeOptions,
+    KubernetesConnection,
+    KubernetesOptions,
+)
 from app.adapters.kubernetes.reports import (
     REPORTS,
     Context,
@@ -138,9 +143,11 @@ class KubernetesAdapter:
         tunnels: TunnelAccess | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
         connector_id: str | None = None,
+        cloud: CloudAccess | None = None,
     ) -> None:
-        self._session = KubernetesSession(options, tunnels, transport)
+        self._session = KubernetesSession(options, tunnels, transport, cloud)
         self._tunnels = tunnels
+        self._cloud = cloud
         self._discovery = Discovery(self._session)
         self._namespace = options.namespace or None
         self._kube = Kube(self._session, self._discovery, Reviews(self._session))
@@ -213,7 +220,8 @@ class KubernetesAdapter:
         named = parse(node_id)
         if named.top == "cluster":
             if named.report is None:
-                return [report_node(report) for report in REPORTS]
+                gke = isinstance(self._session.options, GkeOptions)
+                return [report_node(report) for report in REPORTS if gke or not report.gke_only]
             if report_for(node_id) is None:
                 raise NodeNotFound(node_id)
             return []
@@ -459,7 +467,7 @@ class KubernetesAdapter:
     # --- a port of the cluster carried for another connection (D474) ----------
 
     async def forward(self, host: str, port: int) -> tuple[str, int]:
-        return await FORWARDS.endpoint(self._session.options, self._tunnels, host, port)
+        return await FORWARDS.endpoint(self._session.options, self._tunnels, self._cloud, host, port)
 
     async def tunnel_targets(self) -> list[TunnelTarget]:
         """Services and running pods a form offers as the host (D479)."""
@@ -585,9 +593,22 @@ class KubernetesAdapter:
     ),
     options_schema=KubernetesOptions,
     adapter_class=KubernetesAdapter,
-    faces=(CatalogFace(key="kubernetes", title=N_("Kubernetes")),),
+    faces=(
+        CatalogFace(key="kubernetes", title=N_("Kubernetes")),
+        CatalogFace(
+            key="gke",
+            title=N_("Google Kubernetes Engine"),
+            options={"auth": "gke"},
+            note=N_(
+                "Sign in with one of your Google Cloud accounts and choose the cluster; "
+                "its address, CA and a fresh token are read from Google at every session. "
+                "The account's IAM role, Kubernetes Engine Developer for one, decides what it may do."
+            ),
+            note_link="https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication",
+        ),
+    ),
 )
 def _build(options: KubernetesConnection, context: AdapterContext) -> KubernetesAdapter:
     connector_id = None if context.pooling is None else str(context.pooling.connector_id)
-    return KubernetesAdapter(options, context.tunnels, connector_id=connector_id)
+    return KubernetesAdapter(options, context.tunnels, connector_id=connector_id, cloud=context.cloud)
 

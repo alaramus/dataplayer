@@ -156,6 +156,9 @@ import type {
   cloudAccountsReadCloudAccountsData,
   cloudAccountsReadCloudAccountsErrors,
   cloudAccountsReadCloudAccountsResponses,
+  cloudAccountsReadCloudClustersData,
+  cloudAccountsReadCloudClustersErrors,
+  cloudAccountsReadCloudClustersResponses,
   cloudAccountsReadCloudRegionsData,
   cloudAccountsReadCloudRegionsErrors,
   cloudAccountsReadCloudRegionsResponses,
@@ -4192,6 +4195,28 @@ export class CloudAccountsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/cloud-accounts/regions",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Cloud Clusters
+   *
+   * The Kubernetes clusters this account may see, for a connection naming one
+   * (D477). A provider that runs none answers 501; a refusal is the provider's,
+   * worded for a person.
+   */
+  public static accountsReadCloudClusters<ThrowOnError extends boolean = true>(
+    options: Options<cloudAccountsReadCloudClustersData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      cloudAccountsReadCloudClustersResponses,
+      cloudAccountsReadCloudClustersErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/cloud-accounts/{account_id}/clusters",
       ...options,
     })
   }

@@ -1,4 +1,5 @@
-"""A person's cloud accounts: making one, changing it, testing it, its regions (D451, D452, D461).
+"""A person's cloud accounts: making one, changing it, testing it, its regions
+and its Kubernetes clusters (D451, D452, D461, D477).
 
 A router of its own, as SSH keys have: an account is its owner's and serves
 every connection they point at it.
@@ -7,9 +8,16 @@ every connection they point at it.
 import uuid
 from typing import Any, cast
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
-from app.adapters.cloud import AccountKind, Region, RegionLister, issuer_for
+from app.adapters.cloud import (
+    AccountKind,
+    ClusterLister,
+    ManagedCluster,
+    Region,
+    RegionLister,
+    issuer_for,
+)
 from app.adapters.protocol import AdapterError
 from app.connectors import cloud_accounts
 from app.connectors.cloud_accounts import (
@@ -19,6 +27,7 @@ from app.connectors.cloud_accounts import (
     CloudAccountSchemas,
     CloudAccountTest,
     CloudAccountUpdate,
+    CloudCluster,
     CloudRegion,
 )
 from app.core.db import SessionDep
@@ -83,6 +92,33 @@ async def read_cloud_regions(
     except AdapterError:
         return []
     return [CloudRegion(name=region.name, title=region.title) for region in regions]
+
+
+@router.get("/{account_id}/clusters", response_model=list[CloudCluster])
+async def read_cloud_clusters(
+    session: SessionDep, current_user: CurrentUser, account_id: uuid.UUID
+) -> Any:
+    """
+    The Kubernetes clusters this account may see, for a connection naming one
+    (D477). A provider that runs none answers 501; a refusal is the provider's,
+    worded for a person.
+    """
+    row = await _own_or_404(session, account_id, current_user.id)
+    issuer = issuer_for(cast(AccountKind, row.kind))
+    if not isinstance(issuer, ClusterLister):
+        raise Problem(501, "cloud_accounts.no_clusters", error_kind="config")
+    try:
+        settings = cloud_accounts.settings_of(row)
+        if settings.ambient and not cloud_accounts.ambient_offered(current_user):
+            raise Problem(403, "cloud_accounts.ambient_off")
+        found: list[ManagedCluster] = await cloud_accounts.run_issuer(
+            cast(AccountKind, row.kind), row.name, issuer.clusters, settings
+        )
+    except AdapterError as failure:
+        raise HTTPException(
+            status_code=502, detail={"message": failure.message, "error_kind": failure.error_kind}
+        ) from None
+    return [CloudCluster(name=one.name, title=one.title) for one in found]
 
 
 @router.post("/", response_model=CloudAccountPublic)

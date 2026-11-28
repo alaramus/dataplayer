@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
+from app.adapters.cloud import account_field
 from app.adapters.layout import PEM_FILE, layout
 from app.adapters.tls import CERTIFICATE, pem
 from app.adapters.tunnels import ssh_tunnel_field
@@ -213,9 +214,55 @@ class CertificateOptions(_Common):
         return SecretStr(pem(text, _KEYS, say("Paste a private key in PEM, BEGIN PRIVATE KEY and all")))
 
 
-type KubernetesConnection = KubeconfigOptions | TokenOptions | CertificateOptions
+# `projects/P/locations/L/clusters/N`, as the Container API names a cluster.
+GKE_CLUSTER = r"^projects/[a-z][-a-z0-9]{4,28}[a-z0-9]/locations/[a-z0-9-]{1,63}/clusters/[a-z]([-a-z0-9]{0,38}[a-z0-9])?$"
+GKE_CLUSTER_PURPOSE = "gke-cluster"
+
+GkeEndpoint = Literal["public", "private", "dns"]
+
+
+class GkeOptions(_Common):
+    """A GKE cluster read again at every session through the Container API,
+    signed in to with an access token its Google Cloud account issues (D477)."""
+
+    model_config = ConfigDict(extra="forbid", title=N_("A Google Cloud account (GKE)"))
+
+    auth: Literal["gke"] = _auth_field("gke")
+    account: str = account_field(
+        "gcp",
+        title=N_("Google Cloud account"),
+        description=N_("Its IAM role decides what the cluster lets it do: Kubernetes Engine Developer, for one"),
+    )
+    cluster: str = Field(
+        pattern=GKE_CLUSTER,
+        max_length=300,
+        title=N_("Cluster"),
+        description=N_("One the account may see; projects/PROJECT/locations/LOCATION/clusters/NAME"),
+        json_schema_extra=layout(purpose=GKE_CLUSTER_PURPOSE),
+    )
+    endpoint: GkeEndpoint = Field(
+        default="public",
+        title=N_("Control plane address"),
+        description=N_(
+            "Public; private, through an SSH tunnel into its network; or its DNS name, "
+            "when the cluster lets traffic from outside Google Cloud reach it"
+        ),
+        json_schema_extra={
+            **layout(),
+            "x-ui-choices": [
+                {"value": "public", "label": N_("Public")},
+                {"value": "private", "label": N_("Private")},
+                {"value": "dns", "label": N_("DNS name")},
+            ],
+        },
+    )
+    namespace: str = _namespace_field()
+    ssh_tunnel: str = ssh_tunnel_field()
+
+
+type KubernetesConnection = KubeconfigOptions | TokenOptions | CertificateOptions | GkeOptions
 
 KubernetesOptions = Annotated[
-    KubeconfigOptions | TokenOptions | CertificateOptions,
+    KubeconfigOptions | TokenOptions | CertificateOptions | GkeOptions,
     Field(discriminator="auth"),
 ]

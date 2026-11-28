@@ -17,6 +17,7 @@ from app.adapters.protocol import AdapterError
 from app.adapters.registry import AdapterContext
 from app.adapters.tunnels import ForwardsPorts, ForwardsSockets, tunnel_of
 from app.connectors import service
+from app.connectors.cloud_accounts import OwnerCloud
 from app.connectors.models import Connector
 from app.connectors.ssh_keys import OwnerKeys, SshKeyUse
 from app.core.db import async_session_maker
@@ -73,6 +74,8 @@ class OwnerTunnels:
                 AdapterContext(
                     home_dir=storage.home_dir(self._owner_id),
                     keys=OwnerKeys(self._owner_id),
+                    # A GKE cluster signs in with its owner's account (D477).
+                    cloud=OwnerCloud(self._owner_id),
                 ),
             )
         )

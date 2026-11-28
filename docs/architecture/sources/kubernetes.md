@@ -9,14 +9,15 @@ scaling, restarting, cordoning and suspending (D468), deleting (D469), YAML
 edited and applied (D470), draining a node as a job (D471), a terminal in a
 pod's container (D472), a container's logs told as they grow (D473), and a
 port of the cluster carried for another connection, a database in it opened
-as one (D474), metrics from `metrics.k8s.io` and the Top report (D475), and
-search and export (D476).
+as one (D474), metrics from `metrics.k8s.io` and the Top report (D475),
+search and export (D476), a GKE cluster reached with a Google Cloud account
+(D477) and what only GKE says of it (D478).
 The contract every source type follows is in [contract.md](contract.md); the
 SSH tunnel it may ride is D282 in [ssh.md](ssh.md), and the TLS helpers it
 builds its context with are D446–D448 in [cloud-auth.md](cloud-auth.md). Read
 this before changing the `kubernetes` adapter.
 
-Decisions here: D463, D464, D465, D466, D467, D468, D469, D470, D471, D472, D473, D474, D475, D476.
+Decisions here: D463, D464, D465, D466, D467, D468, D469, D470, D471, D472, D473, D474, D475, D476, D477, D478.
 
 ## D463. One type, with a managed cluster as a way in
 
@@ -308,5 +309,50 @@ searched.
 namespaces, an object's events and pods, filtered and ordered as asked
 (D73). Known deviation: a Cluster report and a container's logs are
 downloaded a page at a time, and an export of them is refused.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D477. A GKE cluster is read with a Google Cloud account at every session
+
+The `gke` way in (`GkeOptions`) names one of the owner's Google Cloud
+accounts (D451) and a cluster as the Container API names it,
+`projects/P/locations/L/clusters/N`, chosen in the form from those the
+account may see (`GET /cloud-accounts/{id}/clusters`, the issuer's
+`ClusterLister`, every location of the key's project; typed when there is no
+list), and which control plane address to use: public, private (through an
+SSH tunnel into its network) or the DNS name, refused before dialling when
+the cluster takes no traffic from outside Google Cloud. `gke.py` asks the
+account for an OAuth 2 access token of scope `cloud-platform`
+(`GoogleAccessToken`, the GCP issuer's answer) and reads
+`container.googleapis.com/v1/{cluster}` with it over httpx — google-auth
+stays in `cloud/gcp` — for the address and the cluster's CA (none for the
+DNS name, whose certificate public roots trust); the same token signs every
+request to the API server. The session reads the cluster again when its token
+has five minutes left: only the header changes when the address and CA did
+not. A refusal is Google's status in a sentence: 403 a missing Kubernetes
+Engine role, 404 a cluster to choose again. The account's IAM role is what
+RBAC sees (Kubernetes Engine Developer for the test account). A GKE
+connection can carry other connections (D474): the tunnel's context has the
+owner's cloud accounts. **Google Kubernetes Engine** is a card (`gke`).
+
+*Checked* against a GKE 1.36 Standard cluster with a service account key:
+the list, the check, the catalog and the GKE report; the DNS name refused,
+the private address unreachable without a tunnel.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)
+
+## D478. What only GKE says is a report
+
+**GKE** in the Cluster section, listed for a `gke` connection only, is the
+Container API answer the session holds: name, location, status, Autopilot or
+Standard, release channel, control plane and node versions, public, private
+and DNS endpoints (and whether the DNS one takes outside traffic), Workload
+Identity's pool, network, and a line per node pool — machine type, nodes per
+zone or the autoscaling bounds, Spot or preemptible, version, status. A
+kubeconfig `gcloud` wrote is refused (D464) naming the cluster to choose,
+read from its context's name `gke_PROJECT_LOCATION_NAME`.
+
+Known deviation from the spec: the form does not turn such a kubeconfig into
+the `gke` way in by itself; the refusal names the cluster to choose.
 
 Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)

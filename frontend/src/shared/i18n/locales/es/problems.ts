@@ -61,6 +61,7 @@ export const problems: Record<ProblemCode, string> = {
   "cloud_accounts.ambient_off": "Esta instalación no presta su propia identidad en la nube",
   "cloud_accounts.ambient_superuser": "Solo un superusuario puede crear una cuenta que inicie sesión como este servidor",
   "cloud_accounts.untestable": "Las cuentas de este tipo aún no se pueden probar",
+  "cloud_accounts.no_clusters": "Las cuentas de este tipo no gestionan aquí clústeres de Kubernetes",
   "paste.same_connection": "Elige dos conexiones distintas",
   "connectors.no_content_previews": "Esta fuente no admite vistas previas de contenido",
   "connectors.no_content_stream": "Esta fuente no envía el contenido como flujo continuo",

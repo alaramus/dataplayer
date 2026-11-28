@@ -30,8 +30,9 @@ from typing import Any, Literal
 from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosed
 
+from app.adapters.cloud import CloudAccess
 from app.adapters.kubernetes.endpoint import endpoint_of
-from app.adapters.kubernetes.options import KubernetesConnection
+from app.adapters.kubernetes.options import GkeOptions, KubernetesConnection
 from app.adapters.kubernetes.session import Forbidden, KubernetesSession, segment
 from app.adapters.protocol import AdapterError
 from app.adapters.tunnels import TunnelAccess, TunnelTarget
@@ -178,10 +179,11 @@ class PortForwarder:
         self,
         options: KubernetesConnection,
         tunnels: TunnelAccess | None,
+        cloud: CloudAccess | None,
         reach: Reach,
         port: int,
     ) -> None:
-        self._session = KubernetesSession(options, tunnels)
+        self._session = KubernetesSession(options, tunnels, cloud=cloud)
         self._reach = reach
         self._port = port
         self.loop = asyncio.get_running_loop()
@@ -282,6 +284,9 @@ async def _carry(
 
 def _identity(options: KubernetesConnection) -> str:
     """Which cluster and as whom, without keeping a credential as a key."""
+    if isinstance(options, GkeOptions):
+        # No secret in these: the account is named, its key kept elsewhere.
+        return hashlib.sha256(options.model_dump_json().encode()).hexdigest()
     endpoint = endpoint_of(options)
     parts = (
         endpoint.server,
@@ -304,6 +309,7 @@ class Forwards:
         self,
         options: KubernetesConnection,
         tunnels: TunnelAccess | None,
+        cloud: CloudAccess | None,
         host: str,
         port: int,
     ) -> tuple[str, int]:
@@ -313,7 +319,7 @@ class Forwards:
         found = self._forwarders.get(key)
         # A forwarder belongs to the loop that made it (see `ssh/tunnel.py`).
         if found is None or found.loop is not asyncio.get_running_loop():
-            found = PortForwarder(options, tunnels, reach, port)
+            found = PortForwarder(options, tunnels, cloud, reach, port)
             self._forwarders[key] = found
         return await found.endpoint()
 

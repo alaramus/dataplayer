@@ -52,6 +52,7 @@ const ICONS: Record<string, string> = {
   "azure-postgres": "img:/icons/services/azure.svg",
   "azure-mysql": "img:/icons/services/azure.svg",
   "cloudsql-postgres": "img:/icons/services/googlecloud.svg",
+  gke: "img:/icons/services/gke.svg",
   "cloudsql-mysql": "img:/icons/services/googlecloud.svg",
   percona: "img:/icons/services/percona.svg",
   valkey: "img:/icons/services/valkey.svg",

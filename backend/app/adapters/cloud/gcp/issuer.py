@@ -20,9 +20,9 @@ from google.auth.transport.requests import AuthorizedSession, Request
 from google.oauth2 import service_account
 from pydantic import BaseModel
 
-from app.adapters.cloud import IssuedSecret, SecretRequest
+from app.adapters.cloud import IssuedSecret, ManagedCluster, SecretRequest
 from app.adapters.cloud.accounts import GcpDefault, GcpServiceAccount
-from app.adapters.cloud.requests import CloudSqlToken, StoredSecret
+from app.adapters.cloud.requests import CloudSqlToken, GoogleAccessToken, StoredSecret
 from app.adapters.cloud.stored import read_secret
 from app.adapters.protocol import AdapterError
 from app.core.translation import say
@@ -31,6 +31,7 @@ CLOUD_PLATFORM = "https://www.googleapis.com/auth/cloud-platform"
 # What Cloud SQL's IAM database authentication takes for a password.
 SQL_LOGIN = "https://www.googleapis.com/auth/sqlservice.login"
 SECRET_MANAGER = "https://secretmanager.googleapis.com/v1"
+CONTAINER = "https://container.googleapis.com/v1"
 TIMEOUT_SECONDS = 20
 # An impersonated token's life; Google's longest without an organisation policy.
 IMPERSONATED_SECONDS = 3600
@@ -44,11 +45,41 @@ class GcpIssuer:
         try:
             if isinstance(request, CloudSqlToken):
                 return _token(_credentials(settings, SQL_LOGIN))
+            if isinstance(request, GoogleAccessToken):
+                return _token(_credentials(settings, CLOUD_PLATFORM))
             if isinstance(request, StoredSecret):
                 return _stored(settings, request)
         except (RefreshError, DefaultCredentialsError, TransportError, requests.RequestException) as failure:
             raise _reduced(failure) from None
         raise AdapterError("config", say("An account of Google Cloud cannot be asked for this"))
+
+    def clusters(self, account: BaseModel) -> list[ManagedCluster]:
+        """The GKE clusters of the account's project, every location (D477)."""
+        settings = _gcp(account)
+        try:
+            credentials = _credentials(settings, CLOUD_PLATFORM)
+            project = _project(settings)
+            session = AuthorizedSession(credentials)
+            answer = session.get(f"{CONTAINER}/projects/{project}/locations/-/clusters", timeout=TIMEOUT_SECONDS)
+        except (RefreshError, DefaultCredentialsError, TransportError, requests.RequestException) as failure:
+            raise _reduced(failure) from None
+        if answer.status_code in (401, 403):
+            raise AdapterError(
+                "auth", say("Google denied listing clusters; the account needs a Kubernetes Engine role")
+            )
+        if answer.status_code != 200:
+            raise AdapterError("unknown", say("Google refused the request; test the account in Preferences"))
+        found: list[ManagedCluster] = []
+        for cluster in answer.json().get("clusters") or []:
+            name, location = str(cluster.get("name") or ""), str(cluster.get("location") or "")
+            if name and location:
+                found.append(
+                    ManagedCluster(
+                        name=f"projects/{project}/locations/{location}/clusters/{name}",
+                        title=f"{name} · {location} · {project}",
+                    )
+                )
+        return sorted(found, key=lambda one: one.title)
 
     def test(self, account: BaseModel) -> str:
         settings = _gcp(account)
@@ -89,6 +120,19 @@ def _credentials(settings: GcpSettings, scope: str) -> Credentials:
         target_scopes=[scope],
         lifetime=IMPERSONATED_SECONDS,
     )
+
+
+def _project(settings: GcpSettings) -> str:
+    """The project an account lists in: its key file's, or the server's own."""
+    if isinstance(settings, GcpServiceAccount):
+        info: dict[str, Any] = json.loads(settings.key_json.get_secret_value())
+        project = str(info.get("project_id") or "")
+    else:
+        _, found = google.auth.default(scopes=[CLOUD_PLATFORM])
+        project = str(found or "")
+    if not project:
+        raise AdapterError("config", say("This account names no project to look in"))
+    return project
 
 
 def _token(credentials: Credentials) -> IssuedSecret:

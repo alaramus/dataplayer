@@ -61,6 +61,7 @@ export const problems: Record<ProblemCode, string> = {
   "cloud_accounts.ambient_off": "Эта установка не предоставляет своё облачное удостоверение",
   "cloud_accounts.ambient_superuser": "Только суперпользователь может создать учётную запись, входящую от имени этого сервера",
   "cloud_accounts.untestable": "Учётные записи этого вида пока нельзя проверить",
+  "cloud_accounts.no_clusters": "Аккаунты этого типа здесь не управляют кластерами Kubernetes",
   "paste.same_connection": "Выберите два разных подключения",
   "connectors.no_content_previews": "Источник не поддерживает предпросмотр содержимого",
   "connectors.no_content_stream": "Источник не передаёт содержимое потоком",

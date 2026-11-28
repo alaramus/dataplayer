@@ -255,4 +255,6 @@ MESSAGES: dict[str, str] = {
     "Directly, or through one of your connections that carries others: an SSH server or a Kubernetes cluster": "Directamente, o a través de una de sus conexiones que lleva otras: un servidor SSH o un clúster de Kubernetes",
     "Reach a Unix socket on its machine": "Llegar a un socket Unix en su máquina",
     "Say where it leads": "Decir adónde lleva",
+    "Google denied listing clusters; the account needs a Kubernetes Engine role": "Google denegó listar los clústeres; la cuenta necesita un rol de Kubernetes Engine",
+    "This account names no project to look in": "Esta cuenta no indica ningún proyecto donde buscar",
 }

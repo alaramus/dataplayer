@@ -61,6 +61,7 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "cloud_accounts.ambient_off": "لا يُعير هذا التثبيت هويته السحابية",
   "cloud_accounts.ambient_superuser": "لا يجوز إلا لمستخدم خارق إنشاء حساب يسجّل الدخول بصفة هذا الخادم",
   "cloud_accounts.untestable": "لا يمكن اختبار حسابات من هذا النوع بعد",
+  "cloud_accounts.no_clusters": "حسابات هذا النوع لا تشغّل هنا عناقيد Kubernetes",
   "paste.same_connection": "اقرن اتصالين مختلفين",
   "connectors.no_content_previews": "هذا المصدر لا يدعم معاينات المحتوى",
   "connectors.no_content_stream": "هذا المصدر لا يبث المحتوى",

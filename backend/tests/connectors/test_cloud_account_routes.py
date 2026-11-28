@@ -11,7 +11,13 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import cloud, registry
-from app.adapters.cloud import IssuedSecret, Region, SecretRequest, account_field
+from app.adapters.cloud import (
+    IssuedSecret,
+    ManagedCluster,
+    Region,
+    SecretRequest,
+    account_field,
+)
 from app.adapters.cloud.accounts import AwsAccessKey
 from app.adapters.protocol import AdapterError
 from app.connectors import cloud_accounts
@@ -62,6 +68,11 @@ class FakeIssuer:
             return [Region("eu-central-1", "Europe (Frankfurt)"), Region("us-east-1", "US East (N. Virginia)")]
         assert isinstance(account, AwsAccessKey)
         return [Region(account.region or "us-east-1", "")]
+
+    def clusters(self, account: BaseModel) -> list[ManagedCluster]:
+        if self.fails is not None:
+            raise self.fails
+        return [ManagedCluster("projects/p/locations/l/clusters/a", "a · l · p")]
 
 
 @pytest.fixture
@@ -495,3 +506,23 @@ async def test_a_provider_that_lists_no_regions_or_fails_offers_none(
 
     assert vault.json() == []
     assert failed.status_code == 200 and failed.json() == []
+
+
+async def test_the_clusters_of_an_account_are_asked_of_its_provider(
+    client: AsyncClient, person: dict[str, str], normal_user_token_headers: dict[str, str], issuer: FakeIssuer
+) -> None:
+    """D477: a field naming a cluster offers those the account may see."""
+    made = await _make(client, person)
+    theirs = await _make(client, normal_user_token_headers)
+    vault = await _make(client, person, VAULT)
+
+    found = await client.get(f"{BASE}/{made['id']}/clusters", headers=person)
+    stranger = await client.get(f"{BASE}/{theirs['id']}/clusters", headers=person)
+    none = await client.get(f"{BASE}/{vault['id']}/clusters", headers=person)
+    issuer.fails = RuntimeError(f"InvalidClientTokenId: {SECRET}")
+    failed = await client.get(f"{BASE}/{made['id']}/clusters", headers=person)
+
+    assert found.json() == [{"name": "projects/p/locations/l/clusters/a", "title": "a · l · p"}]
+    assert stranger.status_code == 404
+    assert none.status_code == 501
+    assert failed.status_code == 502 and SECRET not in failed.text

@@ -15,7 +15,7 @@ from typing import Any
 import yaml
 
 from app.adapters.kubernetes.options import (
-    CertificateOptions,
+    GkeOptions,
     KubeconfigOptions,
     KubernetesConnection,
     TokenOptions,
@@ -68,7 +68,8 @@ def endpoint_of(options: KubernetesConnection) -> Endpoint:
             client_certificate=None,
             client_key=None,
         )
-    assert isinstance(options, CertificateOptions)
+    if isinstance(options, GkeOptions):
+        raise AdapterError("config", say("The cluster has not been read yet"))
     return Endpoint(
         server=options.server,
         ca=options.ca_certificate or None,
@@ -109,7 +110,16 @@ def _data(body: dict[str, Any], key: str, kinds: tuple[str, ...]) -> str | None:
         raise _refused(str(problem)) from None
 
 
-def _program_refusal(user: dict[str, Any]) -> AdapterError | None:
+def gke_cluster_of(context: str) -> str | None:
+    """The cluster a context `gcloud` wrote names, `gke_PROJECT_LOCATION_NAME`,
+    as the Container API names it (D478)."""
+    parts = context.split("_")
+    if len(parts) != 4 or parts[0] != "gke" or not all(parts[1:]):
+        return None
+    return f"projects/{parts[1]}/locations/{parts[2]}/clusters/{parts[3]}"
+
+
+def _program_refusal(user: dict[str, Any], context: str = "") -> AdapterError | None:
     if "auth-provider" in user:
         return _refused(
             say("This kubeconfig signs in through a plugin, which this server does not run")
@@ -120,6 +130,15 @@ def _program_refusal(user: dict[str, Any]) -> AdapterError | None:
     command = str(run.get("command") if isinstance(run, dict) else "").replace("\\", "/")
     cloud = _CLOUD_PLUGINS.get(command.rsplit("/", 1)[-1].removesuffix(".exe"))
     if cloud == "gke":
+        cluster = gke_cluster_of(context)
+        if cluster is not None:
+            return _refused(
+                say(
+                    "This kubeconfig signs in through gcloud, which this server does not run; "
+                    "sign in with a Google Cloud account instead and choose the cluster {cluster}",
+                    cluster=cluster,
+                )
+            )
         return _refused(
             say(
                 "This kubeconfig signs in through gcloud, which this server does not run; "
@@ -152,7 +171,7 @@ def from_kubeconfig(text: str, wanted: str) -> Endpoint:
     cluster = _named(config.get("clusters"), str(context.get("cluster") or ""), "cluster")
     user = _named(config.get("users"), str(context.get("user") or ""), "user")
 
-    refusal = _program_refusal(user)
+    refusal = _program_refusal(user, name)
     if refusal is not None:
         raise refusal
     for body in (cluster, user):

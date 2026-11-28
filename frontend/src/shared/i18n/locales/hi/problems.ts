@@ -61,6 +61,7 @@ export const problems: Record<ProblemCode, string> = {
   "cloud_accounts.ambient_off": "यह इंस्टॉलेशन अपनी क्लाउड पहचान उधार नहीं देता",
   "cloud_accounts.ambient_superuser": "केवल सुपरयूज़र ही ऐसा खाता बना सकता है जो इस सर्वर के रूप में साइन इन करे",
   "cloud_accounts.untestable": "इस प्रकार के खातों की अभी जाँच नहीं की जा सकती",
+  "cloud_accounts.no_clusters": "इस प्रकार के खाते यहाँ कोई Kubernetes क्लस्टर नहीं चलाते",
   "paste.same_connection": "दो अलग कनेक्शन चुनें",
   "connectors.no_content_previews": "यह स्रोत सामग्री पूर्वावलोकन का समर्थन नहीं करता",
   "connectors.no_content_stream": "यह स्रोत सामग्री को स्ट्रीम के रूप में नहीं भेजता",

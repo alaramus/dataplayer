@@ -62,6 +62,12 @@ class CloudSqlToken(SecretRequest):
 
 
 @dataclass(frozen=True)
+class GoogleAccessToken(SecretRequest):
+    """A Google OAuth 2 access token of scope `cloud-platform`, valid an hour:
+    what `gke-gcloud-auth-plugin` hands kubectl for a GKE cluster (D477)."""
+
+
+@dataclass(frozen=True)
 class EntraToken(SecretRequest):
     """A Microsoft Entra access token for one resource's scope, valid about
     an hour: Azure's databases and Azure Cache for Redis take it for a password."""
