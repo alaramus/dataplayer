@@ -334,6 +334,10 @@ Engine role, 404 a cluster to choose again. The account's IAM role is what
 RBAC sees (Kubernetes Engine Developer for the test account). A GKE
 connection can carry other connections (D474): the tunnel's context has the
 owner's cloud accounts. **Google Kubernetes Engine** is a card (`gke`).
+A Google service account's JSON key pasted or chosen as a kubeconfig — the
+file people reach for with GKE — is refused by the form with a sentence
+sending it to this way in, where the account field adds the key as a new
+account; the kubeconfig's file button offers `.json`, which kubectl reads too.
 
 *Checked* against a GKE 1.36 Standard cluster with a service account key:
 the list, the check, the catalog and the GKE report; the DNS name refused,

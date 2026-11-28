@@ -6,6 +6,7 @@ and only its data is read: nothing in it is run and no file it names is
 opened.
 """
 
+import json
 import re
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
@@ -18,7 +19,8 @@ from app.adapters.tls import CERTIFICATE, pem
 from app.adapters.tunnels import ssh_tunnel_field
 from app.core.translation import N_, say
 
-KUBECONFIG_FILE = ".yaml,.yml,.conf,.config,.kubeconfig"
+# kubectl reads a kubeconfig written as JSON too, so the picker offers it.
+KUBECONFIG_FILE = ".yaml,.yml,.json,.conf,.config,.kubeconfig"
 # A namespace is a DNS label (RFC 1123).
 NAMESPACE = r"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
 _NAMESPACE = re.compile(NAMESPACE)
@@ -64,6 +66,16 @@ def _ca_field() -> Any:
         ),
         json_schema_extra=layout(multiline=True, file=PEM_FILE),
     )
+
+
+def is_google_key(text: str) -> bool:
+    """Whether pasted text is a Google Cloud service account's JSON key, the
+    file people reach for when a cluster is GKE (D477)."""
+    try:
+        found = json.loads(text)
+    except ValueError:
+        return False
+    return isinstance(found, dict) and found.get("type") == "service_account" and "private_key" in found
 
 
 def checked_namespace(text: str) -> str:
@@ -135,6 +147,13 @@ class KubeconfigOptions(_Common):
         text = value.get_secret_value()
         if not text.strip() or len(text) > _MAX_KUBECONFIG:
             raise ValueError(say("Paste a kubeconfig of at most 256 KB"))
+        if is_google_key(text):
+            raise ValueError(
+                say(
+                    "This is a Google Cloud service account's key, not a kubeconfig: sign in with "
+                    "a Google Cloud account (GKE) and add the key there as a new account"
+                )
+            )
         return value
 
 

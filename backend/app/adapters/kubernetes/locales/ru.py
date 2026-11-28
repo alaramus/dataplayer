@@ -243,4 +243,5 @@ MESSAGES: dict[str, str] = {
     "The cluster has not been read yet": "Кластер ещё не прочитан",
     "The cluster's DNS name takes no traffic from outside Google Cloud; choose its public address": "DNS-имя кластера не принимает трафик извне Google Cloud; выберите публичный адрес",
     "This kubeconfig signs in through gcloud, which this server does not run; sign in with a Google Cloud account instead and choose the cluster {cluster}": "Этот kubeconfig входит через gcloud, которую этот сервер не запускает; войдите аккаунтом Google Cloud и выберите кластер {cluster}",
+    "This is a Google Cloud service account's key, not a kubeconfig: sign in with a Google Cloud account (GKE) and add the key there as a new account": "Это ключ сервисного аккаунта Google Cloud, а не kubeconfig: выберите вход «Аккаунт Google Cloud (GKE)» и добавьте ключ там как новую учётную запись",
 }

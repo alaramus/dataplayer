@@ -21,7 +21,7 @@ from app.adapters.kubernetes.gke import (
     read_cluster,
     report_rows,
 )
-from app.adapters.kubernetes.options import GkeOptions
+from app.adapters.kubernetes.options import GkeOptions, KubeconfigOptions, is_google_key
 from app.adapters.kubernetes.session import KubernetesSession
 from app.adapters.protocol import AdapterError
 
@@ -174,3 +174,18 @@ async def test_a_session_renews_a_token_about_to_run_out(monkeypatch: pytest.Mon
     cloud.seconds = 3600
     assert await session._read_gke() is True
     assert await session._read_gke() is False
+
+
+def test_a_google_key_in_the_kubeconfig_field_is_sent_to_the_gke_way_in() -> None:
+    """The key file is what people reach for with a GKE cluster (D477)."""
+    key = {
+        "type": "service_account",
+        "project_id": "demo-project-1",
+        "private_key": "-----BEGIN PRIVATE KEY-----\nnot-a-key\n-----END PRIVATE KEY-----\n",
+        "client_email": "dataplayer@demo-project-1.iam.gserviceaccount.com",
+    }
+    with pytest.raises(ValidationError, match="service account's key, not a kubeconfig") as refused:
+        KubeconfigOptions.model_validate({"auth": "kubeconfig", "kubeconfig": json.dumps(key)})
+    assert "not-a-key" not in str(refused.value)
+    assert is_google_key(json.dumps(key)) and not is_google_key("apiVersion: v1") and not is_google_key("{}")
+
