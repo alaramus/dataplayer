@@ -148,6 +148,8 @@ export const connectors: Messages["connectors"] = {
   region_default: "默认",
   tunnel: {
     directly: "直接连接",
-    someone_elses: "所有者的 SSH 连接",
+    someone_elses: "所有者的连接",
+    as_seen_by: "{name} 所见的主机",
+    one_of: "{name} 通向的位置之一",
   },
 }

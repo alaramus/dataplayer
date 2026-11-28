@@ -5,7 +5,7 @@ the SSH keys a person signs in with, and a database reached through an SSH
 connection. Read this before changing how an SSH connection signs in, what it
 trusts, where a private key is kept, or how a tunnel is opened.
 
-Decisions here: D144, D145, D146, D147, D153, D154, D266, D282.
+Decisions here: D144, D145, D146, D147, D153, D154, D266, D282, D479.
 
 ```
 backend/app/adapters/
@@ -343,3 +343,26 @@ Known deviations:
   through another tunnel.
 
 Spec: [A database reached through an SSH connection](../../decisions/2026-10-30-ssh-tunnel-design.md)
+
+## D479. "Reach through": the way to a server chosen before its host
+
+The field D282 declares is read as **Reach through**, not "SSH tunnel": an
+SSH connection is one carrier and a Kubernetes cluster another (D474). Its
+stored name stays `ssh_tunnel`. Which types carry what is their capability,
+never a list in the form: `tunnel` (`ForwardsPorts`), `socket_tunnel`
+(`ForwardsSockets`) and `tunnel_targets` (`ListsTunnelTargets`). The field
+says what it needs in `x-ui-tunnel` — a port, with the names of the host and
+port fields it governs, or a socket (Docker's SSH connection, D405) — and the
+form offers only the owner's connections that carry it, each as
+"type · name", and draws it before the row of its host.
+
+With a carrier chosen, the host says whose view it is ("The host as bastion
+sees it"); one that lists where it leads (`GET
+/connectors/{id}/tunnel-targets`, `own`) turns the host into a choice of its
+places, a host typed before kept among them, and choosing one sets the port
+to the place's first unless the port is already one of its ports. A
+Kubernetes cluster lists its Services, then its running pods, at most 500, a
+kind it may not list left out; a place leading to a pod whose image a type
+declares (D417) says the type and offers that server's port first.
+
+Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)

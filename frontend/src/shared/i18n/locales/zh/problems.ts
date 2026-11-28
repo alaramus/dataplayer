@@ -75,6 +75,7 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_content_editing": "此数据源不支持修改内容",
   "connectors.no_browsing": "此数据源不支持浏览",
   "connectors.no_runtime_features": "此数据源未声明其功能",
+  "connectors.no_tunnel_targets": "此连接未说明它通向何处",
   "connectors.page_not_stored": "无法保存页面",
   "mail.not_a_mailbox": "此连接不是邮箱",
   "mail.attachment_not_stored": "无法将附件保存到您的文件夹",

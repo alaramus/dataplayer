@@ -75,6 +75,7 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_content_editing": "यह स्रोत सामग्री बदलने का समर्थन नहीं करता",
   "connectors.no_browsing": "यह स्रोत ब्राउज़ करने का समर्थन नहीं करता",
   "connectors.no_runtime_features": "यह स्रोत अपनी क्षमताएँ घोषित नहीं करता",
+  "connectors.no_tunnel_targets": "यह कनेक्शन नहीं बताता कि यह कहाँ ले जाता है",
   "connectors.page_not_stored": "पेज सहेजा नहीं जा सका",
   "mail.not_a_mailbox": "यह कनेक्शन मेलबॉक्स नहीं है",
   "mail.attachment_not_stored": "अटैचमेंट आपके फ़ोल्डर में नहीं रखा जा सका",

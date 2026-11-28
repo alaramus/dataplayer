@@ -21,7 +21,7 @@ from pydantic import (
 from app.adapters.layout import PEM_FILE, layout
 from app.adapters.options import TUNNEL_REFERENCE
 from app.adapters.tls import CERTIFICATE, pem
-from app.adapters.tunnels import ssh_tunnel_field
+from app.adapters.tunnels import ssh_tunnel_field, tunnel_shape
 from app.core.translation import N_, say
 
 DEFAULT_SOCKET = "/var/run/docker.sock"
@@ -59,7 +59,7 @@ class DockerSshOptions(BaseModel):
         description=N_(
             "One of your SSH connections, signed in to the machine the daemon runs on"
         ),
-        json_schema_extra=layout(purpose=TUNNEL_REFERENCE),
+        json_schema_extra={**layout(purpose=TUNNEL_REFERENCE), **tunnel_shape("socket")},
     )
     socket: str = Field(
         default=DEFAULT_SOCKET,

@@ -75,6 +75,7 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_content_editing": "Cette source ne prend pas en charge la modification du contenu",
   "connectors.no_browsing": "Cette source ne prend pas en charge la navigation",
   "connectors.no_runtime_features": "Cette source ne déclare pas ses fonctionnalités",
+  "connectors.no_tunnel_targets": "Cette connexion ne dit pas où elle mène",
   "connectors.page_not_stored": "La page n'a pas pu être enregistrée",
   "mail.not_a_mailbox": "Cette connexion n’est pas une boîte aux lettres",
   "mail.attachment_not_stored": "La pièce jointe n’a pas pu être enregistrée dans votre dossier",

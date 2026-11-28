@@ -17,7 +17,7 @@ from app.adapters.actions import Action, ActionRefused, ActsOn, ConnectorDraft
 from app.adapters.catalog import NodeKind
 from app.adapters.kubernetes.actions import Kube, NoParams, Target, read, target_of
 from app.adapters.kubernetes.discovery import Resource
-from app.adapters.kubernetes.forward import Reach, pod_port, resolved
+from app.adapters.kubernetes.forward import Reach, resolved, service_port_to
 from app.adapters.kubernetes.reviews import Asked
 from app.adapters.kubernetes.session import Forbidden, segment
 from app.adapters.protocol import AdapterError
@@ -33,12 +33,19 @@ def environment(container: dict[str, Any]) -> dict[str, str]:
     """A container's literal `env`; the first of a repeated name wins."""
     found: dict[str, str] = {}
     for item in container.get("env") or []:
-        if isinstance(item, dict) and "value" in item and item.get("name") and item["name"] not in found:
+        if (
+            isinstance(item, dict)
+            and "value" in item
+            and item.get("name")
+            and item["name"] not in found
+        ):
             found[str(item["name"])] = str(item.get("value") or "")
     return found
 
 
-def declared_in(pod: dict[str, Any]) -> tuple[AdapterType, ContainerImage, dict[str, Any]] | None:
+def declared_in(
+    pod: dict[str, Any],
+) -> tuple[AdapterType, ContainerImage, dict[str, Any]] | None:
     """The first container whose image a type declares, with that type."""
     for container in (pod.get("spec") or {}).get("containers") or []:
         if not isinstance(container, dict):
@@ -46,17 +53,6 @@ def declared_in(pod: dict[str, Any]) -> tuple[AdapterType, ContainerImage, dict[
         declared = type_for_image(str(container.get("image") or ""))
         if declared is not None:
             return declared[0], declared[1], container
-    return None
-
-
-def service_port(service: dict[str, Any], pod: dict[str, Any], port: int) -> int | None:
-    """The Service's TCP port that leads to the pod's `port`."""
-    for one in (service.get("spec") or {}).get("ports") or []:
-        if not isinstance(one, dict) or (one.get("protocol") or "TCP") != "TCP":
-            continue
-        target = one.get("targetPort", one.get("port"))
-        if isinstance(target, int | str) and pod_port(pod, target) == port and isinstance(one.get("port"), int):
-            return int(one["port"])
     return None
 
 
@@ -84,15 +80,27 @@ class OpenAsConnection(Action[NoParams]):
         return self.asked_at(target.resource, target.namespace)
 
     def asked_at(self, resource: Resource, namespace: str | None) -> Asked:
-        return Asked(verb="create", group="", resource="pods", namespace=namespace, subresource="portforward")
+        return Asked(
+            verb="create",
+            group="",
+            resource="pods",
+            namespace=namespace,
+            subresource="portforward",
+        )
 
-    async def _pod_of(self, target: Target) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    async def _pod_of(
+        self, target: Target
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
         """The pod, and the Service when the node is one."""
         body = await read(self._kube, target)
         if target.resource.key == PODS:
             return body, None
         reach = Reach("svc", target.namespace or "", target.name)
-        ports = [one.get("port") for one in (body.get("spec") or {}).get("ports") or [] if isinstance(one, dict)]
+        ports = [
+            one.get("port")
+            for one in (body.get("spec") or {}).get("ports") or []
+            if isinstance(one, dict)
+        ]
         for port in ports:
             if not isinstance(port, int):
                 continue
@@ -105,38 +113,53 @@ class OpenAsConnection(Action[NoParams]):
                 asked=Forbidden("get", "pods"),
             )
             return (pod if isinstance(pod, dict) else {}), body
-        raise ActionRefused("not_applicable", say("No pod behind the service {name} is ready", name=target.name))
+        raise ActionRefused(
+            "not_applicable",
+            say("No pod behind the service {name} is ready", name=target.name),
+        )
 
     async def offered(self, node_id: str) -> bool:
         """Whether a type declares an image of the pod, or of a pod behind the Service."""
         try:
             target = await target_of(self._kube, node_id, set(self.keys))
             pod, _ = await self._pod_of(target)
-        except (ActionRefused, AdapterError):
+        except ActionRefused, AdapterError:
             return False
         return declared_in(pod) is not None
 
-    async def prepare_connector(self, node_id: str | None, raw: Mapping[str, Any]) -> ConnectorDraft:
+    async def prepare_connector(
+        self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ConnectorDraft:
         self._validated(raw)
         if self._connector_id is None:
-            raise ActionRefused("not_applicable", say("Save this connection first; the new one goes through it"))
+            raise ActionRefused(
+                "not_applicable",
+                say("Save this connection first; the new one goes through it"),
+            )
         target = await target_of(self._kube, node_id, set(self.keys))
         pod, service = await self._pod_of(target)
         declared = declared_in(pod)
         if declared is None:
             images = ", ".join(
-                str(one.get("image") or "") for one in (pod.get("spec") or {}).get("containers") or [] if isinstance(one, dict)
+                str(one.get("image") or "")
+                for one in (pod.get("spec") or {}).get("containers") or []
+                if isinstance(one, dict)
             )
-            raise ActionRefused("not_applicable", say("No connection type here runs as {image}", image=images[:200]))
+            raise ActionRefused(
+                "not_applicable",
+                say("No connection type here runs as {image}", image=images[:200]),
+            )
         adapter_type, image, container = declared
         port = image.port
         kind = "pod"
         if service is not None:
-            found = service_port(service, pod, image.port)
+            found = service_port_to(service, pod, image.port)
             if found is None:
                 raise ActionRefused(
                     "not_applicable",
-                    say("The service has no port that leads to {port}", port=image.port),
+                    say(
+                        "The service has no port that leads to {port}", port=image.port
+                    ),
                 )
             port, kind = found, "svc"
         return ConnectorDraft(
@@ -149,3 +172,9 @@ class OpenAsConnection(Action[NoParams]):
                 "ssh_tunnel": self._connector_id,
             },
         )
+
+
+def declared_server(pod: dict[str, Any]) -> tuple[str, int] | None:
+    """The database a pod's image is, by its type's title, and its port (D417)."""
+    found = declared_in(pod)
+    return None if found is None else (say(found[0].title), found[1].port)

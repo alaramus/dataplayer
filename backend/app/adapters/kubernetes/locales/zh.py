@@ -205,4 +205,7 @@ MESSAGES: dict[str, str] = {
     "The service has no port that leads to {port}": "该服务没有通向 {port} 的端口",
     "The service {name} selects no pods": "服务 {name} 未选择任何 Pod",
     "Through a Kubernetes connection the host is <pod>.<namespace>.pod or <service>.<namespace>.svc, not {host}": "经由 Kubernetes 连接时，主机应为 <pod>.<namespace>.pod 或 <service>.<namespace>.svc，而不是 {host}",
+    "Pod {name} in {namespace}": "{namespace} 中的 Pod {name}",
+    "Service {name} in {namespace}": "{namespace} 中的服务 {name}",
+    "The cluster does not let this connection list services or pods": "集群不允许此连接列出服务或 Pod",
 }

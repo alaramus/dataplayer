@@ -38,7 +38,12 @@ from app.adapters.protocol import (
 from app.adapters.reading_on import BookmarkAccess
 from app.adapters.resources import Pooling
 from app.adapters.terminal import SupportsConsoleProgram, SupportsTerminal
-from app.adapters.tunnels import ForwardsPorts, TunnelAccess
+from app.adapters.tunnels import (
+    ForwardsPorts,
+    ForwardsSockets,
+    ListsTunnelTargets,
+    TunnelAccess,
+)
 from app.core.translation import N_, say
 
 
@@ -143,6 +148,8 @@ CapabilityCode = Literal[
     "live_changes",
     "details",
     "tunnel",
+    "socket_tunnel",
+    "tunnel_targets",
 ]
 
 
@@ -435,6 +442,14 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
     if issubclass(driver, ForwardsPorts):
         found.append(
             Capability(group="manage", title=say("Carry other connections through it"), code="tunnel")
+        )
+    if issubclass(driver, ForwardsSockets):
+        found.append(
+            Capability(group="manage", title=say("Reach a Unix socket on its machine"), code="socket_tunnel")
+        )
+    if issubclass(driver, ListsTunnelTargets):
+        found.append(
+            Capability(group="explore", title=say("Say where it leads"), code="tunnel_targets")
         )
     # Said by the type, so a catalog offers Details on every level, greyed
     # until something is ticked, rather than only where a level happens to

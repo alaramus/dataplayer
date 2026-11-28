@@ -152,6 +152,8 @@ export const connectors: Messages["connectors"] = {
   region_default: "डिफ़ॉल्ट",
   tunnel: {
     directly: "सीधे",
-    someone_elses: "मालिक का SSH कनेक्शन",
+    someone_elses: "मालिक का कनेक्शन",
+    as_seen_by: "होस्ट, जैसा {name} उसे देखता है",
+    one_of: "उन जगहों में से एक जहाँ {name} ले जाता है",
   },
 }

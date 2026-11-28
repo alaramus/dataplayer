@@ -10,6 +10,7 @@ import {
   useAdapterTypes,
   useCheckConnector,
   useConnectors,
+  useTunnelTargets,
   useCheckDraft,
   useCreateConnector,
   useDeleteConnector,
@@ -25,7 +26,13 @@ import {
   windowApplies,
 } from "@/features/connectors/cacheWindow"
 import { mergeParsedOptions } from "@/features/connectors/parsedOptions"
-import { withTunnelChoices } from "@/features/connectors/tunnels"
+import {
+  carriersOf,
+  chosenTunnel,
+  portFor,
+  withTunnelChoices,
+  withTunnelHost,
+} from "@/features/connectors/tunnels"
 import { windowPages } from "@/features/connectors/windowPages"
 import CloudAccountDialog from "@/features/cloudAccounts/CloudAccountDialog.vue"
 import { withAccountChoices } from "@/features/cloudAccounts/accounts"
@@ -397,33 +404,64 @@ const regions = useAwsRegions(
 
 // The person's connections a database may go through (D282, D474).
 const connections = useConnectors()
-const carriers = computed(
-  () =>
-    new Set(
-      (adapterTypes.data.value ?? [])
-        .filter((type) => type.capabilities.some((one) => one.code === "tunnel"))
-        .map((type) => type.name)
-    )
+const carriers = computed(() => carriersOf(adapterTypes.data.value ?? []))
+const tunnelWords = computed(() => ({
+  directly: t("connectors.tunnel.directly"),
+  someone_elses: t("connectors.tunnel.someone_elses"),
+  asSeenBy: (name: string) => t("connectors.tunnel.as_seen_by", { name }),
+  oneOf: (name: string) => t("connectors.tunnel.one_of", { name }),
+}))
+// The connection the form goes through, and where it leads when it says (D479).
+const tunnel = computed(() =>
+  chosenTunnel(activeFields.value, optionValues.value, connections.data.value?.data ?? [])
+)
+const tunnelTargets = useTunnelTargets(
+  computed(() => tunnel.value?.connection.id ?? null),
+  computed(() => carriers.value[tunnel.value?.connection.adapter_type ?? ""]?.lists === true)
+)
+const targetsShown = computed(() =>
+  carriers.value[tunnel.value?.connection.adapter_type ?? ""]?.lists === true ? tunnelTargets.data.value : undefined
 )
 
 const groups = computed(() =>
   fieldGroups(
-    withTunnelChoices(
-      withRegionChoices(
-        withAccountChoices(
-          withKeyChoices(activeFields.value, sshKeys.data.value ?? []),
-          cloudAccounts.data.value ?? []
+    withTunnelHost(
+      withTunnelChoices(
+        withRegionChoices(
+          withAccountChoices(
+            withKeyChoices(activeFields.value, sshKeys.data.value ?? []),
+            cloudAccounts.data.value ?? []
+          ),
+          regions.data.value ?? [],
+          optionValues.value,
+          t("connectors.region_default")
         ),
-        regions.data.value ?? [],
+        connections.data.value?.data ?? [],
         optionValues.value,
-        t("connectors.region_default")
+        tunnelWords.value,
+        carriers.value
       ),
-      connections.data.value?.data ?? [],
       optionValues.value,
-      { directly: t("connectors.tunnel.directly"), someone_elses: t("connectors.tunnel.someone_elses") },
-      carriers.value
+      connections.data.value?.data ?? [],
+      targetsShown.value,
+      tunnelWords.value
     )
   )
+)
+
+// A host chosen from a tunnel's places brings its port, unless the port
+// already holds one of them.
+watch(
+  () => {
+    const shape = tunnel.value?.field.tunnel
+    return shape?.host === undefined ? undefined : optionValues.value[shape.host]
+  },
+  (host) => {
+    const portName = tunnel.value?.field.tunnel?.port
+    if (portName === undefined || host === undefined) return
+    const port = portFor(targetsShown.value, host, optionValues.value[portName])
+    if (port !== null) optionValues.value = { ...optionValues.value, [portName]: port }
+  }
 )
 
 /** The key this form signs in with, when it signs in with one of the owner's. */

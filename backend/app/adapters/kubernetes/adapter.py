@@ -61,9 +61,9 @@ from app.adapters.kubernetes.catalog import (
     section_node,
     view_pages,
 )
-from app.adapters.kubernetes.connect import OpenAsConnection
+from app.adapters.kubernetes.connect import OpenAsConnection, declared_server
 from app.adapters.kubernetes.discovery import SECTIONS, Discovery, Resource, Section
-from app.adapters.kubernetes.forward import FORWARDS
+from app.adapters.kubernetes.forward import FORWARDS, listed_targets
 from app.adapters.kubernetes.jobs import Drain
 from app.adapters.kubernetes.options import KubernetesConnection, KubernetesOptions
 from app.adapters.kubernetes.reports import (
@@ -94,7 +94,7 @@ from app.adapters.kubernetes.watch import KubernetesWatch
 from app.adapters.listed import listed_column
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.registry import AdapterContext, CatalogFace, register
-from app.adapters.tunnels import TunnelAccess
+from app.adapters.tunnels import TunnelAccess, TunnelTarget
 from app.core.schemas import get_datetime_utc
 from app.core.translation import N_, say
 
@@ -414,6 +414,10 @@ class KubernetesAdapter:
 
     async def forward(self, host: str, port: int) -> tuple[str, int]:
         return await FORWARDS.endpoint(self._session.options, self._tunnels, host, port)
+
+    async def tunnel_targets(self) -> list[TunnelTarget]:
+        """Services and running pods a form offers as the host (D479)."""
+        return await listed_targets(self._session, self._namespace, declared_server)
 
     # --- a container's logs told as they grow (D473) ---------------------------
 

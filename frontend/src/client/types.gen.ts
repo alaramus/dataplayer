@@ -1930,6 +1930,8 @@ export type Capability = {
     | "live_changes"
     | "details"
     | "tunnel"
+    | "socket_tunnel"
+    | "tunnel_targets"
     | null
 }
 
@@ -12276,6 +12278,7 @@ export type ProblemDetail = {
     | "connectors.no_content_editing"
     | "connectors.no_browsing"
     | "connectors.no_runtime_features"
+    | "connectors.no_tunnel_targets"
     | "connectors.page_not_stored"
     | "mail.not_a_mailbox"
     | "mail.attachment_not_stored"
@@ -17415,6 +17418,27 @@ export type TransactionState = {
 }
 
 /**
+ * TunnelTarget
+ *
+ * Somewhere a connection that carries others can lead (D479): the host a
+ * form fills in, how a person recognises it, and the ports it serves.
+ */
+export type TunnelTarget = {
+  /**
+   * Host
+   */
+  host: string
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Ports
+   */
+  ports?: Array<number>
+}
+
+/**
  * UnavailableTimescaleFacts
  */
 export type UnavailableTimescaleFacts = {
@@ -20221,6 +20245,40 @@ export type connectorsReadSourceFeaturesResponses = {
 
 export type connectorsReadSourceFeaturesResponse =
   connectorsReadSourceFeaturesResponses[keyof connectorsReadSourceFeaturesResponses]
+
+export type connectorsReadTunnelTargetsData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/tunnel-targets"
+}
+
+export type connectorsReadTunnelTargetsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsReadTunnelTargetsError =
+  connectorsReadTunnelTargetsErrors[keyof connectorsReadTunnelTargetsErrors]
+
+export type connectorsReadTunnelTargetsResponses = {
+  /**
+   * Response Connectors-Read Tunnel Targets
+   *
+   * Successful Response
+   */
+  200: Array<TunnelTarget>
+}
+
+export type connectorsReadTunnelTargetsResponse =
+  connectorsReadTunnelTargetsResponses[keyof connectorsReadTunnelTargetsResponses]
 
 export type connectorsDownloadPageData = {
   body: DownloadPageRequest

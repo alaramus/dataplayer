@@ -199,6 +199,7 @@ from app.adapters.table_design import (
     TablePlanRequest,
 )
 from app.adapters.terminal import OpensTerminal
+from app.adapters.tunnels import ListsTunnelTargets, TunnelTarget
 from app.adapters.update import (
     CellsUpdated,
     DeleteRowsRequest,
@@ -1411,6 +1412,31 @@ async def read_source_features(
             ]
         }
     )
+
+
+@router.get("/{connector_id}/tunnel-targets", response_model=list[TunnelTarget])
+async def read_tunnel_targets(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    response: Response,
+    connector_id: uuid.UUID,
+) -> Any:
+    """Where a connection that carries others leads, offered as a form's host
+    (D479). The owner's alone: only an owner's connection is a tunnel (D282)."""
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="own"
+    )
+    if not isinstance(adapter, ListsTunnelTargets):
+        raise Problem(501, "connectors.no_tunnel_targets", error_kind="config")
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await adapter.tunnel_targets()
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
 
 
 @router.post(

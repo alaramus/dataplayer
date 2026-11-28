@@ -23,6 +23,7 @@ import json
 import logging
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -33,7 +34,7 @@ from app.adapters.kubernetes.endpoint import endpoint_of
 from app.adapters.kubernetes.options import KubernetesConnection
 from app.adapters.kubernetes.session import Forbidden, KubernetesSession, segment
 from app.adapters.protocol import AdapterError
-from app.adapters.tunnels import TunnelAccess
+from app.adapters.tunnels import TunnelAccess, TunnelTarget
 from app.core.translation import say
 
 logger = logging.getLogger(__name__)
@@ -78,7 +79,9 @@ def reach_of(host: str) -> Reach:
 
 def _ready(pod: dict[str, Any]) -> bool:
     status = pod.get("status") or {}
-    if status.get("phase") != "Running" or (pod.get("metadata") or {}).get("deletionTimestamp"):
+    if status.get("phase") != "Running" or (pod.get("metadata") or {}).get(
+        "deletionTimestamp"
+    ):
         return False
     return any(
         condition.get("type") == "Ready" and condition.get("status") == "True"
@@ -94,8 +97,14 @@ def pod_port(pod: dict[str, Any], wanted: int | str) -> int | None:
     if wanted.isdigit():
         return int(wanted)
     for container in (pod.get("spec") or {}).get("containers") or []:
-        for port in (container.get("ports") or []) if isinstance(container, dict) else []:
-            if isinstance(port, dict) and port.get("name") == wanted and isinstance(port.get("containerPort"), int):
+        for port in (
+            (container.get("ports") or []) if isinstance(container, dict) else []
+        ):
+            if (
+                isinstance(port, dict)
+                and port.get("name") == wanted
+                and isinstance(port.get("containerPort"), int)
+            ):
                 return int(port["containerPort"])
     return None
 
@@ -104,13 +113,19 @@ def service_target(service: dict[str, Any], port: int) -> int | str:
     """The pod's port behind a Service's `port`; a Service that does not
     serve it is refused."""
     for one in (service.get("spec") or {}).get("ports") or []:
-        if isinstance(one, dict) and one.get("port") == port and (one.get("protocol") or "TCP") == "TCP":
+        if (
+            isinstance(one, dict)
+            and one.get("port") == port
+            and (one.get("protocol") or "TCP") == "TCP"
+        ):
             target = one.get("targetPort")
             return target if isinstance(target, int | str) and target != "" else port
     raise AdapterError("config", say("The service has no TCP port {port}", port=port))
 
 
-async def resolved(session: KubernetesSession, reach: Reach, port: int) -> tuple[str, int]:
+async def resolved(
+    session: KubernetesSession, reach: Reach, port: int
+) -> tuple[str, int]:
     """The running pod and its port that `reach:port` leads to now."""
     namespace = segment(reach.namespace)
     if reach.kind == "pod":
@@ -118,8 +133,13 @@ async def resolved(session: KubernetesSession, reach: Reach, port: int) -> tuple
             f"/api/v1/namespaces/{namespace}/pods/{segment(reach.name)}",
             asked=Forbidden("get", "pods"),
         )
-        if not isinstance(pod, dict) or (pod.get("status") or {}).get("phase") != "Running":
-            raise AdapterError("config", say("The pod {name} is not running", name=reach.name))
+        if (
+            not isinstance(pod, dict)
+            or (pod.get("status") or {}).get("phase") != "Running"
+        ):
+            raise AdapterError(
+                "config", say("The pod {name} is not running", name=reach.name)
+            )
         return reach.name, port
     service = await session.get(
         f"/api/v1/namespaces/{namespace}/services/{segment(reach.name)}",
@@ -128,10 +148,17 @@ async def resolved(session: KubernetesSession, reach: Reach, port: int) -> tuple
     target = service_target(service if isinstance(service, dict) else {}, port)
     selector = ((service or {}).get("spec") or {}).get("selector") or {}
     if not isinstance(selector, dict) or not selector:
-        raise AdapterError("config", say("The service {name} selects no pods", name=reach.name))
+        raise AdapterError(
+            "config", say("The service {name} selects no pods", name=reach.name)
+        )
     pods = await session.get(
         f"/api/v1/namespaces/{namespace}/pods",
-        {"labelSelector": ",".join(f"{key}={value}" for key, value in sorted(selector.items())), "limit": 100},
+        {
+            "labelSelector": ",".join(
+                f"{key}={value}" for key, value in sorted(selector.items())
+            ),
+            "limit": 100,
+        },
         asked=Forbidden("list", "pods"),
     )
     for pod in (pods.get("items") if isinstance(pods, dict) else None) or []:
@@ -139,14 +166,20 @@ async def resolved(session: KubernetesSession, reach: Reach, port: int) -> tuple
             number = pod_port(pod, target)
             if number is not None:
                 return str((pod.get("metadata") or {}).get("name")), number
-    raise AdapterError("config", say("No pod behind the service {name} is ready", name=reach.name))
+    raise AdapterError(
+        "config", say("No pod behind the service {name} is ready", name=reach.name)
+    )
 
 
 class PortForwarder:
     """A port on loopback that reaches one target in one cluster."""
 
     def __init__(
-        self, options: KubernetesConnection, tunnels: TunnelAccess | None, reach: Reach, port: int
+        self,
+        options: KubernetesConnection,
+        tunnels: TunnelAccess | None,
+        reach: Reach,
+        port: int,
     ) -> None:
         self._session = KubernetesSession(options, tunnels)
         self._reach = reach
@@ -175,7 +208,9 @@ class PortForwarder:
             server.close()
         await self._session.close()
 
-    async def _accept(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    async def _accept(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         self._flowing += 1
         try:
             try:
@@ -189,7 +224,9 @@ class PortForwarder:
             except AdapterError as failure:
                 # The driver sees its connection closed; the next `endpoint`
                 # says what went wrong.
-                logger.warning("A Kubernetes port forward did not open: %s", failure.message)
+                logger.warning(
+                    "A Kubernetes port forward did not open: %s", failure.message
+                )
                 writer.close()
                 return
             await _carry(reader, writer, socket)
@@ -198,7 +235,9 @@ class PortForwarder:
             self._used_at = time.monotonic()
 
 
-async def _carry(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, socket: ClientConnection) -> None:
+async def _carry(
+    reader: asyncio.StreamReader, writer: asyncio.StreamWriter, socket: ClientConnection
+) -> None:
     """Both directions until either ends: the protocol has no half-close."""
 
     async def outward() -> None:
@@ -220,13 +259,16 @@ async def _carry(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, soc
                 writer.write(payload)
                 await writer.drain()
             elif channel == _ERROR and payload:
-                logger.info("A Kubernetes port forward failed: %s", payload[:300].decode(errors="replace"))
+                logger.info(
+                    "A Kubernetes port forward failed: %s",
+                    payload[:300].decode(errors="replace"),
+                )
                 return
 
     tasks = [asyncio.create_task(outward()), asyncio.create_task(inward())]
     try:
         await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-    except (ConnectionClosed, OSError):
+    except ConnectionClosed, OSError:
         pass
     finally:
         for task in tasks:
@@ -241,7 +283,14 @@ async def _carry(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, soc
 def _identity(options: KubernetesConnection) -> str:
     """Which cluster and as whom, without keeping a credential as a key."""
     endpoint = endpoint_of(options)
-    parts = (endpoint.server, endpoint.server_name, endpoint.ca, endpoint.token, endpoint.client_certificate, endpoint.client_key)
+    parts = (
+        endpoint.server,
+        endpoint.server_name,
+        endpoint.ca,
+        endpoint.token,
+        endpoint.client_certificate,
+        endpoint.client_key,
+    )
     return hashlib.sha256(json.dumps(parts).encode()).hexdigest()
 
 
@@ -252,7 +301,11 @@ class Forwards:
     _forwarders: dict[tuple[str, str, int], PortForwarder] = field(default_factory=dict)
 
     async def endpoint(
-        self, options: KubernetesConnection, tunnels: TunnelAccess | None, host: str, port: int
+        self,
+        options: KubernetesConnection,
+        tunnels: TunnelAccess | None,
+        host: str,
+        port: int,
     ) -> tuple[str, int]:
         reach = reach_of(host)
         await self._sweep()
@@ -266,8 +319,174 @@ class Forwards:
 
     async def _sweep(self) -> None:
         loop = asyncio.get_running_loop()
-        for key in [key for key, one in self._forwarders.items() if one.loop is loop and one.idle()]:
+        for key in [
+            key
+            for key, one in self._forwarders.items()
+            if one.loop is loop and one.idle()
+        ]:
             await self._forwarders.pop(key).close()
 
 
 FORWARDS = Forwards()
+
+
+# How many places a form is offered; a cluster with more is typed into.
+MAX_TARGETS = 500
+
+
+def _selects(selector: dict[str, Any], pod: dict[str, Any]) -> bool:
+    labels = (pod.get("metadata") or {}).get("labels") or {}
+    return bool(selector) and all(
+        labels.get(key) == value for key, value in selector.items()
+    )
+
+
+def _pod_ports(pod: dict[str, Any]) -> list[int]:
+    found: list[int] = []
+    for container in (pod.get("spec") or {}).get("containers") or []:
+        for port in (
+            (container.get("ports") or []) if isinstance(container, dict) else []
+        ):
+            number = port.get("containerPort") if isinstance(port, dict) else None
+            if (
+                isinstance(number, int)
+                and (port.get("protocol") or "TCP") == "TCP"
+                and number not in found
+            ):
+                found.append(number)
+    return found
+
+
+def _first(ports: list[int], wanted: int | None) -> list[int]:
+    if wanted is None:
+        return ports
+    return [wanted, *(port for port in ports if port != wanted)]
+
+
+def targets_of(
+    services: list[dict[str, Any]],
+    pods: list[dict[str, Any]],
+    declared: Callable[[dict[str, Any]], tuple[str, int] | None],
+) -> list[TunnelTarget]:
+    """Services, then running pods, as places a form offers (D479).
+
+    `declared` names the database a pod's image is and the port it serves
+    (D417); a target leading to one says so and offers that port first.
+    """
+    found: list[TunnelTarget] = []
+    running = [
+        pod for pod in pods if (pod.get("status") or {}).get("phase") == "Running"
+    ]
+    for service in services:
+        metadata = service.get("metadata") or {}
+        spec = service.get("spec") or {}
+        name, namespace = (
+            str(metadata.get("name") or ""),
+            str(metadata.get("namespace") or ""),
+        )
+        ports = [
+            one["port"]
+            for one in spec.get("ports") or []
+            if isinstance(one, dict)
+            and isinstance(one.get("port"), int)
+            and (one.get("protocol") or "TCP") == "TCP"
+        ]
+        if not name or not namespace or not ports:
+            continue
+        label = say("Service {name} in {namespace}", name=name, namespace=namespace)
+        selector = spec.get("selector") or {}
+        behind = [
+            pod
+            for pod in running
+            if (pod.get("metadata") or {}).get("namespace") == namespace
+            and _selects(selector, pod)
+        ]
+        wanted = None
+        for pod in behind:
+            known = declared(pod)
+            if known is not None:
+                label = f"{label} · {known[0]}"
+                wanted = service_port_to(service, pod, known[1])
+                break
+        found.append(
+            TunnelTarget(
+                host=f"{name}.{namespace}.svc",
+                label=label[:300],
+                ports=_first(ports, wanted)[:50],
+            )
+        )
+    for pod in running:
+        metadata = pod.get("metadata") or {}
+        name, namespace = (
+            str(metadata.get("name") or ""),
+            str(metadata.get("namespace") or ""),
+        )
+        if not name or not namespace:
+            continue
+        ports = _pod_ports(pod)
+        label = say("Pod {name} in {namespace}", name=name, namespace=namespace)
+        known = declared(pod)
+        if known is not None:
+            label = f"{label} · {known[0]}"
+            ports = _first(ports, known[1])
+        if not ports:
+            continue
+        found.append(
+            TunnelTarget(
+                host=f"{name}.{namespace}.pod", label=label[:300], ports=ports[:50]
+            )
+        )
+    return found[:MAX_TARGETS]
+
+
+def service_port_to(
+    service: dict[str, Any], pod: dict[str, Any], port: int
+) -> int | None:
+    """The Service's TCP port that leads to the pod's `port`."""
+    for one in (service.get("spec") or {}).get("ports") or []:
+        if not isinstance(one, dict) or (one.get("protocol") or "TCP") != "TCP":
+            continue
+        target = one.get("targetPort", one.get("port"))
+        if (
+            isinstance(target, int | str)
+            and pod_port(pod, target) == port
+            and isinstance(one.get("port"), int)
+        ):
+            return int(one["port"])
+    return None
+
+
+async def listed_targets(
+    session: KubernetesSession,
+    namespace: str | None,
+    declared: Callable[[dict[str, Any]], tuple[str, int] | None],
+) -> list[TunnelTarget]:
+    """What the connection reaches, as far as it may list (D479): a kind the
+    cluster will not list to it is left out rather than failing the form."""
+    base = (
+        "/api/v1" if namespace is None else f"/api/v1/namespaces/{segment(namespace)}"
+    )
+    lists: list[list[dict[str, Any]]] = []
+    refusals = 0
+    for resource in ("services", "pods"):
+        params: dict[str, str | int] = {"limit": MAX_TARGETS}
+        if resource == "pods":
+            params["fieldSelector"] = "status.phase=Running"
+        try:
+            body = await session.get(
+                f"{base}/{resource}", params, asked=Forbidden("list", resource)
+            )
+        except AdapterError as failure:
+            if failure.error_kind != "auth":
+                raise
+            refusals += 1
+            body = {}
+        items = body.get("items") if isinstance(body, dict) else None
+        lists.append([one for one in items or [] if isinstance(one, dict)])
+    if refusals == 2:
+        raise AdapterError(
+            "auth",
+            say("The cluster does not let this connection list services or pods"),
+        )
+    services, pods = lists
+    return targets_of(services, pods, declared)

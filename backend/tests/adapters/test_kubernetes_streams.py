@@ -9,8 +9,14 @@ import pytest
 from app.adapters.changes import Changed
 from app.adapters.kubernetes.adapter import KubernetesAdapter
 from app.adapters.kubernetes.catalog import object_id, page_id
-from app.adapters.kubernetes.connect import declared_in, environment, service_port
-from app.adapters.kubernetes.forward import pod_port, reach_of, service_target
+from app.adapters.kubernetes.connect import declared_in, environment
+from app.adapters.kubernetes.forward import (
+    pod_port,
+    reach_of,
+    service_port_to,
+    service_target,
+    targets_of,
+)
 from app.adapters.kubernetes.terminal import exit_code
 from app.adapters.kubernetes.watch import logs_followed
 from app.adapters.protocol import AdapterError
@@ -35,8 +41,8 @@ def test_a_service_port_is_followed_to_the_pod() -> None:
     assert pod_port(pod, service_target(service, 5432)) == 5433
     with pytest.raises(AdapterError, match="TCP port 53"):
         service_target(service, 53)
-    assert service_port(service, pod, 5433) == 5432
-    assert service_port(service, pod, 9999) is None
+    assert service_port_to(service, pod, 5433) == 5432
+    assert service_port_to(service, pod, 9999) is None
 
 
 def test_a_draft_reads_literal_values_only() -> None:
@@ -153,3 +159,30 @@ async def test_a_pod_without_a_database_is_not_offered_as_a_connection(adapter: 
     listed = await adapter.list_children(f"ns/{stand.NAMESPACE}/k/core/pods")
     # A row cannot read the image, so it names the action; the node itself does not.
     assert "kubernetes_open_as_connection" in (getattr(listed[0], "actions", None) or [])
+
+
+def test_a_form_is_offered_services_then_pods_with_the_databases_port_first() -> None:
+    db = {
+        "metadata": {"name": "pg-0", "namespace": "data", "labels": {"app": "pg"}},
+        "spec": {"containers": [{"image": "postgres:18", "ports": [{"containerPort": 9187}, {"containerPort": 5432}]}]},
+        "status": {"phase": "Running"},
+    }
+    stopped = {"metadata": {"name": "old", "namespace": "data"}, "status": {"phase": "Succeeded"}}
+    service = {
+        "metadata": {"name": "pg", "namespace": "data"},
+        "spec": {"selector": {"app": "pg"}, "ports": [{"port": 9187}, {"port": 5433, "targetPort": 5432}]},
+    }
+    portless = {"metadata": {"name": "headless", "namespace": "data"}, "spec": {"ports": []}}
+
+    def declared(pod: dict[str, Any]) -> tuple[str, int] | None:
+        return ("PostgreSQL", 5432) if "postgres" in str(pod) else None
+
+    found = targets_of([service, portless], [db, stopped], declared)
+    assert [(one.host, one.ports) for one in found] == [("pg.data.svc", [5433, 9187]), ("pg-0.data.pod", [5432, 9187])]
+    assert all("PostgreSQL" in one.label for one in found)
+
+
+async def test_the_stand_says_where_it_leads(adapter: KubernetesAdapter) -> None:
+    hosts = {one.host: one.ports for one in await adapter.tunnel_targets()}
+    assert hosts["kube-dns.kube-system.svc"][:1] == [53]
+    assert any(host.endswith(".kube-system.pod") for host in hosts)

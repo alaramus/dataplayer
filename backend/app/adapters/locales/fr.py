@@ -251,4 +251,8 @@ MESSAGES: dict[str, str] = {
     "X.509 certificate": "Certificat X.509",
     "X.509 sign-in needs TLS and a client certificate on the TLS page": "La connexion par X.509 exige TLS et un certificat client sur la page TLS",
     "Carry other connections through it": "Faire passer d'autres connexions par elle",
+    "Reach through": "Passer par",
+    "Directly, or through one of your connections that carries others: an SSH server or a Kubernetes cluster": "Directement, ou par l'une de vos connexions qui en fait passer d'autres : un serveur SSH ou un cluster Kubernetes",
+    "Reach a Unix socket on its machine": "Atteindre un socket Unix sur sa machine",
+    "Say where it leads": "Dire où elle mène",
 }

@@ -75,6 +75,7 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_content_editing": "Источник не поддерживает изменение содержимого",
   "connectors.no_browsing": "Источник не поддерживает обзор",
   "connectors.no_runtime_features": "Источник не сообщает о своих возможностях",
+  "connectors.no_tunnel_targets": "Это подключение не сообщает, куда ведёт",
   "connectors.page_not_stored": "Не удалось сохранить страницу",
   "mail.not_a_mailbox": "Это подключение — не почтовый ящик",
   "mail.attachment_not_stored": "Не удалось сохранить вложение в вашу папку",

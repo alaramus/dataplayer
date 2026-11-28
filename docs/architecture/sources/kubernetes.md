@@ -258,10 +258,11 @@ server's, its tunnel this connection. A node's menu reads the pod for the
 image; a listed row cannot, so it names the action and the run refuses an
 image no type declares.
 
+A form choosing this connection as its way through is offered the cluster's
+Services and pods as the host (D479, in [ssh.md](ssh.md)).
+
 Known deviations: a Kubernetes connection that itself goes through an SSH
-tunnel carries nothing, as a tunnel does not go through another; the form
-field keeps its title "SSH tunnel"; Docker's socket field (D405) lists a
-Kubernetes connection too, and choosing it is refused when the daemon is
-reached; the WebSocket has no half-close, so either side ending ends both.
+tunnel carries nothing, as a tunnel does not go through another; the
+WebSocket has no half-close, so either side ending ends both.
 
 Spec: [2026-11-28-kubernetes-source-design.md](../../decisions/2026-11-28-kubernetes-source-design.md)

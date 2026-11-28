@@ -248,4 +248,8 @@ MESSAGES: dict[str, str] = {
     "X.509 certificate": "شهادة X.509",
     "X.509 sign-in needs TLS and a client certificate on the TLS page": "يحتاج تسجيل الدخول عبر X.509 إلى TLS وشهادة عميل في صفحة TLS",
     "Carry other connections through it": "تمرير اتصالات أخرى عبره",
+    "Reach through": "الاتصال عبر",
+    "Directly, or through one of your connections that carries others: an SSH server or a Kubernetes cluster": "مباشرةً، أو عبر أحد اتصالاتك التي تمرّر غيرها: خادم SSH أو عنقود Kubernetes",
+    "Reach a Unix socket on its machine": "الوصول إلى مقبس Unix على جهازه",
+    "Say where it leads": "إخبار إلى أين يؤدي",
 }

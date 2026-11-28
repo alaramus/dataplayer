@@ -245,3 +245,18 @@ export function useParseUrl() {
       (await ConnectorsService.parseUrl({ body })).data,
   })
 }
+
+/**
+ * Where a connection that carries others leads (D479), for the host of a form
+ * going through it. Asked only of a type that says it lists them.
+ */
+export function useTunnelTargets(connectorId: Ref<string | null>, enabled: Ref<boolean>) {
+  return useQuery({
+    queryKey: computed(() => ["connectors", connectorId.value, "tunnel-targets"] as const),
+    queryFn: async () =>
+      (await ConnectorsService.readTunnelTargets({ path: { connector_id: connectorId.value as string } })).data,
+    enabled: computed(() => enabled.value && connectorId.value !== null),
+    staleTime: 30_000,
+    retry: false,
+  })
+}

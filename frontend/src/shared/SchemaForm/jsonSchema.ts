@@ -70,6 +70,12 @@ export interface JsonSchemaProperty {
   /** The kinds of cloud account a `cloud-account` field takes (D451). */
   "x-ui-account-kind"?: string[]
   /**
+   * What an `ssh-connection` field's connection must carry — a TCP port, or a
+   * Unix socket on its machine (D405) — and, for a port, the fields holding
+   * the host and the port it leads to (D479).
+   */
+  "x-ui-tunnel"?: TunnelShape
+  /**
    * A field whose value is typed rather than chosen while this other field is
    * filled: an S3 region once an endpoint names another provider's store (D461).
    */
@@ -87,6 +93,12 @@ export interface JsonSchemaProperty {
    * field with no type at all.
    */
   anyOf?: JsonSchemaProperty[]
+}
+
+export interface TunnelShape {
+  carries: "port" | "socket"
+  host?: string
+  port?: string
 }
 
 /** One member of a union, always a reference into `$defs`. */
@@ -154,6 +166,8 @@ export interface FieldSpec {
   purpose?: JsonSchemaProperty["x-ui-purpose"]
   /** The kinds of cloud account the field takes, when it takes one. */
   accountKinds?: string[]
+  /** What the connection it names must carry, and where to (D479). */
+  tunnel?: TunnelShape
   /** The field that, filled, makes this one typed rather than chosen. */
   typedWhen?: string
   /**
@@ -279,6 +293,7 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     file: property["x-ui-file"],
     purpose: property["x-ui-purpose"],
     accountKinds: property["x-ui-account-kind"],
+    tunnel: property["x-ui-tunnel"],
     typedWhen: property["x-ui-typed-when"],
     group: property.group ?? DEFAULT_GROUP,
     row: property.row,

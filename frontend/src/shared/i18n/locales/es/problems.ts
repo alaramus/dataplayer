@@ -75,6 +75,7 @@ export const problems: Record<ProblemCode, string> = {
   "connectors.no_content_editing": "Esta fuente no admite la edición de contenido",
   "connectors.no_browsing": "Esta fuente no admite la navegación",
   "connectors.no_runtime_features": "Esta fuente no declara sus capacidades",
+  "connectors.no_tunnel_targets": "Esta conexión no dice adónde lleva",
   "connectors.page_not_stored": "No se pudo guardar la página",
   "mail.not_a_mailbox": "Esta conexión no es un buzón",
   "mail.attachment_not_stored": "No se pudo guardar el adjunto en su carpeta",

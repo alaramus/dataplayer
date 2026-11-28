@@ -205,4 +205,7 @@ MESSAGES: dict[str, str] = {
     "The service has no port that leads to {port}": "Der Service hat keinen Port, der zu {port} führt",
     "The service {name} selects no pods": "Der Service {name} wählt keine Pods aus",
     "Through a Kubernetes connection the host is <pod>.<namespace>.pod or <service>.<namespace>.svc, not {host}": "Über eine Kubernetes-Verbindung ist der Host <Pod>.<Namespace>.pod oder <Service>.<Namespace>.svc, nicht {host}",
+    "Pod {name} in {namespace}": "Pod {name} in {namespace}",
+    "Service {name} in {namespace}": "Service {name} in {namespace}",
+    "The cluster does not let this connection list services or pods": "Der Cluster erlaubt dieser Verbindung nicht, Services oder Pods aufzulisten",
 }

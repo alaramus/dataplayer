@@ -75,6 +75,7 @@ export const problems: Record<ProblemDetail["code"], string> = {
   "connectors.no_content_editing": "هذا المصدر لا يدعم تحرير المحتوى",
   "connectors.no_browsing": "هذا المصدر لا يدعم التصفح",
   "connectors.no_runtime_features": "هذا المصدر لا يبلّغ عن ميزات التشغيل",
+  "connectors.no_tunnel_targets": "هذا الاتصال لا يخبر إلى أين يؤدي",
   "connectors.page_not_stored": "تعذّر تخزين الصفحة",
   "mail.not_a_mailbox": "هذا الاتصال ليس صندوق بريد",
   "mail.attachment_not_stored": "تعذّر حفظ المرفق في مجلدك",

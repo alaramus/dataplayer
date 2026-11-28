@@ -153,6 +153,8 @@ export const connectors: Messages["connectors"] = {
   region_default: "الافتراضية",
   tunnel: {
     directly: "مباشرةً",
-    someone_elses: "اتصال SSH الخاص بالمالك",
+    someone_elses: "اتصال المالك",
+    as_seen_by: "المضيف كما يراه {name}",
+    one_of: "أحد الأماكن التي يؤدي إليها {name}",
   },
 }

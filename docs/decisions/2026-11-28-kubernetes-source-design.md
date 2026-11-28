@@ -275,6 +275,23 @@ connection names this one as its tunnel, host `<pod>.<namespace>.pod` or
 environment by the target's conventions when they are literal values, never
 from a Secret the connection may not read; `own` required.
 
+## Reach through (D479, after slice 3)
+
+**D479. The way to a server is chosen before its host, and a cluster offers
+its places.** Once a Kubernetes cluster carried other connections (D474),
+the field every address shares could no longer be called "SSH tunnel": a
+person with a database in a cluster would never look there, and the host
+`<pod>.<namespace>.pod` was a shape nobody could guess. Rejected: a second
+field for Kubernetes beside the SSH one, since one connection goes through
+one way, and two fields would have to forbid each other. Chosen: the field is
+"Reach through", offering every owned connection whose type carries what it
+needs, labelled with its type and placed before the host, since it changes
+what the host means; a carrier that can say where it leads turns the host
+into a choice of those places and fills the port. Which types carry, and
+which list, is said by their capabilities, so the form keeps no list of
+types. Docker's SSH connection needs a socket rather than a port, which only
+SSH carries, and is offered only those.
+
 ## Metrics, search and export (D475–D476, slice 4)
 
 **D475. Metrics from `metrics.k8s.io`** where the cluster serves it (k3s and

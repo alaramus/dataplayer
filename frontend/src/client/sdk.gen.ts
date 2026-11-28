@@ -345,6 +345,9 @@ import type {
   connectorsReadSourceFeaturesData,
   connectorsReadSourceFeaturesErrors,
   connectorsReadSourceFeaturesResponses,
+  connectorsReadTunnelTargetsData,
+  connectorsReadTunnelTargetsErrors,
+  connectorsReadTunnelTargetsResponses,
   connectorsRenameColumnData,
   connectorsRenameColumnErrors,
   connectorsRenameColumnResponses,
@@ -2056,6 +2059,27 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/features",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Tunnel Targets
+   *
+   * Where a connection that carries others leads, offered as a form's host
+   * (D479). The owner's alone: only an owner's connection is a tunnel (D282).
+   */
+  public static readTunnelTargets<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadTunnelTargetsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsReadTunnelTargetsResponses,
+      connectorsReadTunnelTargetsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/tunnel-targets",
       ...options,
     })
   }

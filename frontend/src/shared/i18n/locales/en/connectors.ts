@@ -150,6 +150,8 @@ export const connectors = {
   region_default: "Default",
   tunnel: {
     directly: "Directly",
-    someone_elses: "The owner's SSH connection",
+    someone_elses: "The owner's connection",
+    as_seen_by: "The host as {name} sees it",
+    one_of: "One of the places {name} leads to",
   },
 }
