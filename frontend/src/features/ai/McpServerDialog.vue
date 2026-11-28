@@ -80,6 +80,7 @@ async function save() {
         :label="t('ai.mcp_servers.name')"
         :error="error"
         autofocus
+        autocomplete="off"
         data-testid="mcp-server-name"
       />
       <AppInput
@@ -87,6 +88,7 @@ async function save() {
         :label="t('ai.mcp_servers.url')"
         :hint="t('ai.mcp_servers.url_hint')"
         monospace
+        autocomplete="off"
         data-testid="mcp-server-url"
       />
       <AppInput
@@ -94,6 +96,7 @@ async function save() {
         type="password"
         :label="t('ai.mcp_servers.token')"
         :hint="server?.has_token ? t('ai.mcp_servers.token_kept') : t('ai.mcp_servers.token_hint')"
+        autocomplete="new-password"
         data-testid="mcp-server-token"
       />
       <AppCheckbox
@@ -112,12 +115,14 @@ async function save() {
           <AppInput
             v-model="row.name"
             :label="t('ai.mcp_servers.header_name')"
+            autocomplete="off"
             :data-testid="`mcp-server-header-name-${index}`"
           />
           <AppInput
             v-model="row.value"
             type="password"
             :label="t('ai.mcp_servers.header_value')"
+            autocomplete="new-password"
             :placeholder="kept(row.name) ? t('ai.mcp_servers.header_kept') : ''"
             :data-testid="`mcp-server-header-value-${index}`"
           />
